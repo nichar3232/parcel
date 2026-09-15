@@ -154,13 +154,33 @@ export function useVault() {
     if (!current.current) throw Error('Connect to your vault first.');
     if (pendingRequest.current)
       throw Error('Resolve the saved action before requesting a quote.');
-    return post<Quote>('/api/vault/quote', {
+    const started = performance.now();
+    const result = await post<Quote>('/api/vault/quote', {
       csrf: current.current.csrf,
       key: requestKey(),
       input: JSON.stringify({ revision: current.current.revision, terms }),
     });
+    return {
+      ...result,
+      reviewDeadline: started + result.expiresAt - result.issuedAt,
+    };
+  }
+  async function closeQuote(positionId: string) {
+    if (!current.current || pendingRequest.current)
+      throw Error('Resolve pending actions and connect to your vault first.');
+    const started = performance.now();
+    const result = await post<Quote>('/api/vault/quote', {
+      csrf: current.current.csrf,
+      key: requestKey(),
+      input: JSON.stringify({ revision: current.current.revision, positionId }),
+    });
+    return {
+      ...result,
+      reviewDeadline: started + result.expiresAt - result.issuedAt,
+    };
   }
   return {
+    closeQuote,
     state,
     busy,
     pending,

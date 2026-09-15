@@ -1,62 +1,42 @@
 [
   {
-    "text": "Strata makes stock protection understandable and verifiable. This is the working application, with a persistent backend and historical NVIDIA market data.",
-    "start": 0.49820345800000004,
-    "duration": 8.92
+    "text": "Oddlot lets you size equity options to your actual exposure. One share is a denomination, not a minimum lot. This is the working product: historical NVIDIA prices, model premiums, and disclosed test liquidity. Our vault executes on a private Solana validator.",
+    "duration": 16.306621,
+    "start": 0.0000015419999999721767
   },
   {
-    "text": "Choose a bounded put spread. One hundred share equivalents, a one hundred twenty to one hundred forty dollar range, and an illustrative four hundred dollar premium.",
-    "start": 10.56004875,
-    "duration": 9.3
+    "text": "Start with cash and stock deposits. These move real SPL test tokens into program controlled escrow. Both sides of a contract must be funded, and pledged collateral cannot be spent twice.",
+    "duration": 11.205805,
+    "start": 17.007196375
   },
   {
-    "text": "First, fund a real Solana contract. The maker deposits the full two thousand dollar maximum payout into program controlled test token escrow.",
-    "start": 20.997629832999998,
-    "duration": 8.73
+    "text": "Underwrite exactly one third of a share. The covered call chart includes the stock: a sharp decline still loses money despite collecting premium. The final confirmation lists the strike, side, ratio, exact price, and remaining collateral before we execute.",
+    "duration": 15.809297,
+    "start": 28.914632207999997
   },
   {
-    "text": "The holder accepts those exact terms. These are separate test wallets on an isolated Solana validator. The ninety second observation clock is now running.",
-    "start": 30.863275792,
-    "duration": 8.87
+    "text": "Smaller contracts do not erase exercise funding. This long call needs one hundred forty five dollars of strike cash plus its premium. Reducing the quantity to one tenth reduces both dollar amounts. Cash settled spreads provide a different, bounded alternative.",
+    "duration": 15.338821,
+    "start": 45.424659667
   },
   {
-    "text": "While that contract matures, the practice desk shows the same lifecycle. Request a quote, switch to the maker, and reserve its maximum payout.",
-    "start": 40.867626167000005,
-    "duration": 8.86
+    "text": "Structures combine up to four explicit option legs. Here a cash settled call spread caps the payoff and its reserve. Cross collateral only offsets obligations sharing the same reference, expiration, and settlement type.",
+    "duration": 13.016961,
+    "start": 61.464071542
   },
   {
-    "text": "The funded offer makes the premium and collateral visible before acceptance. Cash moves only after the holder accepts. The backend saves every transition.",
-    "start": 50.846392791999996,
-    "duration": 9
+    "text": "The stock borrower actually sells the borrowed shares. It pays for a covered protective call and escrows the maximum repurchase cost plus interest. The test market reserves the backing stock. This demonstrates productive borrowing, but it does not claim an external lender or market maker.",
+    "duration": 16.091882,
+    "start": 75.18087120800001
   },
   {
-    "text": "A missing observation must never release collateral. Here the contract waits for data, then settles against the exact committed historical close of one hundred eighteen dollars and forty two cents.",
-    "start": 60.985255708,
-    "duration": 10.71
+    "text": "The risk view connects the contracts to available capital. It shows exactly which cash and stock are reserved. The program independently calculates the same obligations, so a mismatched backend result cannot commit.",
+    "duration": 12.446349,
+    "start": 91.972135292
   },
   {
-    "text": "The holder claims two thousand dollars. The maker claims the remainder. Both claims close the contract, and the portfolio reconciles every unit.",
-    "start": 72.806211375,
-    "duration": 8.57
-  },
-  {
-    "text": "The replay makes the outcome tangible. The stock lost two thousand four hundred twenty dollars. After the hedge and premium, the combined loss is eight hundred twenty.",
-    "start": 82.5215605,
-    "duration": 9.13
-  },
-  {
-    "text": "Tokenized stocks also introduce basis and issuer risks. A simulated token discount shows what an equity reference hedge cannot cover. Borrowing remains clearly separated from verified execution.",
-    "start": 92.760531458,
-    "duration": 11.66
-  },
-  {
-    "text": "Now return to the real Solana contract. Its historical observation was committed before funding. Settlement fixes each entitlement, and the program pays both parties exactly once.",
-    "start": 105.562413792,
-    "duration": 10.78
-  },
-  {
-    "text": "The escrow is empty, and every confirmed transaction can be inspected. Strata is a working test value demonstrator: clear payoffs, fully reserved obligations, and recoverable settlement.",
-    "start": 124.97380650000001,
-    "duration": 11.6
+    "text": "Advance to the stored expiry. Options settle together and the borrower repurchases the loaned stock. Activity records the confirmed Solana transaction and verified slot. After the last historical session, restart the replay without losing the audit receipts.",
+    "duration": 14.810975,
+    "start": 105.119822625
   }
 ]

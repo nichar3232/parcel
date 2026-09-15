@@ -125,3 +125,16 @@ export function bounded(legs: Leg[]) {
     ) < 1e-9
   );
 }
+
+export function strategyPnl(
+  terms: OrderTerms,
+  settlementPrice: number,
+  stockEntry: number,
+  premium: number,
+  stockQuantity = 0,
+) {
+  return add(
+    add(cashPayoff(terms, settlementPrice), -round(premium)),
+    mul(stockQuantity, round(settlementPrice - stockEntry)),
+  );
+}

@@ -4,9 +4,9 @@
 
 [![CI](https://github.com/nichar3232/oddlot/actions/workflows/ci.yml/badge.svg)](https://github.com/nichar3232/oddlot/actions/workflows/ci.yml)
 
-A unified equity workspace for granular options, covered underwriting, stock lending, protected shorts and structured contracts. One contract represents one share-equivalent; quantities support six decimal places.
+A unified equity workspace for granular options, covered underwriting, stock lending, protected shorts and structured contracts. Size exposure in share-equivalents, including fractional quantities to six decimals; one share is a denomination, not a minimum lot. A contract must have a nonzero payable obligation.
 
-Oddlot is a working **private test-asset product**. Its Node API and SQLite vault ledger execute every deposit, reserve, trade, loan and settlement shown in the interface. The retained Strata desk at `/legacy` separately executes real SPL test-token escrow on an isolated Solana validator. The new vault ledger is not onchain custody or a live brokerage.
+Oddlot is a working **private test-asset product**. The same-origin Node API supports a persistent keyless sandbox and **Oddlot program execution on a pinned private Solana validator**. In localnet mode, SPL test tokens back the vault and the program independently executes transfers, option deliveries, lending, protected shorts and cross collateral; SQLite indexes confirmed results. Both modes use funded test counterparties and historical prices. This is not a live brokerage or a source of external liquidity. The original Strata spread desk remains at `/legacy`.
 
 ![Oddlot vault workspace](docs/audit/oddlot/overview.png)
 
@@ -28,7 +28,7 @@ Use Node 22.23.2 from `.nvmrc`. Open `http://localhost:3025`. This single server
 - **Options:** one-share and fractional calls/puts, physical assignment, server-issued 30-second quotes, close-out and atomic expiry settlement.
 - **Underwriting:** covered calls lock shares; cash-secured puts lock strike cash. Counterparty obligations are also reserved.
 - **Structures:** call/put spreads, straddles, strangles, iron condors, butterflies, collars, and capped dividend-reference contracts. Edit up to four legs and whole-number ratios.
-- **Stock lending:** the test borrower prefunds 150% opening-value cash collateral plus term interest; principal shares remain earmarked. Recall returns shares and accrued interest.
+- **Stock lending:** the test borrower sells the stock, buys market-backed call protection, and escrows the capped repurchase amount plus term interest. Recall repurchases principal and credits accrued interest; the market cannot reuse pledged protection stock.
 - **Long/short stock:** spot longs are cash funded. Shorts pair the borrow with a covered protective call, and reserve the maximum repurchase cost plus term interest.
 - **Cross collateral:** only net obligations within identical reference, expiry and settlement groups. No offsets across dates, references, settlement types or outside lenders. Isolated mode is also enforced.
 - **Activity:** persistent receipts, transaction history, export, stale-tab protection and safe HTTP retries, including pending-action recovery after reload.
@@ -44,7 +44,8 @@ Start by depositing one NVDA share, choose **Underwrite → Covered call**, revi
 | `lib/oddlot/` | Types, six-decimal arithmetic, Greeks, templates and collateral envelopes |
 | `server/oddlot/service.ts` | Session ownership, quote lifecycle, atomic actions and receipts |
 | `server/oddlot/ledger.ts` | Asset transfers, loans, protected shorts and net expiry settlement |
-| `server/db/002-vaults.sql` | Versioned vault accounts and quote persistence |
+| `server/db/002-vaults.sql`, `003-vault-chain.sql` | Vaults, quotes and recoverable onchain operations |
+| `server/oddlot/chain/`, `programs/oddlot/` | Durable execution coordinator, binary codec and new vault program |
 | `app/legacy/`, `server/domain/`, `server/solana/` | Retained historical desk and durable Solana execution |
 | `programs/strata/` | Audited original Anchor escrow program |
 | `tests/`, `.github/workflows/` | Domain/API regression tests and real-backend browser CI |
@@ -59,7 +60,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-CI runs this flow on Linux from a clean checkout. Tests cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, capped shorts, dividends, browser recovery and mobile overflow. The follow-up audit expands this to 51 application tests and 22 browser journeys. Actual Solana program verification remains an explicit operator command. See the [findings and verification evidence](docs/audit/2026-09-15-review/REPORT.md).
+CI runs this flow on Linux from a clean checkout. Tests cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, capped shorts, dividends, browser recovery and mobile overflow. The release audit includes 65 application tests, 25 browser journeys, 6 native Rust tests, a 19-action confirmed Oddlot chain lifecycle and 9 rejected adversarial program transactions. Actual Solana program verification remains an explicit operator command. See the [findings and verification evidence](docs/audit/2026-09-15-release/REPORT.md).
 
 ## Pricing and release boundaries
 
@@ -67,6 +68,10 @@ NVDA closes are retained historical observations from January–April 2025. Opti
 
 Dividend contracts reference the issuer's declared $0.01 dividend for the March 12, 2025 record-date event, payable April 2. They do not transfer dividend ownership or model an xStock multiplier as a cash payment. See [product rules and sources](docs/PRODUCT.md).
 
-The new custody, underwriting and margin rules are enforced by the backend test ledger. Production requires wallet authentication, token custody integration, a matching audited program for these new rules, live pricing/oracle feeds, issuer/corporate-action handling and operational release review. The original Solana evidence remains local-validator evidence; devnet funding is still an open gate. Bellwether is left intact as the prior repository.
+Sandbox rules are backend-enforced. Configured localnet vaults execute the matching Oddlot program with actual SPL escrow and server-held test signers. Production still requires wallet authentication and client signing, external liquidity, live pricing/oracle feeds, issuer/corporate-action handling and independent program review. Onchain mode limits each vault to 64 active positions for account and transaction compute bounds; sandbox mode supports 500. The original Solana evidence remains local-validator evidence; devnet funding is still an open gate. Bellwether is left intact as the prior repository.
 
 The [original engineering audit](docs/audit/REPORT.md) records the legacy execution review and dependency findings. Two moderate entries remain in an unused upstream streaming parser; there are no critical/high findings in that retained audit. The original audited program artifacts and evidence are preserved. No private keys, runtime databases or real `.env` files belong in this repository.
+
+## Review the current product
+
+The [Oddlot submission](submission/ENTRY.md), [demo script](submission/DEMO_SCRIPT.md), and [current narrated video](submission/oddlot-demo.mp4) describe this release. Previous Bellwether/Strata materials are retained in `submission/legacy/` as historical evidence. A fresh keyless clone starts in sandbox mode. See [Oddlot localnet setup](docs/ODDLOT_CHAIN.md) to enable the new program; execution never silently falls back to SQLite.

@@ -115,7 +115,9 @@ export default function Home() {
           </a>
           <div className="od-environment">
             <i />
-            Sandbox environment
+            {s?.mode === 'localnet'
+              ? 'Solana local validator'
+              : 'Sandbox environment'}
           </div>
         </div>
       </aside>
@@ -212,7 +214,13 @@ export default function Home() {
         </main>
         <footer className="od-footer">
           <span>Oddlot · Precision for every position.</span>
-          <span>Test assets · Persistent vault ledger · No real funds</span>
+          <span>
+            Test assets ·{' '}
+            {s?.mode === 'localnet'
+              ? 'Solana local validator'
+              : 'Persistent sandbox vault'}{' '}
+            · No real funds
+          </span>
         </footer>
       </div>
       {desk.toast && (
@@ -239,18 +247,20 @@ export default function Home() {
               {s.book.date} · {usd(s.market.price)}
             </b>
           </div>
-          <Field label="Advance to session">
-            <select
-              value={target}
-              onChange={(e) => setNextDate(e.target.value)}
-            >
-              {future.map((d) => (
-                <option value={d} key={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {!!future.length && (
+            <Field label="Advance to session">
+              <select
+                value={target}
+                onChange={(e) => setNextDate(e.target.value)}
+              >
+                {future.map((d) => (
+                  <option value={d} key={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <p className="od-form-note">
             Advancing is permanent for this session. Due contracts settle
             together, term loans return shares, and protected shorts repay
@@ -267,6 +277,25 @@ export default function Home() {
           >
             Advance & settle due positions
           </Button>
+          {!future.length && (
+            <>
+              <p className="od-form-note">
+                The historical window is complete. Restart restores test
+                allocations and returns to January 24. Previous receipts remain
+                recorded.
+              </p>
+              <Button
+                disabled={desk.busy}
+                onClick={() => {
+                  void desk.act({ type: 'restart' }).then((ok) => {
+                    if (ok) setModal(null);
+                  });
+                }}
+              >
+                Restart historical replay
+              </Button>
+            </>
+          )}
         </Modal>
       )}
       {modal === 'wallet' && s && (
@@ -285,8 +314,11 @@ export default function Home() {
           </div>
           <p className="od-form-note">
             Move these assets into your vault to trade or underwrite. The wallet
-            and vault balances persist across reloads. This is backend test
-            accounting, not a connected brokerage or self-custody wallet.
+            and vault balances persist across reloads.{' '}
+            {s.mode === 'localnet'
+              ? 'SPL test tokens back the program-controlled vault. Test signing keys are held by this service.'
+              : 'This session uses backend sandbox accounting.'}{' '}
+            There is no connected brokerage.
           </p>
           <Button
             onClick={() => {
@@ -306,15 +338,24 @@ export default function Home() {
         >
           <p className="od-form-note">
             One contract represents one share-equivalent, with quantities as
-            small as 0.000001. Cash and stock deposits fund underwriting,
-            structured options, stock loans, and protected shorts. The backend
-            checks both counterparties and refuses double-pledged assets.
+            small as 0.000001 when the contract has a payable obligation. Cash
+            and stock deposits fund underwriting, structured options, stock
+            loans, and protected shorts. The backend checks both counterparties
+            and refuses double-pledged assets.
           </p>
           <p className="od-form-note">
-            The new vault product executes in a persistent test ledger. It does
-            not claim onchain vault custody, live pricing, or broker portfolio
-            margin. The retained Solana desk separately demonstrates real
-            program-controlled test-token escrow.
+            {s?.mode === 'localnet'
+              ? 'This session executes against the Oddlot Solana program on a private local validator. SPL test-token escrow backs its balances; the backend indexes confirmed results.'
+              : 'This session executes in the persistent sandbox ledger. Onchain vault execution requires the separately configured Oddlot local-validator program.'}{' '}
+            Historical stock prices and model option premiums are used in both
+            modes.
+          </p>
+          <p className="od-form-note">
+            Liquidity is provided by funded test counterparties. No external
+            option buyer, stock borrower, or market maker is connected.
+            Fractional sizing reduces dollar exposure; physical long calls still
+            prefund strike cash plus premium. Cash-settled spreads offer bounded
+            obligations with a different payoff.
           </p>
           <Link className="od-external" href="/legacy">
             Open Solana escrow desk <ArrowUpRight size={15} />

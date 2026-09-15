@@ -1,0 +1,14 @@
+   Compiling oddlot v0.1.0 (/var/lib/stocklana/oddlot-review/source)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.03s
+     Running unittests src/lib.rs (target/debug/deps/oddlot-b5c1f983a794237d)
+
+running 6 tests
+test economics::tests::productive_loan_and_protected_short_conserve_assets ... ok
+test economics::tests::opposed_contracts_net_exactly ... ok
+test test_id ... ok
+test economics::tests::physical_delivery_matches_strict_strike_boundaries ... ok
+test economics::tests::rejects_zero_payable_and_unfunded_exercise ... ok
+test economics::tests::fractional_cross_cash_never_underreserves ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

@@ -1,0 +1,46 @@
+import { add, days, mul, optionGreeks, round } from './math';
+import type { ShortPosition } from './types';
+
+// Shared display/execution amounts. Only stored market dates feed these functions.
+export function termInterest(
+  quantity: number,
+  entry: number,
+  from: string,
+  to: string,
+) {
+  return round((mul(quantity, entry) * 0.035 * days(from, to)) / 365);
+}
+export function accruedInterest(
+  prepaid: number,
+  opened: string,
+  expiry: string,
+  at: string,
+) {
+  return round(
+    prepaid * Math.min(1, Math.max(0, days(opened, at) / days(opened, expiry))),
+  );
+}
+export function protectionPremium(
+  quantity: number,
+  entry: number,
+  cap: number,
+  from: string,
+  to: string,
+) {
+  return round(
+    optionGreeks('call', entry, cap, days(from, to)).price * quantity,
+  );
+}
+export function shortCloseAmounts(p: ShortPosition, spot: number, at: string) {
+  const repurchase = mul(p.quantity, Math.min(spot, p.cap));
+  const interest = accruedInterest(p.maxInterest, p.opened, p.expiry, at);
+  return {
+    repurchase,
+    interest,
+    total: add(repurchase, interest),
+    pnl: add(
+      add(add(mul(p.quantity, p.entry), -repurchase), -interest),
+      -p.premium,
+    ),
+  };
+}

@@ -34,7 +34,7 @@ async function scene(text, work, minimum = 0) {
     Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
   const start = (performance.now() - began) / 1000;
   audio.push({ file, text, start, duration });
-  await writeFile(path.join(media,"timeline.json"),JSON.stringify(audio));
+  await writeFile(path.join(media, 'timeline.json'), JSON.stringify(audio));
   console.log(`Scene ${audio.length}: ${text.slice(0, 65)}`);
   await work();
   await page.waitForTimeout(
@@ -51,7 +51,7 @@ try {
   await scene(
     'Strata makes stock protection understandable and verifiable. This is the working application, with a persistent backend and historical NVIDIA market data.',
     async () => {
-      await page.goto(base);
+      await page.goto(`${base}/legacy`);
       await expect(
         page.getByText('Connecting to your saved portfolio…'),
       ).toHaveCount(0);
@@ -212,7 +212,7 @@ try {
       )
         throw Error('Recorded chain lifecycle did not reconcile.');
       await writeFile(
-        'submission/ui-chain-evidence.json',
+        'submission/legacy/ui-chain-evidence.json',
         JSON.stringify(
           { recordedAt: new Date().toISOString(), position: p },
           null,
@@ -262,16 +262,16 @@ execFileSync(
     '-shortest',
     '-movflags',
     '+faststart',
-    'submission/strata-demo.mp4',
+    'submission/legacy/strata-demo.mp4',
   ],
   { stdio: 'ignore' },
 );
 await writeFile(
-  'submission/narration.txt',
+  'submission/legacy/narration.txt',
   audio.map((c) => c.text).join('\n\n') + '\n',
 );
 await writeFile(
-  'submission/demo-timeline.json',
+  'submission/legacy/demo-timeline.json',
   JSON.stringify(
     audio.map(({ text, start, duration }) => ({ text, start, duration })),
     null,

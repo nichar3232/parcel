@@ -4,85 +4,20 @@ import type {
   RiskSummary,
   VaultBook,
 } from './types';
-import { units } from '../engine';
-import { add, deliveries, mul } from './math';
+import { add, mul } from './math';
 import { mark } from './market';
-// Truncation occurs per contract at settlement. Equal and opposite cash
-// functions cancel exactly; integer-share coefficients have no rounding error.
-function roundingCount(positions: OptionPosition[]) {
-  const unmatched = new Map<string, number>();
-  for (const p of positions) {
-    const coefficients = new Map<string, bigint>();
-    for (const leg of p.terms.legs) {
-      const key = `${leg.kind}:${units(leg.strike)}`;
-      const q =
-        units(p.terms.quantity) *
-        BigInt(leg.ratio) *
-        (leg.side === 'buy' ? 1n : -1n);
-      coefficients.set(key, (coefficients.get(key) || 0n) + q);
-    }
-    const entries = [...coefficients]
-      .filter(([, q]) => q !== 0n)
-      .sort(([a], [b]) => a.localeCompare(b));
-    if (entries.every(([, q]) => q % 1_000_000n === 0n)) continue;
-    const sign = entries[0][1] < 0n ? -1n : 1n;
-    const key = entries.map(([k, q]) => `${k}:${q * sign}`).join('|');
-    unmatched.set(key, (unmatched.get(key) || 0) + Number(sign));
-  }
-  return [...unmatched.values()].reduce((sum, n) => sum + Math.abs(n), 0);
-}
+import { deliveryBounds } from './envelope';
 function envelope(positions: OptionPosition[], key: string): CollateralGroup {
-  const strikes = positions.flatMap((p) => p.terms.legs.map((l) => l.strike));
-  const grid = [
-    ...new Set([
-      0,
-      ...strikes.flatMap((s) => [Math.max(0, s - 0.000001), s, s + 0.000001]),
-      Math.max(...strikes) * 2 + 1,
-    ]),
-  ];
-  let cash = 0,
-    shares = 0,
-    counterpartyCash = 0,
-    counterpartyShares = 0;
-  for (const s of grid) {
-    let c = 0,
-      q = 0;
-    for (const p of positions) {
-      const d = deliveries(p.terms, s);
-      c = add(c, d.cash);
-      q = add(q, d.shares);
-    }
-    cash = Math.max(cash, -c);
-    shares = Math.max(shares, -q);
-    counterpartyCash = Math.max(counterpartyCash, c);
-    counterpartyShares = Math.max(counterpartyShares, q);
-  }
-  if (positions[0].terms.settlement === 'cash' && positions.length > 1) {
-    // Between strike boundaries, separately truncated cash functions can differ
-    // from their sampled sum by at most n-1 base units. Reserve that allowance,
-    // capped by the sum of independently sufficient isolated reserves.
-    const allowance = Math.max(0, roundingCount(positions) - 1) / 1e6;
-    if (allowance > 0) {
-      const isolated = positions.map((p) => envelope([p], p.id));
-      cash = Math.min(
-        add(cash, allowance),
-        isolated.reduce((s, g) => add(s, g.cash), 0),
-      );
-      counterpartyCash = Math.min(
-        add(counterpartyCash, allowance),
-        isolated.reduce((s, g) => add(s, g.counterpartyCash), 0),
-      );
-    }
-  }
+  const b = deliveryBounds(positions.map((p) => p.terms));
   return {
     key,
     expiry: positions[0].terms.expiry,
     settlement: positions[0].terms.settlement,
     positions: positions.length,
-    cash,
-    shares,
-    counterpartyCash,
-    counterpartyShares,
+    cash: Number(b.cashMin < 0n ? -b.cashMin : 0n) / 1e6,
+    shares: Number(b.sharesMin < 0n ? -b.sharesMin : 0n) / 1e6,
+    counterpartyCash: Number(b.cashMax > 0n ? b.cashMax : 0n) / 1e6,
+    counterpartyShares: Number(b.sharesMax > 0n ? b.sharesMax : 0n) / 1e6,
   };
 }
 export function marginGroups(
@@ -95,7 +30,9 @@ export function marginGroups(
       mode === 'isolated'
         ? p.id
         : `${p.terms.reference}:${p.terms.expiry}:${p.terms.settlement}`;
-    groups.set(key, [...(groups.get(key) || []), p]);
+    const group = groups.get(key);
+    if (group) group.push(p);
+    else groups.set(key, [p]);
   }
   return [...groups].map(([key, p]) => envelope(p, key));
 }
@@ -110,7 +47,7 @@ export function risk(book: VaultBook): RiskSummary {
     .filter((p) => p.status === 'active')
     .reduce((s, p) => add(s, add(mul(p.quantity, p.cap), p.maxInterest)), 0);
   const loanShares = book.loans
-    .filter((p) => p.status === 'active')
+    .filter((p) => p.status === 'active' && !p.productive)
     .reduce((s, p) => add(s, p.quantity), 0);
   const shortShares = book.shorts
     .filter((p) => p.status === 'active')
@@ -144,6 +81,9 @@ export function risk(book: VaultBook): RiskSummary {
       add(total(groups, 'counterpartyShares'), shortShares),
       loanShares,
     ),
+    marketShares: book.loans
+      .filter((p) => p.status === 'active' && p.productive)
+      .reduce((s, p) => add(s, p.quantity), 0),
     groups,
   };
 }
@@ -156,6 +96,10 @@ export function assertCollateral(book: VaultBook) {
   if (r.freeShares < 0)
     throw Error(
       `This requires ${(-r.freeShares).toFixed(6)} more available NVDA shares. Deposit shares or close risk first.`,
+    );
+  if (book.market.NVDA < r.marketShares)
+    throw Error(
+      'The market shares backing loan protection must remain reserved.',
     );
   if (
     book.counterparty.USDC < r.counterpartyCash ||

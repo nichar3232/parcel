@@ -3,10 +3,12 @@ import { useRef, useState } from 'react';
 import { ArrowRight, ChevronRight, LockKeyhole } from 'lucide-react';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { OrderTerms, Quote } from '@/lib/oddlot/types';
+import { deliveryBounds } from '@/lib/oddlot/envelope';
 import { bounded, orderGreeks } from '@/lib/oddlot/math';
 import { parseOrderTerms } from '@/lib/oddlot/validation';
 import { templates, templateTerms } from '@/lib/oddlot/templates';
 import { PayoffChart } from './PayoffChart';
+import { QuoteReview } from './QuoteReview';
 import { ContractLegEditor } from './ContractLegEditor';
 import {
   Badge,
@@ -14,7 +16,6 @@ import {
   Empty,
   Field,
   Heading,
-  Modal,
   Panel,
   Stat,
   dateLabel,
@@ -44,8 +45,7 @@ export function OptionsView({
     ),
     [quote, setQuote] = useState<Quote | null>(null),
     [requesting, setRequesting] = useState(false),
-    [error, setError] = useState(''),
-    [closing, setClosing] = useState<string | null>(null);
+    [error, setError] = useState('');
   const effective = {
     ...draft,
     expiry:
@@ -73,6 +73,13 @@ export function OptionsView({
         state.book.date,
         effective.reference === 'dividend' ? 0.8 : state.market.volatility,
       );
+  const includedStock =
+    !invalid &&
+    ['covered-call', 'put', 'collar'].includes(selected) &&
+    effective.reference === 'stock'
+      ? effective.quantity
+      : 0;
+  const cashBound = !invalid ? deliveryBounds([effective]).cashMin : 0n;
   const select = (id: string) => {
     draftRevision.current++;
     setSelected(id);
@@ -216,6 +223,17 @@ export function OptionsView({
             </div>
             <ContractLegEditor draft={draft} update={update} mode={mode} />
             <div className="od-order-summary">
+              {!invalid && (
+                <div>
+                  <span>Standalone cash funding</span>
+                  <b>
+                    {usd(
+                      Math.max(0, g.price) +
+                        Number(cashBound < 0n ? -cashBound : 0n) / 1e6,
+                    )}
+                  </b>
+                </div>
+              )}
               <div>
                 <span>
                   {g.price >= 0
@@ -264,8 +282,9 @@ export function OptionsView({
             </Button>
             <p className="od-form-note">
               <LockKeyhole size={12} />
-              The backend prices, reserves, and validates both sides before
-              execution.
+              Physical buyers prefund exercise cash or delivery shares in
+              addition to premium. Cash spreads fund their bounded obligation.
+              The quote shows the full requirement.
             </p>
           </div>
         </Panel>
@@ -278,6 +297,7 @@ export function OptionsView({
             {!invalid ? (
               <PayoffChart
                 terms={effective}
+                stockQuantity={includedStock}
                 premium={g.price}
                 spot={
                   effective.reference === 'dividend'
@@ -290,8 +310,8 @@ export function OptionsView({
             )}
             <div className="od-greeks">
               <Stat
-                label="Delta"
-                value={g.delta.toFixed(3)}
+                label={includedStock ? 'Stock + option delta' : 'Option delta'}
+                value={(g.delta + includedStock).toFixed(3)}
                 detail="Shares of price exposure"
               />
               <Stat
@@ -384,7 +404,18 @@ export function OptionsView({
                     </td>
                     <td>{p.terms.settlement}</td>
                     <td>
-                      <Button variant="quiet" onClick={() => setClosing(p.id)}>
+                      <Button
+                        variant="quiet"
+                        disabled={requesting || desk.busy}
+                        onClick={() => {
+                          setRequesting(true);
+                          void desk
+                            .closeQuote(p.id)
+                            .then(setQuote)
+                            .catch((e) => desk.setToast((e as Error).message))
+                            .finally(() => setRequesting(false));
+                        }}
+                      >
                         Close
                       </Button>
                     </td>
@@ -401,83 +432,13 @@ export function OptionsView({
         )}
       </Panel>
       {quote && (
-        <Modal
-          title="Review your funded quote"
-          description={`${quote.terms.name} · ${qty(quote.terms.quantity)} shares · ${dateLabel(quote.terms.expiry)}`}
+        <QuoteReview
+          quote={quote}
+          revision={state.revision}
+          busy={desk.busy}
           onClose={() => setQuote(null)}
-        >
-          <div className="od-quote-premium">
-            <span>{quote.premium >= 0 ? 'You pay' : 'You receive'}</span>
-            <strong>
-              {usd(
-                Math.abs(quote.premium),
-                quote.terms.reference === 'dividend' ? 4 : 2,
-              )}
-            </strong>
-          </div>
-          <div className="od-review-line">
-            <span>Vault cash reserved after trade</span>
-            <b>{usd(quote.cashRequired)}</b>
-          </div>
-          <div className="od-review-line">
-            <span>Vault shares reserved after trade</span>
-            <b>{qty(quote.sharesRequired)} NVDA</b>
-          </div>
-          <div className="od-review-line">
-            <span>Available cash after trade</span>
-            <b>{usd(quote.cashAfter)}</b>
-          </div>
-          <div className="od-review-line">
-            <span>Available shares after trade</span>
-            <b>{qty(quote.sharesAfter)} NVDA</b>
-          </div>
-          {quote.revision !== state.revision && (
-            <p className="od-error" role="alert">
-              Your vault changed. Close this review and request a fresh quote.
-            </p>
-          )}
-          {!quote.eligible && (
-            <p className="od-error" role="alert">
-              {quote.reason}
-            </p>
-          )}
-          <p className="od-form-note">
-            Valid for 30 seconds. Shares and strike cash are reserved for
-            physical delivery. Both counterparties use isolated test capital.
-          </p>
-          <Button
-            disabled={
-              desk.busy || !quote.eligible || quote.revision !== state.revision
-            }
-            onClick={() => void execute()}
-          >
-            {desk.busy ? 'Executing…' : 'Confirm contract'}
-          </Button>
-        </Modal>
-      )}
-      {closing && (
-        <Modal
-          title="Close this contract?"
-          description="The backend calculates its current model value and rechecks collateral on the remaining portfolio."
-          onClose={() => setClosing(null)}
-        >
-          <p className="od-form-note">
-            A hedge cannot be removed if doing so leaves another position
-            undercollateralized.
-          </p>
-          <Button
-            disabled={desk.busy}
-            onClick={() => {
-              void desk
-                .act({ type: 'close-option', id: closing })
-                .then((ok) => {
-                  if (ok) setClosing(null);
-                });
-            }}
-          >
-            Confirm close
-          </Button>
-        </Modal>
+          onConfirm={() => void execute()}
+        />
       )}
     </>
   );

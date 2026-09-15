@@ -39,6 +39,9 @@ export class Store {
     this.db.exec(
       readFileSync(new URL('./002-vaults.sql', import.meta.url), 'utf8'),
     );
+    this.db.exec(
+      readFileSync(new URL('./003-vault-chain.sql', import.meta.url), 'utf8'),
+    );
   }
   transaction<T>(fn: () => T): T {
     this.db.exec('BEGIN IMMEDIATE');

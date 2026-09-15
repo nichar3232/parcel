@@ -19,9 +19,12 @@
     "check": "npm run typecheck && npm run lint && npm test && npm run build",
     "verify:backend-chain": "tsx scripts/audit-chain.ts",
     "verify:restart": "node scripts/check-restart.mjs",
-    "record:demo": "node scripts/record-demo.mjs",
+    "record:demo": "node scripts/record-oddlot.mjs",
     "demo": "CHAIN_ENABLED=false tsx server/index.ts",
-    "check:repo": "node scripts/check-repository.mjs"
+    "check:repo": "node scripts/check-repository.mjs",
+    "record:legacy": "node scripts/record-demo.mjs",
+    "verify:oddlot-chain": "tsx scripts/verify-oddlot-chain.ts",
+    "verify:oddlot-adversarial": "tsx scripts/verify-oddlot-adversarial.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

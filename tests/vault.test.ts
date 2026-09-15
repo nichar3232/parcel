@@ -249,8 +249,13 @@ void test('vault: cross collateral only releases matched expiry exposure and pro
       asset: 'USDC',
       amount: a.state.book.vault.USDC,
     });
+    const close = a.service.quote(a.session, randomUUID(), {
+      revision: a.state.revision,
+      positionId: p.id,
+    });
+    assert.equal(close.eligible, false);
     assert.throws(
-      () => a.act({ type: 'close-option', id: p.id }),
+      () => a.act({ type: 'execute', quoteId: close.id }),
       /collateral/,
     );
     assert.throws(

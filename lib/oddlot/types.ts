@@ -29,6 +29,7 @@ export interface OptionPosition {
   stockFlow?: number;
 }
 export interface LendingPosition {
+  productive?: { entry: number; cap: number; premium: number };
   id: string;
   quantity: number;
   opened: string;
@@ -97,6 +98,7 @@ export interface RiskSummary {
   utilization: number;
   counterpartyCash: number;
   counterpartyShares: number;
+  marketShares: number;
   groups: CollateralGroup[];
 }
 export interface Greeks {
@@ -107,11 +109,15 @@ export interface Greeks {
   vega: number;
 }
 export interface Quote {
+  intent?: 'open' | 'close';
+  positionId?: string;
   id: string;
   revision: number;
   terms: OrderTerms;
   premium: number;
   expiresAt: number;
+  issuedAt: number;
+  reviewDeadline?: number; // Browser monotonic time; never accepted as execution input.
   greeks: Greeks;
   cashRequired: number;
   sharesRequired: number;
@@ -136,7 +142,14 @@ export interface VaultSnapshot {
     dividendDate: string;
   };
   serverTime: number;
-  mode: 'sandbox';
+  mode: 'sandbox' | 'localnet';
+  chain?: {
+    ledger: string;
+    signature: string;
+    slot: number;
+    network: string;
+    revision: number;
+  };
 }
 export type VaultAction =
   | {
@@ -147,10 +160,10 @@ export type VaultAction =
     }
   | { type: 'stock'; side: Side; quantity: number }
   | { type: 'execute'; quoteId: string }
-  | { type: 'close-option'; id: string }
   | { type: 'margin'; mode: 'cross' | 'isolated' }
   | { type: 'lend'; quantity: number; expiry: string }
   | { type: 'recall'; id: string }
   | { type: 'short'; quantity: number; cap: number; expiry: string }
   | { type: 'close-short'; id: string }
-  | { type: 'advance'; date: string };
+  | { type: 'advance'; date: string }
+  | { type: 'restart' };

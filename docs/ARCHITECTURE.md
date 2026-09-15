@@ -87,3 +87,9 @@ Mutation bodies are JSON and at most 16 KiB. Cross-site origins and incorrect CS
 Anchor verifies signer identity, mint/token-program ownership, vault authority, party relationships, market identity and PDA seeds. Funded terms are immutable. Acceptance must match every serialized term and precede the quote deadline. Reserve uses checked u128 multiplication and one downward division. Payout cannot exceed reserve. Missing data retains escrow; either named party claims its entitlement once. The two claims consume exactly the original reserve.
 
 The market authority is a trusted test oracle. Dataset/feed identity is stored, but this is not an external oracle proof. Market/offer accounts are retained, so rent is not reclaimed. Unsolicited token donations beyond the contracted reserve have no withdrawal path. There is no contractual permanent-outage refund, production corporate-action adjustment, margin netting or lending execution. These are explicit product/release boundaries.
+
+## Current Oddlot onchain mode
+
+The release adds `server/oddlot/chain/{codec,adapter,coordinator}.ts` and `programs/oddlot`. The program independently executes the current vault rules with SPL backing. The keyless sandbox remains explicit. `VaultService.plan` derives a candidate without committing it; `commit` records the result. The chain coordinator saves a plan and signed bytes before RPC sends, verifies confirmation and program state, then commits the index. The database permits one pending operation per owner. See [ODDLOT_CHAIN.md](ODDLOT_CHAIN.md) for configuration, signer trust, limits and recovery.
+
+The original architecture descriptions above remain specific to their named mode or to the legacy Strata program. Current Oddlot program evidence is in `docs/audit/2026-09-15-release`, not the original Strata proof directory.

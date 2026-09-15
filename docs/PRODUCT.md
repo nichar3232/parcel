@@ -2,7 +2,7 @@
 
 ## Contract granularity
 
-Each contract quantity is denominated in share-equivalents, not 100-share lots. The minimum quantity is 0.000001 and the maximum is 1,000. Leg ratios are integers from 1 to 4, with at most four legs. Six-decimal token amounts use integer base units. Cash-option payoffs sum signed leg numerators before one rounding step.
+Each contract quantity is denominated in share-equivalents, not 100-share lots. The numeric quantity range is 0.000001 to 1,000, but the entire payable obligation must survive six-decimal settlement precision. Zero-payoff contracts are rejected before quoting or collecting premium. Leg ratios are integers from 1 to 4, with at most four legs. Six-decimal token amounts use integer base units. Cash-option payoffs sum signed leg numerators before one rounding step.
 
 Quantity scales premium, payoff and dollar Greeks proportionally. It does not change percentage decay or per-share sensitivity. Theta is a model estimate of a day's time decay holding the other inputs fixed, and is not a promised daily earning rate. [OIC theta definition](https://www.optionseducation.org/advancedconcepts/theta).
 
@@ -12,7 +12,7 @@ The current vault is a persistent test-asset ledger, with separate funding walle
 
 Every action is owner-filtered and runs inside one SQLite transaction. Before commit, the engine recomputes collateral and compares the total USDC and NVDA base units with the pre-action totals. Loan collateral/interest escrow is included in the USDC total. A failure rolls back balances, positions, quote consumption and receipts together. All mutations require CSRF, an idempotency key and the reviewed revision.
 
-This custody is not onchain. The retained `/legacy` desk separately exposes actual Solana program escrow. We do not imply that the original spread program enforces new physical, lending or cross-collateral rules.
+Keyless sandbox custody is backend accounting. Configured localnet vaults use the new `programs/oddlot` program and real SPL test-token escrow. The program computes every transition and collateral reserve; it rejects a result that differs from the backend plan. Signed bytes are saved before sending, and SQLite commits the indexed book only after signature confirmation and an account-state comparison. The older `/legacy` spread program remains separate and unchanged.
 
 ## Physical and cash settlement
 
@@ -28,7 +28,7 @@ The engine never gives scenario/correlation credit across issuers or outside pro
 
 ## Lending and protected shorts
 
-A stock loan removes shares from the user's spendable vault. The borrower posts 150% of opening stock value plus the full term's 3.5% annualized test borrow interest. Borrowed principal shares remain earmarked in borrower inventory and cannot back new option obligations. A recall returns those shares, earned pro-rata interest and the borrower's unused collateral. This isolated test market does not claim external utilization or market lending rates.
+A stock loan removes shares from the user's spendable vault. The borrower posts 150% of opening stock value plus the full term's 3.5% annualized test borrow interest. The borrower sells the shares to the funded test market and buys a covered protective call with strike 150% of entry. Market inventory backing that call is reserved. On recall or expiry, cash escrow pays the lesser of spot and cap to repurchase shares, principal returns to the lender, accrued interest is credited, and unused escrow returns to the borrower. This test protection permits capped repurchase on early recall; it is not a vanilla European call quote. This isolated test market does not claim external utilization or market lending rates.
 
 An ordinary short's loss is unbounded. Oddlot therefore offers protected shorts only: borrowed shares are sold to a separately funded test market, a share-backed protective call is purchased, and the strike repurchase amount plus full-term interest is locked. This specific protection is exercisable on early close as well as term expiry. If the price exceeds the cap, call delivery and stock repayment occur atomically. Otherwise the stock is repurchased from the market. The initial short proceeds remain collateral. The protective-call premium is nonrefundable when closing early; no model buyback value for that protection is credited.
 
@@ -42,4 +42,16 @@ Issuer mechanics must remain separate. xStocks describes dividend reinvestment a
 
 ## Current release
 
-The private UI and backend exercise every listed vault workflow with test assets and finite inventories. Onchain custody for the new vault, wallet signing, live execution liquidity, oracle proofs, issuer eligibility, corporate actions and external program review remain separate production requirements. Never relabel this environment or the retained local-validator proof as a mainnet product.
+The private UI and backend exercise every listed vault workflow with test assets and finite inventories. Local-validator custody for the new vault is implemented and verified. Client wallet signing, real execution liquidity, oracle proofs, issuer eligibility, corporate actions and independent program review remain production requirements. Never relabel this environment or the retained local-validator proof as a mainnet product.
+
+## Capital efficiency and liquidity claims
+
+Fractional size reduces dollar premium, dollar theta and collateral together; it does not change per-share percentage decay. Physical long calls reserve their full strike cash in addition to premium. The initial one-share $145 call therefore needs approximately $149.04 upfront, not just the $4.04 model premium. The separate cash-settled call spread can be premium-funded because its writer reserves the bounded obligation. These are different payoffs and funding models.
+
+Each session receives finite test counterparty and market allocations. This demonstrates funded obligations, not real option demand, borrow utilization, a market-making commitment, or executable external liquidity. A production RFQ must identify a funded maker, bind an expiring signed price, and reserve its inventory before acceptance; unavailable liquidity must result in no quote. No provider is currently connected.
+
+## Precision and performance
+
+The collateral engine sweeps sorted strike events using integer arithmetic. Physical contracts observe both the exact-at-strike and immediately-after-strike delivery states. Cash-settled books use analytic unrounded extrema and a conservative allowance for contract-level truncation; identical opposite contracts cancel exactly. The reserve is capped by the sum of isolated obligations. Withdrawing every permitted free micro-unit must still leave enough to settle. This replaces the quadratic price-grid calculation with O(L log L) work per collateral group, where L is the number of legs.
+
+Covered-call, protective-put and collar charts include the selected quantity of stock marked from the displayed entry reference. They show a modeled strategy, not the user's lifetime tax-lot P&L. The option leg table and signed premium are frozen in the final quote review; close-outs receive an owner-bound quote too. Quote expiry, stale revisions and interrupted actions remain enforced server-side.

@@ -144,6 +144,9 @@ test('lending, recall and a protected short complete through the real API', asyn
   ).toBeVisible();
   await advance(page, '2025-01-27');
   await page.getByRole('button', { name: 'Recall shares' }).click();
+  await expect(page.getByRole('dialog')).toContainText('Interest you receive');
+  await page.getByRole('button', { name: 'Confirm transaction' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Recall shares' })).toHaveCount(
     0,
   );
@@ -156,6 +159,11 @@ test('lending, recall and a protected short complete through the real API', asyn
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await advance(page, '2025-01-28');
   await page.getByRole('button', { name: 'Cover & repay' }).click();
+  await expect(page.getByRole('dialog')).toContainText(
+    'You pay to cover and repay',
+  );
+  await page.getByRole('button', { name: 'Confirm transaction' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Cover & repay' })).toHaveCount(
     0,
   );
@@ -496,4 +504,69 @@ test('a refreshed vault invalidates a reviewed stock trade without silently chan
     page.getByRole('row').filter({ hasText: 'NVIDIA' }),
   ).toContainText('1');
   await second.close();
+});
+
+test('option confirmation lists every leg and a close is priced before execution', async ({
+  page,
+}) => {
+  await deposit(page, 'USDC', '1000');
+  await nav(page, 'Structures');
+  await page.getByLabel('Leg 1 ratio', { exact: true }).selectOption('2');
+  await page.getByLabel('Leg 2 ratio', { exact: true }).selectOption('2');
+  await page.getByRole('button', { name: 'Review funded quote' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('row')).toHaveCount(3);
+  await expect(dialog.getByRole('row').nth(1)).toContainText(
+    'Buycall$140.0000002×2',
+  );
+  await expect(dialog.getByRole('row').nth(2)).toContainText(
+    'Sellcall$150.0000002×2',
+  );
+  await page
+    .getByRole('button', { name: 'Confirm contract', exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(dialog).toContainText('Review your close quote');
+  await expect(dialog).toContainText('You receive');
+  await expect(dialog.getByRole('row').nth(1)).toContainText(
+    'Sellcall$140.0000002×2',
+  );
+  await page
+    .getByRole('button', { name: 'Confirm close', exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Close', exact: true }),
+  ).toHaveCount(0);
+});
+test('final historical session offers a fresh replay with usable expiries', async ({
+  page,
+}) => {
+  await advance(page, '2025-04-03');
+  await page.locator('.od-market-button').click();
+  await expect(page.getByRole('dialog')).toContainText(
+    'Restart historical replay',
+  );
+  await page.getByRole('button', { name: 'Restart historical replay' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await nav(page, 'Trade');
+  await expect(
+    page.getByLabel('Expiration', { exact: true }).locator('option'),
+  ).not.toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Review funded quote' }),
+  ).toBeEnabled();
+});
+
+test('covered-call chart includes deposited stock downside', async ({
+  page,
+}) => {
+  await nav(page, 'Underwrite');
+  await expect(page.locator('.od-payoff')).toContainText('Stock + options P&L');
+  await page.getByLabel('Reference price move').fill('-30');
+  await expect(page.locator('.od-chart-caption b')).toHaveClass('od-negative');
+  await expect(page.locator('.od-greeks')).toContainText(
+    'Stock + option delta',
+  );
 });

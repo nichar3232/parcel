@@ -16,7 +16,13 @@ export function ActivityView({ desk }: { desk: VaultController }) {
       new Blob(
         [
           JSON.stringify(
-            { revision: s.revision, mode: s.mode, book: s.book, risk: s.risk },
+            {
+              revision: s.revision,
+              mode: s.mode,
+              chain: s.chain,
+              book: s.book,
+              risk: s.risk,
+            },
             null,
             2,
           ),
@@ -43,6 +49,35 @@ export function ActivityView({ desk }: { desk: VaultController }) {
           </Button>
         }
       />
+      {s.chain && (
+        <Panel className="od-chain-proof">
+          <div className="od-panel-heading">
+            <h2>Confirmed on Solana localnet</h2>
+            <Badge>Revision {s.chain.revision}</Badge>
+          </div>
+          <div className="od-proof-body">
+            <p className="od-form-note">
+              Program execution and SPL test-token backing verified at slot{' '}
+              {s.chain.slot}. Private validator · test assets.
+            </p>
+            <details>
+              <summary>
+                Vault account {s.chain.ledger.slice(0, 6)}…
+                {s.chain.ledger.slice(-6)}
+              </summary>
+              <code>{s.chain.ledger}</code>
+            </details>
+            <a
+              className="od-external"
+              href={`/api/chain/tx/${s.chain.signature}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View latest transaction proof
+            </a>
+          </div>
+        </Panel>
+      )}
       <Panel>
         <div className="od-panel-heading">
           <div className="od-search">

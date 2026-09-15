@@ -3,12 +3,18 @@ import { units } from '../../lib/engine';
 import { DIVIDEND, DIVIDEND_DATE, mark } from '../../lib/oddlot/market';
 import {
   add,
-  days,
   deliveries,
   mul,
   orderGreeks,
   round,
 } from '../../lib/oddlot/math';
+import {
+  accruedInterest,
+  termInterest,
+  shortCloseAmounts,
+} from '../../lib/oddlot/funding';
+import { payoffBounds } from '../../lib/oddlot/envelope';
+import { bounded } from '../../lib/oddlot/math';
 import { assertCollateral, risk } from '../../lib/oddlot/risk';
 import type {
   Asset,
@@ -74,13 +80,21 @@ export function emit(
 }
 export function premium(terms: OrderTerms, book: VaultBook) {
   const s = terms.reference === 'dividend' ? DIVIDEND : mark(book.date);
-  return round(
+  const value = round(
     orderGreeks(
       terms,
       s,
       book.date,
       terms.reference === 'dividend' ? 0.8 : 0.45,
     ).price,
+  );
+  const bounds = payoffBounds(terms);
+  if (bounds.cashMin === 0n && bounds.cashMax === 0n)
+    throw Error('This contract has no payable value at settlement precision.');
+  if (!bounded(terms.legs)) return value;
+  return Math.max(
+    Math.min(0, Number(bounds.cashMin) / 1e6),
+    Math.min(Math.max(0, Number(bounds.cashMax) / 1e6), value),
   );
 }
 export function addOrder(
@@ -110,10 +124,10 @@ export function addOrder(
   );
   return id;
 }
-export function closeOrder(book: VaultBook, id: string) {
+export function closeOrder(book: VaultBook, id: string, quotedValue?: number) {
   const p = book.options.find((p) => p.id === id && p.status === 'active');
   if (!p) throw Error('This active contract was not found.');
-  const cost = premium(p.terms, book);
+  const cost = quotedValue ?? premium(p.terms, book);
   signedTransfer(book.counterparty, book.vault, 'USDC', cost);
   p.status = 'closed';
   p.cashFlow = cost;
@@ -132,8 +146,11 @@ export function setMarketDate(book: VaultBook, date: string) {
     (p) => p.status === 'active' && p.terms.expiry <= date,
   );
   const byExpiry = new Map<string, typeof due>();
-  for (const p of due)
-    byExpiry.set(p.terms.expiry, [...(byExpiry.get(p.terms.expiry) || []), p]);
+  for (const p of due) {
+    const group = byExpiry.get(p.terms.expiry) || [];
+    group.push(p);
+    byExpiry.set(p.terms.expiry, group);
+  }
   for (const [expiry, positions] of [...byExpiry].sort(([a], [b]) =>
     a.localeCompare(b),
   )) {
@@ -181,17 +198,31 @@ export function openLoan(book: VaultBook, quantity: number, expiry: string) {
     throw Error(
       'Shares already committed to another obligation cannot be lent.',
     );
-  const collateral = round(mul(quantity, mark(book.date)) * 1.5),
-    apr = 0.035;
-  const prepaidInterest = round(
-    (mul(quantity, mark(book.date)) * apr * days(book.date, expiry)) / 365,
+  const entry = mark(book.date),
+    cap = round(entry * 1.5);
+  const protection = premium(
+    {
+      name: 'Borrower protection',
+      quantity,
+      expiry,
+      reference: 'stock',
+      settlement: 'physical',
+      legs: [{ kind: 'call', side: 'buy', strike: cap, ratio: 1 }],
+    },
+    book,
   );
+  const collateral = mul(quantity, cap),
+    apr = 0.035;
+  const prepaidInterest = termInterest(quantity, entry, book.date, expiry);
   const total = add(collateral, prepaidInterest);
   if (book.counterparty.USDC - total < risk(book).counterpartyCash)
     throw Error('Borrower collateral is unavailable.');
-  transfer(book.vault, book.counterparty, 'NVDA', quantity);
+  transfer(book.vault, book.market, 'NVDA', quantity);
+  transfer(book.market, book.counterparty, 'USDC', mul(quantity, entry));
+  transfer(book.counterparty, book.market, 'USDC', protection);
   book.counterparty.USDC = add(book.counterparty.USDC, -total);
   const p: LendingPosition = {
+    productive: { entry, cap, premium: protection },
     id: randomUUID(),
     quantity,
     opened: book.date,
@@ -207,7 +238,7 @@ export function openLoan(book: VaultBook, quantity: number, expiry: string) {
   emit(
     book,
     'Stock loan funded',
-    `${quantity} NVDA · borrower posted 150% cash collateral plus full-term interest`,
+    `${quantity} NVDA sold by borrower · 150% strike protection and full-term interest funded`,
     0,
     -quantity,
     p.id,
@@ -215,16 +246,24 @@ export function openLoan(book: VaultBook, quantity: number, expiry: string) {
 }
 export function closeLoan(book: VaultBook, p: LendingPosition, at = book.date) {
   if (p.status !== 'active') throw Error('This stock loan is already closed.');
-  const fraction = Math.min(
-    1,
-    Math.max(0, days(p.opened, at) / days(p.opened, p.expiry)),
-  );
-  const earned = round(p.prepaidInterest * fraction);
-  transfer(book.counterparty, book.vault, 'NVDA', p.quantity);
+  const earned = accruedInterest(p.prepaidInterest, p.opened, p.expiry, at);
+  if (p.productive) {
+    const repurchase = mul(p.quantity, Math.min(mark(at), p.productive.cap));
+    book.market.USDC = add(book.market.USDC, repurchase);
+    transfer(book.market, book.vault, 'NVDA', p.quantity);
+  } else transfer(book.counterparty, book.vault, 'NVDA', p.quantity);
   book.vault.USDC = add(book.vault.USDC, earned);
   book.counterparty.USDC = add(
     book.counterparty.USDC,
-    add(p.collateral, add(p.prepaidInterest, -earned)),
+    add(
+      add(
+        p.collateral,
+        -(p.productive
+          ? mul(p.quantity, Math.min(mark(at), p.productive.cap))
+          : 0),
+      ),
+      add(p.prepaidInterest, -earned),
+    ),
   );
   p.status = 'closed';
   p.earned = earned;
@@ -257,9 +296,7 @@ export function openShort(
     legs: [{ kind: 'call', side: 'buy', strike: cap, ratio: 1 }],
   };
   const cost = premium(terms, book),
-    maxInterest = round(
-      (mul(quantity, entry) * 0.035 * days(book.date, expiry)) / 365,
-    );
+    maxInterest = termInterest(quantity, entry, book.date, expiry);
   // Borrow stock, sell it to the funded test market and buy a covered call.
   // Sale proceeds stay in the vault; the maximum buyback and term interest lock.
   transfer(book.counterparty, book.market, 'NVDA', quantity);
@@ -290,11 +327,7 @@ export function openShort(
 export function closeShort(book: VaultBook, p: ShortPosition, at = book.date) {
   if (p.status !== 'active') throw Error('This short is already closed.');
   const spot = mark(at),
-    cost = mul(p.quantity, Math.min(spot, p.cap));
-  const interest = round(
-    p.maxInterest *
-      Math.min(1, Math.max(0, days(p.opened, at) / days(p.opened, p.expiry))),
-  );
+    { repurchase: cost, interest, pnl } = shortCloseAmounts(p, spot, at);
   if (spot > p.cap) {
     // Call exercise supplies the shares used to repay the same borrow: the
     // counterparty delivers then receives them atomically, so no net stock move.
@@ -305,7 +338,7 @@ export function closeShort(book: VaultBook, p: ShortPosition, at = book.date) {
   }
   transfer(book.vault, book.counterparty, 'USDC', interest);
   p.status = 'closed';
-  p.pnl = add(add(add(mul(p.quantity, p.entry), -cost), -interest), -p.premium);
+  p.pnl = pnl;
   emit(
     book,
     'Protected short closed',

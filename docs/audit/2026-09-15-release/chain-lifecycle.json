@@ -1,0 +1,221 @@
+{
+  "network": "isolated Solana local validator",
+  "program": "CJxu36zhuU2Hx1BFisJdSQwdXoUkakA2UJ2WPxeT97af",
+  "generatedAt": "2026-09-15T11:38:20.690Z",
+  "checks": 19,
+  "escrow": {
+    "cash": "4000000000000",
+    "stock": "20000000000"
+  },
+  "actions": [
+    {
+      "action": "transfer",
+      "revision": 1,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147838,
+        "signature": "2vDZFPdhXbSnxXvk27sWgvLAL1tB9rUASouNVJS75NmpUZZENdMpGt1wm7tovYypUVVBcaU1vydTqUkLVNsrwL2e",
+        "network": "localnet",
+        "revision": 1
+      }
+    },
+    {
+      "action": "transfer",
+      "revision": 2,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147839,
+        "signature": "qwyQrzTzXspJqrNPBT526ELvnCgWETGbJEmhYY4ivU9CUwKXUcYTWfjeu6s2JTXKr2soyqkWpbNBCvCCF6zfhpd",
+        "network": "localnet",
+        "revision": 2
+      }
+    },
+    {
+      "action": "execute",
+      "revision": 3,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147841,
+        "signature": "5PdhQVaw5EjTHqL2z3PJTzrp28PNeRCJjJJY46YsMwebBNAzD5vvvz9w3MpoeUx4xjiS9bkkAUAVzx8woaQVbkhu",
+        "network": "localnet",
+        "revision": 3
+      }
+    },
+    {
+      "action": "execute",
+      "revision": 4,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147842,
+        "signature": "4F9pHTjkjwJHPh2RNV5xiGhy7GZfwWzqcgZSnb2wfeqhn1A81RtpQJ1pnoJgzb9k1pTagbL69rhrTD8fkYsyC4Do",
+        "network": "localnet",
+        "revision": 4
+      }
+    },
+    {
+      "action": "lend",
+      "revision": 5,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147843,
+        "signature": "4LWHKAiD7e5yXb5PWRxMawmAVGSvdq6yeRGo8oTHnvT3jCZW9Ns7pY46YrAMA2XoPp7iwkSf23o5NH795npaH3xa",
+        "network": "localnet",
+        "revision": 5
+      }
+    },
+    {
+      "action": "short",
+      "revision": 6,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147844,
+        "signature": "2KorYtqtEgn2YSodWNXiWumNZD3ho4Az86gjYyzugvU5Ns2nxrAidZvS8QHAQpHTj68HBD5XULFmWt6rGLbW2NW4",
+        "network": "localnet",
+        "revision": 6
+      }
+    },
+    {
+      "action": "execute",
+      "revision": 7,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147845,
+        "signature": "64pmmqXsVH1HdPXJFMA4yyqvQZqfXWzfz67Wco5HXuWGCUwfSE5qLqjY4GZyJzDNBz3PTvVxvWnDTcm3MBsM1QuC",
+        "network": "localnet",
+        "revision": 7
+      }
+    },
+    {
+      "action": "margin",
+      "revision": 8,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147846,
+        "signature": "3CDSJDgkFWTkVNdgWUivQAk4zeyRHT6gL3rp1LFcjazi2A49YRCP775z6o59ug8x5njV7XozNQVothgyTqwQPUf6",
+        "network": "localnet",
+        "revision": 8
+      }
+    },
+    {
+      "action": "margin",
+      "revision": 9,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147847,
+        "signature": "6urM8tXvNY1iQPLBRDAMSW94GkmxAA7AbG8KDM7Hm75wFSg1VTTs4GdWKVsNv1RCnoKAbVTrtGVooGMH9RhPWqk",
+        "network": "localnet",
+        "revision": 9
+      }
+    },
+    {
+      "action": "advance",
+      "revision": 10,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147848,
+        "signature": "3iUrJM51UVJmxb9XQyfvbibZHM1qiqa3wVB6LB9cj6RiEFuqjU1SNuhZKz2HN5faJ13i72dekoPRGRcG1Bxmi2XA",
+        "network": "localnet",
+        "revision": 10
+      }
+    },
+    {
+      "action": "recall",
+      "revision": 11,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147849,
+        "signature": "3SnTvohukKtzUsZ4ekkSM9ceCcm1ixtzySU2KrndQyKo9GvonAvuZewMp1V9LZPxjDsrCNLdNP1si3JZZY8937Z6",
+        "network": "localnet",
+        "revision": 11
+      }
+    },
+    {
+      "action": "close-short",
+      "revision": 12,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147850,
+        "signature": "4rWmNX841wrWToTMHPxsQUtuTrHN9Y8fibPget4RnkZDEM1bJ4WAfixC4MpzTY4cHaSnuY28XM1ezRYhNjjehyFj",
+        "network": "localnet",
+        "revision": 12
+      }
+    },
+    {
+      "action": "advance",
+      "revision": 13,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147851,
+        "signature": "46QGPZb3R8NZPptdj8VHQNkqNE4CGtn7CHNgiVS24HUBxkJgj4J43p6FKyCDpdUK3fovNmQAwmZP6fYoaobZu7NJ",
+        "network": "localnet",
+        "revision": 13
+      }
+    },
+    {
+      "action": "execute",
+      "revision": 14,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147852,
+        "signature": "2ueRtwNjPrZGEdWqqJkcd6HtrwwR9XcH88XtcgFwxPe4XAgwCimWWwwWuqHDVxuceHVYS1xSkmK4dJkDCLnyX9QV",
+        "network": "localnet",
+        "revision": 14
+      }
+    },
+    {
+      "action": "stock",
+      "revision": 15,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147853,
+        "signature": "txqao8wacy8bSwizYGa3bxuE5R7cnazeJLhmTaSWmnT3c5e646m4iF8m1uFpdiKxYNm7YSJe4WqaczA3jXxcPN5",
+        "network": "localnet",
+        "revision": 15
+      }
+    },
+    {
+      "action": "stock",
+      "revision": 16,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147854,
+        "signature": "4iuVWKLukB4tfmvCi66JJcoNAvD2ACM7c9NeY6gC3fPZ1eyeNefXNKbd8S9oDJHyJ8Ft9xjkusYAdpBrb7rjruB9",
+        "network": "localnet",
+        "revision": 16
+      }
+    },
+    {
+      "action": "advance",
+      "revision": 17,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147855,
+        "signature": "2uKjPypFbxmg9YvCAQj2HRaU52NvUrvvjpLXJYuonK9sdx2Fa4Q7Uo2HhhR3ivU8fMp9BEJpM3dLL2T2FkyAdeNg",
+        "network": "localnet",
+        "revision": 17
+      }
+    },
+    {
+      "action": "transfer",
+      "revision": 18,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147856,
+        "signature": "3g9BiGR27uZB8Xqr8P2SGY8hNdyEBwRT8DzSmc6PvWXUsRaJCbbH6UWRTeXZHoyCf7KNDAnudp9QWKuLf2FhZTDh",
+        "network": "localnet",
+        "revision": 18
+      }
+    },
+    {
+      "action": "restart",
+      "revision": 19,
+      "chain": {
+        "ledger": "5FTYBVjyt7eg5r6E4uag969aSUS3pvm335SnNWRoysLG",
+        "slot": 147857,
+        "signature": "3gswEuoMb4yGJk6wwZPvwFjYHc3433qDiFuugQZLfX8YavvnZqeYJJBghpPzUeucFQw22W5YjnGHZbpU3r3n8uBE",
+        "network": "localnet",
+        "revision": 19
+      }
+    }
+  ]
+}

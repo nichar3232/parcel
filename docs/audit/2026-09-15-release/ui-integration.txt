@@ -1,0 +1,1 @@
+Actual localnet UI, proof route, mobile layout and rejected intent verified.

@@ -1,16 +1,18 @@
 'use client';
 import { useId, useState } from 'react';
-import { cashPayoff } from '@/lib/oddlot/math';
+import { strategyPnl } from '@/lib/oddlot/math';
 import type { OrderTerms } from '@/lib/oddlot/types';
 import { usd } from './shared';
 export function PayoffChart({
   terms,
   premium,
   spot,
+  stockQuantity = 0,
 }: {
   terms: OrderTerms;
   premium: number;
   spot: number;
+  stockQuantity?: number;
 }) {
   const [shock, setShock] = useState(0),
     id = useId().replaceAll(':', '');
@@ -25,7 +27,7 @@ export function PayoffChart({
   ].sort((a, b) => a - b);
   const rows = prices.map((price) => ({
     price,
-    pnl: cashPayoff(terms, price) - premium,
+    pnl: strategyPnl(terms, price, spot, premium, stockQuantity),
   }));
   const min = Math.min(-0.01, ...rows.map((r) => r.pnl)),
     max = Math.max(0.01, ...rows.map((r) => r.pnl)),
@@ -37,11 +39,21 @@ export function PayoffChart({
       .join(' '),
     zero = y(0);
   const selected = spot * (1 + shock / 100),
-    pnl = cashPayoff(terms, selected) - premium;
+    pnl = strategyPnl(terms, selected, spot, premium, stockQuantity);
   return (
     <div className="od-payoff">
+      {stockQuantity > 0 && (
+        <p className="od-form-note">
+          Includes {stockQuantity} NVDA acquired at {usd(spot)}. Stock losses
+          below the protected range remain yours.
+        </p>
+      )}
       <div className="od-chart-caption">
-        <span>Payoff at expiry</span>
+        <span>
+          {stockQuantity
+            ? 'Stock + options P&L at expiry'
+            : 'Options-only P&L at expiry'}
+        </span>
         <b className={pnl >= 0 ? 'od-positive' : 'od-negative'}>
           {pnl >= 0 ? '+' : ''}
           {usd(pnl, terms.reference === 'dividend' ? 4 : 2)}

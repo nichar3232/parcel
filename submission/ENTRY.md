@@ -1,56 +1,48 @@
-# Bellwether · Strata
+# Oddlot — options sized to your exposure
 
-## One sentence
+Oddlot brings fractional options, covered underwriting and protected stock borrowing into one collateral-aware equity workspace. A share is the denomination, not a minimum lot. Users choose the exposure they need and see the complete obligation before committing capital.
 
-An onchain equity desk that lets stock holders define downside protection, verify the counterparty's full payout reserve, and follow settlement from quote to claim.
+## The gap
 
-## Problem and user
+Moving stock exposure onchain does not automatically provide appropriately sized options, buyers for covered calls, useful stock borrowing, or trustworthy collateral accounting. Standard contract lots can be too coarse for small portfolios. Separate option and lending escrows make it easy to misunderstand what capital remains available. A small premium can also hide a large exercise-funding requirement.
 
-A tokenized-stock holder can own equity exposure in a wallet, but protecting that exposure still involves fragmented tools and uncertain obligations. The token may trade when the underlying exchange is closed. Its price can diverge from the equity reference. Collateral can be scattered across wallets, derivative escrows and lending venues. Moving the asset onchain does not by itself solve any of these problems.
+## What works
 
-## What we built
+Deposit test cash and stock; trade fractional calls, puts and bounded structures; underwrite covered calls or cash-secured puts; lend shares to a borrower that actually sells them; and open a short with a capped repurchase obligation. Review every option leg, exact premium, expiry and post-trade reserve. Covered strategies include their stock exposure in the payoff chart. Close-outs show the amount paid or received before confirmation.
 
-Strata joins a portfolio, bounded-spread builder, manual maker workspace, funded-offer review, settlement and claims. A put spread offsets a stock decline inside an explicit range. A call spread gives capped upside. The maker reserves the maximum payout before the holder accepts. Every party sees premium, maximum loss, maximum payout and the limits of protection.
-
-A historical replay lab makes the result tangible. Judges can replay three actual NVIDIA market windows, build a structure, compare stock-only and stock-plus-hedge outcomes, and introduce a hypothetical stock-token discount. Prices are historical; premiums and practice trades are explicitly simulated.
-
-The interactive Solana flow uses a compiled Anchor program, session-specific test wallets and real SPL-token escrow. A Node API and SQLite ledger provide durable practice portfolios, revision checks, session isolation and idempotent requests. Signed Solana transactions are persisted before broadcast and recovered after interruptions. It includes exact-term acceptance, missing-data recovery and separate claims. The current recorded evidence is from an isolated Solana validator. **Devnet deployment is not yet complete because public faucet requests were rejected. Do not describe the local-validator proof as devnet.**
+Cross collateral nets only matching reference, expiry and settlement groups. Integer accounting conserves assets and prevents reuse of reserved cash or shares. A sorted strike sweep handles large books without repeated price-grid scans. The browser preserves interrupted actions across reloads and reuses their original request keys.
 
 ## Why Solana
 
-A funded offer makes the counterparty's reserve observable before acceptance. One transaction validates exact terms, pays the premium and activates the obligation. Program-controlled collateral cannot be promised to two contracts. Settlement and claims can be submitted without trusting the UI, and a third-party keeper can retry safely. Solana is the execution and custody layer, not merely a receipt for offchain trades.
+The new Oddlot Anchor program independently executes the vault's transfers, option deliveries, collateral checks, productive loans, capped shorts and historical settlement. SPL test-token accounts owned by the vault PDA back its claims. The program compares its computed economic state with the backend's prepared projection; a mismatch fails the transaction. SQLite indexes the result only after confirmation. Signed transaction bytes are durably recorded before broadcast.
 
-The live historical demonstrator uses one approved test authority and precommitted data. A verified production equity oracle is a separate integration gate.
+This is demonstrated on a **pinned private Solana validator**, not devnet or mainnet. The test maker and session wallets use service-held test signers. The original Strata program is retained for historical reference; it is not used as evidence that Oddlot's new rules execute onchain.
 
-## What is distinctive
+## Product distinction
 
-The differentiation is an integrated risk workflow with recoverable execution: readable custom payoffs, a complete view of encumbered capital, explicit stock-token basis risk, and inspectable settlement. The replay teaches exactly what the hedge does and does not cover. We do not claim to be the first options protocol or a regulated prime broker.
+The thesis is precise exposure plus explicit funding: fractional quantity, editable option ratios, stock-inclusive payoff diagrams and one view of encumbered capital. A borrower sells lent stock, purchases market-backed protection and escrows capped repayment plus interest. Dividend-reference spreads demonstrate another structured payoff without claiming ownership of an issuer distribution.
 
-## Demo
+Fractionality does not change percentage theta or eliminate exercise funding. The default physical call prefunds $145 of strike cash plus approximately $4.04 premium. Bounded cash-settled spreads have a different funding model and payoff.
 
-1. Open the DeepSeek replay. Entry is January 24, 2025, at $142.62 per NVDA share.
-2. Build 100 share-equivalents of $120–$140 put-spread protection, with an illustrative $400 premium.
-3. Switch to Maker and fund the $2,000 maximum payout. Review and accept as holder.
-4. Advance to January 27's stored $118.42 close. Stock-only loss is $2,420. The derivative pays $2,000, net of premium $1,600. Combined loss is $820.
-5. Show that below $120, further equity losses resume. Introduce a simulated token discount: the equity derivative does not erase issuer/basis risk.
-6. Settle and claim as each party. Toggle missing observation to show that collateral stays locked until the committed sample is available.
-7. Use “Try this contract on Solana” to demonstrate the actual program flow; inspect its network label, vault balance, two wallets and transaction proofs.
+## Demonstrated evidence
 
-## Scope and limitations
+- 19 confirmed current-program actions, including fractional options, closes, productive lending, protected shorts, margin changes, dividend settlement, withdrawals and replay reset.
+- 9 independently constructed adversarial transactions rejected by the program: wrong owner/mint, stale revision, expired authorization, insufficient funds, pledged-share withdrawal, mismatched projection, zero-payoff premium and excessive bounded premium.
+- 65 application regression tests, 25 real-backend browser journeys and 6 native program tests.
+- Current narrated UI recording with a confirmed Oddlot vault account and transaction proof.
 
-Borrowing is read-only discovery; stock lending is a product preview. No unverified liquidity, rates, yields or counterparties are displayed. Gross reservations are used; a separate derivative does not increase an external lender's borrowing capacity. Production oracle proofs, corporate actions, issuer compatibility, legal eligibility and external contract review remain release gates.
+See [validation](VALIDATION.md) and the [release audit](../docs/audit/2026-09-15-release/REPORT.md).
 
-## Submission links to fill at publication
+## Liquidity and release boundaries
 
-- Public demo URL: pending publication authorization
-- Video: `strata-demo.mp4` in this submission folder
-- Repository: https://github.com/nichar3232/bellwether (private; public access remains a submission gate)
+All counterparties and market inventories are funded test allocations. There is **no connected external liquidity provider**, verified option demand, or live borrow utilization. Historical NVIDIA closes are real observations; option premiums are model estimates, not historical option quotes. The issuer token, corporate-action handling, live oracle, user wallet signing and independent security review remain production work. The localnet vault is capped at 64 active positions; the sandbox supports 500.
 
-## Sources and open-source disclosure
+## Submission assets
 
-- [Stocklana rules](https://hackathons.solana.com/hackathons/stocklana)
-- [xStocks issuer documentation](https://docs.xstocks.fi/docs)
-- [Pyth developer documentation](https://docs.pyth.network/)
-- [Kamino lending integration documentation](https://kamino.com/docs/build/developers/borrow)
-- Historical observations: source URL and checksum in `data/history.json`
-- React, Vinext, Vite, shadcn/Base UI, Recharts, Lucide, Anchor, Solana web3.js and SPL Token; respective upstream licenses apply. The social card was AI-generated.
+- Project source: https://github.com/nichar3232/oddlot — private; these release changes await push authorization.
+- Current video: [oddlot-demo.mp4](oddlot-demo.mp4), with [captions](oddlot-demo.vtt).
+- Repeatable walkthrough: [DEMO_SCRIPT.md](DEMO_SCRIPT.md).
+- Public demo/access: pending publication authorization and judge-access setup.
+- Hackathon: [Stocklana](https://hackathons.solana.com/hackathons/stocklana).
+
+Previous Bellwether/Strata entry and video are archived in `legacy/` and are not the current submission.

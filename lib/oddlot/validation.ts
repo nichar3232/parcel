@@ -1,5 +1,6 @@
 import { units } from '../engine';
 import { DIVIDEND_DATE, marketRows } from './market';
+import { payoffBounds } from './envelope';
 import { bounded } from './math';
 import type { Leg, OrderTerms } from './types';
 function object(value: unknown): Record<string, unknown> {
@@ -60,7 +61,7 @@ export function parseOrderTerms(value: unknown, date: string): OrderTerms {
     );
   if (t.reference === 'dividend' && legs.some((l) => l.strike > 0.1))
     throw Error('Dividend strikes use dollars per share, up to $0.10.');
-  return {
+  const parsed: OrderTerms = {
     name: t.name,
     quantity: amount(t.quantity),
     expiry: end,
@@ -68,4 +69,10 @@ export function parseOrderTerms(value: unknown, date: string): OrderTerms {
     settlement: t.settlement,
     legs,
   };
+  const bounds = payoffBounds(parsed);
+  if (bounds.cashMin === 0n && bounds.cashMax === 0n)
+    throw Error(
+      'This contract has no payable value at settlement precision. Increase its size or strike width.',
+    );
+  return parsed;
 }

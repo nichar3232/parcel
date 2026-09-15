@@ -1,0 +1,133 @@
+{
+  "network": "isolated Solana local validator",
+  "program": "CJxu36zhuU2Hx1BFisJdSQwdXoUkakA2UJ2WPxeT97af",
+  "generatedAt": "2026-09-15T11:38:24.648Z",
+  "results": [
+    {
+      "name": "wrong owner signer",
+      "error": {
+        "InstructionError": [
+          2,
+          {
+            "Custom": 2001
+          }
+        ]
+      },
+      "log": [
+        "Program log: AnchorError caused by account: ledger. Error Code: ConstraintHasOne. Error Number: 2001. Error Message: A has one constraint was violated."
+      ]
+    },
+    {
+      "name": "wrong mint",
+      "error": {
+        "InstructionError": [
+          2,
+          {
+            "Custom": 2001
+          }
+        ]
+      },
+      "log": [
+        "Program log: AnchorError caused by account: ledger. Error Code: ConstraintHasOne. Error Number: 2001. Error Message: A has one constraint was violated."
+      ]
+    },
+    {
+      "name": "stale revision",
+      "error": {
+        "InstructionError": [
+          2,
+          {
+            "Custom": 6008
+          }
+        ]
+      },
+      "log": [
+        "Program log: AnchorError thrown in src/lib.rs:69. Error Code: Revision. Error Number: 6008. Error Message: Vault revision changed."
+      ]
+    },
+    {
+      "name": "expired authorization",
+      "error": {
+        "InstructionError": [
+          2,
+          {
+            "Custom": 6007
+          }
+        ]
+      },
+      "log": [
+        "Program log: AnchorError thrown in src/lib.rs:64. Error Code: Expired. Error Number: 6007. Error Message: Quote expired."
+      ]
+    },
+    {
+      "name": "unfunded deposit",
+      "error": {
+        "InstructionError": [
+          2,
+          {
+            "Custom": 6001
+          }
+        ]
+      },
+      "log": [
+        "Program log: AnchorError thrown in src/economics.rs:314. Error Code: Balance. Error Number: 6001. Error Message: Insufficient asset balance."
+      ]
+    },
+    {
+      "name": "withdraw pledged shares",
+      "error": {
+        "InstructionError": [
+          2,
+          {
+            "Custom": 6002
+          }
+        ]
+      },
+      "log": [
+        "Program log: AnchorError thrown in src/economics.rs:352. Error Code: Collateral. Error Number: 6002. Error Message: Collateral obligations exceed available assets."
+      ]
+    },
+    {
+      "name": "incorrect backend projection",
+      "error": {
+        "InstructionError": [
+          2,
+          {
+            "Custom": 6009
+          }
+        ]
+      },
+      "log": [
+        "Program log: AnchorError thrown in src/lib.rs:73. Error Code: Projection. Error Number: 6009. Error Message: Backend projection differs from program execution."
+      ]
+    },
+    {
+      "name": "premium for zero-payoff contract",
+      "error": {
+        "InstructionError": [
+          2,
+          {
+            "Custom": 6000
+          }
+        ]
+      },
+      "log": [
+        "Program log: AnchorError thrown in src/economics.rs:104. Error Code: InvalidTerms. Error Number: 6000. Error Message: Invalid contract, replay date, quantity, or position limit."
+      ]
+    },
+    {
+      "name": "bounded premium above entire payable value",
+      "error": {
+        "InstructionError": [
+          2,
+          {
+            "Custom": 6000
+          }
+        ]
+      },
+      "log": [
+        "Program log: AnchorError thrown in src/economics.rs:104. Error Code: InvalidTerms. Error Number: 6000. Error Message: Invalid contract, replay date, quantity, or position limit."
+      ]
+    }
+  ]
+}

@@ -83,3 +83,7 @@ Migration `002-vaults.sql` adds accounts and quotes without rewriting old sessio
 The browser saves a pending mutation's original body and key in session storage before sending it. If both responses are lost, an HTTP 5xx arrives, or the response is unreadable, use **Resolve saved action**. The same intent/key survives a tab reload. Other mutations and quote requests stay blocked until it resolves. A definitive API rejection clears the pending intent. Storage must be available before the first mutation; the client fails closed if it cannot save recovery state. Do not clear browser data while an action is unresolved.
 
 The September 15 [follow-up audit](audit/2026-09-15-review/REPORT.md) covers real HTTP guards, injected transaction failure, disk reopen, legacy database migration, fractional cross-contract rounding, invalid form inputs, delayed quotes, account changes, and interrupted responses.
+
+## Current Oddlot program integration
+
+The keyless command still starts a sandbox. To execute the new vault program, configure the explicit Oddlot program/mint variables described in [ODDLOT_CHAIN.md](ODDLOT_CHAIN.md). In that mode, `/api/ready` checks the Oddlot program and test mints; `/api/vault` labels the mode `localnet` and includes the latest verified ledger, signature, slot and revision. `POST /api/vault/quote` also accepts `{revision, positionId}` for a reviewed option close. The final historical session offers `restart`; this restores test allocations only when all positions are flat and keeps revision and receipts.

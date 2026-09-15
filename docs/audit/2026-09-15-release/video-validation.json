@@ -1,0 +1,15 @@
+{
+  "file": "submission/oddlot-demo.mp4",
+  "durationSeconds": 120.52,
+  "width": 1440,
+  "height": 1000,
+  "videoCodec": "h264",
+  "audioCodec": "aac",
+  "bytes": 5741647,
+  "sha256": "f77563f599328be5319ba18140028cf382f107b6b64b01be3236e9e8043e2f75",
+  "audioMeanDb": -16.2,
+  "audioPeakDb": -1.5,
+  "captions": "submission/oddlot-demo.vtt",
+  "recordedMode": "localnet",
+  "pageErrors": []
+}

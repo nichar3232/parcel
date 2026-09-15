@@ -1,0 +1,5 @@
+
+> oddlot@0.3.0 check:repo
+> node scripts/check-repository.mjs
+
+Repository check passed: 423 indexed files; no credential patterns or runtime files found.

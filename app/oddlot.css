@@ -1806,3 +1806,27 @@
 .od-dialog .od-field > label {
   color: #6e7b92;
 }
+
+/* Isolate search styling from the retained legacy desk. */
+.oddlot .od-search input {
+  background: transparent;
+  color: #556a8b;
+  border: 0;
+  padding: 8px 0;
+}
+.od-proof-body {
+  padding: 0 24px 22px;
+}
+.od-proof-body details {
+  margin: 12px 0;
+  color: #556a8b;
+  font-size: 12px;
+}
+.od-proof-body summary {
+  cursor: pointer;
+}
+.od-proof-body code {
+  display: block;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}

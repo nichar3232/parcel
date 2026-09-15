@@ -1,23 +1,15 @@
-Strata makes stock protection understandable and verifiable. This is the working application, with a persistent backend and historical NVIDIA market data.
+Oddlot lets you size equity options to your actual exposure. One share is a denomination, not a minimum lot. This is the working product: historical NVIDIA prices, model premiums, and disclosed test liquidity. Our vault executes on a private Solana validator.
 
-Choose a bounded put spread. One hundred share equivalents, a one hundred twenty to one hundred forty dollar range, and an illustrative four hundred dollar premium.
+Start with cash and stock deposits. These move real SPL test tokens into program controlled escrow. Both sides of a contract must be funded, and pledged collateral cannot be spent twice.
 
-First, fund a real Solana contract. The maker deposits the full two thousand dollar maximum payout into program controlled test token escrow.
+Underwrite exactly one third of a share. The covered call chart includes the stock: a sharp decline still loses money despite collecting premium. The final confirmation lists the strike, side, ratio, exact price, and remaining collateral before we execute.
 
-The holder accepts those exact terms. These are separate test wallets on an isolated Solana validator. The ninety second observation clock is now running.
+Smaller contracts do not erase exercise funding. This long call needs one hundred forty five dollars of strike cash plus its premium. Reducing the quantity to one tenth reduces both dollar amounts. Cash settled spreads provide a different, bounded alternative.
 
-While that contract matures, the practice desk shows the same lifecycle. Request a quote, switch to the maker, and reserve its maximum payout.
+Structures combine up to four explicit option legs. Here a cash settled call spread caps the payoff and its reserve. Cross collateral only offsets obligations sharing the same reference, expiration, and settlement type.
 
-The funded offer makes the premium and collateral visible before acceptance. Cash moves only after the holder accepts. The backend saves every transition.
+The stock borrower actually sells the borrowed shares. It pays for a covered protective call and escrows the maximum repurchase cost plus interest. The test market reserves the backing stock. This demonstrates productive borrowing, but it does not claim an external lender or market maker.
 
-A missing observation must never release collateral. Here the contract waits for data, then settles against the exact committed historical close of one hundred eighteen dollars and forty two cents.
+The risk view connects the contracts to available capital. It shows exactly which cash and stock are reserved. The program independently calculates the same obligations, so a mismatched backend result cannot commit.
 
-The holder claims two thousand dollars. The maker claims the remainder. Both claims close the contract, and the portfolio reconciles every unit.
-
-The replay makes the outcome tangible. The stock lost two thousand four hundred twenty dollars. After the hedge and premium, the combined loss is eight hundred twenty.
-
-Tokenized stocks also introduce basis and issuer risks. A simulated token discount shows what an equity reference hedge cannot cover. Borrowing remains clearly separated from verified execution.
-
-Now return to the real Solana contract. Its historical observation was committed before funding. Settlement fixes each entitlement, and the program pays both parties exactly once.
-
-The escrow is empty, and every confirmed transaction can be inspected. Strata is a working test value demonstrator: clear payoffs, fully reserved obligations, and recoverable settlement.
+Advance to the stored expiry. Options settle together and the borrower repurchases the loaned stock. Activity records the confirmed Solana transaction and verified slot. After the last historical session, restart the replay without losing the audit receipts.

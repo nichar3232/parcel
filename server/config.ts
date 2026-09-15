@@ -14,6 +14,7 @@ export interface Config {
   chainEnabled: boolean;
   expirySeconds: number;
   secureCookie: boolean;
+  oddlot?: { program: string; cashMint: string; stockMint: string };
 }
 export function configFromEnv(
   env: Record<string, string | undefined> = process.env,
@@ -43,7 +44,26 @@ export function configFromEnv(
   const port = Number(env.PORT || 3025);
   if (!Number.isInteger(port) || port < 0 || port > 65535)
     throw new ApiError(500, 'CONFIG', 'Invalid port.');
+  if (
+    env.ODDLOT_CHAIN_ENABLED === 'true' &&
+    (!env.ODDLOT_PROGRAM_ID ||
+      !env.ODDLOT_CASH_MINT ||
+      !env.ODDLOT_STOCK_MINT ||
+      env.CHAIN_ENABLED === 'false' ||
+      network !== 'localnet')
+  )
+    throw Error(
+      'Oddlot chain mode requires its program, two mints, and an enabled pinned localnet.',
+    );
   return {
+    oddlot:
+      env.ODDLOT_CHAIN_ENABLED === 'true'
+        ? {
+            program: env.ODDLOT_PROGRAM_ID!,
+            cashMint: env.ODDLOT_CASH_MINT!,
+            stockMint: env.ODDLOT_STOCK_MINT!,
+          }
+        : undefined,
     port,
     host: env.HOST || '0.0.0.0',
     publicDir: path.resolve(env.STRATA_PUBLIC_DIR || 'dist/client'),

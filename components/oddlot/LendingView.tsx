@@ -4,7 +4,13 @@ import { ArrowRight, ShieldCheck } from 'lucide-react';
 import type { VaultAction } from '@/lib/oddlot/types';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import { amount } from '@/lib/oddlot/validation';
-import { days, optionGreeks } from '@/lib/oddlot/math';
+import { add, mul, round } from '@/lib/oddlot/math';
+import {
+  accruedInterest,
+  termInterest,
+  protectionPremium,
+  shortCloseAmounts,
+} from '@/lib/oddlot/funding';
 import {
   Badge,
   Button,
@@ -36,6 +42,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
       title: string;
       label: string;
       value: number;
+      details: [string, string][];
     } | null>(null);
   const end = expiry > s.book.date ? expiry : defaultExpiry,
     q = Number(quantity),
@@ -50,11 +57,12 @@ export function LendingView({ desk }: { desk: VaultController }) {
   } catch {
     valid = false;
   }
-  const interest = (q * s.market.price * 0.035 * days(s.book.date, end)) / 365;
+  const interest = valid
+    ? termInterest(q, s.market.price, s.book.date, end)
+    : 0;
   const protection =
-    Number.isFinite(k) && k > 0
-      ? optionGreeks('call', s.market.price, k, days(s.book.date, end)).price *
-        q
+    valid && mode === 'short'
+      ? protectionPremium(q, s.market.price, k, s.book.date, end)
       : 0;
   const openReview = () =>
     setReview({
@@ -79,12 +87,53 @@ export function LendingView({ desk }: { desk: VaultController }) {
           : mode === 'short'
             ? 'Maximum cash reserved'
             : 'Total consideration',
+      details:
+        mode === 'stock'
+          ? [
+              [
+                'Direction',
+                side === 'buy' ? 'Buy owned stock' : 'Sell owned stock',
+              ],
+              ['Settlement', 'Immediate stock / USDC exchange'],
+            ]
+          : [
+              ['Term ends', end],
+              ['Borrow rate', '3.50% APR'],
+              ['Full-term interest', usd(interest, 6)],
+              ['Stock sale proceeds', usd(mul(q, s.market.price), 6)],
+              [
+                'Protective call',
+                `Buy ${qty(q)} NVDA call · strike ${usd(mode === 'lend' ? round(s.market.price * 1.5) : k, 6)} · ratio 1×`,
+              ],
+              [
+                'Protection premium paid by ' +
+                  (mode === 'lend' ? 'borrower' : 'you'),
+                usd(
+                  mode === 'lend'
+                    ? protectionPremium(
+                        q,
+                        s.market.price,
+                        round(s.market.price * 1.5),
+                        s.book.date,
+                        end,
+                      )
+                    : protection,
+                  6,
+                ),
+              ],
+              [
+                'Your cash movement now',
+                mode === 'lend'
+                  ? '$0.000000'
+                  : usd(add(mul(q, s.market.price), -protection), 6),
+              ],
+            ],
       value:
         mode === 'lend'
-          ? q * s.market.price * 1.5
+          ? add(mul(q, round(s.market.price * 1.5)), interest)
           : mode === 'short'
-            ? q * k + interest
-            : q * s.market.price,
+            ? add(mul(q, k), interest)
+            : mul(q, s.market.price),
     });
   const confirm = async () => {
     if (review && (await desk.act(review.action, review.revision)))
@@ -250,7 +299,8 @@ export function LendingView({ desk }: { desk: VaultController }) {
             </Button>
             <p className="od-form-note">
               All assets, counterparties, and rates in this environment are for
-              testing. Borrowed or pledged shares cannot be pledged again.
+              testing. The borrower sells the borrowed stock and funds a capped
+              repurchase; pledged protection cannot be reused.
             </p>
           </div>
         </Panel>
@@ -270,7 +320,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
             {mode === 'short'
               ? 'An ordinary short can lose without limit. Oddlot’s protected short pairs each borrowed share with a covered call and reserves the strike cash plus full-term borrow cost. Sale proceeds remain in the vault.'
               : mode === 'lend'
-                ? 'The test borrower transfers 150% of the opening stock value as cash collateral, plus the entire term’s interest. Borrowed shares are earmarked for repayment and never reused as option collateral.'
+                ? 'The test borrower transfers 150% of the opening stock value as cash collateral, plus the entire term’s interest. The borrower sells the stock to the test market and buys a covered call capped at 150% of entry. Cash escrow funds repayment even if the stock rises past that cap.'
                 : 'Spot purchases exchange your available USDC for shares at the stored reference price. Selling is limited to owned, unencumbered shares; it cannot silently create a naked short.'}
           </p>
           <ol>
@@ -285,7 +335,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
                 ? [
                     'Check that your shares are available.',
                     'Verify the borrower’s funded collateral.',
-                    'Transfer shares and record your receivable.',
+                    'Sell borrowed stock and fund call protection.',
                     'Recall anytime; receive accrued test interest.',
                   ]
                 : [
@@ -310,7 +360,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
             <table className="od-table">
               <thead>
                 <tr>
-                  <th>Principal</th>
+                  <th>Principal / borrower use</th>
                   <th>Term ends</th>
                   <th>Borrower cash collateral</th>
                   <th>Interest prepaid</th>
@@ -324,6 +374,12 @@ export function LendingView({ desk }: { desk: VaultController }) {
                   <tr key={p.id}>
                     <td>
                       <b>{qty(p.quantity)} NVDA</b>
+                      {p.productive && (
+                        <small>
+                          Sold at {usd(p.productive.entry)} · protected at{' '}
+                          {usd(p.productive.cap)}
+                        </small>
+                      )}
                     </td>
                     <td>{dateLabel(p.expiry)}</td>
                     <td>{usd(p.collateral)}</td>
@@ -333,7 +389,27 @@ export function LendingView({ desk }: { desk: VaultController }) {
                         variant="quiet"
                         disabled={desk.busy}
                         onClick={() =>
-                          void desk.act({ type: 'recall', id: p.id })
+                          setReview({
+                            action: { type: 'recall', id: p.id },
+                            revision: s.revision,
+                            quantity: p.quantity,
+                            price: s.market.price,
+                            title: 'Review stock recall',
+                            label: 'Interest you receive',
+                            value: accruedInterest(
+                              p.prepaidInterest,
+                              p.opened,
+                              p.expiry,
+                              s.book.date,
+                            ),
+                            details: [
+                              ['Shares returned', `${qty(p.quantity)} NVDA`],
+                              [
+                                'Unused borrower collateral',
+                                'Returned to borrower after repurchase',
+                              ],
+                            ],
+                          })
                         }
                       >
                         Recall shares
@@ -384,7 +460,58 @@ export function LendingView({ desk }: { desk: VaultController }) {
                         variant="quiet"
                         disabled={desk.busy}
                         onClick={() =>
-                          void desk.act({ type: 'close-short', id: p.id })
+                          setReview({
+                            action: { type: 'close-short', id: p.id },
+                            revision: s.revision,
+                            quantity: p.quantity,
+                            price: s.market.price,
+                            title: 'Review short close',
+                            label: 'You pay to cover and repay',
+                            value: shortCloseAmounts(
+                              p,
+                              s.market.price,
+                              s.book.date,
+                            ).total,
+                            details: [
+                              [
+                                'Repurchase cost',
+                                usd(
+                                  shortCloseAmounts(
+                                    p,
+                                    s.market.price,
+                                    s.book.date,
+                                  ).repurchase,
+                                  6,
+                                ),
+                              ],
+                              [
+                                'Accrued borrow cost',
+                                usd(
+                                  shortCloseAmounts(
+                                    p,
+                                    s.market.price,
+                                    s.book.date,
+                                  ).interest,
+                                  6,
+                                ),
+                              ],
+                              [
+                                'Total position P&L including paid protection',
+                                usd(
+                                  shortCloseAmounts(
+                                    p,
+                                    s.market.price,
+                                    s.book.date,
+                                  ).pnl,
+                                  6,
+                                ),
+                              ],
+                              [
+                                'Protective call retired',
+                                `Strike ${usd(p.cap, 6)} · expiry ${p.expiry}`,
+                              ],
+                            ],
+                          })
                         }
                       >
                         Cover & repay
@@ -410,8 +537,14 @@ export function LendingView({ desk }: { desk: VaultController }) {
         >
           <div className="od-review-line">
             <span>{review.label}</span>
-            <b>{usd(review.value)}</b>
+            <b>{usd(review.value, 6)}</b>
           </div>
+          {review.details.map(([label, value]) => (
+            <div className="od-review-line" key={label}>
+              <span>{label}</span>
+              <b>{value}</b>
+            </div>
+          ))}
           {review.revision !== s.revision && (
             <p className="od-error" role="alert">
               Your vault changed. Close this review and review the current

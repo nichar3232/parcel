@@ -23,7 +23,7 @@ archive=root/'submission/oddlot-source.zip'
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as out:
  for file in selected+[manifest_file]:out.write(file,'oddlot/'+str(file.relative_to(root)))
 proofs=sorted((root/'submission/transaction-proofs').glob('*.json'))
-checked=[root/'README.md',root/'package-lock.json',root/'data/nvda-yahoo-raw.json',root/'data/history.json',root/'artifacts/strata.so',root/'artifacts/strata-localnet.so',root/'docs/audit/program-build.json',root/'docs/audit/REPORT.md',archive,manifest_file,*sorted((root/'submission').glob('*.json')),*sorted((root/'submission').glob('*.mp4')),*proofs]
+checked=[root/'README.md',root/'package-lock.json',root/'data/nvda-yahoo-raw.json',root/'data/history.json',root/'artifacts/oddlot-localnet.so',root/'docs/audit/2026-09-15-release/chain-lifecycle.json',root/'docs/audit/2026-09-15-release/chain-adversarial.json',root/'artifacts/strata.so',root/'artifacts/strata-localnet.so',root/'docs/audit/program-build.json',root/'docs/audit/REPORT.md',archive,manifest_file,*sorted((root/'submission').glob('*.json')),*sorted((root/'submission').glob('*.mp4')),*proofs]
 checked=list(dict.fromkeys(checked))
 (root/'submission/SHA256SUMS').write_text(''.join(f'{hashlib.sha256(f.read_bytes()).hexdigest()}  {f.relative_to(root)}\n' for f in checked))
 print(f'Packaged {len(selected)+1} files; {archive.stat().st_size:,} bytes; no state or private-key files included.')

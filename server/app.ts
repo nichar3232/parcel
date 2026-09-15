@@ -1,3 +1,5 @@
+import { OddlotAdapter } from './oddlot/chain/adapter';
+import { VaultChainCoordinator } from './oddlot/chain/coordinator';
 import { VaultService } from './oddlot/service';
 import { readFile } from 'node:fs/promises';
 import http from 'node:http';
@@ -21,7 +23,11 @@ export function createApp(
 ) {
   const store =
     options.store || new Store(path.join(config.stateDir, 'strata.sqlite'));
-  const vault = new VaultService(store);
+  const vault = new VaultService(store, Date.now, config.oddlot ? 64 : 500);
+  const oddlotAdapter = config.oddlot ? new OddlotAdapter(config) : undefined;
+  const vaultChain = config.oddlot
+    ? new VaultChainCoordinator(store, vault, oddlotAdapter!)
+    : undefined;
   const portfolio = new PortfolioService(store),
     chain = new ChainService(
       store,
@@ -52,15 +58,30 @@ export function createApp(
           database = 'unavailable';
         }
         const health = await chain.adapter.health();
+        const oddlot = {
+          ready: !oddlotAdapter,
+          mode: oddlotAdapter ? 'localnet' : 'sandbox',
+          reason: '',
+        };
+        if (oddlotAdapter) {
+          try {
+            await oddlotAdapter.health();
+            oddlot.ready = true;
+          } catch (e) {
+            oddlot.reason = (e as Error).message;
+          }
+        }
         return json(
           res,
           database === 'ready' &&
-            (url.pathname !== '/api/ready' || health.ready)
+            (url.pathname !== '/api/ready' ||
+              (oddlot.ready && (oddlotAdapter || health.ready)))
             ? 200
             : 503,
           {
             ok: database === 'ready',
-            app: 'strata',
+            app: 'oddlot',
+            oddlot,
             database,
             chain: health,
             serverTime: Date.now(),
@@ -129,7 +150,11 @@ export function createApp(
           'Load a session before using the desk.',
         );
       if (url.pathname === '/api/vault' && method === 'GET')
-        return json(res, 200, vault.snapshot(session));
+        return json(
+          res,
+          200,
+          vaultChain ? vaultChain.snapshot(session) : vault.snapshot(session),
+        );
       if (['/api/vault/actions', '/api/vault/quote'].includes(url.pathname)) {
         if (method !== 'POST')
           throw new ApiError(405, 'METHOD', 'POST required.');
@@ -141,7 +166,9 @@ export function createApp(
           200,
           url.pathname === '/api/vault/quote'
             ? vault.quote(session, key, input)
-            : vault.apply(session, key, input),
+            : vaultChain
+              ? await vaultChain.apply(session, key, input)
+              : vault.apply(session, key, input),
         );
       }
       if (url.pathname === '/api/portfolio' && method === 'GET')
