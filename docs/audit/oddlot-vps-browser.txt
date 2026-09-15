@@ -1,0 +1,26 @@
+> oddlot@0.3.0 test:e2e
+> playwright test
+
+
+Running 16 tests using 1 worker
+
+(node:73166) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/desk.spec.ts:26:1 › complete historical lifecycle through the real backend, reload and both claims (5.7s)
+  ✓   2 tests/e2e/desk.spec.ts:58:1 › maker cancellation reclaims reserve and invalid builder inputs never crash (3.6s)
+  ✓   3 tests/e2e/desk.spec.ts:81:1 › a stale second tab cannot overwrite a newer portfolio (3.7s)
+  ✓   4 tests/e2e/desk.spec.ts:106:1 › backend failure is visible and reconnect restores the session (5.0s)
+  ✓   5 tests/e2e/desk.spec.ts:118:1 › all views and dialogs work at desktop and mobile widths without page overflow (5.5s)
+  ✓   6 tests/e2e/desk.spec.ts:154:1 › missing historical observation keeps the reserve locked and recovery pays once (4.8s)
+  ✓   7 tests/e2e/desk.spec.ts:175:1 › a dropped mutation response retries the same request without a second quote (4.8s)
+  ✓   8 tests/e2e/desk.spec.ts:197:1 › settlement uses the chain clock even when wall time is far ahead (9.4s)
+  ✓   9 tests/e2e/vault.spec.ts:65:1 › vault deposits, fractional covered underwriting, blocked withdrawal and expiry persist through reload (6.9s)
+  ✓  10 tests/e2e/vault.spec.ts:97:1 › structured orders release only valid collateral offsets; risk view stays synchronized (6.0s)
+  ✓  11 tests/e2e/vault.spec.ts:128:1 › lending, recall and a protected short complete through the real API (6.2s)
+  ✓  12 tests/e2e/vault.spec.ts:165:1 › dividend contracts execute and settle from the stored event (4.2s)
+  ✓  13 tests/e2e/vault.spec.ts:181:1 › every workspace view fits desktop and mobile, with accessible forms and no page overflow (9.5s)
+  ✓  14 tests/e2e/vault.spec.ts:221:1 › a dropped mutation response retries once with the same receipt, not another deposit (5.3s)
+  ✓  15 tests/e2e/vault.spec.ts:239:1 › a second tab cannot overwrite the first tab’s vault revision (5.0s)
+  ✓  16 tests/e2e/vault.spec.ts:259:1 › backend outage shows a recovery action and reconnect resumes the saved vault (5.3s)
+
+  16 passed (1.5m)

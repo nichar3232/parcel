@@ -36,6 +36,27 @@ const firstResponse = await fetch(`${base}/api/portfolio/actions`, {
 });
 assert.equal(firstResponse.status, 200);
 const first = await firstResponse.json();
+const vaultBefore = await (
+  await fetch(`${base}/api/vault`, { headers: { Cookie: cookie } })
+).json();
+const vaultKey = randomUUID();
+const vaultRequest = JSON.stringify({
+  revision: vaultBefore.revision,
+  action: {
+    type: 'transfer',
+    direction: 'deposit',
+    asset: 'USDC',
+    amount: 250,
+  },
+});
+const vaultHeaders = { ...headers, 'Idempotency-Key': vaultKey };
+const vaultResponse = await fetch(`${base}/api/vault/actions`, {
+  method: 'POST',
+  headers: vaultHeaders,
+  body: vaultRequest,
+});
+assert.equal(vaultResponse.status, 200);
+const vaultFirst = await vaultResponse.json();
 execFileSync('ssh', ['trading-01', 'sudo systemctl restart stocklana-web']);
 let health;
 for (let i = 0; i < 20; i++) {
@@ -61,18 +82,33 @@ const retry = await fetch(`${base}/api/portfolio/actions`, {
 });
 assert.equal(retry.status, 200);
 assert.deepEqual(await retry.json(), first);
+const vaultRestored = await (
+  await fetch(`${base}/api/vault`, { headers: { Cookie: cookie } })
+).json();
+assert.deepEqual(vaultRestored.book, vaultFirst.book);
+assert.deepEqual(vaultRestored.risk, vaultFirst.risk);
+assert.equal(vaultRestored.revision, vaultFirst.revision);
+const vaultRetry = await fetch(`${base}/api/vault/actions`, {
+  method: 'POST',
+  headers: vaultHeaders,
+  body: vaultRequest,
+});
+assert.equal(vaultRetry.status, 200);
+assert.deepEqual(await vaultRetry.json(), vaultFirst);
 const result = {
   checkedAt: new Date().toISOString(),
   checks: [
     'Same cookie resumes after systemd service restart',
-    'Portfolio and revision unchanged',
+    'Legacy portfolio and revision unchanged',
+    'Oddlot vault assets, collateral and revision unchanged',
+    'Oddlot deposit retry returns the original durable receipt',
     'Same mutation key returns original durable receipt',
     'Database, pinned program, mint and Solana clock ready',
   ],
   health,
 };
 await writeFile(
-  'docs/audit/deployment-checks.txt',
+  'docs/audit/oddlot-deployment-checks.json',
   JSON.stringify(result, null, 2) + '\n',
 );
 console.log(result);

@@ -4,7 +4,7 @@ test.beforeEach(async ({ page }) => {
   const list: string[] = [];
   errors.set(page, list);
   page.on('pageerror', (e) => list.push(e.message));
-  await page.goto('/');
+  await page.goto('/legacy');
   await expect(
     page.getByText('Connecting to your saved portfolio…'),
   ).toHaveCount(0);
@@ -83,7 +83,7 @@ test('a stale second tab cannot overwrite a newer portfolio', async ({
   context,
 }) => {
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/legacy');
   await expect(
     second.getByText('Connecting to your saved portfolio…'),
   ).toHaveCount(0);
@@ -251,7 +251,9 @@ test('settlement uses the chain clock even when wall time is far ahead', async (
     }),
   );
   await page.reload();
-  await expect(page.getByText('Connecting to your saved portfolio…')).toHaveCount(0);
+  await expect(
+    page.getByText('Connecting to your saved portfolio…'),
+  ).toHaveCount(0);
   await page
     .getByRole('button', { name: 'Protect a position', exact: true })
     .click();

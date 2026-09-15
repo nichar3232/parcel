@@ -1,5 +1,5 @@
 [Unit]
-Description=Strata Stocklana equity desk and test-chain API
+Description=Oddlot equity vaults, options desk and retained Solana API
 After=network-online.target
 Wants=network-online.target
 [Service]

@@ -1,3 +1,4 @@
+import { VaultService } from './oddlot/service';
 import { readFile } from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
@@ -20,6 +21,7 @@ export function createApp(
 ) {
   const store =
     options.store || new Store(path.join(config.stateDir, 'strata.sqlite'));
+  const vault = new VaultService(store);
   const portfolio = new PortfolioService(store),
     chain = new ChainService(
       store,
@@ -126,6 +128,22 @@ export function createApp(
           'SESSION_REQUIRED',
           'Load a session before using the desk.',
         );
+      if (url.pathname === '/api/vault' && method === 'GET')
+        return json(res, 200, vault.snapshot(session));
+      if (['/api/vault/actions', '/api/vault/quote'].includes(url.pathname)) {
+        if (method !== 'POST')
+          throw new ApiError(405, 'METHOD', 'POST required.');
+        mutationGuard(req, config, session.csrf);
+        const key = parseKey(req.headers['idempotency-key']),
+          input = await body(req);
+        return json(
+          res,
+          200,
+          url.pathname === '/api/vault/quote'
+            ? vault.quote(session, key, input)
+            : vault.apply(session, key, input),
+        );
+      }
       if (url.pathname === '/api/portfolio' && method === 'GET')
         return json(res, 200, store.portfolio(session));
       if (url.pathname === '/api/chain/positions' && method === 'GET')
@@ -174,5 +192,5 @@ export function createApp(
   server.requestTimeout = 15000;
   server.headersTimeout = 10000;
   server.keepAliveTimeout = 5000;
-  return { server, store, chain, portfolio };
+  return { server, store, chain, portfolio, vault };
 }

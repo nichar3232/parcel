@@ -1,6 +1,6 @@
 {
-  "name": "bellwether",
-  "version": "0.2.0",
+  "name": "oddlot",
+  "version": "0.3.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -62,9 +62,9 @@
     "ws": "8.21.3",
     "bigint-buffer": "$bigint-buffer"
   },
-  "description": "An equity-protection desk with historical replay, durable accounting and Solana escrow.",
+  "description": "Options by the share: collateral vaults, covered underwriting, structured positions and protected stock lending.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nichar3232/bellwether.git"
+    "url": "https://github.com/nichar3232/oddlot.git"
   }
 }

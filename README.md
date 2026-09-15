@@ -1,88 +1,72 @@
-# Bellwether
+# Oddlot
 
-[![CI](https://github.com/nichar3232/bellwether/actions/workflows/ci.yml/badge.svg)](https://github.com/nichar3232/bellwether/actions/workflows/ci.yml)
+**Options, by the share.**
 
-**Equity protection for markets moving onchain.** Bellwether is the project repository for the **Strata** desk built for Stocklana. The existing interface, recorded walkthrough and deployed Anchor program retain the Strata name so their audit evidence stays easy to follow.
+[![CI](https://github.com/nichar3232/oddlot/actions/workflows/ci.yml/badge.svg)](https://github.com/nichar3232/oddlot/actions/workflows/ci.yml)
 
-A working equity-protection desk for Stocklana: define a bounded spread, reserve its full payout, accept exact terms, replay historical NVDA prices, settle and claim. The original design is preserved in [docs/reference](docs/reference).
+A unified equity workspace for granular options, covered underwriting, stock lending, protected shorts and structured contracts. One contract represents one share-equivalent; quantities support six decimal places.
 
-The audited build has a real Node backend, a transactional SQLite portfolio ledger, isolated browser sessions, and real Solana test-token escrow. It runs continuously on the private `trading-01` VPS, port 3025. Resolve its tailnet address with `~/bin/vps ip --ts`.
+Oddlot is a working **private test-asset product**. Its Node API and SQLite vault ledger execute every deposit, reserve, trade, loan and settlement shown in the interface. The retained Strata desk at `/legacy` separately executes real SPL test-token escrow on an isolated Solana validator. The new vault ledger is not onchain custody or a live brokerage.
 
-## Run locally
+![Oddlot vault workspace](docs/audit/oddlot/overview.png)
 
-Use Node 22.23.2 (`.nvmrc`). No wallet or API key is needed for the complete historical practice flow.
+## Start
 
 ```sh
-git clone https://github.com/nichar3232/bellwether.git
-cd bellwether
+git clone https://github.com/nichar3232/oddlot.git
+cd oddlot
 npm ci --ignore-scripts
 npm run build
 npm run demo
 ```
 
-Open `http://localhost:3025`. The same process serves the built frontend and API. State persists in `.state/strata.sqlite`; clearing browser storage cannot change balances. For hot reload, leave the backend running and run `npm run dev` in another terminal. Its `/api` proxy targets port 3025.
+Use Node 22.23.2 from `.nvmrc`. Open `http://localhost:3025`. This single server serves the frontend **and** API. The complete vault workflow needs no keys. State persists in `.state/strata.sqlite`; the retained filename keeps deployed data compatible. Read [development setup](docs/DEVELOPMENT.md) before changing environment or hosting.
 
-The frontend calls relative `/api/...` routes with the same session cookie. Production serves UI and API on one origin; development proxies `/api` to the backend. Deploying only `dist/client` would omit the backend. See [integration and environment setup](docs/DEVELOPMENT.md).
+## What works
 
-## Use the demo
+- **Vault:** deposit/withdraw test USDC and NVDA; inspect available, reserved and lent assets. Pledged assets cannot be withdrawn, sold or lent again.
+- **Options:** one-share and fractional calls/puts, physical assignment, server-issued 30-second quotes, close-out and atomic expiry settlement.
+- **Underwriting:** covered calls lock shares; cash-secured puts lock strike cash. Counterparty obligations are also reserved.
+- **Structures:** call/put spreads, straddles, strangles, iron condors, butterflies, collars, and capped dividend-reference contracts. Edit up to four legs and whole-number ratios.
+- **Stock lending:** the test borrower prefunds 150% opening-value cash collateral plus term interest; principal shares remain earmarked. Recall returns shares and accrued interest.
+- **Long/short stock:** spot longs are cash funded. Shorts pair the borrow with a covered protective call, and reserve the maximum repurchase cost plus term interest.
+- **Cross collateral:** only net obligations within identical reference, expiry and settlement groups. No offsets across dates, references, settlement types or outside lenders. Isolated mode is also enforced.
+- **Activity:** persistent receipts, transaction history, export, stale-tab protection and safe HTTP retries.
 
-1. **Build:** request the default 100-share $120–$140 put spread, premium $400.
-2. **Maker:** fund the $2,000 reserve; review as holder and accept.
-3. **Position:** advance to expiry; optionally simulate missing data; settle.
-4. **Claim:** pay the holder $2,000 and the maker $0. The holder finishes with $11,600 cash. Total cash plus escrow remains $60,000 throughout.
-5. **Replay:** compare the DeepSeek, earnings and rebound windows. Stock-only loss in the default scenario is $2,420; the hedge reduces the combined loss to $820.
-6. **Build → Try this contract on Solana:** execute a separate real test-token lifecycle. A server-signed market commitment and fully funded offer are atomic. Session-specific maker and holder keys isolate each browser's contracts. The default on-chain observation delay is 90 seconds.
+Start by depositing one NVDA share, choose **Underwrite → Covered call**, review the actual premium and reserve, and confirm. Use **Market controls** to advance historical sessions; due positions settle at their exact stored expiry observation. The UI does not fabricate balances after an API failure.
 
-The browser portfolio is a server-authoritative simulation. The Solana dialog is actual program execution. Their balances are intentionally distinct and labeled. Financing is read-only discovery and an illustrative calculator; stock lending is a preview.
+## Code organization
 
-## Architecture
-
-| Boundary | Responsibility |
+| Area | Responsibility |
 |---|---|
-| `app/page.tsx` | Desk shell and navigation |
-| `components/desk/views`, `dialogs` | Seven feature views and focused dialogs |
-| `hooks/desk` | UI orchestration, API portfolio, recoverable chain requests |
-| `lib/engine.ts`, `scenarios.ts` | Shared six-decimal arithmetic, lifecycle and historical dataset |
-| `server/app.ts`, `http` | HTTP routing, cookie sessions, CSRF, bounded JSON and static/range serving |
-| `server/domain` | Validated portfolio actions and durable chain operation orchestration |
-| `server/db` | SQLite WAL, revision checks, receipts, ownership and transaction outbox |
-| `server/solana` | Network verification, instruction codec, signed transactions and coherent account reads |
-| `programs/strata/src/lib.rs` | Anchor constraints, immutable terms, escrow and claims |
-
-The backend records signed transaction bytes **before** broadcasting. An ambiguous RPC result remains pending. Retries use the same signature, including after restart. Expiration is determined using finalized block height and signature history. Evidence archival cannot turn a confirmed transaction into a failure. Concurrent refreshes preserve newer transaction records.
+| `app/page.tsx`, `components/oddlot/` | New workspace, views, contract editor and payoff chart |
+| `hooks/oddlot/use-vault.ts` | Same-origin requests, revisions, recovery and UI state |
+| `lib/oddlot/` | Types, six-decimal arithmetic, Greeks, templates and collateral envelopes |
+| `server/oddlot/service.ts` | Session ownership, quote lifecycle, atomic actions and receipts |
+| `server/oddlot/ledger.ts` | Asset transfers, loans, protected shorts and net expiry settlement |
+| `server/db/002-vaults.sql` | Versioned vault accounts and quote persistence |
+| `app/legacy/`, `server/domain/`, `server/solana/` | Retained historical desk and durable Solana execution |
+| `programs/strata/` | Audited original Anchor escrow program |
+| `tests/`, `.github/workflows/` | Domain/API regression tests and real-backend browser CI |
+| `ops/` | VPS deployment, backup, rollback and restart verification |
 
 ## Verify
 
 ```sh
-npm run typecheck
-npm run lint
-npm test
-npm run build
+npm run check:repo
+npm run check
 npx playwright install chromium
 npm run test:e2e
 ```
 
-The browser suite starts a separate backend on port 3027. It covers the entire lifecycle, two claims, reload, cancellation, invalid inputs, stale tabs, dropped responses, reconnect, missing observations, and seven views at desktop/mobile widths. Set `E2E_BASE_URL` to test an existing deployment.
+CI runs this flow on Linux from a clean checkout. Tests cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, capped shorts, dividends, browser recovery and mobile overflow. Actual Solana program verification remains an explicit operator command.
 
-On the VPS, `scripts/audit-chain.ts` exercises the actual HTTP API, program and test wallets across three scenarios. `npm run verify:chain` runs the lower-level adversarial contract suite. Both require the dedicated test configuration described in [ops/README.md](ops/README.md).
+## Pricing and release boundaries
 
-See [the audit report](docs/audit/REPORT.md), [validation evidence](submission/VALIDATION.md), and [architecture](docs/ARCHITECTURE.md). Tests are project verification, not an independent security certification.
+NVDA closes are retained historical observations from January–April 2025. Options use an explicitly labeled Black–Scholes test model with 45% volatility and 4% annual interest; dividend-reference pricing uses an illustrative 80% input. These are not live quotes or historical option premiums. Dollar theta scales with quantity; shrinking a contract does not change percentage decay per share.
 
-## Data and release boundaries
+Dividend contracts reference the issuer's declared $0.01 dividend for the March 12, 2025 record-date event, payable April 2. They do not transfer dividend ownership or model an xStock multiplier as a cash payment. See [product rules and sources](docs/PRODUCT.md).
 
-The retained Yahoo response contains 63 NVDA daily OHLC observations, January 2–April 3, 2025. Source, retrieval time and SHA-256 are in `data/history.json`. `node scripts/import-history.mjs` deterministically rebuilds the normalized snapshot. Premiums are illustrative. Historical closes are immutable settlement inputs; no live Pyth feed or historical option prices are claimed.
+The new custody, underwriting and margin rules are enforced by the backend test ledger. Production requires wallet authentication, token custody integration, a matching audited program for these new rules, live pricing/oracle feeds, issuer/corporate-action handling and operational release review. The original Solana evidence remains local-validator evidence; devnet funding is still an open gate. Bellwether is left intact as the prior repository.
 
-The current chain is an isolated Solana validator. Devnet remains unfunded; the design's devnet acceptance gate is still open. The source repository is private on GitHub. Public publication and the hackathon form remain pending. The private app and local submission artifacts are operable. Production oracle proofs, corporate actions, issuer compatibility, outage resolution and external contract review remain production work; no real-value trading is enabled.
-
-Two moderate npm audit entries remain in Jayson's unused server-side streaming dependency. The running SDK uses `jayson/lib/client/browser`, which does not load that parser. No high/critical entries remain. The vulnerable native `bigint-buffer` addon was replaced by the small, tested, pure-JavaScript compatibility package in `vendor/`; this is explicitly a local replacement, not an upstream patch. Details are in the audit report.
-
-Built with React, Vinext, Vite, Base UI/shadcn components, Recharts, Lucide, Solana web3.js, SPL Token and Anchor under their respective licenses. The social preview is AI-generated.
-
-## Repository guide
-
-- [Development and API integration](docs/DEVELOPMENT.md): clean setup, environments, request flow and troubleshooting.
-- [Contributing](CONTRIBUTING.md): module boundaries and required checks.
-- [Operations](ops/README.md): private VPS deployment, persistence, backups and rollback.
-- [Submission materials](submission/README.md): entry text, recorded demo and transaction evidence.
-
-GitHub CI runs the repository hygiene check, typecheck, lint, unit/API tests, production build and browser journeys against a fresh real backend. The test-chain verifier requires a separately provisioned test validator and remains an operator command.
+The [original engineering audit](docs/audit/REPORT.md) records the legacy execution review and dependency findings. Two moderate entries remain in an unused upstream streaming parser; there are no critical/high findings in that retained audit. The original audited program artifacts and evidence are preserved. No private keys, runtime databases or real `.env` files belong in this repository.

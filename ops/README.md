@@ -1,4 +1,4 @@
-# Private VPS operations
+# Oddlot private VPS operations
 
 Read `~/Brain/Infra/vps.md` and run `~/bin/vps free` before adding capacity. This tenant already runs on `trading-01`. Resolve its address with `~/bin/vps ip --ts`; never hardcode the address. The existing firewall makes port 3025 tailnet-only. Solana RPC binds loopback 8899. No Mac process is needed after deployment.
 
@@ -84,3 +84,7 @@ The existing local validator preloads its program with the system address as upg
 Public program and authority constants are in `programs/strata/src/lib.rs` and backend config. Independent deployments require their own dedicated test keys and a matching rebuilt program. Existing keys stay on the box.
 
 The current authority has not been funded on devnet; prior faucet requests were rate-limited. Devnet is not claimed complete. Once **test SOL** is available, deploy to devnet using the dedicated program key, bootstrap a six-decimal test mint with the verifier, pin the official devnet genesis, and repeat all chain tests before switching the service. Never use real funds or relabel local-validator evidence as devnet evidence.
+
+## Oddlot cutover
+
+Oddlot replaces the UI at `/` and retains the previous desk at `/legacy`. Keep the established `stocklana-web` and `stocklana-validator` service names, state directory and ledger. The extra SQLite migration adds vault tables without changing old positions. The new vault runs as backend test accounting and uses separate balances from original onchain contracts. App rollback preserves all database tables. Do not reset the validator or reinterpret backend vault balances as onchain token accounts.

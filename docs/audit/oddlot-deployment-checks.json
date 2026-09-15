@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-09-15T05:13:55.502Z",
+  "checks": [
+    "Same cookie resumes after systemd service restart",
+    "Legacy portfolio and revision unchanged",
+    "Oddlot vault assets, collateral and revision unchanged",
+    "Oddlot deposit retry returns the original durable receipt",
+    "Same mutation key returns original durable receipt",
+    "Database, pinned program, mint and Solana clock ready"
+  ],
+  "health": {
+    "ok": true,
+    "app": "strata",
+    "database": "ready",
+    "chain": {
+      "ready": true,
+      "network": "localnet",
+      "slot": 98780,
+      "chainTime": 1789449232
+    },
+    "serverTime": 1789449234385
+  }
+}

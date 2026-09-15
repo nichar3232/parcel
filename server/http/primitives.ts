@@ -90,6 +90,8 @@ const types: Record<string, string> = {
   '.css': 'text/css',
   '.json': 'application/json',
   '.rsc': 'text/x-component',
+  '.txt': 'text/plain; charset=utf-8',
+  '.vtt': 'text/vtt; charset=utf-8',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
@@ -137,7 +139,16 @@ export async function staticFile(
   } catch {
     if (path.extname(name))
       throw new ApiError(404, 'NOT_FOUND', 'File not found.');
-    file = path.join(root, 'index.html');
+    try {
+      const route = await realpath(file + '.html');
+      if (!route.startsWith(root + path.sep))
+        throw new Error('Forbidden route symlink');
+      info = await stat(route);
+      if (!info.isFile()) throw new Error('Not a route file');
+      file = route;
+    } catch {
+      file = path.join(root, 'index.html');
+    }
     try {
       info = await stat(file);
     } catch {

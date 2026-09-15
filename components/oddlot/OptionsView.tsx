@@ -1,0 +1,472 @@
+'use client';
+import { useState } from 'react';
+import { ArrowRight, ChevronRight, LockKeyhole } from 'lucide-react';
+import type { VaultController } from '@/hooks/oddlot/use-vault';
+import type { OrderTerms, Quote } from '@/lib/oddlot/types';
+import { bounded, orderGreeks } from '@/lib/oddlot/math';
+import { templates, templateTerms } from '@/lib/oddlot/templates';
+import { PayoffChart } from './PayoffChart';
+import { ContractLegEditor } from './ContractLegEditor';
+import {
+  Badge,
+  Button,
+  Empty,
+  Field,
+  Heading,
+  Modal,
+  Panel,
+  Stat,
+  dateLabel,
+  qty,
+  usd,
+} from './shared';
+export function OptionsView({
+  desk,
+  mode,
+}: {
+  desk: VaultController;
+  mode: 'trade' | 'underwrite' | 'structures';
+}) {
+  const state = desk.state!;
+  const future = state.market.dates.filter((d) => d > state.book.date),
+    defaultExpiry =
+      future.find((d) => d >= '2025-02-07') || future[0] || state.book.date;
+  const [selected, setSelected] = useState(
+    mode === 'underwrite'
+      ? 'covered-call'
+      : mode === 'structures'
+        ? 'call-spread'
+        : 'call',
+  );
+  const [draft, setDraft] = useState<OrderTerms>(() =>
+      templateTerms(selected, defaultExpiry),
+    ),
+    [quote, setQuote] = useState<Quote | null>(null),
+    [requesting, setRequesting] = useState(false),
+    [error, setError] = useState(''),
+    [closing, setClosing] = useState<string | null>(null);
+  const effective = {
+    ...draft,
+    expiry:
+      draft.reference === 'dividend'
+        ? '2025-03-12'
+        : draft.expiry > state.book.date
+          ? draft.expiry
+          : defaultExpiry,
+  };
+  const invalid =
+    !Number.isFinite(effective.quantity) ||
+    effective.quantity <= 0 ||
+    effective.quantity > 1000 ||
+    effective.legs.some((l) => !Number.isFinite(l.strike) || l.strike <= 0) ||
+    !future.length;
+  const g = invalid
+    ? { price: 0, delta: 0, gamma: 0, theta: 0, vega: 0 }
+    : orderGreeks(
+        effective,
+        effective.reference === 'dividend'
+          ? state.market.dividend
+          : state.market.price,
+        state.book.date,
+        effective.reference === 'dividend' ? 0.8 : state.market.volatility,
+      );
+  const select = (id: string) => {
+    setSelected(id);
+    setDraft(templateTerms(id, defaultExpiry));
+    setError('');
+    setQuote(null);
+  };
+  const update = (patch: Partial<OrderTerms>) => {
+    setDraft((d) => ({ ...d, ...patch }));
+    setQuote(null);
+    setError('');
+  };
+  const request = async () => {
+    setRequesting(true);
+    setError('');
+    try {
+      setQuote(await desk.quote(effective));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRequesting(false);
+    }
+  };
+  const execute = async () => {
+    if (quote && (await desk.act({ type: 'execute', quoteId: quote.id })))
+      setQuote(null);
+  };
+  const active = state.book.options.filter((p) => p.status === 'active');
+  const choices = templates.filter((t) =>
+    mode === 'trade'
+      ? ['call', 'put'].includes(t.id)
+      : mode === 'underwrite'
+        ? ['covered-call', 'secured-put'].includes(t.id)
+        : !['call', 'put', 'covered-call', 'secured-put'].includes(t.id),
+  );
+  return (
+    <>
+      <Heading
+        eyebrow={
+          mode === 'underwrite'
+            ? 'YOUR SHARES CAN WRITE THE CONTRACT'
+            : mode === 'structures'
+              ? 'COMPOSE YOUR EXPOSURE'
+              : 'OPTIONS, BY THE SHARE'
+        }
+        title={
+          mode === 'underwrite'
+            ? 'Underwrite what you can cover.'
+            : mode === 'structures'
+              ? 'A structure for your point of view.'
+              : 'One share. One contract. Your call.'
+        }
+        description={
+          mode === 'underwrite'
+            ? 'Premium income starts with fully reserved shares or cash. Nothing gets pledged twice.'
+            : mode === 'structures'
+              ? 'Combine direction, volatility, and dividend exposure in a single reviewed contract.'
+              : 'Choose your exposure without a 100-share minimum. Size down to a fraction of a share.'
+        }
+      />
+      {mode === 'structures' && (
+        <div className="od-template-grid">
+          {choices.map((t) => (
+            <button
+              key={t.id}
+              className={`od-template ${selected === t.id ? 'selected' : ''}`}
+              onClick={() => select(t.id)}
+            >
+              <span>{t.tag}</span>
+              <h3>{t.name}</h3>
+              <p>{t.description}</p>
+              <ChevronRight size={16} />
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="od-builder-grid">
+        <Panel className="od-order-form">
+          <div className="od-panel-heading">
+            <h2>
+              {mode === 'underwrite'
+                ? 'Write an option'
+                : 'Build your contract'}
+            </h2>
+            <Badge>NVDA</Badge>
+          </div>
+          {mode !== 'structures' && (
+            <div className="od-segmented">
+              {choices.map((t) => (
+                <button
+                  className={selected === t.id ? 'selected' : ''}
+                  key={t.id}
+                  onClick={() => select(t.id)}
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="od-form-content">
+            <div className="od-form-grid">
+              <Field
+                label="Share-equivalent quantity"
+                help="1 contract = 1 share. Fractions supported."
+              >
+                <input
+                  aria-label="Contract quantity"
+                  type="number"
+                  min="0.000001"
+                  max="1000"
+                  step="any"
+                  value={Number.isNaN(draft.quantity) ? '' : draft.quantity}
+                  onChange={(e) =>
+                    update({
+                      quantity:
+                        e.target.value === '' ? NaN : Number(e.target.value),
+                    })
+                  }
+                />
+              </Field>
+              <Field label="Expiration">
+                <select
+                  value={effective.expiry}
+                  onChange={(e) => update({ expiry: e.target.value })}
+                  disabled={effective.reference === 'dividend'}
+                >
+                  {(effective.reference === 'dividend'
+                    ? ['2025-03-12']
+                    : future
+                  ).map((d) => (
+                    <option key={d} value={d}>
+                      {dateLabel(d)}, 2025
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <ContractLegEditor draft={draft} update={update} mode={mode} />
+            <div className="od-order-summary">
+              <div>
+                <span>
+                  {g.price >= 0
+                    ? 'Estimated premium paid'
+                    : 'Estimated premium received'}
+                </span>
+                <b>
+                  {usd(
+                    Math.abs(g.price),
+                    effective.reference === 'dividend' ? 4 : 2,
+                  )}
+                </b>
+              </div>
+              <div>
+                <span>Settlement</span>
+                <span>
+                  {draft.settlement === 'physical'
+                    ? 'Fully funded physical delivery'
+                    : 'Cash, capped obligations'}
+                </span>
+              </div>
+              <div>
+                <span>Collateral mode</span>
+                <span>
+                  {state.book.margin === 'cross' ? 'Cross' : 'Isolated'}
+                </span>
+              </div>
+            </div>
+            {error && (
+              <p className="od-error" role="alert">
+                {error}
+              </p>
+            )}
+            {!bounded(draft.legs) && draft.settlement === 'cash' && (
+              <p className="od-form-note">
+                This payoff has an uncapped upside leg. Choose physical
+                settlement or add a cap.
+              </p>
+            )}
+            <Button
+              onClick={() => void request()}
+              disabled={invalid || requesting || desk.busy}
+            >
+              {requesting ? 'Checking collateral…' : 'Review funded quote'}
+              <ArrowRight size={16} />
+            </Button>
+            <p className="od-form-note">
+              <LockKeyhole size={12} />
+              The backend prices, reserves, and validates both sides before
+              execution.
+            </p>
+          </div>
+        </Panel>
+        <div className="od-builder-insight">
+          <Panel>
+            <div className="od-panel-heading">
+              <h2>See the shape of your trade</h2>
+              <Badge tone="neutral">Expiry payoff</Badge>
+            </div>
+            {!invalid ? (
+              <PayoffChart
+                terms={effective}
+                premium={g.price}
+                spot={
+                  effective.reference === 'dividend'
+                    ? state.market.dividend
+                    : state.market.price
+                }
+              />
+            ) : (
+              <Empty
+                title="Choose valid terms"
+                description="Your payoff appears as you enter a positive quantity and strikes."
+              />
+            )}
+            <div className="od-greeks">
+              <Stat
+                label="Delta"
+                value={g.delta.toFixed(3)}
+                detail="Shares of price exposure"
+              />
+              <Stat
+                label="Theta / day"
+                value={usd(g.theta, 4)}
+                detail="Position-level dollar decay"
+              />
+              <Stat
+                label="Vega / 1 vol pt"
+                value={usd(g.vega, 4)}
+                detail="Modeled volatility sensitivity"
+              />
+            </div>
+          </Panel>
+          <Panel className="od-explainer">
+            <span className="od-eyebrow">THE DETAILS MATTER</span>
+            <h3>
+              {effective.reference === 'dividend'
+                ? 'A dividend reference, not a token rebase.'
+                : 'Small contracts. The same option economics.'}
+            </h3>
+            <p>
+              {effective.reference === 'dividend'
+                ? 'This contract references the stored $0.01 NVDA cash dividend for the March 12, 2025 event. It does not transfer dividend rights or assume an issuer pays cash to token holders.'
+                : 'Fractional sizing scales premium and dollar Greeks. It does not reduce percentage time decay or change an option’s sensitivity per share.'}
+            </p>
+            <div>
+              <span>Price source</span>
+              <b>Stored historical close</b>
+            </div>
+            <div>
+              <span>Premium & volatility</span>
+              <b>
+                Test pricing model ·{' '}
+                {effective.reference === 'dividend' ? '80' : '45'}% vol
+              </b>
+            </div>
+            <div>
+              <span>Reference price</span>
+              <b>
+                {usd(
+                  effective.reference === 'dividend'
+                    ? state.market.dividend
+                    : state.market.price,
+                  effective.reference === 'dividend' ? 4 : 2,
+                )}
+              </b>
+            </div>
+          </Panel>
+        </div>
+      </div>
+      <Panel>
+        <div className="od-panel-heading">
+          <div>
+            <h2>Open contracts</h2>
+            <p>Expiry groups settle together to preserve collateral offsets.</p>
+          </div>
+          <Badge tone="neutral">{active.length} active</Badge>
+        </div>
+        {active.length ? (
+          <div className="od-table-wrap">
+            <table className="od-table">
+              <thead>
+                <tr>
+                  <th>Contract</th>
+                  <th>Quantity</th>
+                  <th>Expiry</th>
+                  <th>Premium</th>
+                  <th>Settlement</th>
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {active.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <b>{p.terms.name}</b>
+                      <small>{p.id.slice(0, 8).toUpperCase()}</small>
+                    </td>
+                    <td>{qty(p.terms.quantity)}</td>
+                    <td>{dateLabel(p.terms.expiry)}</td>
+                    <td>
+                      {p.premium >= 0 ? 'Paid' : 'Received'}{' '}
+                      {usd(
+                        Math.abs(p.premium),
+                        p.terms.reference === 'dividend' ? 4 : 2,
+                      )}
+                    </td>
+                    <td>{p.terms.settlement}</td>
+                    <td>
+                      <Button variant="quiet" onClick={() => setClosing(p.id)}>
+                        Close
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Empty
+            title="Your next contract starts here."
+            description="Request a quote to see the exact premium and collateral needed before you commit."
+          />
+        )}
+      </Panel>
+      {quote && (
+        <Modal
+          title="Review your funded quote"
+          description={`${quote.terms.name} · ${qty(quote.terms.quantity)} shares · ${dateLabel(quote.terms.expiry)}`}
+          onClose={() => setQuote(null)}
+        >
+          <div className="od-quote-premium">
+            <span>{quote.premium >= 0 ? 'You pay' : 'You receive'}</span>
+            <strong>
+              {usd(
+                Math.abs(quote.premium),
+                quote.terms.reference === 'dividend' ? 4 : 2,
+              )}
+            </strong>
+          </div>
+          <div className="od-review-line">
+            <span>Vault cash reserved after trade</span>
+            <b>{usd(quote.cashRequired)}</b>
+          </div>
+          <div className="od-review-line">
+            <span>Vault shares reserved after trade</span>
+            <b>{qty(quote.sharesRequired)} NVDA</b>
+          </div>
+          <div className="od-review-line">
+            <span>Available cash after trade</span>
+            <b>{usd(quote.cashAfter)}</b>
+          </div>
+          <div className="od-review-line">
+            <span>Available shares after trade</span>
+            <b>{qty(quote.sharesAfter)} NVDA</b>
+          </div>
+          {!quote.eligible && (
+            <p className="od-error" role="alert">
+              {quote.reason}
+            </p>
+          )}
+          <p className="od-form-note">
+            Valid for 30 seconds. Shares and strike cash are reserved for
+            physical delivery. Both counterparties use isolated test capital.
+          </p>
+          <Button
+            disabled={desk.busy || !quote.eligible}
+            onClick={() => void execute()}
+          >
+            {desk.busy ? 'Executing…' : 'Confirm contract'}
+          </Button>
+        </Modal>
+      )}
+      {closing && (
+        <Modal
+          title="Close this contract?"
+          description="The backend calculates its current model value and rechecks collateral on the remaining portfolio."
+          onClose={() => setClosing(null)}
+        >
+          <p className="od-form-note">
+            A hedge cannot be removed if doing so leaves another position
+            undercollateralized.
+          </p>
+          <Button
+            disabled={desk.busy}
+            onClick={() => {
+              void desk
+                .act({ type: 'close-option', id: closing })
+                .then((ok) => {
+                  if (ok) setClosing(null);
+                });
+            }}
+          >
+            Confirm close
+          </Button>
+        </Modal>
+      )}
+    </>
+  );
+}

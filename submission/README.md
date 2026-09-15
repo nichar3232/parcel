@@ -1,16 +1,7 @@
-# Submission materials
+# Retained submission evidence
 
-| Material | Purpose |
-|---|---|
-| [ENTRY.md](ENTRY.md) | Submission narrative and current publication gates |
-| [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | Walkthrough and explanation |
-| [strata-demo.mp4](strata-demo.mp4) | Actual narrated UI/backend/Solana recording |
-| [VALIDATION.md](VALIDATION.md) | Test results and honest execution boundaries |
-| `chain-evidence.json` | Adversarial program verification |
-| `backend-chain-evidence.json` | Three scenarios through the real backend |
-| `ui-chain-evidence.json` | Recorded UI execution and claims |
-| `transaction-proofs/` | Inspectable confirmed transaction records |
+This folder preserves the original Strata recording and Solana validation evidence. The new **Oddlot** product is documented in the root README and `docs/PRODUCT.md`. The original video does not demonstrate the new vault workflows and has not been regenerated.
 
-The project repository is **Bellwether**; the existing audited desk and recording use **Strata**. Evidence is from an isolated Solana validator. Devnet funding and public access remain submission gates.
+The current private repository is https://github.com/nichar3232/oddlot. Bellwether remains intact as the prior version.
 
-Run `python3 scripts/package-submission.py` from the repository to generate `strata-source.zip`, `source-manifest.json` and `SHA256SUMS`. Generated archives are ignored in Git to avoid storing a second copy of the source. The video, original product document, dataset and verification evidence remain tracked.
+Run `python3 scripts/package-submission.py` for an updated `oddlot-source.zip`, source manifest and checksums. The generated zip is not committed. Original program artifacts, data provenance and transaction proofs remain traceable to their recorded version.

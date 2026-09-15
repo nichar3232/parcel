@@ -1,3 +1,9 @@
+# Oddlot architecture
+
+The new vault engine is specified in [PRODUCT.md](PRODUCT.md) and [DEVELOPMENT.md](DEVELOPMENT.md). It adds owner-scoped `vault_accounts` and `vault_quotes`, an exact settlement collateral engine in `lib/oddlot`, and atomic actions in `server/oddlot`. The browser delegates all execution to that service. New vault custody is backend sandbox accounting.
+
+The retained Strata/Solana execution architecture below remains available at `/legacy`; its program does not implement the new vault rules.
+
 # Runtime and trust boundaries
 
 ```mermaid

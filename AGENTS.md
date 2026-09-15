@@ -1,6 +1,6 @@
-# Bellwether project instructions
+# Oddlot project instructions
 
-This repository contains the Strata equity desk and Stocklana submission. Read `README.md`, `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT.md` before changing runtime boundaries.
+This repository contains Oddlot, a granular options and collateral-vault workspace, plus the retained Strata Solana desk at `/legacy`. The new vault executes in a persistent sandbox ledger; do not describe it as onchain custody. Read `README.md`, `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT.md` before changing runtime boundaries.
 
 - Preserve same-origin frontend/API integration, server-authoritative accounting, session ownership and durable signed-transaction recovery.
 - Validate with `npm run check:repo`, `npm run check` and the relevant browser journeys. Never label simulated or local-validator evidence as devnet or mainnet.

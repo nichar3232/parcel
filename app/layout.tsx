@@ -4,27 +4,27 @@ import './globals.css';
 const sans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const mono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 export const metadata: Metadata = {
-  title: 'Strata — Your onchain equity desk',
+  title: 'Oddlot — Options, by the share.',
   description:
-    'Build defined-risk equity protection on Solana. Replay historical markets, fund transparent escrow, and follow every settlement.',
+    'Granular options, covered underwriting, stock lending and collateral vaults. Every share accounted for.',
   openGraph: {
-    title: 'Strata — Your onchain equity desk',
-    description: 'Own the upside. Define the downside.',
+    title: 'Oddlot — Options, by the share.',
+    description: 'Precisely sized. Fully accounted for.',
     images: [
       {
         url: new URL(
           '/og.png',
           process.env.SITE_ORIGIN || 'http://trading-01:3025',
         ).href,
-        width: 1536,
-        height: 1024,
+        width: 1733,
+        height: 907,
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Strata — Your onchain equity desk',
-    description: 'Own the upside. Define the downside.',
+    title: 'Oddlot — Options, by the share.',
+    description: 'Precisely sized. Fully accounted for.',
     images: [
       new URL('/og.png', process.env.SITE_ORIGIN || 'http://trading-01:3025')
         .href,
@@ -37,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body className={`${sans.variable} ${mono.variable}`}>{children}</body>
     </html>
   );

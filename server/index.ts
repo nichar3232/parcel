@@ -4,7 +4,7 @@ const config = configFromEnv(),
   app = createApp(config);
 app.server.listen(config.port, config.host, () =>
   console.log(
-    `Strata API and frontend listening on ${config.host}:${config.port}`,
+    `Oddlot API and frontend listening on ${config.host}:${config.port}`,
   ),
 );
 for (const signal of ['SIGTERM', 'SIGINT'] as const)

@@ -6,7 +6,7 @@ test -f dist/client/index.html
 release="$(date -u +%Y%m%dT%H%M%SZ)"
 target="/opt/stocklana/releases/$release"
 ssh trading-01 "sudo install -d -o stocklana -g stocklana '$target'"
-rsync -a --rsync-path='sudo rsync' --exclude=node_modules --exclude=.state --exclude=.git --exclude='.env*' --exclude=target --exclude=test-results --exclude=playwright-report --exclude='submission/strata-source.zip' --exclude='dist/server' --exclude='dist/.vite' ./ "trading-01:$target/"
+rsync -a --rsync-path='sudo rsync' --exclude=node_modules --exclude=.state --exclude=.git --exclude='.env*' --exclude=target --exclude=test-results --exclude=playwright-report --exclude='submission/*-source.zip' --exclude='dist/server' --exclude='dist/.vite' ./ "trading-01:$target/"
 ssh trading-01 "sudo chown -R stocklana:stocklana '$target'; cd '$target'; sudo -u stocklana npm ci --ignore-scripts --no-audit --no-fund"
 ssh trading-01 "sudo python3 - '$target' '$release'" <<'PY'
 import json,os,pathlib,subprocess,sys,urllib.request

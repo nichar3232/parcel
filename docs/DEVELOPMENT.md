@@ -1,4 +1,4 @@
-# Development and integration
+# Oddlot development and integration
 
 ## One application, one origin
 
@@ -67,3 +67,12 @@ The route table and chain state machine are in [ARCHITECTURE.md](ARCHITECTURE.md
 - HTTP 409: refresh the authoritative portfolio; another tab may have changed the revision.
 - Chain unavailable in keyless mode: expected. `GET /api/health` checks app/database liveness. `/api/ready` also requires the configured chain and returns 503 while chain execution is disabled.
 - A static-only hosting deployment cannot run this backend. Keep UI and API together on the VPS, or provision an equivalent Node service with persistent storage.
+
+
+## Oddlot vault API
+
+After `GET /api/session`, `GET /api/vault` returns the vault book, its independent revision, risk summary and the stored market session. `POST /api/vault/quote` accepts `{revision, terms}` and returns a 30-second owner-bound quote. `POST /api/vault/actions` accepts `{revision, action}`. All POST routes require the same cookie, `X-CSRF-Token` and `Idempotency-Key`. The quote cannot be reused under another key, account or revised portfolio.
+
+`VaultAction` in `lib/oddlot/types.ts` defines transfers, stock trades, quote execution, option close, margin policy, lend/recall, protected short/close and market advancement. The client never supplies a settlement price, reserve, loan interest amount, counterparty balance or replacement book. New routes share the same authentication and static-serving process as the original backend. `/legacy` serves the retained Strata desk with its original API and independent practice balances.
+
+Migration `002-vaults.sql` adds accounts and quotes without rewriting old sessions or portfolios. Fresh and existing databases run both idempotent migrations on startup. The new client uses only relative API URLs. `npm run demo` enables the entire vault ledger with the separate chain service disabled; `/api/ready` can therefore return 503 while the keyless vault is fully operable. Production operator checks should inspect the returned chain reason as well as liveness.

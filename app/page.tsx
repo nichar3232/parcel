@@ -1,211 +1,312 @@
 'use client';
-import { InfoDialog } from '@/components/desk/dialogs/InfoDialog';
-import { PositionDialog } from '@/components/desk/dialogs/PositionDialog';
-import { day, nav, short } from '@/components/desk/shared';
-import { ActivityView } from '@/components/desk/views/ActivityView';
-import { BuildView } from '@/components/desk/views/BuildView';
-import { FinanceView } from '@/components/desk/views/FinanceView';
-import { MakerView } from '@/components/desk/views/MakerView';
-import { PortfolioView } from '@/components/desk/views/PortfolioView';
-import { ReplayView } from '@/components/desk/views/ReplayView';
-import { TradeView } from '@/components/desk/views/TradeView';
-import { Button } from '@/components/ui/button';
-import { useDesk } from '@/hooks/desk/use-desk';
+import Link from 'next/link';
+import { useState } from 'react';
 import {
-  ArrowRight,
+  Activity,
   ArrowUpRight,
-  BriefcaseBusiness,
-  ChevronRight,
-  Clock,
-  ExternalLink,
-  FlaskConical,
-  Info,
-  Layers,
-  Play,
-  Shield,
+  ChevronDown,
+  CircleHelp,
+  Layers3,
+  Landmark,
+  Menu,
+  ShieldCheck,
+  SlidersHorizontal,
   Wallet,
   X,
 } from 'lucide-react';
+import { useVault } from '@/hooks/oddlot/use-vault';
+import { VaultView } from '@/components/oddlot/VaultView';
+import { OptionsView } from '@/components/oddlot/OptionsView';
+import { LendingView } from '@/components/oddlot/LendingView';
+import { RiskView } from '@/components/oddlot/RiskView';
+import { ActivityView } from '@/components/oddlot/ActivityView';
+import {
+  Badge,
+  Button,
+  Field,
+  Modal,
+  dateLabel,
+  qty,
+  usd,
+} from '@/components/oddlot/shared';
+import './oddlot.css';
+const navigation = [
+  { name: 'Vault', icon: Wallet },
+  { name: 'Trade', icon: ArrowUpRight },
+  { name: 'Underwrite', icon: Landmark },
+  { name: 'Structures', icon: Layers3 },
+  { name: 'Lending', icon: SlidersHorizontal },
+  { name: 'Risk', icon: ShieldCheck },
+  { name: 'Activity', icon: Activity },
+];
 export default function Home() {
-  const desk = useDesk();
-  const {
-    navigate,
-    page,
-    book,
-    setGuideStep,
-    setModal,
-    wallet,
-    pageCopy,
-    current,
-    setToast,
-    toast,
-  } = desk;
+  const desk = useVault(),
+    [page, setPage] = useState('Vault'),
+    [mobile, setMobile] = useState(false),
+    [modal, setModal] = useState<'market' | 'wallet' | 'about' | null>(null),
+    [nextDate, setNextDate] = useState('');
+  const navigate = (value: string) => {
+    setPage(value);
+    setMobile(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const s = desk.state;
+  const future = s?.market.dates.filter((d) => d > s.book.date) || [];
+  const target = future.includes(nextDate) ? nextDate : future[0] || '';
   return (
-    <div className="desk" data-ready={desk.ready}>
-      <aside className="sidebar">
-        <button className="brand" onClick={() => navigate('Portfolio')}>
-          <span className="brand-mark">
-            <Layers size={21} />
+    <div className="oddlot" data-ready={!!s}>
+      <a className="od-skip" href="#workspace">
+        Skip to workspace
+      </a>
+      {mobile && (
+        <button
+          className="od-mobile-scrim"
+          aria-label="Close navigation"
+          onClick={() => setMobile(false)}
+        />
+      )}
+      <aside className={`od-sidebar ${mobile ? 'open' : ''}`}>
+        <button className="od-brand" onClick={() => navigate('Vault')}>
+          <span className="od-brand-symbol">
+            <i />
+            <i />
+            <i />
           </span>
-          strata<span className="brand-dot">.</span>
+          Oddlot<span className="od-brand-dot">.</span>
         </button>
-        <div className="workspace-label">EQUITY WORKSPACE</div>
-        <nav>
-          {nav.map(({ name, icon: Icon }) => (
+        <div className="od-workspace-label">
+          PERSONAL WORKSPACE<Badge tone="nav">01</Badge>
+        </div>
+        <nav aria-label="Main navigation">
+          {navigation.map(({ name, icon: Icon }, i) => (
             <button
+              className={`od-nav-item ${page === name ? 'active' : ''} ${i === 5 ? 'separated' : ''}`}
               key={name}
-              onClick={() => navigate(name)}
-              className={`nav-item ${page === name ? 'active' : ''}`}
               aria-current={page === name ? 'page' : undefined}
+              onClick={() => navigate(name)}
             >
               <Icon size={18} />
-              {name}
-              {name === 'Activity' && book.events.length > 0 && (
-                <span className="nav-count">{book.events.length}</span>
-              )}
+              <span>{name}</span>
+              {page === name && <i />}
             </button>
           ))}
         </nav>
-        <div className="nav-divider" />
-        <button
-          className={`nav-item ${page === 'Replay' ? 'active' : ''}`}
-          onClick={() => navigate('Replay')}
-        >
-          <FlaskConical size={18} />
-          Replay lab<span className="new-badge">DEMO</span>
-        </button>
-        <button
-          className={`nav-item ${page === 'Maker' ? 'active' : ''}`}
-          onClick={() => navigate('Maker')}
-        >
-          <BriefcaseBusiness size={18} />
-          Maker
-          {book.positions.filter((p) => p.status === 'requested').length >
-            0 && (
-            <span className="nav-count">
-              {book.positions.filter((p) => p.status === 'requested').length}
-            </span>
-          )}
-        </button>
-        <button
-          className="sidebar-guide"
-          onClick={() => {
-            setGuideStep(0);
-            setModal('guide');
-          }}
-        >
-          <span className="guide-icon">
-            <Play size={15} />
-          </span>
-          <strong>Your first protected position</strong>
-          <p>Walk through the 2-minute demo.</p>
-          <span>
-            Let’s try it <ArrowRight size={12} />
-          </span>
-        </button>
-        <div className="sidebar-bottom">
-          <button className="plain" onClick={() => setModal('chain')}>
-            <span className="network-dot" />
-            Solana transaction proof <ExternalLink size={11} />
+        <div className="od-nav-bottom">
+          <div className="od-nav-note">
+            <span className="od-small-square" />
+            <p>Options, by the share.</p>
+            <small>
+              Precisely sized.
+              <br />
+              Fully accounted for.
+            </small>
+          </div>
+          <button onClick={() => setModal('about')}>
+            <CircleHelp size={16} />
+            How Oddlot works
           </button>
-          <p>
-            Built for Stocklana 2026{' '}
-            <button aria-label="About Strata" onClick={() => setModal('about')}>
-              <Info size={12} />
-            </button>
-          </p>
+          <a
+            href="https://github.com/nichar3232/oddlot"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Project repository
+            <ArrowUpRight size={15} />
+          </a>
+          <div className="od-environment">
+            <i />
+            Sandbox environment
+          </div>
         </div>
       </aside>
-      <main className="main">
-        <header className="topbar">
-          <span>Your desk. Your terms.</span>
-          <div className="topbar-actions">
-            <span className="pill">
-              <span className="network-dot" /> Historical simulation
-            </span>
-            <Button
-              variant="outline"
-              className="wallet-button"
-              onClick={() => setModal('wallet')}
+      <div className="od-workspace">
+        <header className="od-topbar">
+          <div>
+            <button
+              className="od-mobile-menu od-icon-button"
+              aria-label="Open navigation"
+              onClick={() => setMobile(true)}
             >
-              <Wallet size={13} />
-              {wallet ? short(wallet) : 'Demo wallet'}
-              <ChevronRight size={12} />
-            </Button>
+              <Menu size={21} />
+            </button>
+            <span className="od-breadcrumb">
+              Workspace <b>/</b> <strong>{page}</strong>
+            </span>
+          </div>
+          <div className="od-topbar-actions">
+            <button
+              className="od-market-button"
+              onClick={() => setModal('market')}
+              disabled={!s}
+            >
+              <i />
+              <span>
+                {s
+                  ? `${dateLabel(s.book.date)} · Historical market`
+                  : 'Connecting'}
+              </span>
+              <ChevronDown size={13} />
+            </button>
+            <button
+              className="od-wallet-button"
+              onClick={() => setModal('wallet')}
+              disabled={!s}
+            >
+              <Wallet size={16} />
+              <span>Test wallet</span>
+              <ChevronDown size={13} />
+            </button>
           </div>
         </header>
-        <div className="page">
-          {(!desk.ready || desk.error) && (
-            <output className="connection-banner">
-              <span>{desk.error || 'Connecting to your saved portfolio…'}</span>
-              {desk.error && (
-                <Button onClick={() => void desk.refresh()}>Reconnect</Button>
-              )}
-            </output>
-          )}
-          {desk.busy && (
-            <output className="save-indicator">Saving portfolio…</output>
-          )}
-          <div className="page-heading">
-            <div>
-              <div className="eyebrow">{pageCopy[page][0]}</div>
-              <h1>{pageCopy[page][1]}</h1>
-              <p>{pageCopy[page][2]}</p>
-            </div>
-            {page === 'Portfolio' ? (
-              <Button
-                className="primary"
-                disabled={!desk.ready}
-                onClick={() => navigate('Build')}
-              >
-                <Shield size={16} />
-                Protect a position
+        <main id="workspace" className="od-main" tabIndex={-1}>
+          {desk.error && (
+            <div role="alert" className="od-connection-error">
+              <div>
+                <b>We couldn’t connect to your saved vault.</b>
+                <p>{desk.error}</p>
+              </div>
+              <Button variant="secondary" onClick={() => void desk.refresh()}>
+                Reconnect
               </Button>
-            ) : (
-              <span className="as-of">
-                <Clock size={12} />
-                {day(current.date)} · daily close
-              </span>
-            )}
-          </div>
-          {page === 'Portfolio' && <PortfolioView {...desk} />}
-          {page === 'Trade' && <TradeView {...desk} />}
-          {page === 'Build' && <BuildView {...desk} />}
-          {page === 'Replay' && <ReplayView {...desk} />}
-          {page === 'Maker' && <MakerView {...desk} />}
-          {page === 'Finance' && <FinanceView {...desk} />}
-          {page === 'Activity' && <ActivityView {...desk} />}
-          <footer className="page-footer">
-            <span>
-              <span className="network-dot" />
-              Practice mode · no real-value trading
-            </span>
-            <a href="/demo.html" target="_blank" rel="noreferrer">
-              Watch the working demo <ArrowUpRight size={12} />
-            </a>
-            <button onClick={() => setModal('chain')}>
-              View Solana proof <ArrowUpRight size={12} />
-            </button>
-            <button onClick={() => setModal('about')}>
-              Methodology & sources
-            </button>
-          </footer>
-        </div>
-      </main>
-      {toast && (
-        <output className="toast" aria-live="polite">
-          <Info size={17} />
-          <span>{toast}</span>
+            </div>
+          )}
+          {!s ? (
+            <output className="od-loading">
+              <span className="od-loading-ring" />
+              <h1>Opening your vault</h1>
+              <p>Connecting to your saved balances and collateral.</p>
+            </output>
+          ) : (
+            <>
+              {page === 'Vault' && (
+                <VaultView desk={desk} navigate={navigate} />
+              )}{' '}
+              {page === 'Trade' && (
+                <OptionsView key="trade" desk={desk} mode="trade" />
+              )}
+              {page === 'Underwrite' && (
+                <OptionsView key="underwrite" desk={desk} mode="underwrite" />
+              )}
+              {page === 'Structures' && (
+                <OptionsView key="structures" desk={desk} mode="structures" />
+              )}
+              {page === 'Lending' && <LendingView desk={desk} />}{' '}
+              {page === 'Risk' && <RiskView desk={desk} />}{' '}
+              {page === 'Activity' && <ActivityView desk={desk} />}
+            </>
+          )}
+        </main>
+        <footer className="od-footer">
+          <span>Oddlot · Precision for every position.</span>
+          <span>Test assets · Persistent vault ledger · No real funds</span>
+        </footer>
+      </div>
+      {desk.toast && (
+        <output className="od-toast">
+          <ShieldCheck size={17} />
+          <span>{desk.toast}</span>
           <button
             aria-label="Dismiss notification"
-            onClick={() => setToast('')}
+            onClick={() => desk.setToast('')}
           >
-            <X size={15} />
+            <X size={16} />
           </button>
         </output>
       )}
-      <PositionDialog {...desk} />
-      <InfoDialog {...desk} />
+      {modal === 'market' && s && (
+        <Modal
+          title="Market controls"
+          description="Use stored NVIDIA closes to verify position behavior through time."
+          onClose={() => setModal(null)}
+        >
+          <div className="od-review-line">
+            <span>Current session</span>
+            <b>
+              {s.book.date} · {usd(s.market.price)}
+            </b>
+          </div>
+          <Field label="Advance to session">
+            <select
+              value={target}
+              onChange={(e) => setNextDate(e.target.value)}
+            >
+              {future.map((d) => (
+                <option value={d} key={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <p className="od-form-note">
+            Advancing is permanent for this session. Due contracts settle
+            together, term loans return shares, and protected shorts repay
+            automatically. The backend uses each contract’s exact stored expiry
+            price.
+          </p>
+          <Button
+            disabled={desk.busy || !target}
+            onClick={() => {
+              void desk.act({ type: 'advance', date: target }).then((ok) => {
+                if (ok) setModal(null);
+              });
+            }}
+          >
+            Advance & settle due positions
+          </Button>
+        </Modal>
+      )}
+      {modal === 'wallet' && s && (
+        <Modal
+          title="Your test wallet"
+          description="An isolated funding wallet for this browser session."
+          onClose={() => setModal(null)}
+        >
+          <div className="od-review-line">
+            <span>Available test USDC</span>
+            <b>{usd(s.book.wallet.USDC)}</b>
+          </div>
+          <div className="od-review-line">
+            <span>Available test NVDA</span>
+            <b>{qty(s.book.wallet.NVDA)} shares</b>
+          </div>
+          <p className="od-form-note">
+            Move these assets into your vault to trade or underwrite. The wallet
+            and vault balances persist across reloads. This is backend test
+            accounting, not a connected brokerage or self-custody wallet.
+          </p>
+          <Button
+            onClick={() => {
+              setModal(null);
+              navigate('Vault');
+            }}
+          >
+            Go to vault deposits
+          </Button>
+        </Modal>
+      )}
+      {modal === 'about' && (
+        <Modal
+          title="Options, by the share."
+          description="A unified workspace for granular options and fully assigned collateral."
+          onClose={() => setModal(null)}
+        >
+          <p className="od-form-note">
+            One contract represents one share-equivalent, with quantities as
+            small as 0.000001. Cash and stock deposits fund underwriting,
+            structured options, stock loans, and protected shorts. The backend
+            checks both counterparties and refuses double-pledged assets.
+          </p>
+          <p className="od-form-note">
+            The new vault product executes in a persistent test ledger. It does
+            not claim onchain vault custody, live pricing, or broker portfolio
+            margin. The retained Solana desk separately demonstrates real
+            program-controlled test-token escrow.
+          </p>
+          <Link className="od-external" href="/legacy">
+            Open Solana escrow desk <ArrowUpRight size={15} />
+          </Link>
+        </Modal>
+      )}
     </div>
   );
 }
