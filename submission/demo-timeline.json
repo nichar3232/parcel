@@ -1,0 +1,62 @@
+[
+  {
+    "text": "Strata makes stock protection understandable and verifiable. This is the working application, with a persistent backend and historical NVIDIA market data.",
+    "start": 0.49820345800000004,
+    "duration": 8.92
+  },
+  {
+    "text": "Choose a bounded put spread. One hundred share equivalents, a one hundred twenty to one hundred forty dollar range, and an illustrative four hundred dollar premium.",
+    "start": 10.56004875,
+    "duration": 9.3
+  },
+  {
+    "text": "First, fund a real Solana contract. The maker deposits the full two thousand dollar maximum payout into program controlled test token escrow.",
+    "start": 20.997629832999998,
+    "duration": 8.73
+  },
+  {
+    "text": "The holder accepts those exact terms. These are separate test wallets on an isolated Solana validator. The ninety second observation clock is now running.",
+    "start": 30.863275792,
+    "duration": 8.87
+  },
+  {
+    "text": "While that contract matures, the practice desk shows the same lifecycle. Request a quote, switch to the maker, and reserve its maximum payout.",
+    "start": 40.867626167000005,
+    "duration": 8.86
+  },
+  {
+    "text": "The funded offer makes the premium and collateral visible before acceptance. Cash moves only after the holder accepts. The backend saves every transition.",
+    "start": 50.846392791999996,
+    "duration": 9
+  },
+  {
+    "text": "A missing observation must never release collateral. Here the contract waits for data, then settles against the exact committed historical close of one hundred eighteen dollars and forty two cents.",
+    "start": 60.985255708,
+    "duration": 10.71
+  },
+  {
+    "text": "The holder claims two thousand dollars. The maker claims the remainder. Both claims close the contract, and the portfolio reconciles every unit.",
+    "start": 72.806211375,
+    "duration": 8.57
+  },
+  {
+    "text": "The replay makes the outcome tangible. The stock lost two thousand four hundred twenty dollars. After the hedge and premium, the combined loss is eight hundred twenty.",
+    "start": 82.5215605,
+    "duration": 9.13
+  },
+  {
+    "text": "Tokenized stocks also introduce basis and issuer risks. A simulated token discount shows what an equity reference hedge cannot cover. Borrowing remains clearly separated from verified execution.",
+    "start": 92.760531458,
+    "duration": 11.66
+  },
+  {
+    "text": "Now return to the real Solana contract. Its historical observation was committed before funding. Settlement fixes each entitlement, and the program pays both parties exactly once.",
+    "start": 105.562413792,
+    "duration": 10.78
+  },
+  {
+    "text": "The escrow is empty, and every confirmed transaction can be inspected. Strata is a working test value demonstrator: clear payoffs, fully reserved obligations, and recoverable settlement.",
+    "start": 124.97380650000001,
+    "duration": 11.6
+  }
+]

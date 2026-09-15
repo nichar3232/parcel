@@ -1,0 +1,290 @@
+{
+  "completedAt": "2026-09-14T21:43:43.139Z",
+  "network": "localnet",
+  "programId": "3VpPpDGYjxawotjb6xMYdUsZoazszT7NLb1wgVod9Xcm",
+  "checks": [
+    "deepseek: duplicate fund returns same signed transaction",
+    "earnings: duplicate fund returns same signed transaction",
+    "rebound: duplicate fund returns same signed transaction",
+    "Cross-session contract access denied",
+    "Missing observation preserves entire reserve",
+    "deepseek: exact payout 2000; both claims; empty escrow",
+    "earnings: exact payout 985; both claims; empty escrow",
+    "rebound: exact payout 4.999995; both claims; empty escrow"
+  ],
+  "positions": [
+    {
+      "id": "59edbc0995ee520b3488790fde41a6dab5f72eb0",
+      "network": "localnet",
+      "programId": "3VpPpDGYjxawotjb6xMYdUsZoazszT7NLb1wgVod9Xcm",
+      "mint": "Ba3pdD6BUqD43VnsyJTJBiXSCbwNknAzQUWGRB7qKHtc",
+      "holder": "JAaT1VFmZfVtVWD6sJ2khjTCbAMXsY9E11DXhr6jmvnX",
+      "maker": "B4Xi7ohtoRnwet8FVA4XuZNe9XoK9udbFu7UrhuVSf3a",
+      "offer": "3UovkktQus21oBr8RBbSmbpoLj8DwWeC4hKs5SNZBiZ2",
+      "vault": "8iLHvd9uQpSuShwesNSWBSonu416ovzrEUeCR1nQ5K33",
+      "market": "uf6xXtiiQD9vfWAeghnfkH45AJhJZysoppXpLtP4uHz",
+      "terms": {
+        "scenario": "deepseek",
+        "kind": "put",
+        "low": 120,
+        "high": 140,
+        "premium": 400,
+        "quantity": 100,
+        "expiry": "2025-01-27"
+      },
+      "nonce": "12893806922026587888",
+      "expiry": 1789422205,
+      "chainTime": 1789422215,
+      "deadline": 1789422195,
+      "historicalAt": 1738011600,
+      "price": 118.42,
+      "transactions": [
+        {
+          "label": "fund",
+          "signature": "3U89n6mAYkmvGY89YgLqqauUeps57uhXVvJ73NYJF5bB2AoknVALx8MT3g2rHcs5xXtTFgxD36GEQsZdJmh9rpfn",
+          "status": "confirmed"
+        },
+        {
+          "label": "accept",
+          "signature": "9h64K2MnRSnBphGAoN6VGNTUH5wEAULeQXzGcqF9LPm75BpeM1SymyK5yqUAV1vRcJEKYoPtW3fjcnMMyZToTCF",
+          "status": "confirmed"
+        },
+        {
+          "label": "settle",
+          "signature": "5EiGKKXEfQXddqJSA6paB8qM9u2rvn5yzBsTbTH3zYg3q69N598FMtUwrr1VBuxHvnpeLRGd6E8x2QuYYNVLGhCU",
+          "status": "confirmed"
+        },
+        {
+          "label": "settle",
+          "signature": "2smSkpNndt657t2kzt2ajSYs3TM2sacd36KtaXp4xt49hAntrHUWAMke7jGwMK4SDjpa4zn6jPNr5y18CCY984wd",
+          "status": "confirmed"
+        },
+        {
+          "label": "claim-holder",
+          "signature": "a2ZVdCNtUvDMhWtgiCcWL7tdetWkr3KKJTzrQqEkSgXjir1REtQSYYQZYFgMfnqE8QNs1z9nR4BScygMSsmLmex",
+          "status": "confirmed"
+        },
+        {
+          "label": "claim-maker",
+          "signature": "3LMUqpWhUn6zwUYih8RCxnyfSieHN7362xdC4TBkurM2zkwMbvoBpfqsyKgoD5khnvwtfNxjMxQVGiZnLdYba7Js",
+          "status": "confirmed"
+        }
+      ],
+      "status": "closed",
+      "buyerPayout": 2000,
+      "buyerClaimed": true,
+      "makerClaimed": true,
+      "escrow": 0,
+      "lastSlot": 42670,
+      "updatedAt": "2026-09-14T21:43:36.258Z",
+      "pending": false,
+      "operationId": "375c5cde-70fd-4964-ad58-72ad0e24a47d"
+    },
+    {
+      "id": "169602a8bcd7aa4ad49dc6a93638e61074ab4e16",
+      "network": "localnet",
+      "programId": "3VpPpDGYjxawotjb6xMYdUsZoazszT7NLb1wgVod9Xcm",
+      "mint": "Ba3pdD6BUqD43VnsyJTJBiXSCbwNknAzQUWGRB7qKHtc",
+      "holder": "JAaT1VFmZfVtVWD6sJ2khjTCbAMXsY9E11DXhr6jmvnX",
+      "maker": "B4Xi7ohtoRnwet8FVA4XuZNe9XoK9udbFu7UrhuVSf3a",
+      "offer": "Q4yiMxYT1fFY8CxnKrYsy2QJ2hKDVB1UfPDsm8XBfkU",
+      "vault": "6j8DvNUdfgY1wKSSx5ZoMCk7qFn36TnHvdWNc2KSaEir",
+      "market": "Dp1SGLJPBUzY544prtCVy1ZMk2AtV8ZkmkbxL6iaQEQT",
+      "terms": {
+        "scenario": "earnings",
+        "kind": "put",
+        "low": 115,
+        "high": 130,
+        "premium": 350,
+        "quantity": 100,
+        "expiry": "2025-02-27"
+      },
+      "nonce": "18102983310040746404",
+      "expiry": 1789422208,
+      "chainTime": 1789422218,
+      "deadline": 1789422198,
+      "historicalAt": 1740690000,
+      "price": 120.15,
+      "transactions": [
+        {
+          "label": "fund",
+          "signature": "2AAJ23FcTL5baVFSbtZrybmM2P3hXWjDjjgafGqj4tdizS83qBYVGABVo41P1ptnDv3nipLbqnDxdvrVoCqxp5ks",
+          "status": "confirmed"
+        },
+        {
+          "label": "accept",
+          "signature": "2eBdN4k4bhgBgRtdRo4nJoYYMiGu88coweXfeY4M12NRHdVpCNARPytB5TphDSrBVpP3ZD8hEpe95h6ZbvMKNY7k",
+          "status": "confirmed"
+        },
+        {
+          "label": "settle",
+          "signature": "5398iZjYeo8bsNPPEuzgEUhLxDKqqH5icJZbg2rB8z3aFaNy9ZyWL1JPygQJmUFNGfyr3NDeZV4ifrDw2jYP7TfJ",
+          "status": "confirmed"
+        },
+        {
+          "label": "claim-holder",
+          "signature": "5gWXCxF6oCGPMWVPZCm7D3LrSEJwYJkAmzqTCsiVoXwzDCPqMrDaUSV3bnrMArDY5Ncm35pcWfaEs3QvVMrJqfGZ",
+          "status": "confirmed"
+        },
+        {
+          "label": "claim-maker",
+          "signature": "67cRHArofbaxBSqZAPMs6Nsg6RUyeGB44WqQ7a2JD31UpS212xu4hRuphFnsVDyX8Rg7uuDg2CxK2TqtycYHXKjt",
+          "status": "confirmed"
+        }
+      ],
+      "status": "closed",
+      "buyerPayout": 985,
+      "buyerClaimed": true,
+      "makerClaimed": true,
+      "escrow": 0,
+      "lastSlot": 42676,
+      "updatedAt": "2026-09-14T21:43:39.797Z",
+      "pending": false,
+      "operationId": "5bc45251-0a1a-40c2-80b7-89d8483bfb6f"
+    },
+    {
+      "id": "019d458a0163df7108d06e53fc204bde9c701f89",
+      "network": "localnet",
+      "programId": "3VpPpDGYjxawotjb6xMYdUsZoazszT7NLb1wgVod9Xcm",
+      "mint": "Ba3pdD6BUqD43VnsyJTJBiXSCbwNknAzQUWGRB7qKHtc",
+      "holder": "JAaT1VFmZfVtVWD6sJ2khjTCbAMXsY9E11DXhr6jmvnX",
+      "maker": "B4Xi7ohtoRnwet8FVA4XuZNe9XoK9udbFu7UrhuVSf3a",
+      "offer": "Eqygn6t2JnjjuA6tbyi9FiYYfWpTx4apy3zo7wZvyTVv",
+      "vault": "CJ6zBcfq97ASdpS43mpZ9btFWK9ab2yfsNgSR8PcNNxZ",
+      "market": "2bwMNhdUwqJYYN7nSJgBNWWqJ1zQsNkwZm15zE54csYp",
+      "terms": {
+        "scenario": "rebound",
+        "kind": "call",
+        "low": 130,
+        "high": 145,
+        "premium": 0.123456,
+        "quantity": 0.333333,
+        "expiry": "2025-01-22"
+      },
+      "nonce": "14059308164986936118",
+      "expiry": 1789422210,
+      "chainTime": 1789422221,
+      "deadline": 1789422200,
+      "historicalAt": 1737579600,
+      "price": 147.07,
+      "transactions": [
+        {
+          "label": "fund",
+          "signature": "HNAhsE8BA6kNr1LAZGyi6DUggvmg2AVW5NH8UdbGB623oSq4bYbeZitgUQsxh2e2SSr1Lsak6nJMLdP94vUw3D1",
+          "status": "confirmed"
+        },
+        {
+          "label": "accept",
+          "signature": "5wa6C3aRhQzKTgwavLpGPw162tRg27FULrQWrPXB41LsiADQXTnXoZsRHVXJ98SVgQbXybsuTqDw7pwSGeFoGTCk",
+          "status": "confirmed"
+        },
+        {
+          "label": "settle",
+          "signature": "3NwMbeHKaSqKN83H4erQdJeBE33VTNfoc6hLBBdjowdiaawSdxrsk2AmAqcqEmq1J3gxZ4rtjr4W6L3EDuzAkwC8",
+          "status": "confirmed"
+        },
+        {
+          "label": "claim-holder",
+          "signature": "5xLEq1rVAtJFe3cWbgnuSeLSXJfkUoXD7aPbCMXJFmatY7XQQXv3kTri3WPNzinNV8n77qNvKEZSN9tBbMV5ttU6",
+          "status": "confirmed"
+        },
+        {
+          "label": "claim-maker",
+          "signature": "4CqPFTwqBKg18a8YTjh1EKfbgQ6F5Hon893Tg19jhfhwfUH2DdVV7AxpVKV7aEGw2xrMsbS9LpiGLWR4AyTpneKG",
+          "status": "confirmed"
+        }
+      ],
+      "status": "closed",
+      "buyerPayout": 4.999995,
+      "buyerClaimed": true,
+      "makerClaimed": true,
+      "escrow": 0,
+      "lastSlot": 42682,
+      "updatedAt": "2026-09-14T21:43:43.132Z",
+      "pending": false,
+      "operationId": "27ec9e0f-0d7e-4dd2-8c0b-9716d15f1c77"
+    }
+  ],
+  "transactions": [
+    {
+      "label": "fund",
+      "signature": "3U89n6mAYkmvGY89YgLqqauUeps57uhXVvJ73NYJF5bB2AoknVALx8MT3g2rHcs5xXtTFgxD36GEQsZdJmh9rpfn",
+      "status": "confirmed"
+    },
+    {
+      "label": "accept",
+      "signature": "9h64K2MnRSnBphGAoN6VGNTUH5wEAULeQXzGcqF9LPm75BpeM1SymyK5yqUAV1vRcJEKYoPtW3fjcnMMyZToTCF",
+      "status": "confirmed"
+    },
+    {
+      "label": "settle",
+      "signature": "5EiGKKXEfQXddqJSA6paB8qM9u2rvn5yzBsTbTH3zYg3q69N598FMtUwrr1VBuxHvnpeLRGd6E8x2QuYYNVLGhCU",
+      "status": "confirmed"
+    },
+    {
+      "label": "settle",
+      "signature": "2smSkpNndt657t2kzt2ajSYs3TM2sacd36KtaXp4xt49hAntrHUWAMke7jGwMK4SDjpa4zn6jPNr5y18CCY984wd",
+      "status": "confirmed"
+    },
+    {
+      "label": "claim-holder",
+      "signature": "a2ZVdCNtUvDMhWtgiCcWL7tdetWkr3KKJTzrQqEkSgXjir1REtQSYYQZYFgMfnqE8QNs1z9nR4BScygMSsmLmex",
+      "status": "confirmed"
+    },
+    {
+      "label": "claim-maker",
+      "signature": "3LMUqpWhUn6zwUYih8RCxnyfSieHN7362xdC4TBkurM2zkwMbvoBpfqsyKgoD5khnvwtfNxjMxQVGiZnLdYba7Js",
+      "status": "confirmed"
+    },
+    {
+      "label": "fund",
+      "signature": "2AAJ23FcTL5baVFSbtZrybmM2P3hXWjDjjgafGqj4tdizS83qBYVGABVo41P1ptnDv3nipLbqnDxdvrVoCqxp5ks",
+      "status": "confirmed"
+    },
+    {
+      "label": "accept",
+      "signature": "2eBdN4k4bhgBgRtdRo4nJoYYMiGu88coweXfeY4M12NRHdVpCNARPytB5TphDSrBVpP3ZD8hEpe95h6ZbvMKNY7k",
+      "status": "confirmed"
+    },
+    {
+      "label": "settle",
+      "signature": "5398iZjYeo8bsNPPEuzgEUhLxDKqqH5icJZbg2rB8z3aFaNy9ZyWL1JPygQJmUFNGfyr3NDeZV4ifrDw2jYP7TfJ",
+      "status": "confirmed"
+    },
+    {
+      "label": "claim-holder",
+      "signature": "5gWXCxF6oCGPMWVPZCm7D3LrSEJwYJkAmzqTCsiVoXwzDCPqMrDaUSV3bnrMArDY5Ncm35pcWfaEs3QvVMrJqfGZ",
+      "status": "confirmed"
+    },
+    {
+      "label": "claim-maker",
+      "signature": "67cRHArofbaxBSqZAPMs6Nsg6RUyeGB44WqQ7a2JD31UpS212xu4hRuphFnsVDyX8Rg7uuDg2CxK2TqtycYHXKjt",
+      "status": "confirmed"
+    },
+    {
+      "label": "fund",
+      "signature": "HNAhsE8BA6kNr1LAZGyi6DUggvmg2AVW5NH8UdbGB623oSq4bYbeZitgUQsxh2e2SSr1Lsak6nJMLdP94vUw3D1",
+      "status": "confirmed"
+    },
+    {
+      "label": "accept",
+      "signature": "5wa6C3aRhQzKTgwavLpGPw162tRg27FULrQWrPXB41LsiADQXTnXoZsRHVXJ98SVgQbXybsuTqDw7pwSGeFoGTCk",
+      "status": "confirmed"
+    },
+    {
+      "label": "settle",
+      "signature": "3NwMbeHKaSqKN83H4erQdJeBE33VTNfoc6hLBBdjowdiaawSdxrsk2AmAqcqEmq1J3gxZ4rtjr4W6L3EDuzAkwC8",
+      "status": "confirmed"
+    },
+    {
+      "label": "claim-holder",
+      "signature": "5xLEq1rVAtJFe3cWbgnuSeLSXJfkUoXD7aPbCMXJFmatY7XQQXv3kTri3WPNzinNV8n77qNvKEZSN9tBbMV5ttU6",
+      "status": "confirmed"
+    },
+    {
+      "label": "claim-maker",
+      "signature": "4CqPFTwqBKg18a8YTjh1EKfbgQ6F5Hon893Tg19jhfhwfUH2DdVV7AxpVKV7aEGw2xrMsbS9LpiGLWR4AyTpneKG",
+      "status": "confirmed"
+    }
+  ]
+}

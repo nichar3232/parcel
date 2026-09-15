@@ -1,0 +1,193 @@
+{
+  "network": "localnet",
+  "programId": "3VpPpDGYjxawotjb6xMYdUsZoazszT7NLb1wgVod9Xcm",
+  "mint": "Ba3pdD6BUqD43VnsyJTJBiXSCbwNknAzQUWGRB7qKHtc",
+  "holder": "Hx1mK8Y7NQjVhTmG6RkvbwSuzeYJsJbPpdvy7TAHm7Rh",
+  "maker": "2EWaruFRezMsxAay9ePBxKLvfMUbCgmTusRFsbcW6kh5",
+  "dataset": "dff80d1c6204a566087cc8570196078bffc4c73ef9215e7c6d3735a6807dfb13",
+  "completedAt": "2026-09-14T21:44:45.131Z",
+  "transactions": [
+    {
+      "label": "Mint demo maker capital (test USDC)",
+      "signature": "3rZ2voXgXEMYGLZ1Whv4TUsjq9qGHAzwf2hEVpoefWjxwN7iRcdwD7EdrZUUbzEUmFEujuUFVeBuaKry5Rf7jvuY"
+    },
+    {
+      "label": "Mint demo holder capital (test USDC)",
+      "signature": "3gbQApAey2NzZbVG3kx4MpVifCU7naYokjeiGPfoar79xTDPEvKfyXxk8zSEJaWh2twUyCXfJiyYyPrwUYkwDd87"
+    },
+    {
+      "label": "Fund second test wallet rent",
+      "signature": "49hZALe8ZysgfsKwcEUQzk7NTvWNjyi15J9Uww8BoRXnhAAQva3jBeZER6HynCfdUHNBSriFA6vr52D5j7ptEWyd",
+      "slot": 42602
+    },
+    {
+      "label": "deepseek: commit historical observation",
+      "signature": "4exjb4KA53uR324GeC2Q5CRddLYCNXtoSzJv574kx6RucyUnBG9hzUvLWrepFKaZLDbcLLNkknx5jHh7vd68dP6Q",
+      "slot": 42603
+    },
+    {
+      "label": "deepseek: maker reserves full payout",
+      "signature": "CGbD9ufEb4TJuMypvFjxRMeEAGXqSVXr9LhVNfbRpDxrWh3WgcWosKv3rp2W5bMktjkFmEsnEV6zWDFwcMvPNgy",
+      "slot": 42604
+    },
+    {
+      "label": "deepseek: holder accepts exact terms",
+      "signature": "37xS7o6LjEexfp1Ra3Em9EfsMzMN8e6mxQg7Vt9u9zZXtnFVvjncdXR3XMJpr6K63WZsJkqbtVxb6QYKkVESdgff",
+      "slot": 42605
+    },
+    {
+      "label": "earnings: commit historical observation",
+      "signature": "2j37Qc7YYzUMtAdvjCVh6PmBgwqw8DsikSrAV9SBzpmiV4AiHm4VhCGv1bKVbX3pYANTdj64GpHM8ZwAg9TTJDQP",
+      "slot": 42606
+    },
+    {
+      "label": "earnings: maker reserves full payout",
+      "signature": "vkomH7qgYPhwg37o8ZM8XJuACijGjCpuCYCCYg4fgiudsoMBo7Tzp9K2Z2PnCUyUFa6LAH6z882opcuswhWfvUs",
+      "slot": 42607
+    },
+    {
+      "label": "earnings: holder accepts exact terms",
+      "signature": "5uWECzDPLmbR8LzS2M8uhgukAtu18HPJf6RRq2pKNgRHuPFJMnRLqFRdugNx4UMhSbZQrwtCez55gPTPNNZvXsw1",
+      "slot": 42608
+    },
+    {
+      "label": "rebound: commit historical observation",
+      "signature": "2N4BZMdMtP9MoGLXps7YFnZPB3oFZ78cD3qGwYnNpTCTEDyVxiQ8ZWrc3rX3EDLBGd77iGhQXFJCu4XvsKYSRfiv",
+      "slot": 42609
+    },
+    {
+      "label": "rebound: maker reserves full payout",
+      "signature": "EP9YPcjqdPqkGvHFkYEoNMs8pa27Lpyovxo6ExDxoi5mcF8MMCsfxdQgXDBSuvfC6Rqgr1nq2THSQ6KgUUmzeqt",
+      "slot": 42610
+    },
+    {
+      "label": "rebound: holder accepts exact terms",
+      "signature": "Le5Gz8BYrCPtEGJqphWYHdtvdEAVFVYrxJ4XfQ1t148jP91CED6skauJs9ofdGKJaqLDemyZ5uVy3NXGWMHG9Kx",
+      "slot": 42611
+    },
+    {
+      "label": "Missing observation: await data, reserve stays locked",
+      "signature": "5oVK9dkDbMhxCkrckKf8FrYy9kyMBQ8cdfkMXLDUMna5njHRmbnqyU7h7hSH9qJmj6i5Jmd5tf9sbnCAxMEQrbeg",
+      "slot": 42787
+    },
+    {
+      "label": "deepseek: publish committed sample",
+      "signature": "Ym9fR6UofSdmB15eD9CurNGQNV77ShDyHjEowbmjQjtjcgHB2trjy1hpLNNBt1xhZ5GLbuhCbcCyRLSpAxJCErp",
+      "slot": 42788
+    },
+    {
+      "label": "deepseek: settle fixed entitlements",
+      "signature": "2kBoTa1oHWUpdMXy3M61jkHhKAgBhNzP52U8CDaKyJk84jVK6Y96QCkcqpr8mP7svRTip4WM6QEwbcGJTRjmrqWF",
+      "slot": 42789
+    },
+    {
+      "label": "Idempotent keeper retry",
+      "signature": "5ugyuxf2MrMBZwuZZKiXjxdRLYWXzvdAQwpY14B6C8fLVu6PV9NRp8iWPGqo6fpQQfh8qkdef1jXtc2GBFHssxuL",
+      "slot": 42790
+    },
+    {
+      "label": "deepseek: holder claims payout",
+      "signature": "afGKSYwrPtFTzyqgLXEBqbpWiKJYAdnhWFDGyVS2C7MbUgVBCNvKXSDNNzhXmgaknhN2AekhYzZdnB7qjMvkPbw",
+      "slot": 42791
+    },
+    {
+      "label": "deepseek: maker claims remainder",
+      "signature": "549Dyim7oLhAjxMZqrdxT7yphfLziM5yFywG89D6AkzeimFfczb44cMaMbw3QGKmuNpzB76mMmVYVH2rbMWyY41c",
+      "slot": 42792
+    },
+    {
+      "label": "earnings: publish committed sample",
+      "signature": "1RW5A8FHrh3pzPHA4NNtYRq8WjY2FjVrG4xTZcWRarKDiDRTv1isqMB7TggV8n8G3Fvh5UkYMta2pgB2GpakpEH",
+      "slot": 42793
+    },
+    {
+      "label": "earnings: settle fixed entitlements",
+      "signature": "2NcyBPQ1AxxpiZGp1FwTXuUdzorJvqydWJ4U9hfQtT4VYJcmYWrbX1GuyCWZsAhhKkYJn8LRgDawYK2ExjQyuDUt",
+      "slot": 42794
+    },
+    {
+      "label": "earnings: holder claims payout",
+      "signature": "YwaxNuZHrko16WB3EJApwYeD27xbsEbwt5CWmLoUqpbv78p3uv9bVcGTT7JUAtvTACgJyQbhLsKZWtyNsvWMGbf",
+      "slot": 42795
+    },
+    {
+      "label": "earnings: maker claims remainder",
+      "signature": "rhYsPyGhWX5SeyYy5uXwKniNphRPJ57J9EP55yo8w4BJPyqYjbcfNTHo1NtGf2cRiPcDe8NZDV3RAd3VkjdiSkY",
+      "slot": 42796
+    },
+    {
+      "label": "rebound: publish committed sample",
+      "signature": "3ebkJg1J7hGGJiSXqxZJmrcJhtbiezemB8oggGnEnmQHRXrzGPAUFuEzy6hJHiSDLeoiZk5Li4oMFY9xy6RrHYSj",
+      "slot": 42797
+    },
+    {
+      "label": "rebound: settle fixed entitlements",
+      "signature": "61KgqKUbULRoR53bsWXMHBSdq1LMkREacwxWs2NNXHRbEDKCENoa1r4ffFHjvo7cxfjvkxzPeTcYqZvSBJZedxAR",
+      "slot": 42798
+    },
+    {
+      "label": "rebound: holder claims payout",
+      "signature": "2RrKX22KxnfsfHnvuJZZh1pQSbQwwi2jccbWpC53SxejegrC8c8bhyZfg9DoaP2HfmpUxFHQYjpftEVC3ooCGRh",
+      "slot": 42799
+    },
+    {
+      "label": "rebound: maker claims remainder",
+      "signature": "5oMj1LP8KsWEN2ky3rk8sUnQSDbTnaksYjA6mmHN5EDixpb4Dp3AKiwgHhMxMLi8gtgSfFuzaQd6yFD2BVrqtVx8",
+      "slot": 42800
+    }
+  ],
+  "checks": [
+    "deepseek: full escrow",
+    "Altered terms rejected without state changes",
+    "Wrong signer rejected",
+    "Wrong token program rejected",
+    "Substituted mint rejected",
+    "Nonce reuse rejected",
+    "Repeated acceptance rejected",
+    "Cancellation after acceptance rejected",
+    "Premature settlement rejected",
+    "earnings: full escrow",
+    "rebound: full escrow",
+    "Missing data locks reserve",
+    "Wrong feed rejected",
+    "Excessive confidence interval rejected",
+    "Settlement is idempotent",
+    "Wrong settlement market rejected",
+    "deepseek: payout 2000 and conservation",
+    "Double claim rejected",
+    "earnings: payout 985 and conservation",
+    "rebound: payout 1500 and conservation"
+  ],
+  "scenarios": [
+    {
+      "id": "deepseek",
+      "date": "2025-01-27",
+      "price": 118.42,
+      "offer": "BWTjvKioGRoThsQNnszUa3CQ5dFaTp3hHJm5ujtSto4j",
+      "market": "GyRe22iM6yGKVuKkfQ8Ufc9LqNK5sR8o4RfA2tKJEN1c",
+      "vault": "9S2XyD7CxNN9FdMca5rRbDjMrZWCTWjMTNc4s7BKPFHg",
+      "reserve": 2000,
+      "payout": 2000
+    },
+    {
+      "id": "earnings",
+      "date": "2025-02-27",
+      "price": 120.15,
+      "offer": "7teUn3PF2ohGBT5hqEeVA8nDvCGMAB82tbczT74oibY2",
+      "market": "Hcci7VFKAJXgc8oZoG9pRsQRmJra975YKMUdhVQ88bDq",
+      "vault": "Dtmw45aWPaw1XwUJ9313znCoQS4XNky1dikCVddocGUD",
+      "reserve": 1500,
+      "payout": 984.9999999999994
+    },
+    {
+      "id": "rebound",
+      "date": "2025-01-22",
+      "price": 147.07,
+      "offer": "7hDsNgXHr7MMVpieMQpp6pxovunYPG7ZihUmXEstD2FR",
+      "market": "6GYviNz2MtxrtHxVSDfTTU8Xf5KPy55BZHKmkpuK18wA",
+      "vault": "Ba7rfoN6NPKfjkY7t9usyaX8Bd7FhzUy8jbojaTX55Sc",
+      "reserve": 1500,
+      "payout": 1500
+    }
+  ]
+}

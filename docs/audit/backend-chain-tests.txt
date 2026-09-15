@@ -1,0 +1,9 @@
+(node:1295390) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+deepseek accepted 59edbc0995ee520b3488790fde41a6dab5f72eb0 1789422205 2000
+earnings accepted 169602a8bcd7aa4ad49dc6a93638e61074ab4e16 1789422208 985
+rebound accepted 019d458a0163df7108d06e53fc204bde9c701f89 1789422210 4.999995
+deepseek closed 2000
+earnings closed 985
+rebound closed 4.999995
+{"checks":["deepseek: duplicate fund returns same signed transaction","earnings: duplicate fund returns same signed transaction","rebound: duplicate fund returns same signed transaction","Cross-session contract access denied","Missing observation preserves entire reserve","deepseek: exact payout 2000; both claims; empty escrow","earnings: exact payout 985; both claims; empty escrow","rebound: exact payout 4.999995; both claims; empty escrow"],"transactions":16}

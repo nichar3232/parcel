@@ -1,0 +1,6 @@
+{
+  "source": "Yahoo Finance chart API",
+  "sourceUrl": "https://query2.finance.yahoo.com/v8/finance/chart/NVDA?period1=1735689600&period2=1743724800&interval=1d",
+  "retrievedAt": "2026-09-14T15:10:00.281Z",
+  "sha256": "dff80d1c6204a566087cc8570196078bffc4c73ef9215e7c6d3735a6807dfb13"
+}

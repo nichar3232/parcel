@@ -1,0 +1,178 @@
+
+> strata-stocklana@0.2.0 test
+> tsx --test tests/*.test.ts
+
+TAP version 13
+# (node:21216) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: portfolio: durable idempotency, exact revision, no client-supplied clock or RFQ ID
+ok 1 - portfolio: durable idempotency, exact revision, no client-supplied clock or RFQ ID
+  ---
+  duration_ms: 1.759875
+  type: 'test'
+  ...
+# Subtest: portfolio: both claims conserve fractional base units, settlement cannot be fabricated
+ok 2 - portfolio: both claims conserve fractional base units, settlement cannot be fabricated
+  ---
+  duration_ms: 7.604333
+  type: 'test'
+  ...
+# Subtest: portfolio: rejects malformed, unsupported and zero-base-unit terms
+ok 3 - portfolio: rejects malformed, unsupported and zero-base-unit terms
+  ---
+  duration_ms: 0.436583
+  type: 'test'
+  ...
+# Subtest: SQLite: portfolio and receipts survive process-store restart
+ok 4 - SQLite: portfolio and receipts survive process-store restart
+  ---
+  duration_ms: 8.566875
+  type: 'test'
+  ...
+# Subtest: chain: signed bytes and identity exist before broadcast; restart retries the same transaction
+ok 5 - chain: signed bytes and identity exist before broadcast; restart retries the same transaction
+  ---
+  duration_ms: 4.372834
+  type: 'test'
+  ...
+# Subtest: chain: cross-session read/mutation denied, duplicate keys cannot change terms
+ok 6 - chain: cross-session read/mutation denied, duplicate keys cannot change terms
+  ---
+  duration_ms: 0.487166
+  type: 'test'
+  ...
+# Subtest: chain: concurrent requests serialize and an unresolved transaction blocks a new action
+ok 7 - chain: concurrent requests serialize and an unresolved transaction blocks a new action
+  ---
+  duration_ms: 0.504833
+  type: 'test'
+  ...
+# Subtest: chain: unknown RPC status remains recoverable and does not claim confirmation
+ok 8 - chain: unknown RPC status remains recoverable and does not claim confirmation
+  ---
+  duration_ms: 1.127959
+  type: 'test'
+  ...
+# Subtest: HTTP: secure sessions, CSRF, malformed requests, concurrency, static ranges and readiness
+ok 9 - HTTP: secure sessions, CSRF, malformed requests, concurrency, static ranges and readiness
+  ---
+  duration_ms: 33.467625
+  type: 'test'
+  ...
+# Subtest: chain: a delayed read preserves newer transaction evidence
+ok 10 - chain: a delayed read preserves newer transaction evidence
+  ---
+  duration_ms: 1.23275
+  type: 'test'
+  ...
+# Subtest: chain transport: a merely processed error remains pending until confirmation
+ok 11 - chain transport: a merely processed error remains pending until confirmation
+  ---
+  duration_ms: 0.614917
+  type: 'test'
+  ...
+# Subtest: worked put-spread examples match independently specified economics
+ok 12 - worked put-spread examples match independently specified economics
+  ---
+  duration_ms: 0.472625
+  type: 'test'
+  ...
+# Subtest: worked capped call examples
+ok 13 - worked capped call examples
+  ---
+  duration_ms: 0.08725
+  type: 'test'
+  ...
+# Subtest: 10000 property samples: independent option legs, bounds and allocation conservation
+ok 14 - 10000 property samples: independent option legs, bounds and allocation conservation
+  ---
+  duration_ms: 10.645792
+  type: 'test'
+  ...
+# Subtest: fractional quantity and rounding at strike boundaries
+ok 15 - fractional quantity and rounding at strike boundaries
+  ---
+  duration_ms: 0.0715
+  type: 'test'
+  ...
+# Subtest: rejects invalid terms, nonfinite inputs and excess precision
+ok 16 - rejects invalid terms, nonfinite inputs and excess precision
+  ---
+  duration_ms: 0.215584
+  type: 'test'
+  ...
+# Subtest: funding reserves once and atomic acceptance transfers only premium
+ok 17 - funding reserves once and atomic acceptance transfers only premium
+  ---
+  duration_ms: 7.054875
+  type: 'test'
+  ...
+# Subtest: expired acceptance fails without mutating balances; reserve is reclaimable
+ok 18 - expired acceptance fails without mutating balances; reserve is reclaimable
+  ---
+  duration_ms: 0.205375
+  type: 'test'
+  ...
+# Subtest: missing data keeps reserve locked; recovery and keeper retry are idempotent
+ok 19 - missing data keeps reserve locked; recovery and keeper retry are idempotent
+  ---
+  duration_ms: 0.388666
+  type: 'test'
+  ...
+# Subtest: claims distribute every unit once and close only after both claims
+ok 20 - claims distribute every unit once and close only after both claims
+  ---
+  duration_ms: 0.372916
+  type: 'test'
+  ...
+# Subtest: insufficient funds and duplicate IDs cannot corrupt the book
+ok 21 - insufficient funds and duplicate IDs cannot corrupt the book
+  ---
+  duration_ms: 0.291625
+  type: 'test'
+  ...
+# Subtest: historical snapshot is monotonic, complete OHLC, excludes non-sessions
+ok 22 - historical snapshot is monotonic, complete OHLC, excludes non-sessions
+  ---
+  duration_ms: 0.093083
+  type: 'test'
+  ...
+# Subtest: three historical scenarios produce exact distinct payouts
+ok 23 - three historical scenarios produce exact distinct payouts
+  ---
+  duration_ms: 0.051958
+  type: 'test'
+  ...
+# Subtest: caller cannot choose a favorable historical sample
+ok 24 - caller cannot choose a favorable historical sample
+  ---
+  duration_ms: 0.110708
+  type: 'test'
+  ...
+# Subtest: SPL integer compatibility: independent Node 64-bit codec and wider boundaries
+ok 25 - SPL integer compatibility: independent Node 64-bit codec and wider boundaries
+  ---
+  duration_ms: 4.209042
+  type: 'test'
+  ...
+# Subtest: SPL integer compatibility: allocation bounds, negative values and overflow fail closed
+ok 26 - SPL integer compatibility: allocation bounds, negative values and overflow fail closed
+  ---
+  duration_ms: 0.228917
+  type: 'test'
+  ...
+# Subtest: historical settlement provenance matches retained source bytes
+ok 27 - historical settlement provenance matches retained source bytes
+  ---
+  duration_ms: 2.689083
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 257.818416

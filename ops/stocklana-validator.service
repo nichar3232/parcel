@@ -1,0 +1,19 @@
+[Unit]
+Description=Strata isolated Solana test validator
+After=network.target
+[Service]
+Type=simple
+User=stocklana
+Group=stocklana
+WorkingDirectory=/var/lib/stocklana
+ExecStart=/opt/stocklana/tooling/solana-release/bin/solana-test-validator --ledger /var/lib/stocklana/ledger --rpc-port 8899 --faucet-port 9900 --bind-address 127.0.0.1 --limit-ledger-size 1000000 --bpf-program 3VpPpDGYjxawotjb6xMYdUsZoazszT7NLb1wgVod9Xcm /opt/stocklana/app/artifacts/strata-localnet.so --quiet
+Restart=always
+RestartSec=5
+MemoryMax=2G
+CPUQuota=150%
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/stocklana
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target

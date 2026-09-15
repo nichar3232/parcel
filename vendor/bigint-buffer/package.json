@@ -1,0 +1,1 @@
+{"name":"bigint-buffer","version":"2.0.0-strata.1","description":"Bounded pure-JavaScript replacement for the four bigint-buffer conversion APIs; no native bindings","main":"index.cjs","types":"index.d.ts","license":"MIT","private":true}

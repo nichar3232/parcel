@@ -1,0 +1,5 @@
+
+added 298 packages in 19s
+Release installed: /opt/stocklana/releases/20260914T215019Z Previous: /opt/stocklana/releases/20260914T213958Z
+{"ok":true,"app":"strata","database":"ready","chain":{"ready":true,"network":"localnet","slot":43550,"chainTime":1789422671},"serverTime":1789422673140}
+Private deployment is ready.

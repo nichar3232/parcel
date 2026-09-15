@@ -1,0 +1,306 @@
+Onchain Equity Desk
+Product design for Stocklana
+Version 1  |  14 September 2026  |  Product and engineering specification
+Product definition
+Build an integrated prime brokerage and derivatives desk for tokenized equities on Solana. Users manage stock exposure, borrow against eligible holdings, lend eligible stock tokens, trade options, and create structured products from one portfolio workspace.
+The product owns the customer workflow, trade terms, collateral accounting, and settlement experience. Financing can connect to existing lending venues. The long-term value is making these services work together with transparent costs and portfolio risk.
+The first user problem
+A tokenized-stock holder wants to protect a position or change its return profile without moving between disconnected tools. Today, finding a counterparty, understanding the payoff, funding the trade, and tracking the resulting exposure can be separate tasks. The first release joins these steps in one usable workflow.
+Build decision
+Deliver the full desk design, with a working Stocklana core: one equity reference, custom bounded option spreads, a funded counterparty, verifiable Solana escrow, and settlement. Show holdings and collateral allocations in the same portfolio. Financing integration is a separate delivery track; stock-token lending and portfolio margin follow after the core is proven.
+This release is a devnet demonstrator. A simulated quote or market scenario must be labeled. A production borrowing adapter is included only after an actual compatible market and transaction path are verified. Planned modules must not appear to execute real trades.
+Success means
+A holder can construct a payoff, understand its cost, and complete a funded trade with another wallet.
+The maximum payout is covered before a position becomes active, and the same collateral cannot fund another obligation.
+The user can see the difference between equity exposure, derivative claims, debt, and funds available to withdraw.
+Stocklana explicitly includes structured products and asks for a working end-to-end demo with a real user problem. Submissions close 18 September 2026 at 4 pm ET. [1]
+1 Users and product boundaries
+User
+Need
+Primary workflow
+Equity holder
+Protect downside or sell some upside
+Hold stock exposure, add protection, monitor combined outcomes
+Active trader
+Express a directional or volatility view
+Choose an option structure, get a firm quote, fund and settle
+Liquidity provider
+Earn compensation for taking defined risk
+Quote a structure, commit capital, manage exposure
+Borrower or stock lender
+Finance holdings or earn borrow fees
+Allocate eligible tokens, review terms, borrow or lend
+
+Primary journey
+A user connects a wallet with tokenized equity exposure. The portfolio displays holdings and identifies the underlying reference. The user chooses Protect, sets a protection range and expiry, and reviews a payoff chart. A counterparty quotes a premium. Acceptance funds the contract, and the hedge appears beside the stock position. At expiry, verified settlement data determines the cash payout.
+Secondary journeys
+A trader uses the same builder without holding stock. The interface calls this a standalone derivative. A liquidity provider enters the opposite side of the requested payoff and sees required collateral and worst-case loss before signing.
+A financing user allocates eligible stock tokens to a lending venue. The portfolio records the resulting debt and encumbered assets. A later stock-lending user lends tokens themselves, earning fees from a borrower who must return the owed token quantity under the loan terms.
+Asset and legal meaning
+The initial derivative references an equity price and settles in USDC. It is a new synthetic contract, not a tokenized exchange-listed option and not a claim on an OCC-cleared position. Holding the derivative does not deliver the underlying stock. Stock-token ownership rights depend on the issuer and instrument terms. [2]
+Positioning
+Position the product as an integrated equity financing and derivatives desk. Differentiate through usable custom payoffs, explicit collateral allocations, and observable settlement. Do not claim to be the first options protocol or a regulated prime broker. Historical announcements and hackathon projects establish precedent, but do not establish current liquidity or adoption. [6, 7]
+2 Full product and release scope
+Capability
+Stocklana delivery
+Subsequent release
+Portfolio and risk
+Wallet holdings, escrow, derivative positions, payoff scenarios
+Integrated debt, live Greeks, portfolio stress and attribution
+Options
+Cash-settled capped call and put spreads
+Covered token calls, cash-secured puts, multi-expiry strategies
+Structured products
+Custom strikes, expiry and size within validated templates
+Collars, butterflies and packaged income strategies
+Financing
+Read-only market discovery; execute only if adapter is verified
+Deposit, borrow, repay and withdraw through a supported venue
+Stock-token lending
+Product specification and clearly labeled preview
+Borrowable token inventory, fee accrual, return and liquidation
+Liquidity
+One disclosed demo maker; funded bilateral RFQ
+Multiple makers, quote comparison and inventory controls
+Collateral
+USDC escrow isolated per derivative trade
+Controlled netting within a shared risk and enforcement domain
+Transfer and exit
+Hold to settlement; no promised secondary liquidity
+Bilateral early close, then transfer of eligible long claims
+
+Hard boundary for the first build
+One reference equity, one settlement currency, one expiry convention, and two bounded templates. Use a test equity token for devnet holdings; show the mint and network. A live asset directory may map to NVDAx or another verified Solana token, but must never relabel a test token as a real issuer asset.
+The first derivative settles against the underlying equity reference price. It therefore carries basis risk against the traded stock token. The portfolio labels this clearly; the hedge is not guaranteed to offset token depegging or issuer failure.
+Features deliberately deferred
+Unbounded short calls, leveraged option selling, cross-venue portfolio margin, American exercise, barrier monitoring, autocallables, basket correlation products, and transferable short obligations require additional infrastructure. Their exclusion from the first release does not change the full product vision.
+3 Application design
+Navigation and visual language
+Use five primary destinations: Portfolio, Trade, Build, Finance, and Activity. Add a separate Maker workspace. Use a restrained trading interface with readable numbers, neutral backgrounds, and green or red reserved for gains, losses, and risk states. Always show network and data timestamp. Desktop is the primary layout; mobile supports review, signing, and position monitoring.
+Portfolio
+Display net equity, cash available, collateral locked, debt, and estimated derivative value. List holdings with quantity, reference price, token price when available, and allocation. Group derivatives by underlying and expiry. Show realized PnL separately from estimated mark-to-market. Unknown prices display as unavailable and make aggregate values explicitly incomplete.
+Trade and Build
+Trade opens validated templates. Build exposes underlying, bullish or bearish direction, strikes, size, and expiry. A chart shows derivative payout and net PnL separately; optionally overlay the stock position. Show maximum loss, maximum gain, break-even when applicable, premium, fees, and protection limits. Changes invalidate the old quote.
+Quote review
+Show maker, quote expiry countdown, exact premium, fee, collateral, settlement rule, and total debit. Use one explicit Accept and fund action. After signing, show Pending, Confirmed, or Failed with a transaction link. A chart estimate must never appear as a firm executable price.
+Finance
+Use separate tabs for Borrow cash and Lend stock tokens. Borrow displays venue, collateral, debt asset, current rate, limits, and liquidation exposure. Lend displays borrow demand, available inventory, utilization, fee terms, and withdrawal constraints. Hide execution controls for unsupported markets; use Preview for features not yet implemented.
+Position details and Activity
+Position details contain the signed terms, participants, escrow amount, settlement source, expiry, and claimable balances. Activity records quote acceptance, collateral movements, borrowing actions, settlements, claims, and failures. Explain failures in plain language while exposing technical details through an expandable transaction view.
+Maker workspace
+Show incoming RFQs, portfolio exposure, committed collateral, and available quote capacity. Allow manual pricing and quote cancellation. Demo mode identifies the maker as a team-controlled test wallet. No fabricated depth, volume, yield, or counterparties.
+4 Payoff contracts and examples
+Bounded spread primitives
+A capped call spread pays the price rise above the lower strike, limited to the distance between the two strikes. A capped put spread pays the price decline below the upper strike, limited to the same strike distance. Multiply by the contracted share-equivalent quantity. Payout is zero outside the profitable region on the other side.
+Each product has a nonnegative, finite maximum payout. Premium is paid once at entry. Buyer net PnL equals payout less premium and buyer fees. Seller net PnL equals premium received less payout and seller fees. The deposit securing the payout is collateral, not an additional expense.
+Illustrative downside protection
+Assume an equity reference starts at $100. Buy protection between $100 and $80 for one share-equivalent, paying a $4 premium. The maximum payout is $20. Numbers are illustrative, not a market quote; the table excludes fees, dividends, financing and token basis.
+Price at expiry
+Hedge payout
+Hedge net PnL
+Stock plus hedge PnL
+$120
+$0
+−$4
++$16
+$100
+$0
+−$4
+−$4
+$90
+$10
++$6
+−$4
+$80
+$20
++$16
+−$4
+$60
+$20
++$16
+−$24
+
+The stock-plus-hedge column assumes a stock purchased at $100. Protection offsets declines only within the $100 to $80 interval. Below $80, further stock losses resume. This must be visible in the chart and trade confirmation.
+Illustrative capped upside
+A $100 to $120 call spread on one share-equivalent has a maximum payout of $20. At expiry prices of $90, $110, and $130, it pays $0, $10, and $20 respectively. With a $5 premium, buyer net PnL is −$5, +$5, and +$15 before fees. The seller deposits $20 before activation.
+Template validation
+Reject reversed or equal strikes, zero quantity, expired contracts, unsupported decimals, and any payout exceeding escrow. Future custom piecewise-linear payoffs require a deterministic proof of the maximum across every segment and endpoint. Arbitrary code or unrestricted user formulas are not accepted.
+5 Quotes capital and counterparties
+Who takes the other side
+The platform coordinates trades. A maker or another user accepts the opposing risk and funds the maximum payout. There is no assumption of an existing liquidity pool, minimum TVL, guaranteed execution, or protocol-funded yield. Without a funded counterparty, the RFQ remains unfilled.
+Quote formation
+The demo supports manual maker quotes. A model may estimate an indicative value using spot, time, volatility, rates and dividends, but the maker chooses the executable premium. Equity event risk, skew, hedge costs and token basis may materially affect pricing. A theoretical value does not establish that a hedge can be acquired at that price.
+Exact RFQ terms
+Every signed quote commits to the network, program ID, schema version, product template, reference feed, strikes, quantity, expiry, settlement policy version, USDC mint, premium, fees, maker, authorized taker, nonce, and quote deadline. The hash of these terms identifies the accepted trade. Versioned rounding rules are part of the terms.
+Atomic acceptance
+For the first build, the maker creates a funded offer account. The buyer accepts it in a single transaction that verifies all terms, transfers premium and fees, and activates the contract. Quote creation reserves the entire maximum payout. Canceling or expiring an unfilled offer returns the maker reserve. The program prevents cancellation after acceptance.
+Funded offers avoid displaying the same maker capital as available behind many executable quotes. Support full fills only. Partial fills, offchain signed offers, and shared quote capital are later optimizations, each requiring explicit reservation and race-condition handling.
+Collateral arithmetic
+For the $100 to $80 put spread, the maker locks $20 per share-equivalent. With a $4 premium, the buyer pays $4 plus fees and the maker receives the premium. At a $90 settlement price, $10 becomes claimable by the buyer and the remaining $10 by the maker. A $60 settlement allocates all $20 to the buyer.
+Fees and capital efficiency
+Default demo fees to zero and show this explicitly. A production fee can be an agreed percentage of premium with a maximum total debit disclosed before signing. No yield is generated from idle escrow in the initial design. Full collateralization limits capital efficiency but eliminates reliance on a later seller margin call for these bounded contracts.
+6 Price data and settlement
+Reference policy
+Pin one supported equity feed, denomination, exponent handling, and price-provider verification path per market. Pyth is a candidate, not an assumed completed integration. Verify current feed availability, access requirements, Solana verification support, and settlement-history retrieval before enabling real value. Provider documentation changes must be checked during implementation. [3]
+Expiry convention
+Use European cash settlement at a scheduled regular-session observation time, initially 15 minutes before the scheduled US equity close. This is an observation-time contract, not an official exchange closing-price contract. Store the absolute UTC timestamp with a validated exchange calendar that accounts for holidays, early closes and daylight saving time.
+Deterministic observation
+Proposed policy: use the earliest verified valid observation at or after expiry within a 60-second window. Freshness and confidence thresholds are market configuration snapshotted at entry. The implementation must prove which observation is eligible; it cannot allow a caller to select a favorable sample from the window. If the provider cannot support this selection and proof, change the policy before market activation.
+Demo settlement uses a clearly labeled test oracle and an immutable scheduled sample. A live settlement route is gated on verified historical data and deterministic selection. Current spot may inform the interface but must not replace the contracted expiry observation.
+Missing or unreliable data
+If the observation cannot be verified, transition to Awaiting data and keep collateral locked. Anyone may submit the required proof later. A keeper retry is idempotent. Do not substitute zero, yesterday’s close, a DEX spot price, or a new reference feed after the trade. A prolonged outage resolution process is a production blocker; an administrator must not choose a discretionary settlement price.
+Corporate actions and market closures
+For the demo, exclude expiries crossing known splits, distributions or other corporate actions. Production needs contract-specific adjustments and a binding extraordinary-event policy. Stock-token rebasing can differ from the derivative’s share-equivalent units, so balance changes must not silently change a contract payout. Issuer mechanics must be validated for each token. [2]
+Finality and claims
+A valid observation fixes settlement once. The program allocates buyer payout and maker remainder, then permits separate claims. A keeper executes transactions; time alone does not execute a smart contract. Repeated settlement or claim attempts cannot move funds twice. UI access failure must not prevent direct onchain claims.
+7 Prime brokerage and financing
+One portfolio with explicit allocations
+The interface unifies the account view while the initial custody and risk domains remain separate. Wallet balances, derivative escrow, externally pledged stock tokens, debt, and future lent inventory each have distinct ownership and encumbrance records. Never count an asset in two available balances.
+Example: a holder has 10 stock tokens, pledges 4 to a supported borrowing venue, and retains 6. A later covered-call feature may allocate at most the unencumbered eligible quantity. The put-spread hedge is separately funded in USDC and does not automatically increase borrowing capacity.
+Borrowing against holdings
+Prefer a verified lending adapter rather than building a new money market. Kamino documents deposit, borrow, repay, and withdraw integration surfaces. Exact reserve support, borrow liquidity, token compatibility and network availability must be verified; SDK availability alone is insufficient. [4]
+Flow: choose collateral and amount; retrieve current venue parameters; display interest and liquidation sensitivity; simulate transactions; sign; confirm actual deposited collateral and debt. Reject additional borrowing when fresh risk data is unavailable. Repayment remains accessible where the external venue permits it. Lending liquidations follow venue rules, even when our frontend is paused.
+Lending stock tokens
+This is a separate product from cash borrowing. A supplier lends transferable stock tokens; a borrower pays a fee and owes return of the specified token entitlement. Short selling also requires executable spot liquidity and a reliable buyback route. Lending a wrapper token does not automatically lend the custodian’s underlying registered share.
+Before release, define loan term, rate accrual, collateral, liquidation, token-return units after corporate actions, recall policy, lender withdrawal queue and bad-debt allocation. Supply may be withdrawable only when sufficient token inventory is available. Do not promise instant withdrawal of borrowed-out tokens.
+Portfolio margin as a later capability
+A hedge earns a margin offset only when the risk engine and enforcement system control all relevant legs, collateral and closeout. An external lender cannot be assumed to recognize our derivative. Start with gross reservations. Later offsets require stress testing for price gaps, volatility, basis, concentration, oracle failure and execution liquidity, plus agreed default and loss-allocation rules.
+8 System architecture and records
+Component
+Responsibility
+Source of truth
+Web application
+Build payoffs, show risk, obtain signatures
+Reads verified chain state and identified price sources
+RFQ service
+Route requests and index funded offers
+Program offer state governs execution
+Solana program
+Validate offers, escrow, settle and allocate claims
+Onchain accounts and token balances
+Oracle adapter and keeper
+Verify data and submit eligible settlements
+Pinned provider proof and contract policy
+Portfolio indexer
+Combine holdings, positions, debt and activity
+Reconciles against chain and venue state
+Finance adapter
+Discover markets and build venue transactions
+External protocol positions and risk rules
+
+Recommended implementation
+Use a TypeScript React web client and a Rust Solana program, with Anchor if supported by the chosen toolchain. Use a shared typed schema for trade terms and an independent payoff evaluator for verification. A small database indexes events and RFQ metadata; it never authorizes custody or settlement. Pin dependency versions after checking current compatibility.
+Core records
+MarketConfig stores approved mints, token programs, decimals, reference feed, expiry policy, size caps and risk settings. FundedOffer stores immutable terms, maker, taker, deadline, escrow and status. Position stores accepted terms, parties and settlement state. Claim records track each entitlement and whether it has been redeemed.
+PortfolioAllocation maps owner, asset, amount, venue or escrow, and encumbrance. OracleObservation stores verified source, price, exponent, publish time, confidence and proof identifier. ActivityEvent stores transaction signature, slot, event type, affected position and finality status.
+Program instructions
+Create market; create funded offer; cancel unfilled offer; reclaim expired unfilled offer; accept offer; settle position; claim payout. Administrative changes affect future offers only and cannot rewrite active terms. PDA derivation, account ownership, signer authorization, mint and token-program checks are mandatory.
+Service interface
+Expose market discovery, RFQ creation and status, funded-offer lookup, payoff preview, portfolio, and activity endpoints. Read responses include network, data timestamp and slot where applicable. Transaction construction returns exact instructions for wallet review. Wallet keys stay with users; credentials for data services stay server-side.
+9 Lifecycle and failure behavior
+State
+Allowed next action
+Funds behavior
+Draft RFQ
+Edit terms or request quotes
+No funds committed
+Funded offer
+Accept before deadline or cancel
+Maker maximum payout reserved
+Expired unfilled offer
+Reclaim reserve
+No buyer position exists
+Active position
+Observe until expiry
+Payout reserve locked
+Awaiting data
+Submit valid settlement proof
+Reserve remains locked
+Settled
+Buyer and maker claim separately
+Entitlements fixed once
+Closed
+Read history
+All eligible claims paid
+
+Trade and wallet failures
+If an offer expires during signing, acceptance fails without a partial fill. If the wallet rejects signing, leave the offer unchanged. If a transaction result is uncertain, reconcile by signature and account state before permitting retry. Repeated client requests use idempotency keys, and program nonces prevent duplicate execution.
+Market and service failures
+When live price data is stale, disable new risk-taking and label existing marks as stale. When a quote is unavailable, show No funded quote available. When an external loan venue fails, show its position as unavailable instead of zero. Cached prices cannot be used to manufacture borrowing capacity.
+Collateral invariants
+For every active derivative, escrow covers the maximum contracted payout in settlement-token units.
+After settlement, buyer entitlement plus maker entitlement equals the reserved amount, with deterministic rounding.
+A quote can be accepted once; a claim can be paid once; cancellation and acceptance cannot both succeed.
+Locked collateral cannot be withdrawn, lent, used as a second reserve, or redirected by the frontend.
+USDC denomination does not remove stablecoin depeg, freeze, smart-contract or provider risk.
+Token handling
+Use integer base units with checked arithmetic, explicit rounding and bounded input sizes. Initially allowlist a simple settlement mint. Unsupported transfer-fee, rebasing, confidential-transfer or transfer-hook behavior must fail validation rather than silently change accounting. Production stock integrations require separate compatibility tests for the issuer’s actual token implementation.
+10 Validation and demo acceptance
+Financial correctness
+Use an independent payoff implementation to check both spread templates at zero, both strikes, just above and below each strike, and very large prices. Validate fractional quantities and decimal conversion. Property tests must show that payout is nonnegative, never exceeds reserved collateral, and allocates every settlement unit exactly once.
+Adversarial transactions
+Test wrong signer, substituted mint or oracle account, wrong token program, altered terms, reused nonce, insufficient funds, offer expiry during acceptance, cancellation races, overflow, repeated settlement, repeated claim and unauthorized withdrawals. A rejected transaction must leave balances and state unchanged.
+Settlement and external dependencies
+Exercise a correct observation, stale sample, excessive uncertainty, wrong feed, missing data, delayed keeper and repeated keeper calls. Demonstrate that a client cannot choose a favorable observation. Verify corporate-action exclusions and early-close scheduling. For a financing adapter, verify the full deposit-to-repay cycle or explicitly ship read-only discovery.
+End to end demo
+Connect a holder wallet with test stock exposure and test USDC. Show the network label.
+Create a downside-protection RFQ and inspect its payoff, premium and maximum payout.
+Switch to a second wallet, fund the offer, and return to the holder to accept.
+Open the confirmed position and show the real escrow balance and transaction link.
+Advance the disclosed test-oracle scenario, settle on devnet, and claim from both wallets.
+Return to Portfolio to see the stock scenario, realized derivative result and released collateral.
+Shipping gate
+The core passes only when the flow uses two real wallets, real devnet transactions and program-enforced funds. A clickable interface alone is insufficient. At least three settlement scenarios must match the worked economics. Recovery from one failed acceptance and one delayed settlement must be demonstrated.
+Evaluation metrics
+For user tests, target a first completed trade within five minutes and accurate identification of maximum loss and protection limits by at least four of five testers. These are proposed targets, not measured results. Later track funded RFQ response rate, time to quote, fills, repeat use, net revenue, maker capital utilization and settlement reliability.
+11 Delivery plan and production path
+Stage
+Deliverable
+Completion condition
+Day 1
+Payoff engine, term schema, portfolio and builder UI
+Worked examples pass; scope and network are explicit
+Day 2
+Funded offers and acceptance on Solana devnet
+Two wallets create and accept a collateralized trade
+Day 3
+Settlement, claims, indexer and risk views
+Three payout scenarios and failure recovery pass
+Day 4
+UX polish, finance discovery, demo and submission
+Reproducible setup, video, sources and limitations documented
+
+This is a proposed four-day sequence, not a claim of staffed capacity. Protect the settlement and collateral work if time is short. Cut optional integrations and advanced charts before cutting the core financial invariants.
+First controlled production release
+Enable real value only after external contract review, settlement proof validation, incident procedures, issuer compatibility, and appropriate legal review for the intended users and jurisdictions. Start with explicit position and aggregate notional caps, one verified market and limited counterparties. Mainnet limits must be chosen from actual capital and risk evidence, not copied from demo values.
+Expansion sequence
+First add executable financing through a supported venue and multiple funded makers. Then add covered token calls and cash-secured puts with exact delivery and corporate-action rules. Add early close and long-claim transfer only when pricing and eligibility support them. Introduce stock-token lending once return obligations, liquidity and liquidation are credible. Portfolio margin comes last, after shared control and stress validation.
+Revenue and distribution
+Potential revenue is a disclosed execution fee on filled derivatives and a separately disclosed financing service fee where permitted. Financing costs and maker spreads must be visible. Launch with tokenized-stock communities and professional liquidity providers; validate actual hedging demand through RFQs before assuming recurring volume. No TVL target is required for the bilateral demo.
+AI scope
+AI may translate an expressed goal into a draft supported structure and explain its trade-offs. A deterministic validator calculates the payoff and required collateral. The user reviews and signs exact terms. AI does not select settlement prices, promise returns, invent quotes or receive signing authority. This feature is optional for Stocklana.
+12 Decisions dependencies and sources
+Defaults to implement now
+Use one equity reference, USDC settlement, bounded European spreads, full maker funding, full fills, immutable trade terms and separate claims. Use one portfolio view with gross collateral reservations. Display financing and stock lending according to their actual availability. Ship a disclosed devnet core before broadening the desk.
+Decisions that gate real value
+Select the exact issuer token, reference feed, mint addresses and supported network; verify their economics and compatibility.
+Prove deterministic expiry observation selection and define a binding prolonged-outage and extraordinary-event process.
+Confirm a real financing market, API access and liquidation behavior before enabling borrowing.
+Secure funded counterparties and establish how they will price and hedge exposure.
+Define target jurisdictions, customer eligibility, issuer restrictions and operating permissions with qualified counsel. Tokenization alone does not resolve these questions.
+Sources and interpretation
+The sources below support hackathon requirements, available integration surfaces, issuer mechanics and historical precedent. Proposed product behavior, numerical examples, acceptance criteria and delivery sequencing in this document are design decisions, not claims that these capabilities already exist.
+[1] Stocklana brief. Structured products are in scope; judging emphasizes a real user problem and a working demo.
+https://hackathons.solana.com/hackathons/stocklana
+[2] xStocks documentation. Verify instrument terms, supported token deployments and corporate-action handling per asset.
+https://docs.xstocks.fi/docs
+[3] Pyth developer documentation. Candidate price infrastructure; exact feed, verification and access requirements remain integration gates.
+https://docs.pyth.network/
+[4] Kamino developer guide. Documents borrowing integration surfaces; does not guarantee a compatible reserve or available liquidity.
+https://kamino.com/docs/build/developers/borrow
+[5] xStocks lending market account. Supports the existence of tokenized-equity collateral lending.
+https://xstocks.fi/news/how-kamino-turned-xstocks-into-a-lending-market
+[6] Kraken xStocks hackathon recap. Historical xPrime bundle precedent; not independent evidence of current product adoption.
+https://blog.kraken.com/event/xstocks-hackathon-ethcc-2026
+[7] PowerTrade announcement. Historical xStocks options announcement; current execution and liquidity are unverified.
+https://www.prnewswire.com/news-releases/powertrade--powerdex-launches-first-ever-options-on-xstocks-bringing-247-tokenized-stock-derivatives-to-crypto-302503173.html

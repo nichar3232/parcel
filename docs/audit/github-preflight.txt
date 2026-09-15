@@ -1,0 +1,274 @@
+Bellwether GitHub preparation — September 15, 2026
+
+
+> bellwether@0.2.0 check
+> npm run typecheck && npm run lint && npm test && npm run build
+
+
+> bellwether@0.2.0 typecheck
+> tsc --noEmit
+
+
+> bellwether@0.2.0 lint
+> oxlint
+
+
+> bellwether@0.2.0 test
+> tsx --test tests/*.test.ts
+
+TAP version 13
+# (node:50450) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: portfolio: durable idempotency, exact revision, no client-supplied clock or RFQ ID
+ok 1 - portfolio: durable idempotency, exact revision, no client-supplied clock or RFQ ID
+  ---
+  duration_ms: 2.697667
+  type: 'test'
+  ...
+# Subtest: portfolio: both claims conserve fractional base units, settlement cannot be fabricated
+ok 2 - portfolio: both claims conserve fractional base units, settlement cannot be fabricated
+  ---
+  duration_ms: 12.036875
+  type: 'test'
+  ...
+# Subtest: portfolio: rejects malformed, unsupported and zero-base-unit terms
+ok 3 - portfolio: rejects malformed, unsupported and zero-base-unit terms
+  ---
+  duration_ms: 0.728459
+  type: 'test'
+  ...
+# Subtest: SQLite: portfolio and receipts survive process-store restart
+ok 4 - SQLite: portfolio and receipts survive process-store restart
+  ---
+  duration_ms: 10.24275
+  type: 'test'
+  ...
+# Subtest: chain: signed bytes and identity exist before broadcast; restart retries the same transaction
+ok 5 - chain: signed bytes and identity exist before broadcast; restart retries the same transaction
+  ---
+  duration_ms: 6.746917
+  type: 'test'
+  ...
+# Subtest: chain: cross-session read/mutation denied, duplicate keys cannot change terms
+ok 6 - chain: cross-session read/mutation denied, duplicate keys cannot change terms
+  ---
+  duration_ms: 0.848084
+  type: 'test'
+  ...
+# Subtest: chain: concurrent requests serialize and an unresolved transaction blocks a new action
+ok 7 - chain: concurrent requests serialize and an unresolved transaction blocks a new action
+  ---
+  duration_ms: 0.846166
+  type: 'test'
+  ...
+# Subtest: chain: unknown RPC status remains recoverable and does not claim confirmation
+ok 8 - chain: unknown RPC status remains recoverable and does not claim confirmation
+  ---
+  duration_ms: 1.886166
+  type: 'test'
+  ...
+# Subtest: HTTP: secure sessions, CSRF, malformed requests, concurrency, static ranges and readiness
+ok 9 - HTTP: secure sessions, CSRF, malformed requests, concurrency, static ranges and readiness
+  ---
+  duration_ms: 42.959167
+  type: 'test'
+  ...
+# Subtest: chain: a delayed read preserves newer transaction evidence
+ok 10 - chain: a delayed read preserves newer transaction evidence
+  ---
+  duration_ms: 1.937458
+  type: 'test'
+  ...
+# Subtest: chain transport: a merely processed error remains pending until confirmation
+ok 11 - chain transport: a merely processed error remains pending until confirmation
+  ---
+  duration_ms: 0.971916
+  type: 'test'
+  ...
+# Subtest: worked put-spread examples match independently specified economics
+ok 12 - worked put-spread examples match independently specified economics
+  ---
+  duration_ms: 0.698167
+  type: 'test'
+  ...
+# Subtest: worked capped call examples
+ok 13 - worked capped call examples
+  ---
+  duration_ms: 0.134958
+  type: 'test'
+  ...
+# Subtest: 10000 property samples: independent option legs, bounds and allocation conservation
+ok 14 - 10000 property samples: independent option legs, bounds and allocation conservation
+  ---
+  duration_ms: 15.451167
+  type: 'test'
+  ...
+# Subtest: fractional quantity and rounding at strike boundaries
+ok 15 - fractional quantity and rounding at strike boundaries
+  ---
+  duration_ms: 0.099125
+  type: 'test'
+  ...
+# Subtest: rejects invalid terms, nonfinite inputs and excess precision
+ok 16 - rejects invalid terms, nonfinite inputs and excess precision
+  ---
+  duration_ms: 0.308459
+  type: 'test'
+  ...
+# Subtest: funding reserves once and atomic acceptance transfers only premium
+ok 17 - funding reserves once and atomic acceptance transfers only premium
+  ---
+  duration_ms: 10.521709
+  type: 'test'
+  ...
+# Subtest: expired acceptance fails without mutating balances; reserve is reclaimable
+ok 18 - expired acceptance fails without mutating balances; reserve is reclaimable
+  ---
+  duration_ms: 0.28925
+  type: 'test'
+  ...
+# Subtest: missing data keeps reserve locked; recovery and keeper retry are idempotent
+ok 19 - missing data keeps reserve locked; recovery and keeper retry are idempotent
+  ---
+  duration_ms: 0.567042
+  type: 'test'
+  ...
+# Subtest: claims distribute every unit once and close only after both claims
+ok 20 - claims distribute every unit once and close only after both claims
+  ---
+  duration_ms: 0.544125
+  type: 'test'
+  ...
+# Subtest: insufficient funds and duplicate IDs cannot corrupt the book
+ok 21 - insufficient funds and duplicate IDs cannot corrupt the book
+  ---
+  duration_ms: 0.4255
+  type: 'test'
+  ...
+# Subtest: historical snapshot is monotonic, complete OHLC, excludes non-sessions
+ok 22 - historical snapshot is monotonic, complete OHLC, excludes non-sessions
+  ---
+  duration_ms: 0.136833
+  type: 'test'
+  ...
+# Subtest: three historical scenarios produce exact distinct payouts
+ok 23 - three historical scenarios produce exact distinct payouts
+  ---
+  duration_ms: 0.076292
+  type: 'test'
+  ...
+# Subtest: caller cannot choose a favorable historical sample
+ok 24 - caller cannot choose a favorable historical sample
+  ---
+  duration_ms: 0.155875
+  type: 'test'
+  ...
+# Subtest: SPL integer compatibility: independent Node 64-bit codec and wider boundaries
+ok 25 - SPL integer compatibility: independent Node 64-bit codec and wider boundaries
+  ---
+  duration_ms: 6.136458
+  type: 'test'
+  ...
+# Subtest: SPL integer compatibility: allocation bounds, negative values and overflow fail closed
+ok 26 - SPL integer compatibility: allocation bounds, negative values and overflow fail closed
+  ---
+  duration_ms: 0.290667
+  type: 'test'
+  ...
+# Subtest: historical settlement provenance matches retained source bytes
+ok 27 - historical settlement provenance matches retained source bytes
+  ---
+  duration_ms: 3.813917
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 402.729375
+
+> bellwether@0.2.0 build
+> vinext build
+
+
+  vinext build  (Vite 8.3.0)
+
+[1/5] analyze client references...
+transforming...
+✓ 239 modules transformed.
+rendering chunks...
+✓ built in 363ms
+[2/5] analyze server references...
+transforming...
+✓ 834 modules transformed.
+rendering chunks...
+✓ built in 474ms
+[3/5] build rsc environment...
+transforming...
+✓ 230 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 298ms
+[4/5] build client environment...
+transforming...
+✓ 2630 modules transformed.
+rendering chunks...
+computing gzip size...
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.02s
+[5/5] build ssr environment...
+transforming...
+✓ 839 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 497ms
+[0m  Pre-rendering all routes (output: 'export')...
+[vinext] Production server for prerendering running at http://127.0.0.1:62357
+  Prerendered 2 routes (0 skipped).
+  Discovered 1 CDN warmup path(s).
+[0m
+  Route (app)
+  ─ ○ /
+
+  ○ Static
+
+  ○ Routes marked static were confirmed by speculative prerender (attempted render
+    succeeded without dynamic API usage).
+
+  Build complete. Run `vinext start` to start the production server.
+
+
+
+> bellwether@0.2.0 test:e2e
+> playwright test
+
+[WebServer] (node:50590) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:50592) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:50592) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+
+Running 8 tests using 1 worker
+
+(node:50593) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/desk.spec.ts:26:1 › complete historical lifecycle through the real backend, reload and both claims (1.2s)
+  ✓  2 tests/e2e/desk.spec.ts:58:1 › maker cancellation reclaims reserve and invalid builder inputs never crash (761ms)
+  ✓  3 tests/e2e/desk.spec.ts:81:1 › a stale second tab cannot overwrite a newer portfolio (550ms)
+  ✓  4 tests/e2e/desk.spec.ts:106:1 › backend failure is visible and reconnect restores the session (328ms)
+  ✓  5 tests/e2e/desk.spec.ts:118:1 › all views and dialogs work at desktop and mobile widths without page overflow (1.8s)
+  ✓  6 tests/e2e/desk.spec.ts:154:1 › missing historical observation keeps the reserve locked and recovery pays once (1.1s)
+  ✓  7 tests/e2e/desk.spec.ts:175:1 › a dropped mutation response retries the same request without a second quote (292ms)
+  ✓  8 tests/e2e/desk.spec.ts:197:1 › settlement uses the chain clock even when wall time is far ahead (3.7s)
+
+  8 passed (11.2s)
+
+Deployment check: /api/ready returned 200 with database and localnet ready. The validator service now references the retained artifacts/strata-localnet.so instead of the excluded Cargo target directory; systemd configuration was reloaded without restarting the validator or resetting its ledger.

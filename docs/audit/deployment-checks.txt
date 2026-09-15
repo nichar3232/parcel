@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-09-14T21:51:33.982Z",
+  "checks": [
+    "Same cookie resumes after systemd service restart",
+    "Portfolio and revision unchanged",
+    "Same mutation key returns original durable receipt",
+    "Database, pinned program, mint and Solana clock ready"
+  ],
+  "health": {
+    "ok": true,
+    "app": "strata",
+    "database": "ready",
+    "chain": {
+      "ready": true,
+      "network": "localnet",
+      "slot": 43588,
+      "chainTime": 1789422691
+    },
+    "serverTime": 1789422693347
+  }
+}

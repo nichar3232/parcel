@@ -1,0 +1,21 @@
+[Unit]
+Description=Strata Stocklana equity desk and test-chain API
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+User=stocklana
+Group=stocklana
+WorkingDirectory=/opt/stocklana/app
+EnvironmentFile=/opt/stocklana/.env
+ExecStart=/usr/bin/node --import tsx server/index.ts
+Restart=always
+RestartSec=4
+MemoryMax=512M
+CPUQuota=100%
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/stocklana
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target

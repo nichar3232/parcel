@@ -1,0 +1,11 @@
+{
+  "sourceLogicUnchanged": true,
+  "changes": [
+    "rustfmt whitespace and trailing commas",
+    "removed unused import"
+  ],
+  "currentSourceBuild": "26616920399a5d27aec9871c830d6c206945f50ac09591f35e9c5a8e46b6adb4",
+  "deployedLocalnetProgram": "299c62424499edde94ad4595841dc195227356283188aeb9ecf20b4c22ea36f0",
+  "note": "The existing validator preloads the program with the system address as upgrade authority. It cannot be upgraded using the demo authority. The retained original source and reformatted source have identical Rust token streams after the listed non-semantic normalizations. The current source builds successfully; both artifacts are supplied without claiming byte identity.",
+  "originalArtifactMatchesDeployedIgnoringZeroPadding": true
+}

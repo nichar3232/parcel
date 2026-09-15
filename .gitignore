@@ -1,0 +1,69 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/.vinext/
+/out/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# local environment
+.env*
+!.env.example
+
+# deployment and generated files
+.vercel
+next-env.d.ts
+/dist/
+/.wrangler/
+/outputs/
+/work/
+/target/
+**/target/
+*-keypair.json
+/qa/
+
+.state/
+test-results/
+playwright-report/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Generated handoff archives; source and evidence remain tracked
+/submission/*-source.zip
+/submission/source-manifest.json
+/submission/SHA256SUMS
+
+# Runtime databases and signing material
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.key
+*.p12
+*.pfx
+*.seed
+**/deployer.json
+**/maker.json
+**/holder.json
+**/program.json

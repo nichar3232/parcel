@@ -1,0 +1,23 @@
+Strata makes stock protection understandable and verifiable. This is the working application, with a persistent backend and historical NVIDIA market data.
+
+Choose a bounded put spread. One hundred share equivalents, a one hundred twenty to one hundred forty dollar range, and an illustrative four hundred dollar premium.
+
+First, fund a real Solana contract. The maker deposits the full two thousand dollar maximum payout into program controlled test token escrow.
+
+The holder accepts those exact terms. These are separate test wallets on an isolated Solana validator. The ninety second observation clock is now running.
+
+While that contract matures, the practice desk shows the same lifecycle. Request a quote, switch to the maker, and reserve its maximum payout.
+
+The funded offer makes the premium and collateral visible before acceptance. Cash moves only after the holder accepts. The backend saves every transition.
+
+A missing observation must never release collateral. Here the contract waits for data, then settles against the exact committed historical close of one hundred eighteen dollars and forty two cents.
+
+The holder claims two thousand dollars. The maker claims the remainder. Both claims close the contract, and the portfolio reconciles every unit.
+
+The replay makes the outcome tangible. The stock lost two thousand four hundred twenty dollars. After the hedge and premium, the combined loss is eight hundred twenty.
+
+Tokenized stocks also introduce basis and issuer risks. A simulated token discount shows what an equity reference hedge cannot cover. Borrowing remains clearly separated from verified execution.
+
+Now return to the real Solana contract. Its historical observation was committed before funding. Settlement fixes each entitlement, and the program pays both parties exactly once.
+
+The escrow is empty, and every confirmed transaction can be inspected. Strata is a working test value demonstrator: clear payoffs, fully reserved obligations, and recoverable settlement.

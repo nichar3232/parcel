@@ -1,0 +1,37 @@
+WEBVTT
+
+00:00:00.498 --> 00:00:09.418
+Strata makes stock protection understandable and verifiable. This is the working application, with a persistent backend and historical NVIDIA market data.
+
+00:00:10.560 --> 00:00:19.860
+Choose a bounded put spread. One hundred share equivalents, a one hundred twenty to one hundred forty dollar range, and an illustrative four hundred dollar premium.
+
+00:00:20.998 --> 00:00:29.728
+First, fund a real Solana contract. The maker deposits the full two thousand dollar maximum payout into program controlled test token escrow.
+
+00:00:30.863 --> 00:00:39.733
+The holder accepts those exact terms. These are separate test wallets on an isolated Solana validator. The ninety second observation clock is now running.
+
+00:00:40.868 --> 00:00:49.728
+While that contract matures, the practice desk shows the same lifecycle. Request a quote, switch to the maker, and reserve its maximum payout.
+
+00:00:50.846 --> 00:00:59.846
+The funded offer makes the premium and collateral visible before acceptance. Cash moves only after the holder accepts. The backend saves every transition.
+
+00:01:00.985 --> 00:01:11.695
+A missing observation must never release collateral. Here the contract waits for data, then settles against the exact committed historical close of one hundred eighteen dollars and forty two cents.
+
+00:01:12.806 --> 00:01:21.376
+The holder claims two thousand dollars. The maker claims the remainder. Both claims close the contract, and the portfolio reconciles every unit.
+
+00:01:22.522 --> 00:01:31.652
+The replay makes the outcome tangible. The stock lost two thousand four hundred twenty dollars. After the hedge and premium, the combined loss is eight hundred twenty.
+
+00:01:32.761 --> 00:01:44.421
+Tokenized stocks also introduce basis and issuer risks. A simulated token discount shows what an equity reference hedge cannot cover. Borrowing remains clearly separated from verified execution.
+
+00:01:45.562 --> 00:01:56.342
+Now return to the real Solana contract. Its historical observation was committed before funding. Settlement fixes each entitlement, and the program pays both parties exactly once.
+
+00:02:04.974 --> 00:02:16.574
+The escrow is empty, and every confirmed transaction can be inspected. Strata is a working test value demonstrator: clear payoffs, fully reserved obligations, and recoverable settlement.
