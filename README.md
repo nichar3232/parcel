@@ -25,12 +25,15 @@ Use Node 22.23.2 from `.nvmrc`. Open `http://localhost:3025`. This single server
 ## What works
 
 - **Vault:** deposit/withdraw test USDC and NVDA; inspect available, reserved and lent assets. Pledged assets cannot be withdrawn, sold or lent again.
-- **Options:** one-share and fractional calls/puts, physical assignment, server-issued 30-second quotes, close-out and atomic expiry settlement.
+- **Options chain:** browse calls and puts by strike, daily or hourly expiry, and fractional exposure. Model buy/write indications show physical backing before a funded quote.
+- **Sizing:** direct share-equivalents, premium budgets, and dollar sensitivity per one-cent reference move; exercise funding stays explicit.
+- **Basic / Advanced:** focused template workflows, with editable sides, ratios, settlement and additional Greeks in Advanced mode.
+- **Options:** fractional calls/puts, physical assignment, server-issued 30-second quotes, priced close-out and atomic expiry settlement.
 - **Underwriting:** covered calls lock shares; cash-secured puts lock strike cash. Counterparty obligations are also reserved.
-- **Structures:** call/put spreads, straddles, strangles, iron condors, butterflies, collars, and capped dividend-reference contracts. Edit up to four legs and whole-number ratios.
+- **Structures:** call/put spreads, straddles, strangles, iron condors, butterflies, collars, and capped dividend-reference contracts. Edit up to four legs and whole-number ratios. Add fixed-payout boxes, capped quadratic/exponential contracts, dividend floors, ranges and convexity.
 - **Stock lending:** the test borrower sells the stock, buys market-backed call protection, and escrows the capped repurchase amount plus term interest. Recall repurchases principal and credits accrued interest; the market cannot reuse pledged protection stock.
 - **Long/short stock:** spot longs are cash funded. Shorts pair the borrow with a covered protective call, and reserve the maximum repurchase cost plus term interest.
-- **Cross collateral:** only net obligations within identical reference, expiry and settlement groups. No offsets across dates, references, settlement types or outside lenders. Isolated mode is also enforced.
+- **Cross collateral:** net matching settlement obligations and reuse earlier guaranteed cash receipts for later obligations. Reserve every intermediate cash deficit; unrelated directional positions and outside lenders receive no correlation credit. Isolated mode remains available.
 - **Activity:** persistent receipts, transaction history, export, stale-tab protection and safe HTTP retries, including pending-action recovery after reload.
 
 Start by depositing one NVDA share, choose **Underwrite → Covered call**, review the actual premium and reserve, and confirm. Use **Market controls** to advance historical sessions; due positions settle at their exact stored expiry observation. The UI does not fabricate balances after an API failure.
@@ -64,7 +67,7 @@ CI runs this flow on Linux from a clean checkout. Tests cover accounting conserv
 
 ## Pricing and release boundaries
 
-NVDA closes are retained historical observations from January–April 2025. Options use an explicitly labeled Black–Scholes test model with 45% volatility and 4% annual interest; dividend-reference pricing uses an illustrative 80% input. These are not live quotes or historical option premiums. Dollar theta scales with quantity; shrinking a contract does not change percentage decay per share.
+Hourly test-clock ticks carry the committed daily close forward; they are not historical intraday data. NVDA closes are retained historical observations from January–April 2025. Options use an explicitly labeled Black–Scholes test model with 45% volatility and 4% annual interest; dividend-reference pricing uses an illustrative 80% input. These are not live quotes or historical option premiums. Dollar theta scales with quantity; shrinking a contract does not change percentage decay per share.
 
 Dividend contracts reference the issuer's declared $0.01 dividend for the March 12, 2025 record-date event, payable April 2. They do not transfer dividend ownership or model an xStock multiplier as a cash payment. See [product rules and sources](docs/PRODUCT.md).
 
@@ -74,4 +77,4 @@ The [original engineering audit](docs/audit/REPORT.md) records the legacy execut
 
 ## Review the current product
 
-The [Oddlot submission](submission/ENTRY.md), [demo script](submission/DEMO_SCRIPT.md), and [current narrated video](submission/oddlot-demo.mp4) describe this release. Previous Bellwether/Strata materials are retained in `submission/legacy/` as historical evidence. A fresh keyless clone starts in sandbox mode. See [Oddlot localnet setup](docs/ODDLOT_CHAIN.md) to enable the new program; execution never silently falls back to SQLite.
+The [product-suite verification](docs/audit/2026-09-15-product-suite/REPORT.md) covers this extension. The [Oddlot submission](submission/ENTRY.md), [demo script](submission/DEMO_SCRIPT.md), and [narrated video](submission/oddlot-demo.mp4) remain the prior 0.3 release materials; video/live-provider work is outside this product extension. Previous Bellwether/Strata materials are retained in `submission/legacy/` as historical evidence. A fresh keyless clone starts in sandbox mode. See [Oddlot localnet setup](docs/ODDLOT_CHAIN.md) to enable the new program; execution never silently falls back to SQLite.

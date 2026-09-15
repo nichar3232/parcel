@@ -10,6 +10,7 @@ export const templates: {
   name: string;
   tag: string;
   description: string;
+  curve?: OrderTerms['curve'];
   legs: Leg[];
   settlement: 'cash' | 'physical';
   reference: 'stock' | 'dividend';
@@ -132,9 +133,103 @@ export const templates: {
     reference: 'dividend',
   },
 ];
+templates.push(
+  {
+    id: 'quadratic',
+    name: 'Capped quadratic',
+    tag: 'CONVEXITY',
+    description:
+      'A smooth squared payoff inside a chosen range, with a fixed cash cap.',
+    legs: [],
+    settlement: 'cash',
+    reference: 'stock',
+    curve: {
+      shape: 'quadratic',
+      side: 'buy',
+      direction: 'up',
+      lower: 130,
+      upper: 160,
+      cap: 10,
+    },
+  },
+  {
+    id: 'exponential',
+    name: 'Capped exponential',
+    tag: 'CONVEXITY',
+    description: 'An accelerating payoff, fully capped before you enter.',
+    legs: [],
+    settlement: 'cash',
+    reference: 'stock',
+    curve: {
+      shape: 'exponential',
+      side: 'buy',
+      direction: 'up',
+      lower: 130,
+      upper: 160,
+      cap: 10,
+    },
+  },
+  {
+    id: 'box',
+    name: 'Fixed payout box',
+    tag: 'CASH FLOW',
+    description:
+      'Four cash-settled legs lock a fixed expiry receipt. Earlier receipts can back later obligations.',
+    legs: [
+      leg('call', 'buy', 130),
+      leg('call', 'sell', 140),
+      leg('put', 'buy', 140),
+      leg('put', 'sell', 130),
+    ],
+    settlement: 'cash',
+    reference: 'stock',
+  },
+  {
+    id: 'dividend-floor',
+    name: 'Dividend floor spread',
+    tag: 'DIVIDEND EVENT',
+    description:
+      'A bounded payoff when the declared dividend falls below your chosen band.',
+    legs: [leg('put', 'buy', 0.015), leg('put', 'sell', 0.005)],
+    settlement: 'cash',
+    reference: 'dividend',
+  },
+  {
+    id: 'dividend-range',
+    name: 'Dividend range',
+    tag: 'DIVIDEND EVENT',
+    description: 'A capped butterfly centered on the declared cash dividend.',
+    legs: [
+      leg('call', 'buy', 0.005),
+      leg('call', 'sell', 0.01, 2),
+      leg('call', 'buy', 0.015),
+    ],
+    settlement: 'cash',
+    reference: 'dividend',
+  },
+  {
+    id: 'dividend-curve',
+    name: 'Dividend convexity',
+    tag: 'DIVIDEND EVENT',
+    description:
+      'Capped quadratic participation in the dividend event, with optional underwriting.',
+    legs: [],
+    settlement: 'cash',
+    reference: 'dividend',
+    curve: {
+      shape: 'quadratic',
+      side: 'buy',
+      direction: 'up',
+      lower: 0.005,
+      upper: 0.015,
+      cap: 0.01,
+    },
+  },
+);
 export function templateTerms(id: string, expiry: string): OrderTerms {
   const t = templates.find((t) => t.id === id) || templates[0];
   return {
+    ...(t.curve ? { curve: structuredClone(t.curve) } : {}),
     name: t.name,
     legs: structuredClone(t.legs),
     quantity: 1,

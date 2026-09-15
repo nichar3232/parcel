@@ -16,7 +16,9 @@ export function PayoffChart({
 }) {
   const [shock, setShock] = useState(0),
     id = useId().replaceAll(':', '');
-  const strikes = terms.legs.map((l) => l.strike);
+  const strikes = terms.curve
+    ? [terms.curve.lower, terms.curve.upper]
+    : terms.legs.map((l) => l.strike);
   const start = Math.min(spot * 0.65, Math.min(...strikes) * 0.85),
     end = Math.max(spot * 1.35, Math.max(...strikes) * 1.15);
   const prices = [

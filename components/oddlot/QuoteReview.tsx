@@ -38,38 +38,59 @@ export function QuoteReview({
         <span>{quote.premium >= 0 ? 'You pay' : 'You receive'}</span>
         <strong>{usd(Math.abs(quote.premium), 6)}</strong>
       </div>
-      <div className="od-table-wrap">
-        <table className="od-table">
-          <thead>
-            <tr>
-              <th>{closing ? 'Leg to close' : 'Side'}</th>
-              <th>Type</th>
-              <th>Strike</th>
-              <th>Ratio</th>
-              <th>Shares</th>
-            </tr>
-          </thead>
-          <tbody>
-            {quote.terms.legs.map((l, i) => (
-              <tr key={i}>
-                <td>
-                  {closing
-                    ? l.side === 'buy'
-                      ? 'Sell'
-                      : 'Buy'
-                    : l.side === 'buy'
-                      ? 'Buy'
-                      : 'Sell'}
-                </td>
-                <td>{l.kind}</td>
-                <td>{usd(l.strike, 6)}</td>
-                <td>{l.ratio}×</td>
-                <td>{qty(l.ratio * quote.terms.quantity)}</td>
+      {quote.terms.curve && (
+        <div className="od-curve-review">
+          <b>
+            {closing
+              ? quote.terms.curve.side === 'buy'
+                ? 'sell to close'
+                : 'buy to close'
+              : quote.terms.curve.side}{' '}
+            · {quote.terms.curve.shape} · {quote.terms.curve.direction}
+          </b>
+          <p>
+            Range {usd(quote.terms.curve.lower, 6)} to{' '}
+            {usd(quote.terms.curve.upper, 6)}. Maximum payout{' '}
+            {usd(quote.terms.curve.cap, 6)} per share-equivalent;{' '}
+            {usd(quote.terms.curve.cap * quote.terms.quantity, 6)} for this
+            contract. Cash settlement at the committed event.
+          </p>
+        </div>
+      )}
+      {!quote.terms.curve && (
+        <div className="od-table-wrap">
+          <table className="od-table">
+            <thead>
+              <tr>
+                <th>{closing ? 'Leg to close' : 'Side'}</th>
+                <th>Type</th>
+                <th>Strike</th>
+                <th>Ratio</th>
+                <th>Shares</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {quote.terms.legs.map((l, i) => (
+                <tr key={i}>
+                  <td>
+                    {closing
+                      ? l.side === 'buy'
+                        ? 'Sell'
+                        : 'Buy'
+                      : l.side === 'buy'
+                        ? 'Buy'
+                        : 'Sell'}
+                  </td>
+                  <td>{l.kind}</td>
+                  <td>{usd(l.strike, 6)}</td>
+                  <td>{l.ratio}×</td>
+                  <td>{qty(l.ratio * quote.terms.quantity)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div className="od-review-line">
         <span>Reference / settlement</span>
         <b>

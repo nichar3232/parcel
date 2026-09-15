@@ -1,5 +1,5 @@
 import { units } from '../engine';
-import { DIVIDEND_DATE, marketRows } from './market';
+import { DIVIDEND_DATE, clockRows } from './market';
 import { payoffBounds } from './envelope';
 import { bounded } from './math';
 import type { Leg, OrderTerms } from './types';
@@ -17,7 +17,7 @@ export function expiry(value: unknown, date: string) {
   if (
     typeof value !== 'string' ||
     value <= date ||
-    !marketRows.some((r) => r.date === value)
+    !clockRows.some((r) => r.date === value)
   )
     throw Error('Select a future session in the stored market window.');
   return value;
@@ -30,7 +30,11 @@ export function parseOrderTerms(value: unknown, date: string): OrderTerms {
     throw Error('Choose a supported reference.');
   if (t.settlement !== 'cash' && t.settlement !== 'physical')
     throw Error('Choose cash or physical settlement.');
-  if (!Array.isArray(t.legs) || t.legs.length < 1 || t.legs.length > 4)
+  if (
+    !Array.isArray(t.legs) ||
+    t.legs.length < (t.curve ? 0 : 1) ||
+    t.legs.length > 4
+  )
     throw Error('A contract needs one to four option legs.');
   const legs = t.legs.map((value): Leg => {
     const l = object(value);
@@ -47,6 +51,8 @@ export function parseOrderTerms(value: unknown, date: string): OrderTerms {
   });
   if (legs.some((l) => !Number.isInteger(l.ratio)))
     throw Error('Leg ratios must be whole numbers.');
+  if (t.curve && legs.length)
+    throw Error('Curve contracts cannot contain option legs.');
   if (t.settlement === 'cash' && !bounded(legs))
     throw Error(
       'Unbounded cash-settled calls require physical share backing. Use physical settlement or add a cap.',
@@ -61,7 +67,34 @@ export function parseOrderTerms(value: unknown, date: string): OrderTerms {
     );
   if (t.reference === 'dividend' && legs.some((l) => l.strike > 0.1))
     throw Error('Dividend strikes use dollars per share, up to $0.10.');
+  let curve: OrderTerms['curve'];
+  if (t.curve !== undefined) {
+    const c = object(t.curve);
+    if (legs.length || t.settlement !== 'cash')
+      throw Error(
+        'Curve contracts cash-settle and cannot contain option legs.',
+      );
+    if (c.shape !== 'quadratic' && c.shape !== 'exponential')
+      throw Error('Choose a supported curve.');
+    if (c.side !== 'buy' && c.side !== 'sell')
+      throw Error('Choose buy or sell.');
+    if (c.direction !== 'up' && c.direction !== 'down')
+      throw Error('Choose up or down.');
+    curve = {
+      shape: c.shape,
+      side: c.side,
+      direction: c.direction,
+      lower: amount(c.lower, 0, 10000),
+      upper: amount(c.upper, 0.000001, 10000),
+      cap: amount(c.cap, 0.000001, 10000),
+    };
+    if (curve.upper <= curve.lower)
+      throw Error('The upper boundary must exceed the lower boundary.');
+    if (t.reference === 'dividend' && curve.upper > 0.1)
+      throw Error('Dividend boundaries cannot exceed $0.10 per share.');
+  }
   const parsed: OrderTerms = {
+    ...(curve ? { curve } : {}),
     name: t.name,
     quantity: amount(t.quantity),
     expiry: end,

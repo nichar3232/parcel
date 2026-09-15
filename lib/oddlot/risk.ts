@@ -11,6 +11,8 @@ function envelope(positions: OptionPosition[], key: string): CollateralGroup {
   const b = deliveryBounds(positions.map((p) => p.terms));
   return {
     key,
+    cashMinimum: Number(b.cashMin) / 1e6,
+    cashMaximum: Number(b.cashMax) / 1e6,
     expiry: positions[0].terms.expiry,
     settlement: positions[0].terms.settlement,
     positions: positions.length,
@@ -36,6 +38,29 @@ export function marginGroups(
   }
   return [...groups].map(([key, p]) => envelope(p, key));
 }
+// Earlier guaranteed cash receipts can finance later cash obligations. Reserve
+// the largest prefix deficit, not merely the final net amount. Stock reserves
+// remain delivery-based; loan escrows and protected shorts never get this credit.
+export function calendarCash(groups: CollateralGroup[]) {
+  const byExpiry = new Map<string, { min: number; max: number }>();
+  for (const g of groups) {
+    const row = byExpiry.get(g.expiry) || { min: 0, max: 0 };
+    row.min = add(row.min, g.cashMinimum);
+    row.max = add(row.max, g.cashMaximum);
+    byExpiry.set(g.expiry, row);
+  }
+  let minimum = 0,
+    maximum = 0,
+    cash = 0,
+    counterpartyCash = 0;
+  for (const [, row] of [...byExpiry].sort(([a], [b]) => a.localeCompare(b))) {
+    minimum = add(minimum, row.min);
+    maximum = add(maximum, row.max);
+    cash = Math.max(cash, -minimum);
+    counterpartyCash = Math.max(counterpartyCash, maximum);
+  }
+  return { cash, counterpartyCash };
+}
 export function risk(book: VaultBook): RiskSummary {
   const groups = marginGroups(book.options, book.margin),
     gross = marginGroups(book.options, 'isolated');
@@ -52,7 +77,14 @@ export function risk(book: VaultBook): RiskSummary {
   const shortShares = book.shorts
     .filter((p) => p.status === 'active')
     .reduce((s, p) => add(s, p.quantity), 0);
-  const cash = add(total(groups, 'cash'), shortCash),
+  const calendar =
+    book.margin === 'cross'
+      ? calendarCash(groups)
+      : {
+          cash: total(groups, 'cash'),
+          counterpartyCash: total(groups, 'counterpartyCash'),
+        };
+  const cash = add(calendar.cash, shortCash),
     shares = total(groups, 'shares');
   const grossCash = add(total(gross, 'cash'), shortCash),
     grossShares = total(gross, 'shares');
@@ -76,7 +108,7 @@ export function risk(book: VaultBook): RiskSummary {
     ),
     utilization:
       collateralValue / (collateralValue + Math.max(0, availableValue) || 1),
-    counterpartyCash: total(groups, 'counterpartyCash'),
+    counterpartyCash: calendar.counterpartyCash,
     counterpartyShares: add(
       add(total(groups, 'counterpartyShares'), shortShares),
       loanShares,

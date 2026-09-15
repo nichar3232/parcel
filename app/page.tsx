@@ -238,7 +238,7 @@ export default function Home() {
       {modal === 'market' && s && (
         <Modal
           title="Market controls"
-          description="Use stored NVIDIA closes to verify position behavior through time."
+          description="Advance the test clock. Hourly ticks carry forward the committed daily close; they are not historical intraday prices."
           onClose={() => setModal(null)}
         >
           <div className="od-review-line">
@@ -253,11 +253,17 @@ export default function Home() {
                 value={target}
                 onChange={(e) => setNextDate(e.target.value)}
               >
-                {future.map((d) => (
-                  <option value={d} key={d}>
-                    {d}
-                  </option>
-                ))}
+                {future
+                  .filter(
+                    (d) =>
+                      !d.includes('T') ||
+                      Date.parse(d) - Date.parse(s.book.date) <= 24 * 3600000,
+                  )
+                  .map((d) => (
+                    <option value={d} key={d}>
+                      {dateLabel(d)}
+                    </option>
+                  ))}
               </select>
             </Field>
           )}

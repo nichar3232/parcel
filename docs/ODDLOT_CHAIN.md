@@ -2,6 +2,10 @@
 
 `programs/oddlot` implements the current product. `programs/strata` remains the original spread escrow and is unchanged. The Oddlot build was deployed additively to the existing private validator without resetting its ledger or changing the running app.
 
+## V2 compatibility
+
+The product-suite program is `GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx` on the pinned private validator. It adds optional curve terms and hourly clock observations; instruction names are `initialize_v2` / `execute_v2`, and signer derivation uses the `oddlot:v2` domain. Configure this separate deployment with a fresh state directory. The prior V1 program and its active accounts remain intact; no account migration, pending-operation conversion or in-place reinterpretation is supported. The always-on application has not been promoted by this task.
+
 ## Operator configuration
 
 Set `ODDLOT_CHAIN_ENABLED=true`, `ODDLOT_PROGRAM_ID`, `ODDLOT_CASH_MINT`, and `ODDLOT_STOCK_MINT`, alongside the existing `CHAIN_ENABLED=true`, loopback RPC and exact `SOLANA_GENESIS_HASH` pin. Only private localnet is accepted for this release. Mainnet and devnet genesis hashes are refused. Leaving Oddlot chain mode unset starts the explicit sandbox; an enabled but unavailable chain never falls back to offchain execution.
@@ -20,7 +24,7 @@ Fresh localnet sessions provision wallet test capital and actual PDA-controlled 
 
 Lost sends or verification responses retain the original signed transaction. A restart resumes it. A known program failure or finalized transaction expiry is recorded as failed; a transient RPC failure remains pending. A second intent cannot replace an unresolved operation.
 
-Program positions are active economic obligations; closed history and readable event descriptions remain in the index. A vault supports 64 active positions. Account allocation is 64 KiB; the transaction requests 1.4 million compute units and a 256 KiB heap, and the program allocator uses that requested frame. The 64-contract fixture consumed approximately 538,000 units when opening the final contract and 111,000 when settling the group. Cash collateral uses the same analytic integer strike envelope as the TypeScript engine. The historical price and dividend observations are compiled into the program, not supplied by a browser. Test premiums are authorized by the operator, not claimed as external oracle prices.
+Program positions are active economic obligations; closed history and readable event descriptions remain in the index. A vault supports 64 active positions. Account allocation is 64 KiB; the transaction requests 1.4 million compute units and a 256 KiB heap, and the program allocator uses that requested frame. The earlier V1 64-contract fixture consumed approximately 538,000 units when opening the final contract and 111,000 when settling the group; current nonlinear capacity measurements are recorded separately in the product-suite audit. Cash collateral uses the same analytic integer strike envelope as the TypeScript engine. The historical price and dividend observations are compiled into the program, not supplied by a browser. Test premiums are authorized by the operator, not claimed as external oracle prices.
 
 ## Reproduce
 
@@ -34,7 +38,7 @@ cargo build-sbf --arch v3
 
 The program ID is declared in source. Keep its deployment key only on the VPS. Do not reset the shared validator. For a new isolated environment, change the declared test operator and program ID deliberately, rebuild and provision corresponding no-value mints.
 
-With the environment configured, run `npm run verify:oddlot-chain` and `npm run verify:oddlot-adversarial`. The first verifies a complete lifecycle plus actual SPL escrow balances; the second constructs signed invalid transactions and checks the program's own rejection. Evidence is under `docs/audit/2026-09-15-release/`.
+With the environment configured, run `npm run verify:oddlot-chain` and `npm run verify:oddlot-adversarial`. The first verifies a complete lifecycle plus actual SPL escrow balances; the second constructs signed invalid transactions and checks the program's own rejection. Prior evidence is under `docs/audit/2026-09-15-release/`; current evidence is under `docs/audit/2026-09-15-product-suite/`. Run `npm run verify:oddlot-suite` for the extended lifecycle and `npm run verify:oddlot-suite -- --capacity` for nonlinear capacity.
 
 ## Production boundaries
 

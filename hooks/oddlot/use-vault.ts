@@ -6,6 +6,7 @@ import type {
   VaultAction,
   VaultSnapshot,
 } from '@/lib/oddlot/types';
+import type { ChainCatalog, SizeResult } from '@/lib/oddlot/types';
 import { api, requestKey, ambiguousResponse } from '@/lib/client/api';
 import {
   clearPending,
@@ -179,7 +180,20 @@ export function useVault() {
       reviewDeadline: started + result.expiresAt - result.issuedAt,
     };
   }
+  async function catalog<T>(path: string, body: Record<string, unknown>) {
+    if (!current.current || pendingRequest.current)
+      throw Error('Resolve pending actions and connect first.');
+    return post<T>(path, {
+      csrf: current.current.csrf,
+      key: requestKey(),
+      input: JSON.stringify({ ...body, revision: current.current.revision }),
+    });
+  }
   return {
+    chain: (expiry: string, quantity: number) =>
+      catalog<ChainCatalog>('/api/vault/chain', { expiry, quantity }),
+    size: (terms: OrderTerms, mode: string, target: number) =>
+      catalog<SizeResult>('/api/vault/size', { terms, mode, target }),
     closeQuote,
     state,
     busy,

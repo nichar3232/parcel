@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { OrderTerms, VaultBook } from '../../../lib/oddlot/types';
 import type { VaultPlan } from '../service';
-import { marketRows } from '../../../lib/oddlot/market';
+import { clockRows } from '../../../lib/oddlot/market';
 import { signedUnits } from '../../../lib/oddlot/math';
 import { u64 } from '../../solana/codec';
 const cat = (...parts: Uint8Array[]) => Buffer.concat(parts);
@@ -22,7 +22,7 @@ const vec = <T>(items: T[], encode: (item: T) => Buffer) => {
   return cat(n, ...items.map(encode));
 };
 export const date = (v: string) => {
-  const n = marketRows.findIndex((r) => r.date === v);
+  const n = clockRows.findIndex((r) => r.date === v);
   if (n < 0) throw Error('Unknown historical date.');
   const b = Buffer.alloc(2);
   b.writeUInt16LE(n);
@@ -42,6 +42,17 @@ export const terms = (t: OrderTerms) =>
         byte(l.ratio),
       ),
     ),
+    t.curve
+      ? cat(
+          byte(1),
+          byte(t.curve.shape === 'exponential'),
+          byte(t.curve.side === 'buy'),
+          byte(t.curve.direction === 'up'),
+          amount(t.curve.lower),
+          amount(t.curve.upper),
+          amount(t.curve.cap),
+        )
+      : byte(0),
   );
 export function bookBytes(b: VaultBook) {
   return cat(

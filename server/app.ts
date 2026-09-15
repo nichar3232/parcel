@@ -155,7 +155,14 @@ export function createApp(
           200,
           vaultChain ? vaultChain.snapshot(session) : vault.snapshot(session),
         );
-      if (['/api/vault/actions', '/api/vault/quote'].includes(url.pathname)) {
+      if (
+        [
+          '/api/vault/actions',
+          '/api/vault/quote',
+          '/api/vault/chain',
+          '/api/vault/size',
+        ].includes(url.pathname)
+      ) {
         if (method !== 'POST')
           throw new ApiError(405, 'METHOD', 'POST required.');
         mutationGuard(req, config, session.csrf);
@@ -164,11 +171,14 @@ export function createApp(
         return json(
           res,
           200,
-          url.pathname === '/api/vault/quote'
-            ? vault.quote(session, key, input)
-            : vaultChain
-              ? await vaultChain.apply(session, key, input)
-              : vault.apply(session, key, input),
+          url.pathname === '/api/vault/chain' ||
+            url.pathname === '/api/vault/size'
+            ? vault.catalog(session, input, url.pathname === '/api/vault/size')
+            : url.pathname === '/api/vault/quote'
+              ? vault.quote(session, key, input)
+              : vaultChain
+                ? await vaultChain.apply(session, key, input)
+                : vault.apply(session, key, input),
         );
       }
       if (url.pathname === '/api/portfolio' && method === 'GET')

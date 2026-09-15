@@ -241,7 +241,8 @@ void test('market shares pledged to loan protection cannot be sold again', async
 
 void test('the program commits exactly the same historical dates and prices as the backend', async () => {
   const { readFileSync } = await import('node:fs');
-  const { marketRows, DIVIDEND_DATE } = await import('../lib/oddlot/market');
+  const { clockRows: marketRows, DIVIDEND_DATE } =
+    await import('../lib/oddlot/market');
   const source = readFileSync(
     new URL('../programs/oddlot/src/market.rs', import.meta.url),
     'utf8',
@@ -258,9 +259,9 @@ void test('the program commits exactly the same historical dates and prices as t
     marketRows.map((r) => Math.round(r.close * 1e6)),
   );
   assert.deepEqual(
-    values('DAYS'),
+    values('HOURS'),
     marketRows.map(
-      (r) => (Date.parse(r.date) - Date.parse(marketRows[0].date)) / 86400000,
+      (r) => (Date.parse(r.date) - Date.parse(marketRows[0].date)) / 3600000,
     ),
   );
   assert.equal(

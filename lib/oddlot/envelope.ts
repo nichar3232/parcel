@@ -1,3 +1,4 @@
+import { curveCap } from './curves';
 import { units } from '../engine';
 import type { OrderTerms } from './types';
 const SCALE = 1_000_000n;
@@ -116,11 +117,46 @@ function unmatchedFractionalCount(terms: OrderTerms[]) {
   return [...unmatched.values()].reduce((sum, n) => sum + Math.abs(n), 0);
 }
 export function payoffBounds(terms: OrderTerms): Bounds {
+  if (terms.curve) {
+    const cap = curveCap(terms);
+    return {
+      cashMin: terms.curve.side === 'sell' ? -cap : 0n,
+      cashMax: terms.curve.side === 'buy' ? cap : 0n,
+      sharesMin: 0n,
+      sharesMax: 0n,
+    };
+  }
   return sweep([terms], false);
 }
 export function deliveryBounds(terms: OrderTerms[]): Bounds {
   if (!terms.length)
     return { cashMin: 0n, cashMax: 0n, sharesMin: 0n, sharesMax: 0n };
+  if (terms.some((t) => t.curve)) {
+    const base = deliveryBounds(terms.filter((t) => !t.curve));
+    // Only identical opposite curves cancel. No sampled extrema or assumed
+    // correlations may release reserve for different nonlinear payoffs.
+    const pairs = new Map<string, { terms: OrderTerms; count: number }>();
+    for (const t of terms.filter((t) => t.curve)) {
+      const c = t.curve!;
+      const key = JSON.stringify([
+        t.quantity,
+        c.shape,
+        c.direction,
+        c.lower,
+        c.upper,
+        c.cap,
+      ]);
+      const p = pairs.get(key) || { terms: t, count: 0 };
+      p.count += c.side === 'buy' ? 1 : -1;
+      pairs.set(key, p);
+    }
+    for (const { terms: t, count } of pairs.values()) {
+      const cap = curveCap(t) * BigInt(count);
+      base.cashMin += min(cap, 0n);
+      base.cashMax += max(cap, 0n);
+    }
+    return base;
+  }
   const physical = terms[0].settlement === 'physical';
   const bound = sweep(terms, physical);
   if (physical || terms.length === 1) return bound;

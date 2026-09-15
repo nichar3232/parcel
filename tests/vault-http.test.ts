@@ -344,3 +344,68 @@ void test('migration: a real version-one SQLite database upgrades additively and
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+void test('product catalog HTTP: chain and sizing are guarded, revision-bound, read-only and match the funded quote', async () => {
+  const f = await fixture();
+  try {
+    const c = await f.client(),
+      before = await c.snapshot();
+    const input = {
+      revision: before.revision,
+      expiry: '2025-02-07',
+      quantity: 0.333333,
+    };
+    assert.equal(
+      (await c.post('chain', input, randomUUID(), { 'X-CSRF-Token': 'wrong' }))
+        .status,
+      403,
+    );
+    assert.equal(
+      (await c.post('chain', { ...input, revision: 12 })).status,
+      409,
+    );
+    assert.equal(
+      (await c.post('chain', { ...input, quantity: 0.3333333 })).status,
+      409,
+    );
+    const chain = await c.post('chain', input);
+    assert.equal(chain.status, 200);
+    const payload = (await chain.json()) as { rows: unknown[] };
+    assert.equal(payload.rows.length, 11);
+    const size = await c.post('size', {
+      revision: before.revision,
+      terms: templateTerms('quadratic', '2025-01-24T01:00:00Z'),
+      mode: 'premium',
+      target: 2,
+    });
+    assert.equal(size.status, 200);
+    const sized = (await size.json()) as {
+      terms: Quote['terms'];
+      premium: number;
+      cashFunding: number;
+    };
+    const quoteResponse = await c.post('quote', {
+      revision: before.revision,
+      terms: sized.terms,
+    });
+    assert.equal(quoteResponse.status, 200);
+    const quote = (await quoteResponse.json()) as Quote;
+    assert.equal(quote.premium, sized.premium);
+    assert.equal(quote.eligible, false);
+    const after = await c.snapshot();
+    assert.deepEqual(after.book, before.book);
+    assert.equal(after.revision, before.revision);
+    const other = await f.client();
+    assert.equal(
+      (
+        await other.post('actions', {
+          revision: 0,
+          action: { type: 'execute', quoteId: quote.id },
+        })
+      ).status,
+      409,
+    );
+  } finally {
+    await f.close();
+  }
+});

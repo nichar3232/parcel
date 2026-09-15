@@ -1,9 +1,10 @@
+import { optionsChain, sizeOrder } from './catalog';
 import { randomUUID } from 'node:crypto';
 import {
   DIVIDEND,
   DIVIDEND_DATE,
   mark,
-  marketRows,
+  clockDates,
   VOLATILITY,
 } from '../../lib/oddlot/market';
 import { add, mul, orderGreeks } from '../../lib/oddlot/math';
@@ -73,7 +74,8 @@ export class VaultService {
         symbol: 'NVDA',
         price: mark(book.date),
         date: book.date,
-        dates: marketRows.map((r) => r.date),
+        dates: clockDates,
+        clock: 'daily-close-with-hourly-test-clock',
         volatility: VOLATILITY,
         dividend: DIVIDEND,
         dividendDate: DIVIDEND_DATE,
@@ -196,6 +198,21 @@ export class VaultService {
       this.store.saveReceipt(session.id, key, hash, quote);
       return quote;
     });
+  }
+  catalog(session: Session, value: unknown, sizing = false) {
+    try {
+      const request = object(value),
+        current = this.read(session);
+      this.revision(request, current.revision);
+      return {
+        revision: current.revision,
+        ...(sizing
+          ? sizeOrder(current.book, request.terms, request.mode, request.target)
+          : optionsChain(current.book, request.expiry, request.quantity)),
+      };
+    } catch (error) {
+      return this.reject(error);
+    }
   }
   // The caller owns the SQLite transaction; preparation never sends an RPC.
   plan(session: Session, value: unknown): VaultPlan {

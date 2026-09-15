@@ -1,0 +1,878 @@
+{
+  "program": "GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx",
+  "protocol": 2,
+  "network": "private local validator",
+  "actions": [
+    {
+      "action": "transfer",
+      "revision": 1,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156871,
+        "signature": "NQcjwy6v1QvXcEEboiDu3vos16BapN6fk1jtyPKgWJFd4k9hfFEYJV5t34QdTfBnLNmaTmfvtFcpyUwYnL15spQ",
+        "network": "localnet",
+        "revision": 1
+      },
+      "cash": 0,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 2,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156872,
+        "signature": "oXGY8nKS2hUkgewAnYN829EG2Jwkea82bxq94xpUQc6KJ9YbucLEvXZ7YpzDdnCau9zPRBF74mF8ew6cY6MwCwq",
+        "network": "localnet",
+        "revision": 2
+      },
+      "cash": 0,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 3,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156873,
+        "signature": "3NjY8wWvJHuXhVdtGeN3EtS1bDp3FmmzyYDh5eTWYgUBzy717XejY32WcWMsmQ4LJvLh8vPsB1UBJQih3mFz37Vs",
+        "network": "localnet",
+        "revision": 3
+      },
+      "cash": 3.33333,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 4,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156874,
+        "signature": "5dUXw8SzCYCKBp3KJLaP1K7JXBNx8gRYHKFEArPEBaKwWxHZabsJXPdLgzDaDpzGbNFsGixdheu2f4PLp4HQuaob",
+        "network": "localnet",
+        "revision": 4
+      },
+      "cash": 3.33333,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 5,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156875,
+        "signature": "aWtXbGrcyANqfNjDbbf4Wy2S4BrUShSp8VHqJt5gyALSkse1Tjmzhz6JFfe2hjTb87atxinMJVcn5nmJhN57hW6",
+        "network": "localnet",
+        "revision": 5
+      },
+      "cash": 6.66666,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 6,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156876,
+        "signature": "3SAJ3gg1RP8Eqj4Dm5Up3yhpoNXqtXbHtuoYEkheSfNTvoUXw7FpcfDsev3aGoPjSYE5E8y4wpn6P72qbJp7TftN",
+        "network": "localnet",
+        "revision": 6
+      },
+      "cash": 6.66666,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 7,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156877,
+        "signature": "5gTri48UR6PQPhabySYNf5jwhmnhYf3jrGS2UdxC8DZYbggTn457mehzCiz3i8YtHo2Y9PVEviZiNg487Sykbe3e",
+        "network": "localnet",
+        "revision": 7
+      },
+      "cash": 9.99999,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 8,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156878,
+        "signature": "55xdx3XEoQpjEyf2CtEetQzef5jr74kcGPJSG4NfzFxoRASg9Fr5nkDdkhjFJrzZ6yn8wihxg9dkZrrsnR9CiRYF",
+        "network": "localnet",
+        "revision": 8
+      },
+      "cash": 9.99999,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 9,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156879,
+        "signature": "FC4hKzSBfNixLjfqHVrTUzYBL7i7f9nBhEUCND24H8iK6NR71L7kozumD6jeezTe4F6QeqpLRZXe9LtTJR38Sqq",
+        "network": "localnet",
+        "revision": 9
+      },
+      "cash": 13.33332,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 10,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156880,
+        "signature": "4hkZW48VoCSiv1mc3CGST9svkMcMUTYZ9Zw7MLjhzf8s64hBvoHDYLfQWGpBsp4ah2CKwis14Rx4W3GpG6wptyHX",
+        "network": "localnet",
+        "revision": 10
+      },
+      "cash": 13.33332,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 11,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156881,
+        "signature": "3zyuRXeAVS7MYfAy2iiHoWR2h8msitdyn3CRzcG8mnBXpwh5P8RWygiJdW9VKWEmE8aPA1Arq1Hdt5Qbd4TcZ1Sh",
+        "network": "localnet",
+        "revision": 11
+      },
+      "cash": 16.66665,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 12,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156882,
+        "signature": "3Fu4jUS1wLNSUfxScrRiM87UAYDpGNuyeAzDXBNd5QEdaJkk338YhQtYs3KPpBCRDdJvRXtqqKxfTFDkVdB5sq9a",
+        "network": "localnet",
+        "revision": 12
+      },
+      "cash": 16.66665,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 13,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156883,
+        "signature": "4XHA15BYdSzmeJVUnaGGVeBbRjGzvfv9YaTS6uh9gEfV4sqaebGbCLZdFFWnTEu5A2sNXiwfvgxaR5BCMU4Yfggw",
+        "network": "localnet",
+        "revision": 13
+      },
+      "cash": 19.99998,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 14,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156884,
+        "signature": "3vTFBU2XfosPmeUECDDsYRYwDrSwsdRgo8LCMe7C6NXxoaD9EbGuzGkAuLQauhbNKRjpd6SATg7V8i9PiRkP8Akt",
+        "network": "localnet",
+        "revision": 14
+      },
+      "cash": 19.99998,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 15,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156885,
+        "signature": "4KRfNAypXnNARYf34ZytJr2Q9aHEAfgRGkTwdTF7V6L3BsjAwWKhTSJjCQKsTpGTXsphjrQRkN3Bb5GR3BCgPQog",
+        "network": "localnet",
+        "revision": 15
+      },
+      "cash": 23.33331,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 16,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156886,
+        "signature": "5k1uC4zFzJTJmBubCvuZDYUa2tzd1MaLuLrC8zbiNMUoLDMZu43NYJheKmkgSimA4jV7UsZyvcLTnZ9AXjre4aeT",
+        "network": "localnet",
+        "revision": 16
+      },
+      "cash": 23.33331,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 17,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156887,
+        "signature": "5uQyLsGFRVWvizhCtg73vNXXSVNM6MQSKMdnYwXsPptERTwy31LBWBbMRApAXn4PRyPqG7Ni4HD4Tvz1t3Ux33YT",
+        "network": "localnet",
+        "revision": 17
+      },
+      "cash": 26.66664,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 18,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156888,
+        "signature": "4hB9a87HUQgnBxGrfM9LymjntyYSqE7ueYGSHiG9StM1ysxuLh4afB3BDLaxyoAV6Ma3y9p9eKfXnfXiHFktPjU4",
+        "network": "localnet",
+        "revision": 18
+      },
+      "cash": 26.66664,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 19,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156889,
+        "signature": "4RKiK4vxMLjAPtPhVetADjbTyvQE4sUXa1w4yQ2WQW4NzWPtX9xxfrWZipdpyKTYnXwZJatwRTSmrH4GBpiGhJEX",
+        "network": "localnet",
+        "revision": 19
+      },
+      "cash": 29.99997,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 20,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156890,
+        "signature": "4o67wdZ28TUQtVjhghfRpULXiqVhUQmM92aB9U9EH4ds9ncYG6SF2nxj2VHAUgeQcrGsBshTsbvtfBYXyfLAr9FX",
+        "network": "localnet",
+        "revision": 20
+      },
+      "cash": 29.99997,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 21,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156891,
+        "signature": "357ftXMyW5JfydkbBaxJhiGVM7k15gfnT2bjDfvt54c1LHXJ9RUxTQGHpUjhKGN8H68yd8A26bSL8zyQEhQFTDRP",
+        "network": "localnet",
+        "revision": 21
+      },
+      "cash": 33.3333,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 22,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156892,
+        "signature": "37x4iKvSGt194aq8re3DVrke6CuZXsRC9XTvJZDBHbGkrjVmHEfXTrcgQFARh9yM2qdUSQpr4J6SvuZjcfHMXY8h",
+        "network": "localnet",
+        "revision": 22
+      },
+      "cash": 33.3333,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 23,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156893,
+        "signature": "5qvg1tKUBHaBp4GXtXiHCp7cBgbVHNwVVD6Tg1VU8pSDPu8CkQwP8zfew8uwYH5eQ6GBpxVaFAa3BbPWfftcisTX",
+        "network": "localnet",
+        "revision": 23
+      },
+      "cash": 36.66663,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 24,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156894,
+        "signature": "whzkNQ7raJHkx4UsUksAvkftkAUwzvkXWXp7TKoUR6JW2zW16oD7jAnUeBJPhb6XWVKahWmKia9pDwoWW1LPPM8",
+        "network": "localnet",
+        "revision": 24
+      },
+      "cash": 36.66663,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 25,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156895,
+        "signature": "3gvjho1ao7GAWiAuQD4UcKGDBx5Yrm4dA8kXtY6fzmqNjaFkxpbnUfxaUttEBjGNchkx7zccSSDPqoNt7mkuGMJ",
+        "network": "localnet",
+        "revision": 25
+      },
+      "cash": 39.99996,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 26,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156896,
+        "signature": "43uv2o5J5pEeqSwDkFQ4VGeo4Hv3RKUPUXRzqYJo9gubm8simE3pwtQSL3yrN38ZMJ32jk1XQZpdP9xcQgKE8A76",
+        "network": "localnet",
+        "revision": 26
+      },
+      "cash": 39.99996,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 27,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156897,
+        "signature": "4ek99YWV1jPKKv9HZ7Zfa5LeTovqyELFEnjFWrt7uagDHC8AGaSQJ8J7aNtTF6EopaXxru6Z7x9tkHzY2aRH7KDR",
+        "network": "localnet",
+        "revision": 27
+      },
+      "cash": 43.33329,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 28,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156898,
+        "signature": "2W3Mzs9ph6us9dyJu4or6ei9CSnPZUs4RbWuj8uRBt15n2GZGiTHhocgLwcLxSrPP8K2ApvuEgprERmH34jzvEiP",
+        "network": "localnet",
+        "revision": 28
+      },
+      "cash": 43.33329,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 29,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156899,
+        "signature": "5MYCc8zvnZhRAqa8ZermKq2gunJboFaHoB5AcmxK7NCqcdSb9dAwLP5zYEAy8xJZUBoMfReqqZx1zFZBWEog4UX1",
+        "network": "localnet",
+        "revision": 29
+      },
+      "cash": 46.66662,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 30,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156900,
+        "signature": "3KhpE57z2Ckn8F5Avq6KnkUxZ3Uo3RtCL4RWXWXeEUgYVmphhTDwqVoMXZeM17R1a85FARAzdjwg8KbR4J5EfHND",
+        "network": "localnet",
+        "revision": 30
+      },
+      "cash": 46.66662,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 31,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156901,
+        "signature": "1kbuv5uVkZWPiCQjQR6wNqX6FSAKwxxkJ3X33HmrmFb2SxLSHybqsRnhDZfpg6GQqbgxHZArFEuAgALHxFmFfwC",
+        "network": "localnet",
+        "revision": 31
+      },
+      "cash": 49.99995,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 32,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156902,
+        "signature": "3e4s3Q2E2vsJjCk8gKWEnRTqSc5FCrtCpfc3JgwmC1ko6AfKfbvEEgbi8jYVJCUCQYmNfwYmyVCaKSDQKY5N9NZ1",
+        "network": "localnet",
+        "revision": 32
+      },
+      "cash": 49.99995,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 33,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156903,
+        "signature": "2ZFQZmTvn62npHDkCQxXH2xzGngNyDrmDfuoKK6g1PGDjRHVauM24CDJd9PTabJQ5HpxADtvYahXUCXL7ALXKw3k",
+        "network": "localnet",
+        "revision": 33
+      },
+      "cash": 53.33328,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 34,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156904,
+        "signature": "5Kz5JZ6fWyceHW41yDCxt1T26NJHiyK9dqf5ZqjtuZTc77ZzBvZk2FW2aAFQZkCKuewXgk92qhTUTDcK8oABQFYt",
+        "network": "localnet",
+        "revision": 34
+      },
+      "cash": 53.33328,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 35,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156905,
+        "signature": "4zzyfSzr6hgPLCCn6cf5Va4iouMVBThR9ZtK6hWeqR8KszrpaVB82KqhUb6vNm37MQMB2ffjGEtcUkUCKPYtdDap",
+        "network": "localnet",
+        "revision": 35
+      },
+      "cash": 56.66661,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 36,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156906,
+        "signature": "uAsGLVt97JCe2bJaWne94DpoDWh6xFy5M9rMzghSNtDES79TKm7LpQUKuwKTtVBFaBKBtX4REdV1Si4Psxc1NJd",
+        "network": "localnet",
+        "revision": 36
+      },
+      "cash": 56.66661,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 37,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156907,
+        "signature": "4NqZqxTYG9oZoAP5HS5hnDWyZTsbz7bixHo9R86c9EC7zrNgpZstihUzETHLekZNpPYXk8ncvaJek9FU2LygTWhb",
+        "network": "localnet",
+        "revision": 37
+      },
+      "cash": 59.99994,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 38,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156908,
+        "signature": "3tHitdXA3RhfRGtrsZxWfyNh2sdS18fdySqDELfA78f9eynZV6z17YMZdkXzigTXoHunYQB6F5qFXWouGiFf3YRF",
+        "network": "localnet",
+        "revision": 38
+      },
+      "cash": 59.99994,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 39,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156909,
+        "signature": "MiCCPE2fppwLbB8sHdwXXKQk8xDKRPqeALzEfPkok6woLAg2edoNNSGHbYo4jerXKS3hAow6U7kJ8oMWKfcgzcM",
+        "network": "localnet",
+        "revision": 39
+      },
+      "cash": 63.33327,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 40,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156910,
+        "signature": "h38n5SyfpGCqn7mpDpUQoCm3cCDV1QXSnAPwRS7NqqP9NKRsmPqEaWsEkB7PrjqdT8Ap1DLEA8x7tKSxeVUFx6F",
+        "network": "localnet",
+        "revision": 40
+      },
+      "cash": 63.33327,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 41,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156911,
+        "signature": "2As8mSeCq1ymaYc9AsRUSbVQ4iCkW6XjM1DmrW83tvSeoh7yu5jRTW6RGEbiua3RnyMEoGWxaV5YHf67sATLbDdr",
+        "network": "localnet",
+        "revision": 41
+      },
+      "cash": 66.6666,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 42,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156912,
+        "signature": "5JuRrWoCnViF127ZJr3BcWrZWD6WgiYqj4JgnVYJJ9MRKjWqG2f382JgaXTFaokzswAurDiTccRFF5zrrNjWNLFJ",
+        "network": "localnet",
+        "revision": 42
+      },
+      "cash": 66.6666,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 43,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156913,
+        "signature": "3do7gQNAPvt3FpSH5aTxbJaqPeXo5AxgBshuXQgigki8aNsWdrXq8EZA8LiJaQpfqDmQme5AHcthq3TkqDXmcbUd",
+        "network": "localnet",
+        "revision": 43
+      },
+      "cash": 69.99993,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 44,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156914,
+        "signature": "2vV7k86DGnqLo6Ndyn8Q7Qz7nAbVwSGnsB3MsvaNdrj9G39r1vhqM4ZVLDDFMB3UraCgj8ZjbXas1GscJM59hjwV",
+        "network": "localnet",
+        "revision": 44
+      },
+      "cash": 69.99993,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 45,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156915,
+        "signature": "3c8H2kZWgHSsCrbNEBaEvvg8sZ7p2BVAGuWcFUjS6PVnd2Loz724yZn2Y1YQYzizXCczA7NGgKZZHegdmZYgr2GC",
+        "network": "localnet",
+        "revision": 45
+      },
+      "cash": 73.33326,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 46,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156916,
+        "signature": "5DqBG4BwK1Zut9vJhK78uBwg79KeFzmZzpsFSqKwdu51LXtS4TvJzgxCVtXQS9xWkBX7Q6qrh77CmbGJNN3PCgZn",
+        "network": "localnet",
+        "revision": 46
+      },
+      "cash": 73.33326,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 47,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156918,
+        "signature": "22Cfj5JteVa7fv3w3HrvoKt16i6ke1skDF7AcpGFDfZf56pCE4MhmCu6oeaxDj7s6H9uSF6Fm8DXsPRgr6zzBz3B",
+        "network": "localnet",
+        "revision": 47
+      },
+      "cash": 76.66659,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 48,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156919,
+        "signature": "3epm9maa45XLD4befDYsCREVi8iJ3gmppB4NDfoW1fhKc4eTRasks3HFW4ZVWLLCziEirDieaAwsHDVZ2AStYNaw",
+        "network": "localnet",
+        "revision": 48
+      },
+      "cash": 76.66659,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 49,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156920,
+        "signature": "vbYCeTWDXEXcQY2Y8ECHLvwuUN8PdG7K8xxWzWodgBVXmnpaE4Tgtpr6qg83Jsgb2CSCAerXq8Mje1oancHfXUW",
+        "network": "localnet",
+        "revision": 49
+      },
+      "cash": 79.99992,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 50,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156921,
+        "signature": "62mc12J2mk6742HHy2T1t8XuBwJkLhRSARvyjTUpLtJX1YrxtUACr3H223XXwCVBFuWN8PCaaANoWNRv85c1teLg",
+        "network": "localnet",
+        "revision": 50
+      },
+      "cash": 79.99992,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 51,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156922,
+        "signature": "5tfAqmrTMGpWW2faeNHfQ7kxZ7QiY76shKAWn91j1H1LjKRzjtvkbmNWG7YJZR7v1BXDmKG3RcDL9LwPLT2DV21j",
+        "network": "localnet",
+        "revision": 51
+      },
+      "cash": 83.33325,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 52,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156923,
+        "signature": "TJMFFZNswhqxXYkMMav98biju7YgR3kRnsEpJofrKPL5gghDs6GH6aH2JMx4znN8BcTU6fsWxt7TCXDapq46exe",
+        "network": "localnet",
+        "revision": 52
+      },
+      "cash": 83.33325,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 53,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156924,
+        "signature": "5aArtNDKME9Q8Fgi85LNyp3xWrZk9Pmjxs5sFSaD8UnLU6z25aejXHJ2FV4H22oEzqFZNvFwgXsp6hZSsoBhCZGo",
+        "network": "localnet",
+        "revision": 53
+      },
+      "cash": 86.66658,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 54,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156925,
+        "signature": "2kXv5tqLnojE9xEvk7paiDgbSFqZ3upgfX8cGpVtVjBS4yZpTjp2r79hLzumpK5pWT5ePwXAUKuWL5YgAcD8CvMg",
+        "network": "localnet",
+        "revision": 54
+      },
+      "cash": 86.66658,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 55,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156926,
+        "signature": "3VH2TkGhjJqkmVPV1T4YcGqjohJ7kXtcorH3QxtZtnE5agHyJ7yxbScfXsarcWnVdtrQhhbpfnJvg6tbBimL7sEr",
+        "network": "localnet",
+        "revision": 55
+      },
+      "cash": 89.99991,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 56,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156927,
+        "signature": "2A8wkWYzZkARtgLt57wmK7eNkectvSz8qVTjKXc6rZ75m1D5BNMRQLPtXmdFe46xmxG6Fy4hG2P57UmTb5BcH6VJ",
+        "network": "localnet",
+        "revision": 56
+      },
+      "cash": 89.99991,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 57,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156928,
+        "signature": "rUagkmrK4fjGEBDivMwcyKXmKZKBcCboA2T71Vm4gHBqr2GdndnosBv7tbwX5DiTsXrC5gjAQmzKwaiUEVQS3Yb",
+        "network": "localnet",
+        "revision": 57
+      },
+      "cash": 93.33324,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 58,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156929,
+        "signature": "5vt8CPKFmgaajEYEKDATCFy2fjUmScM4WgetWACPEocGtWwynFAT7xiio9Kt5QiMb6kVVfPUeRCDNzSKaLNYy8cE",
+        "network": "localnet",
+        "revision": 58
+      },
+      "cash": 93.33324,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 59,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156930,
+        "signature": "5Vv28ri9B2oD4ozSR3qzWKW6NCura9Sz3k9kGnNwdCdQmYxY18ZuZr7D2qbonRJpf1UuBvJuVsSdHRa8Dy8rWTQv",
+        "network": "localnet",
+        "revision": 59
+      },
+      "cash": 96.66657,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 60,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156931,
+        "signature": "3tcnyPuyY5oxGLFNsiFTP2n1EMSekR51e7VdNKQfChXtJWbidgzrFizdbTQK5DJA4DjuNgVHPcXtamwQAX1Rvfq5",
+        "network": "localnet",
+        "revision": 60
+      },
+      "cash": 96.66657,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 61,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156932,
+        "signature": "2qo7LYELfjPpehERXxZjv3h49wVFXU27rwPFnFqmyMKkuUpkuCsK2PtMgdCcYpSAE3DKPSbqiJWxJjPm4MBsjsjB",
+        "network": "localnet",
+        "revision": 61
+      },
+      "cash": 99.9999,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 62,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156933,
+        "signature": "8QJ4PensRB8vHkuaEdzWFxMNhuXEUuu2DNNRGnBH2dbE8imMqcmijathyxnuEdPTB2PFFcM4iovnHJf4J73FX5K",
+        "network": "localnet",
+        "revision": 62
+      },
+      "cash": 99.9999,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 63,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156934,
+        "signature": "4KQbA875VejLRsaGG3jMpBak3Eg9apkd7UeoNinwNCfpVaYthSEheJjghjdNHY7kKUZtojKpQQAzDZnZuxSZdsJe",
+        "network": "localnet",
+        "revision": 63
+      },
+      "cash": 103.33323,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 64,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156935,
+        "signature": "4KW1FETLZQmZojWECmrfdeqg7MoiyFqjGie9hLZbz4Ga6DpvSvr64JBWWdcHdFnSbpKCzDw72VJqGRk3xkKrUZb9",
+        "network": "localnet",
+        "revision": 64
+      },
+      "cash": 103.33323,
+      "shares": 0
+    },
+    {
+      "action": "execute",
+      "revision": 65,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156937,
+        "signature": "4PKS5KYczG64JeBS2AdTkgV9wtqNqCwq5YvHDAqnUAEqE8zgXtM5ewymvwQ4fxyaMyo2K7Mcb8hRpfW5LPNR3Fmn",
+        "network": "localnet",
+        "revision": 65
+      },
+      "cash": 106.66656,
+      "shares": 0
+    },
+    {
+      "action": "transfer",
+      "revision": 66,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156938,
+        "signature": "2bk5AM9nvJMQmPis1DARzq5wXxEdq1gW4neEYAMuUedD6mPFTYh4nSgFvA3W3Qqg2Fv1vuKsFuHZmMgvGpQDpb7n",
+        "network": "localnet",
+        "revision": 66
+      },
+      "cash": 106.66656,
+      "shares": 0
+    },
+    {
+      "action": "advance",
+      "revision": 67,
+      "chain": {
+        "ledger": "4nvgKTPCVDL68ed2m69u9bGTp9cfaqyHNwMAVk9spmQE",
+        "slot": 156939,
+        "signature": "2KaMDNbATTG4Prd6HbLhjPcShcLTjDQie7vzsJxBnez1v9taP6AfCSYC17e3jEtr8azMyPdLjmLT4ptMCMoZ8mir",
+        "network": "localnet",
+        "revision": 67
+      },
+      "cash": 0,
+      "shares": 0
+    }
+  ]
+}

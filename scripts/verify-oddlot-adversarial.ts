@@ -24,7 +24,7 @@ const operator = Keypair.fromSecretKey(
 );
 const owner = Keypair.fromSeed(
   createHmac('sha256', operator.secretKey)
-    .update(`oddlot:v1:${s.id}:owner`)
+    .update(`oddlot:v2:${s.id}:owner`)
     .digest(),
 );
 let revision = 0;
@@ -190,6 +190,46 @@ try {
     },
     'InvalidTerms',
   );
+  for (const [name, change] of [
+    [
+      'zero payable curve',
+      (t: ReturnType<typeof templateTerms>) => {
+        t.quantity = 0.000001;
+        t.curve!.cap = 0.000001;
+      },
+    ],
+    [
+      'inverted curve boundaries',
+      (t: ReturnType<typeof templateTerms>) => {
+        t.curve!.upper = t.curve!.lower;
+      },
+    ],
+    [
+      'curve mixed with physical legs',
+      (t: ReturnType<typeof templateTerms>) => {
+        t.settlement = 'physical';
+        t.legs = templateTerms('call', t.expiry).legs;
+      },
+    ],
+  ] as const) {
+    const t = templateTerms('exponential', '2025-02-07');
+    change(t);
+    await reject(
+      name,
+      (tx) => {
+        const i = ix(tx);
+        i.data = Buffer.concat([
+          i.data.subarray(0, 24),
+          Buffer.from([2]),
+          Buffer.alloc(16, 19),
+          terms(t),
+          u64(1),
+          Buffer.alloc(32),
+        ]);
+      },
+      'InvalidTerms',
+    );
+  }
   writeFileSync(
     process.env.ODDLOT_ADVERSARIAL_EVIDENCE || '/tmp/oddlot-adversarial.json',
     JSON.stringify(

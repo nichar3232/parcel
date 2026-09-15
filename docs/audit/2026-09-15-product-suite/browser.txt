@@ -1,0 +1,48 @@
+
+> oddlot@0.4.0 test:e2e
+> playwright test
+
+[WebServer] (node:31677) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:31678) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:31678) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+
+Running 32 tests using 1 worker
+
+(node:31683) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/desk.spec.ts:26:1 › complete historical lifecycle through the real backend, reload and both claims (1.1s)
+  ✓   2 tests/e2e/desk.spec.ts:58:1 › maker cancellation reclaims reserve and invalid builder inputs never crash (680ms)
+  ✓   3 tests/e2e/desk.spec.ts:81:1 › a stale second tab cannot overwrite a newer portfolio (533ms)
+  ✓   4 tests/e2e/desk.spec.ts:106:1 › backend failure is visible and reconnect restores the session (312ms)
+  ✓   5 tests/e2e/desk.spec.ts:118:1 › all views and dialogs work at desktop and mobile widths without page overflow (1.7s)
+  ✓   6 tests/e2e/desk.spec.ts:154:1 › missing historical observation keeps the reserve locked and recovery pays once (1.2s)
+  ✓   7 tests/e2e/desk.spec.ts:175:1 › a dropped mutation response retries the same request without a second quote (280ms)
+  ✓   8 tests/e2e/desk.spec.ts:197:1 › settlement uses the chain clock even when wall time is far ahead (3.7s)
+  ✓   9 tests/e2e/vault.spec.ts:65:1 › vault deposits, fractional covered underwriting, blocked withdrawal and expiry persist through reload (1.7s)
+  ✓  10 tests/e2e/vault.spec.ts:102:1 › structured orders release only valid collateral offsets; risk view stays synchronized (1.5s)
+  ✓  11 tests/e2e/vault.spec.ts:134:1 › lending, recall and a protected short complete through the real API (2.7s)
+  ✓  12 tests/e2e/vault.spec.ts:179:1 › dividend contracts execute and settle from the stored event (1.1s)
+  ✓  13 tests/e2e/vault.spec.ts:196:1 › every workspace view fits desktop and mobile, with accessible forms and no page overflow (7.2s)
+  ✓  14 tests/e2e/vault.spec.ts:236:1 › a dropped mutation response retries once with the same receipt, not another deposit (453ms)
+  ✓  15 tests/e2e/vault.spec.ts:254:1 › a second tab cannot overwrite the first tab’s vault revision (735ms)
+  ✓  16 tests/e2e/vault.spec.ts:274:1 › backend outage shows a recovery action and reconnect resumes the saved vault (503ms)
+  ✓  17 tests/e2e/vault.spec.ts:287:1 › invalid precision and out-of-range strikes never crash the payoff view (357ms)
+  ✓  18 tests/e2e/vault.spec.ts:319:1 › a delayed quote cannot replace edited contract terms (730ms)
+  ✓  19 tests/e2e/vault.spec.ts:357:1 › two lost responses survive reload and resolve the original deposit exactly once (921ms)
+  ✓  20 tests/e2e/vault.spec.ts:406:1 › an unreadable success response recovers using the same idempotency key (320ms)
+  ✓  21 tests/e2e/vault.spec.ts:427:1 › a delayed response from an old session cannot replace the new session vault (587ms)
+  ✓  22 tests/e2e/vault.spec.ts:480:1 › a refreshed vault invalidates a reviewed stock trade without silently changing its price (1.2s)
+  ✓  23 tests/e2e/vault.spec.ts:511:1 › option confirmation lists every leg and a close is priced before execution (856ms)
+  ✓  24 tests/e2e/vault.spec.ts:546:1 › final historical session offers a fresh replay with usable expiries (745ms)
+  ✓  25 tests/e2e/vault.spec.ts:565:1 › covered-call chart includes deposited stock downside (236ms)
+  ✓  26 tests/e2e/vault.spec.ts:577:1 › options chain selects a contract into the same funded quote workflow (871ms)
+  ✓  27 tests/e2e/vault.spec.ts:600:1 › budget sizing displays exercise cash separately and feeds the reviewed contract (570ms)
+  ✓  28 tests/e2e/vault.spec.ts:630:1 › capped curves review every parameter, execute, close with a priced quote and survive reload (1.1s)
+  ✓  29 tests/e2e/vault.spec.ts:658:1 › hourly contracts settle through the UI at the explicit test clock (1.0s)
+  ✓  30 tests/e2e/vault.spec.ts:674:1 › dividend convexity and progressive controls remain usable at mobile width (2.5s)
+  ✓  31 tests/e2e/vault.spec.ts:701:1 › mobile chain keeps strikes, both sides and collateral visible without horizontal scrolling (1.3s)
+  ✓  32 tests/e2e/vault.spec.ts:728:1 › a delayed sizing response cannot overwrite a contract edited while sizing (288ms)
+
+  32 passed (40.6s)

@@ -1,0 +1,39 @@
+{
+  "program": "GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx",
+  "binaryBytes": 359864,
+  "sha256": "8e8aab553f033d82c5b29e49f3da8cad550101e4f4289a19bff7b17551ffa36a",
+  "capacity": 64,
+  "curve": "exponential; 64 distinct upper boundaries immediately above expiry price",
+  "transactions": [
+    {
+      "action": "transfer",
+      "revision": 1,
+      "signature": "NQcjwy6v1QvXcEEboiDu3vos16BapN6fk1jtyPKgWJFd4k9hfFEYJV5t34QdTfBnLNmaTmfvtFcpyUwYnL15spQ",
+      "computeUnits": 13837,
+      "slot": 156871
+    },
+    {
+      "action": "execute",
+      "revision": 65,
+      "signature": "4PKS5KYczG64JeBS2AdTkgV9wtqNqCwq5YvHDAqnUAEqE8zgXtM5ewymvwQ4fxyaMyo2K7Mcb8hRpfW5LPNR3Fmn",
+      "computeUnits": 119810,
+      "slot": 156937
+    },
+    {
+      "action": "transfer",
+      "revision": 66,
+      "signature": "2bk5AM9nvJMQmPis1DARzq5wXxEdq1gW4neEYAMuUedD6mPFTYh4nSgFvA3W3Qqg2Fv1vuKsFuHZmMgvGpQDpb7n",
+      "computeUnits": 120597,
+      "slot": 156938
+    },
+    {
+      "action": "advance",
+      "revision": 67,
+      "signature": "2KaMDNbATTG4Prd6HbLhjPcShcLTjDQie7vzsJxBnez1v9taP6AfCSYC17e3jEtr8azMyPdLjmLT4ptMCMoZ8mir",
+      "computeUnits": 902560,
+      "slot": 156939
+    }
+  ],
+  "deployedBinaryMatchesBuild": true,
+  "onchainBytes": 360208
+}

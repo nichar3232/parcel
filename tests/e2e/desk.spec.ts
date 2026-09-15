@@ -47,7 +47,7 @@ test('complete historical lifecycle through the real backend, reload and both cl
   await page.reload();
   await expect(page.getByText('$11,600.00').first()).toBeVisible();
   await page.screenshot({
-    path: 'docs/audit/screenshots/settled-portfolio.png',
+    path: 'test-results/audit/screenshots/settled-portfolio.png',
     fullPage: true,
   });
   const p = await page.request.get('/api/portfolio');
@@ -74,7 +74,7 @@ test('maker cancellation reclaims reserve and invalid builder inputs never crash
     'Premium cannot exceed',
   );
   await page.screenshot({
-    path: 'docs/audit/screenshots/build-validation.png',
+    path: 'test-results/audit/screenshots/build-validation.png',
     fullPage: true,
   });
 });
@@ -140,7 +140,7 @@ test('all views and dialogs work at desktop and mobile widths without page overf
         ),
       ).toBe(true);
       await page.screenshot({
-        path: `docs/audit/screenshots/${name.toLowerCase().replaceAll(' ', '-')}-${width}.png`,
+        path: `test-results/audit/screenshots/${name.toLowerCase().replaceAll(' ', '-')}-${width}.png`,
         fullPage: true,
       });
     }
@@ -168,7 +168,7 @@ test('missing historical observation keeps the reserve locked and recovery pays 
   await page.getByRole('button', { name: 'Retry settlement' }).click();
   await expect(page.getByRole('dialog')).toContainText('Settled at $118.42');
   await page.screenshot({
-    path: 'docs/audit/screenshots/recovered-settlement.png',
+    path: 'test-results/audit/screenshots/recovered-settlement.png',
     fullPage: true,
   });
 });

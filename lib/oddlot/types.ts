@@ -11,7 +11,16 @@ export interface Leg {
   strike: number;
   ratio: number;
 }
+export interface CurveTerms {
+  shape: 'quadratic' | 'exponential';
+  side: Side;
+  direction: 'up' | 'down';
+  lower: number;
+  upper: number;
+  cap: number; // Maximum USDC payoff per share-equivalent.
+}
 export interface OrderTerms {
+  curve?: CurveTerms;
   name: string;
   quantity: number;
   expiry: string;
@@ -76,6 +85,8 @@ export interface VaultBook {
   events: LedgerEvent[];
 }
 export interface CollateralGroup {
+  cashMinimum: number;
+  cashMaximum: number;
   key: string;
   expiry: string;
   settlement: string;
@@ -133,6 +144,7 @@ export interface VaultSnapshot {
   book: VaultBook;
   risk: RiskSummary;
   market: {
+    clock: 'daily-close-with-hourly-test-clock';
     symbol: 'NVDA';
     price: number;
     date: string;
@@ -167,3 +179,32 @@ export type VaultAction =
   | { type: 'close-short'; id: string }
   | { type: 'advance'; date: string }
   | { type: 'restart' };
+
+export interface ContractIndication {
+  premium: number;
+  cash: number;
+  shares: number;
+}
+export interface ChainCatalog {
+  revision: number;
+  expiry: string;
+  quantity: number;
+  spot: number;
+  pricing: string;
+  rows: {
+    strike: number;
+    contracts: {
+      kind: OptionKind;
+      buy: ContractIndication;
+      sell: ContractIndication;
+      delta: number;
+    }[];
+  }[];
+}
+export interface SizeResult extends ContractIndication {
+  revision: number;
+  terms: OrderTerms;
+  centSensitivity: number;
+  cashFunding: number;
+  limited: boolean;
+}

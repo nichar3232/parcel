@@ -1,4 +1,4 @@
-use crate::{market::*, VaultError};
+use crate::{curves::Curve, market::*, VaultError};
 use anchor_lang::prelude::*;
 use std::collections::BTreeMap;
 const U: i128 = 1_000_000;
@@ -20,6 +20,7 @@ pub struct Terms {
     pub physical: bool,
     pub dividend: bool,
     pub legs: Vec<Leg>,
+    pub curve: Option<Curve>,
 }
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct OptionPosition {
@@ -116,19 +117,30 @@ fn price(date: u16) -> Result<u64> {
         .copied()
         .ok_or(error!(VaultError::InvalidTerms))
 }
+fn time(date: u16) -> u32 {
+    HOURS[date as usize]
+}
 fn interest(q: u64, entry: u64, from: u16, to: u16) -> u64 {
-    let n = mul(q, entry) as u128 * 35 * (DAYS[to as usize] - DAYS[from as usize]) as u128;
-    ((n + 365_000 / 2) / 365_000) as u64
+    let n = mul(q, entry) as u128 * 35 * (time(to) - time(from)) as u128;
+    ((n + 8_760_000 / 2) / 8_760_000) as u64
 }
 fn accrued(total: u64, from: u16, expiry: u16, at: u16) -> u64 {
-    let term = (DAYS[expiry as usize] - DAYS[from as usize]) as u128;
-    let elapsed = (DAYS[at.min(expiry) as usize] - DAYS[from as usize]) as u128;
+    let term = (time(expiry) - time(from)) as u128;
+    let elapsed = (time(at).min(time(expiry)) - time(from)) as u128;
     ((total as u128 * elapsed + term / 2) / term) as u64
 }
 impl Terms {
     pub fn validate(&self, date: u16) -> Result<()> {
         qty(self.quantity)?;
-        valid(self.expiry > date && (self.expiry as usize) < PRICES.len())?;
+        valid((self.expiry as usize) < PRICES.len() && time(self.expiry) > time(date))?;
+        if let Some(c) = &self.curve {
+            valid(self.legs.is_empty() && !self.physical)?;
+            c.validate(self.quantity, self.dividend)?;
+            if self.dividend {
+                valid(self.expiry == DIVIDEND_DATE)?;
+            }
+            return Ok(());
+        }
         valid(!self.legs.is_empty() && self.legs.len() <= 4)?;
         for l in &self.legs {
             valid(l.strike > 0 && l.strike <= 10_000_000_000 && l.ratio > 0 && l.ratio <= 4)?;
@@ -160,6 +172,9 @@ impl Terms {
         valid(b[0] != 0 || b[1] != 0)
     }
     fn delivery(&self, p: u64) -> (i128, i128) {
+        if let Some(c) = &self.curve {
+            return (c.payoff(self.quantity, p), 0);
+        }
         let (mut cash, mut shares) = (0, 0);
         for l in &self.legs {
             let q = self.quantity as i128 * l.ratio as i128 * if l.buy { 1 } else { -1 };
@@ -183,6 +198,11 @@ impl Terms {
 }
 // Analytic sorted strike sweep: [cash min, cash max, stock min, stock max].
 fn sweep(terms: &[&Terms], physical: bool) -> [i128; 4] {
+    if terms.len() == 1 {
+        if let Some(c) = &terms[0].curve {
+            return c.bounds(terms[0].quantity);
+        }
+    }
     let mut events: BTreeMap<u64, [i128; 5]> = BTreeMap::new();
     let (mut cash, mut stock, mut slope) = (0, 0, 0);
     for t in terms {
@@ -241,6 +261,31 @@ fn sweep(terms: &[&Terms], physical: bool) -> [i128; 4] {
     b
 }
 fn envelope(terms: &[&Terms]) -> [i128; 4] {
+    if terms.is_empty() {
+        return [0; 4];
+    }
+    if terms.iter().any(|t| t.curve.is_some()) {
+        let vanilla: Vec<_> = terms
+            .iter()
+            .copied()
+            .filter(|t| t.curve.is_none())
+            .collect();
+        let mut b = envelope(&vanilla);
+        let mut pairs: BTreeMap<(u64, bool, bool, u64, u64, u64), i128> = BTreeMap::new();
+        for t in terms {
+            if let Some(c) = &t.curve {
+                *pairs
+                    .entry((t.quantity, c.exponential, c.up, c.lower, c.upper, c.cap))
+                    .or_default() += if c.buy { 1 } else { -1 };
+            }
+        }
+        for ((q, _, _, _, _, cap), count) in pairs {
+            let total = mul(q, cap) as i128 * count;
+            b[0] += total.min(0);
+            b[1] += total.max(0);
+        }
+        return b;
+    }
     let mut b = sweep(terms, terms[0].physical);
     if terms[0].physical || terms.len() == 1 {
         return b;
@@ -331,12 +376,27 @@ impl Book {
                 .push(&p.terms);
         }
         let mut r = [0u64; 5];
+        let mut calendar: BTreeMap<u32, (i128, i128)> = BTreeMap::new();
         for ts in groups.values() {
             let b = envelope(ts);
+            let row = calendar.entry(time(ts[0].expiry)).or_default();
+            row.0 += b[0];
+            row.1 += b[1];
             r[0] += (-b[0]).max(0) as u64;
             r[1] += (-b[2]).max(0) as u64;
             r[2] += b[1].max(0) as u64;
             r[3] += b[3].max(0) as u64;
+        }
+        if !self.isolated {
+            r[0] = 0;
+            r[2] = 0;
+            let (mut low, mut high) = (0i128, 0i128);
+            for (_, (min, max)) in calendar {
+                low += min;
+                high += max;
+                r[0] = r[0].max((-low).max(0) as u64);
+                r[2] = r[2].max(high.max(0) as u64);
+            }
         }
         for p in &self.shorts {
             r[0] += mul(p.quantity, p.cap) + p.interest;
@@ -360,7 +420,7 @@ impl Book {
         Ok(())
     }
     fn future(&self, e: u16) -> Result<()> {
-        valid(e > self.date && (e as usize) < PRICES.len())
+        valid((e as usize) < PRICES.len() && time(e) > time(self.date))
     }
     fn unique(&self, id: &[u8; 16]) -> Result<()> {
         valid(
@@ -534,28 +594,32 @@ impl Book {
             Action::Advance { date } => {
                 self.future(date)?;
                 self.date = date;
-                let mut deliveries: BTreeMap<u16, (i128, i128)> = BTreeMap::new();
+                let mut deliveries: BTreeMap<u32, (i128, i128)> = BTreeMap::new();
                 for p in &self.options {
-                    if p.terms.expiry <= date {
+                    if time(p.terms.expiry) <= time(date) {
                         let d = p.terms.delivery(if p.terms.dividend {
                             10_000
                         } else {
                             price(p.terms.expiry)?
                         });
-                        let group = deliveries.entry(p.terms.expiry).or_insert((0, 0));
+                        let group = deliveries.entry(time(p.terms.expiry)).or_insert((0, 0));
                         group.0 += d.0;
                         group.1 += d.1;
                     }
                 }
-                self.options.retain(|p| p.terms.expiry > date);
+                self.options.retain(|p| time(p.terms.expiry) > time(date));
                 for (_, (cash, stock)) in deliveries {
                     self.transfer(C, V, 0, cash)?;
                     self.transfer(C, V, 1, stock)?;
                 }
-                while let Some(i) = self.shorts.iter().position(|p| p.expiry <= date) {
+                while let Some(i) = self
+                    .shorts
+                    .iter()
+                    .position(|p| time(p.expiry) <= time(date))
+                {
                     self.cover(i, self.shorts[i].expiry)?;
                 }
-                while let Some(i) = self.loans.iter().position(|p| p.expiry <= date) {
+                while let Some(i) = self.loans.iter().position(|p| time(p.expiry) <= time(date)) {
                     self.recall(i, self.loans[i].expiry)?;
                 }
             }
@@ -576,6 +640,7 @@ mod tests {
     use super::*;
     fn spread(q: u64, low: u64, high: u64, sell: bool) -> Terms {
         Terms {
+            curve: None,
             quantity: q,
             expiry: 10,
             physical: false,

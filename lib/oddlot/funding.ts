@@ -1,3 +1,4 @@
+import { units } from '../engine';
 import { add, days, mul, optionGreeks, round } from './math';
 import type { ShortPosition } from './types';
 
@@ -8,7 +9,14 @@ export function termInterest(
   from: string,
   to: string,
 ) {
-  return round((mul(quantity, entry) * 0.035 * days(from, to)) / 365);
+  const elapsed = BigInt(Date.parse(to) - Date.parse(from));
+  const denominator = 365_000n * 86_400_000n;
+  return (
+    Number(
+      (units(mul(quantity, entry)) * 35n * elapsed + denominator / 2n) /
+        denominator,
+    ) / 1e6
+  );
 }
 export function accruedInterest(
   prepaid: number,
@@ -16,9 +24,13 @@ export function accruedInterest(
   expiry: string,
   at: string,
 ) {
-  return round(
-    prepaid * Math.min(1, Math.max(0, days(opened, at) / days(opened, expiry))),
+  const term = BigInt(Date.parse(expiry) - Date.parse(opened));
+  const elapsed = BigInt(
+    Math.min(Date.parse(expiry), Math.max(Date.parse(opened), Date.parse(at))) -
+      Date.parse(opened),
   );
+  if (term <= 0n) throw Error('Interest requires a positive term.');
+  return Number((units(prepaid) * elapsed + term / 2n) / term) / 1e6;
 }
 export function protectionPremium(
   quantity: number,

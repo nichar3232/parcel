@@ -11,16 +11,17 @@ static ALLOCATOR: solana_program_entrypoint::BumpAllocator =
     };
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
+mod curves;
 pub mod economics;
 mod market;
 use economics::{Action, Book};
-declare_id!("CJxu36zhuU2Hx1BFisJdSQwdXoUkakA2UJ2WPxeT97af");
+declare_id!("GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx");
 // Dedicated no-value local-validator operator. This is not a permissionless oracle.
 const OPERATOR: Pubkey = pubkey!("8oheEujy8FS7Nr3bdYT7okWbWeMy3Tp5eM8z4YwRTzfq");
 #[program]
 pub mod oddlot {
     use super::*;
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+    pub fn initialize_v2(ctx: Context<Initialize>) -> Result<()> {
         require!(
             ctx.accounts.cash_mint.key() != ctx.accounts.stock_mint.key(),
             VaultError::Mint
@@ -53,7 +54,7 @@ pub mod oddlot {
         );
         Ok(())
     }
-    pub fn execute(
+    pub fn execute_v2(
         ctx: Context<Execute>,
         expected_revision: u64,
         deadline: i64,

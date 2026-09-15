@@ -1830,3 +1830,193 @@
   margin-top: 10px;
   overflow-wrap: anywhere;
 }
+
+/* Product discovery and progressive disclosure share the existing desk palette. */
+.od-workflow-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 24px;
+  flex-wrap: wrap;
+}
+.od-workflow-bar .od-segmented {
+  margin: 0;
+  width: auto;
+  min-width: 180px;
+}
+.od-category-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.od-category-tabs button {
+  border: 1px solid var(--od-border, #e2e7ef);
+  border-radius: 999px;
+  background: white;
+  padding: 9px 16px;
+  color: #596579;
+  font-size: 13px;
+  cursor: pointer;
+}
+.od-category-tabs button.selected {
+  background: #182a48;
+  color: white;
+  border-color: #182a48;
+}
+.od-sizing {
+  border-block: 1px solid #e8ebf1;
+  margin: 8px 0 20px;
+  padding: 14px 0;
+}
+.od-sizing summary {
+  cursor: pointer;
+  color: #3359b6;
+  font-size: 13px;
+  font-weight: 600;
+}
+.od-sizing[open] summary {
+  margin-bottom: 16px;
+}
+.od-curve-editor {
+  margin-block: 20px;
+}
+.od-curve-review {
+  background: #f2f5fc;
+  padding: 18px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+.od-curve-review p {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #5b6679;
+  margin: 10px 0 0;
+}
+.od-chain-controls {
+  padding: 20px 24px 0;
+  max-width: 680px;
+}
+.od-chain-note {
+  padding-inline: 24px;
+}
+.od-chain {
+  margin-bottom: 24px;
+}
+.od-chain-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.od-chain-actions button {
+  font-size: 12px;
+  min-height: 34px;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+.od-chain-table {
+  min-width: 720px;
+}
+.od-chain-table small {
+  font-size: 11px;
+  line-height: 1.7;
+  color: #627086;
+}
+.od-atm {
+  background: #f0f4ff;
+}
+@media (max-width: 600px) {
+  .od-workflow-bar {
+    gap: 10px;
+  }
+  .od-chain-controls {
+    padding: 16px 16px 0;
+  }
+  .od-chain-note {
+    padding-inline: 16px;
+  }
+  .od-category-tabs {
+    gap: 6px;
+  }
+  .od-category-tabs button {
+    padding: 8px 12px;
+  }
+}
+.od-basic-leg {
+  display: grid;
+  grid-template-columns: 26px minmax(85px, 1fr) minmax(90px, 150px);
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1px solid #e8ebf1;
+  border-radius: 10px;
+}
+.od-basic-leg strong {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.od-basic-leg .od-field {
+  margin: 0;
+}
+.od-basic-leg .od-leg-side {
+  margin-top: 14px;
+}
+.oddlot .od-field > label {
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+}
+.od-chain-mobile {
+  display: none;
+}
+@media (max-width: 700px) {
+  .od-chain-desktop {
+    display: none;
+  }
+  .od-chain-mobile {
+    display: block;
+    padding: 0 16px 16px;
+  }
+  .od-chain-card {
+    padding: 16px 0;
+    border-top: 1px solid #e8ebf1;
+  }
+  .od-chain-strike {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0 0 12px;
+  }
+  .od-chain-strike strong {
+    font-size: 17px;
+  }
+  .od-chain-strike span {
+    font-size: 11px;
+    color: #7b879a;
+  }
+  .od-chain-card-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .od-chain-card-actions button {
+    padding: 8px;
+    width: 100%;
+    font-size: 12px;
+    min-height: 38px;
+  }
+  .od-chain-card-actions small {
+    display: block;
+    font-size: 10px;
+    margin-top: 7px;
+    color: #6a778d;
+    text-align: center;
+  }
+  .od-chain-card.od-atm {
+    margin-inline: -8px;
+    padding-inline: 8px;
+    border-radius: 8px;
+  }
+}

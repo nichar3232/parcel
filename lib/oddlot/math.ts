@@ -1,3 +1,4 @@
+import { curveCash, curveGreeks } from './curves';
 import { units } from '../engine';
 import type { Greeks, Leg, OrderTerms } from './types';
 export const round = (n: number) => Math.round(n * 1e6) / 1e6;
@@ -68,6 +69,7 @@ export function orderGreeks(
   date: string,
   vol = 0.45,
 ): Greeks {
+  if (terms.curve) return curveGreeks(terms, s, days(date, terms.expiry), vol);
   const result: Greeks = { price: 0, delta: 0, gamma: 0, theta: 0, vega: 0 };
   for (const leg of terms.legs) {
     const g = optionGreeks(
@@ -84,6 +86,7 @@ export function orderGreeks(
   return result;
 }
 export function cashPayoff(terms: OrderTerms, s: number) {
+  if (terms.curve) return Number(curveCash(terms, s)) / 1e6;
   let numerator = 0n;
   for (const l of terms.legs) {
     const intrinsic = Math.max(

@@ -87,3 +87,9 @@ The September 15 [follow-up audit](audit/2026-09-15-review/REPORT.md) covers rea
 ## Current Oddlot program integration
 
 The keyless command still starts a sandbox. To execute the new vault program, configure the explicit Oddlot program/mint variables described in [ODDLOT_CHAIN.md](ODDLOT_CHAIN.md). In that mode, `/api/ready` checks the Oddlot program and test mints; `/api/vault` labels the mode `localnet` and includes the latest verified ledger, signature, slot and revision. `POST /api/vault/quote` also accepts `{revision, positionId}` for a reviewed option close. The final historical session offers `restart`; this restores test allocations only when all positions are flat and keeps revision and receipts.
+
+## Product suite development
+
+`npm run verify:oddlot-suite` exercises curves, hourly settlement, calendar offsets, dividend structures and loans/shorts on the explicitly configured private validator. Add `-- --capacity` for 64 nonlinear positions and withdrawal of all free cash before multi-date settlement. Run `npm run verify:oddlot-adversarial` for signed invalid instructions, including invalid curves. `npm run test:e2e` covers the same-origin sandbox UI, desktop/mobile chain selection and progressive controls. Routine screenshots now go to ignored `test-results/audit`, preserving dated release evidence.
+
+For this source, use a separately deployed V2 program and a fresh state directory/session. Keep the old program, state and pending signed transactions with the old release until resolved. Do not point the new binary codec at V1 accounts. See `ODDLOT_CHAIN.md`. No deployment of the always-on app or new live/demo provider is part of this extension.

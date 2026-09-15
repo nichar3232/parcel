@@ -25,10 +25,18 @@ export const usd = (n: number, d = 2) =>
 export const qty = (n: number) =>
   new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 }).format(n);
 export const dateLabel = (s: string) =>
-  new Date(s + 'T12:00:00Z').toLocaleDateString('en-US', {
+  new Date(s.includes('T') ? s : s + 'T00:00:00Z').toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
     timeZone: 'UTC',
+    ...(s.includes('T')
+      ? {
+          hour: '2-digit' as const,
+          minute: '2-digit' as const,
+          hour12: false,
+          timeZoneName: 'short' as const,
+        }
+      : {}),
   });
 export function Button({
   children,

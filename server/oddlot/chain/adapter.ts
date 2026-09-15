@@ -86,7 +86,7 @@ export class OddlotAdapter implements VaultChainAdapter {
     const derive = (role: string) =>
       Keypair.fromSeed(
         createHmac('sha256', operator.secretKey)
-          .update(`oddlot:v1:${session}:${role}`)
+          .update(`oddlot:v2:${session}:${role}`)
           .digest(),
       );
     const owner = derive('owner'),
@@ -204,7 +204,7 @@ export class OddlotAdapter implements VaultChainAdapter {
           createMintToInstruction(mint, address, a.operator.publicKey, n),
         );
       }
-      instructions.push(instruction(this.program, 'initialize', keys));
+      instructions.push(instruction(this.program, 'initialize_v2', keys));
       signers.push(a.ledger);
     } else {
       await this.verify(session, plan.before, plan.revision);
@@ -214,7 +214,7 @@ export class OddlotAdapter implements VaultChainAdapter {
       instructions.push(
         instruction(
           this.program,
-          'execute',
+          'execute_v2',
           [...keys, key(TOKEN_PROGRAM_ID)],
           Buffer.concat([
             u64(plan.revision),

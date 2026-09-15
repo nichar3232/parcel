@@ -1,0 +1,14 @@
+(node:1567440) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Rejected: wrong owner signer
+Rejected: wrong mint
+Rejected: stale revision
+Rejected: expired authorization
+Rejected: unfunded deposit
+Rejected: withdraw pledged shares
+Rejected: incorrect backend projection
+Rejected: premium for zero-payoff contract
+Rejected: bounded premium above entire payable value
+Rejected: zero payable curve
+Rejected: inverted curve boundaries
+Rejected: curve mixed with physical legs

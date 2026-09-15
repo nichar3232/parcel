@@ -1,0 +1,555 @@
+
+> oddlot@0.4.0 check
+> npm run typecheck && npm run lint && npm test && npm run build
+
+
+> oddlot@0.4.0 typecheck
+> tsc --noEmit
+
+
+> oddlot@0.4.0 lint
+> oxlint
+
+
+> oddlot@0.4.0 test
+> tsx --test tests/*.test.ts
+
+TAP version 13
+# (node:31507) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: portfolio: durable idempotency, exact revision, no client-supplied clock or RFQ ID
+ok 1 - portfolio: durable idempotency, exact revision, no client-supplied clock or RFQ ID
+  ---
+  duration_ms: 2.930167
+  type: 'test'
+  ...
+# Subtest: portfolio: both claims conserve fractional base units, settlement cannot be fabricated
+ok 2 - portfolio: both claims conserve fractional base units, settlement cannot be fabricated
+  ---
+  duration_ms: 13.890083
+  type: 'test'
+  ...
+# Subtest: portfolio: rejects malformed, unsupported and zero-base-unit terms
+ok 3 - portfolio: rejects malformed, unsupported and zero-base-unit terms
+  ---
+  duration_ms: 0.848667
+  type: 'test'
+  ...
+# Subtest: SQLite: portfolio and receipts survive process-store restart
+ok 4 - SQLite: portfolio and receipts survive process-store restart
+  ---
+  duration_ms: 9.486917
+  type: 'test'
+  ...
+# Subtest: chain: signed bytes and identity exist before broadcast; restart retries the same transaction
+ok 5 - chain: signed bytes and identity exist before broadcast; restart retries the same transaction
+  ---
+  duration_ms: 8.800625
+  type: 'test'
+  ...
+# Subtest: chain: cross-session read/mutation denied, duplicate keys cannot change terms
+ok 6 - chain: cross-session read/mutation denied, duplicate keys cannot change terms
+  ---
+  duration_ms: 1.054792
+  type: 'test'
+  ...
+# Subtest: chain: concurrent requests serialize and an unresolved transaction blocks a new action
+ok 7 - chain: concurrent requests serialize and an unresolved transaction blocks a new action
+  ---
+  duration_ms: 0.994083
+  type: 'test'
+  ...
+# Subtest: chain: unknown RPC status remains recoverable and does not claim confirmation
+ok 8 - chain: unknown RPC status remains recoverable and does not claim confirmation
+  ---
+  duration_ms: 1.937625
+  type: 'test'
+  ...
+# Subtest: HTTP: secure sessions, CSRF, malformed requests, concurrency, static ranges and readiness
+ok 9 - HTTP: secure sessions, CSRF, malformed requests, concurrency, static ranges and readiness
+  ---
+  duration_ms: 48.294875
+  type: 'test'
+  ...
+# Subtest: chain: a delayed read preserves newer transaction evidence
+ok 10 - chain: a delayed read preserves newer transaction evidence
+  ---
+  duration_ms: 2.106
+  type: 'test'
+  ...
+# Subtest: chain transport: a merely processed error remains pending until confirmation
+ok 11 - chain transport: a merely processed error remains pending until confirmation
+  ---
+  duration_ms: 0.931792
+  type: 'test'
+  ...
+# Subtest: worked put-spread examples match independently specified economics
+ok 12 - worked put-spread examples match independently specified economics
+  ---
+  duration_ms: 0.683583
+  type: 'test'
+  ...
+# Subtest: worked capped call examples
+ok 13 - worked capped call examples
+  ---
+  duration_ms: 0.13325
+  type: 'test'
+  ...
+# Subtest: 10000 property samples: independent option legs, bounds and allocation conservation
+ok 14 - 10000 property samples: independent option legs, bounds and allocation conservation
+  ---
+  duration_ms: 14.808458
+  type: 'test'
+  ...
+# Subtest: fractional quantity and rounding at strike boundaries
+ok 15 - fractional quantity and rounding at strike boundaries
+  ---
+  duration_ms: 0.1115
+  type: 'test'
+  ...
+# Subtest: rejects invalid terms, nonfinite inputs and excess precision
+ok 16 - rejects invalid terms, nonfinite inputs and excess precision
+  ---
+  duration_ms: 0.292708
+  type: 'test'
+  ...
+# Subtest: funding reserves once and atomic acceptance transfers only premium
+ok 17 - funding reserves once and atomic acceptance transfers only premium
+  ---
+  duration_ms: 9.561667
+  type: 'test'
+  ...
+# Subtest: expired acceptance fails without mutating balances; reserve is reclaimable
+ok 18 - expired acceptance fails without mutating balances; reserve is reclaimable
+  ---
+  duration_ms: 0.326625
+  type: 'test'
+  ...
+# Subtest: missing data keeps reserve locked; recovery and keeper retry are idempotent
+ok 19 - missing data keeps reserve locked; recovery and keeper retry are idempotent
+  ---
+  duration_ms: 0.602584
+  type: 'test'
+  ...
+# Subtest: claims distribute every unit once and close only after both claims
+ok 20 - claims distribute every unit once and close only after both claims
+  ---
+  duration_ms: 0.548417
+  type: 'test'
+  ...
+# Subtest: insufficient funds and duplicate IDs cannot corrupt the book
+ok 21 - insufficient funds and duplicate IDs cannot corrupt the book
+  ---
+  duration_ms: 0.421167
+  type: 'test'
+  ...
+# Subtest: historical snapshot is monotonic, complete OHLC, excludes non-sessions
+ok 22 - historical snapshot is monotonic, complete OHLC, excludes non-sessions
+  ---
+  duration_ms: 0.136917
+  type: 'test'
+  ...
+# Subtest: three historical scenarios produce exact distinct payouts
+ok 23 - three historical scenarios produce exact distinct payouts
+  ---
+  duration_ms: 0.08025
+  type: 'test'
+  ...
+# Subtest: caller cannot choose a favorable historical sample
+ok 24 - caller cannot choose a favorable historical sample
+  ---
+  duration_ms: 0.154958
+  type: 'test'
+  ...
+# Subtest: SPL integer compatibility: independent Node 64-bit codec and wider boundaries
+ok 25 - SPL integer compatibility: independent Node 64-bit codec and wider boundaries
+  ---
+  duration_ms: 6.3585
+  type: 'test'
+  ...
+# Subtest: SPL integer compatibility: allocation bounds, negative values and overflow fail closed
+ok 26 - SPL integer compatibility: allocation bounds, negative values and overflow fail closed
+  ---
+  duration_ms: 0.334083
+  type: 'test'
+  ...
+# Subtest: historical settlement provenance matches retained source bytes
+ok 27 - historical settlement provenance matches retained source bytes
+  ---
+  duration_ms: 3.703875
+  type: 'test'
+  ...
+# Subtest: curves: independent quadratic and exponential values, both directions, capped tails and exact inverse truncation
+ok 28 - curves: independent quadratic and exponential values, both directions, capped tails and exact inverse truncation
+  ---
+  duration_ms: 6.017875
+  type: 'test'
+  ...
+# Subtest: curves: rejects malformed, mixed, unbounded, zero-payable and wrong dividend events
+ok 29 - curves: rejects malformed, mixed, unbounded, zero-payable and wrong dividend events
+  ---
+  duration_ms: 0.743708
+  type: 'test'
+  ...
+# Subtest: nonlinear reserve nets identical inverses only and remains conservative across shapes and quantities
+ok 30 - nonlinear reserve nets identical inverses only and remains conservative across shapes and quantities
+  ---
+  duration_ms: 4.601125
+  type: 'test'
+  ...
+# Subtest: calendar margin uses an earlier guaranteed box receipt; withdrawal and multi-date settlement remain solvent
+ok 31 - calendar margin uses an earlier guaranteed box receipt; withdrawal and multi-date settlement remain solvent
+  ---
+  duration_ms: 9.499
+  type: 'test'
+  ...
+# Subtest: a future box cannot finance an earlier obligation; unrelated calendar spreads get no assumed hedge credit
+ok 32 - a future box cannot finance an earlier obligation; unrelated calendar spreads get no assumed hedge credit
+  ---
+  duration_ms: 0.293458
+  type: 'test'
+  ...
+# Subtest: calendar reserves cover every intermediate prefix under independent price paths
+ok 33 - calendar reserves cover every intermediate prefix under independent price paths
+  ---
+  duration_ms: 14.209042
+  type: 'test'
+  ...
+# Subtest: hourly expiries advance without look-ahead and settle at their exact committed clock observation
+ok 34 - hourly expiries advance without look-ahead and settle at their exact committed clock observation
+  ---
+  duration_ms: 1.40575
+  type: 'test'
+  ...
+# Subtest: chain indications match executable model premiums and expose physical exercise backing even with an empty vault
+ok 35 - chain indications match executable model premiums and expose physical exercise backing even with an empty vault
+  ---
+  duration_ms: 0.858625
+  type: 'test'
+  ...
+# Subtest: server sizing respects actual rounded premium budgets, sensitivity targets and quantity limits
+ok 36 - server sizing respects actual rounded premium budgets, sensitivity targets and quantity limits
+  ---
+  duration_ms: 6.9635
+  type: 'test'
+  ...
+# Subtest: 500 nonlinear positions retain bounded risk calculation cost
+ok 37 - 500 nonlinear positions retain bounded risk calculation cost
+  ---
+  duration_ms: 3.962084
+  type: 'test'
+  ...
+# (node:31511) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: quote: an unfunded physical call still reports all exercise collateral
+ok 38 - quote: an unfunded physical call still reports all exercise collateral
+  ---
+  duration_ms: 3.347708
+  type: 'test'
+  ...
+# Subtest: zero payable contracts are rejected before any premium or position can be recorded
+ok 39 - zero payable contracts are rejected before any premium or position can be recorded
+  ---
+  duration_ms: 1.582333
+  type: 'test'
+  ...
+# Subtest: precision validation rejects seven decimals before chart math
+ok 40 - precision validation rejects seven decimals before chart math
+  ---
+  duration_ms: 0.175083
+  type: 'test'
+  ...
+# Subtest: covered-call total strategy includes the underlying stock loss
+ok 41 - covered-call total strategy includes the underlying stock loss
+  ---
+  duration_ms: 0.106542
+  type: 'test'
+  ...
+# Subtest: closing uses a reviewed owner-bound quote and returns the exact signed cash amount
+ok 42 - closing uses a reviewed owner-bound quote and returns the exact signed cash amount
+  ---
+  duration_ms: 2.750042
+  type: 'test'
+  ...
+# Subtest: a completed historical replay restarts without reusing revision or deleting receipts
+ok 43 - a completed historical replay restarts without reusing revision or deleting receipts
+  ---
+  duration_ms: 1.736208
+  type: 'test'
+  ...
+# Subtest: 500-position risk calculation remains bounded after replacing quadratic sampling
+ok 44 - 500-position risk calculation remains bounded after replacing quadratic sampling
+  ---
+  duration_ms: 13.445458
+  type: 'test'
+  ...
+# Subtest: productive lending sells the borrowed stock, reserves protection, and repurchases principal
+ok 45 - productive lending sells the borrowed stock, reserves protection, and repurchases principal
+  ---
+  duration_ms: 0.993208
+  type: 'test'
+  ...
+# Subtest: market shares pledged to loan protection cannot be sold again
+ok 46 - market shares pledged to loan protection cannot be sold again
+  ---
+  duration_ms: 0.507166
+  type: 'test'
+  ...
+# Subtest: the program commits exactly the same historical dates and prices as the backend
+ok 47 - the program commits exactly the same historical dates and prices as the backend
+  ---
+  duration_ms: 1.288625
+  type: 'test'
+  ...
+# (node:31512) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: onchain success followed by interrupted indexing resumes the original signed operation after restart
+ok 48 - onchain success followed by interrupted indexing resumes the original signed operation after restart
+  ---
+  duration_ms: 356.093083
+  type: 'test'
+  ...
+# Subtest: lost broadcast response is reconciled from the signature without a second economic execution
+ok 49 - lost broadcast response is reconciled from the signature without a second economic execution
+  ---
+  duration_ms: 353.942334
+  type: 'test'
+  ...
+# Subtest: onchain mutations remain uncommitted in SQLite while confirmation is pending
+ok 50 - onchain mutations remain uncommitted in SQLite while confirmation is pending
+  ---
+  duration_ms: 2113.230833
+  type: 'test'
+  ...
+# Subtest: a rejected chain-mode intent is a definite conflict and never leaves a pending operation
+ok 51 - a rejected chain-mode intent is a definite conflict and never leaves a pending operation
+  ---
+  duration_ms: 357.060666
+  type: 'test'
+  ...
+# (node:31513) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: vault HTTP: actual routes enforce ownership, CSRF, input limits, revision and concurrent idempotency
+ok 52 - vault HTTP: actual routes enforce ownership, CSRF, input limits, revision and concurrent idempotency
+  ---
+  duration_ms: 84.243791
+  type: 'test'
+  ...
+# Request failed: Error: audit injected receipt failure
+#     at Store.saveReceipt (/Users/nichar/Brain/Projects/oddlot/server/db/store.ts:115:8)
+#     at VaultService.commit (/Users/nichar/Brain/Projects/oddlot/server/oddlot/service.ts:393:16)
+#     at <anonymous> (/Users/nichar/Brain/Projects/oddlot/server/oddlot/service.ts:404:19)
+#     at Store.transaction (/Users/nichar/Brain/Projects/oddlot/server/db/store.ts:49:22)
+#     at VaultService.transaction (/Users/nichar/Brain/Projects/oddlot/server/oddlot/service.ts:114:25)
+#     at VaultService.apply (/Users/nichar/Brain/Projects/oddlot/server/oddlot/service.ts:399:17)
+#     at Server.<anonymous> (/Users/nichar/Brain/Projects/oddlot/server/app.ts:181:25)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+#   code: 'ERR_SQLITE_ERROR',
+#   errcode: 1811,
+#   errstr: 'constraint failed'
+# }
+# Subtest: vault HTTP: failed receipt persistence rolls back balances, positions, quote consumption and audit; disk restart preserves original receipt
+ok 53 - vault HTTP: failed receipt persistence rolls back balances, positions, quote consumption and audit; disk restart preserves original receipt
+  ---
+  duration_ms: 30.426333
+  type: 'test'
+  ...
+# Subtest: static fallback never follows an index symlink outside the public root
+ok 54 - static fallback never follows an index symlink outside the public root
+  ---
+  duration_ms: 9.467042
+  type: 'test'
+  ...
+# Subtest: migration: a real version-one SQLite database upgrades additively and reopens
+ok 55 - migration: a real version-one SQLite database upgrades additively and reopens
+  ---
+  duration_ms: 7.75175
+  type: 'test'
+  ...
+# Subtest: product catalog HTTP: chain and sizing are guarded, revision-bound, read-only and match the funded quote
+ok 56 - product catalog HTTP: chain and sizing are guarded, revision-bound, read-only and match the funded quote
+  ---
+  duration_ms: 28.552208
+  type: 'test'
+  ...
+# (node:31514) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: vault: deposits and withdrawals conserve exact fractional cash and shares
+ok 57 - vault: deposits and withdrawals conserve exact fractional cash and shares
+  ---
+  duration_ms: 4.059375
+  type: 'test'
+  ...
+# Subtest: vault: invalid amounts, unsupported assets and insufficient funding cannot mutate the book
+ok 58 - vault: invalid amounts, unsupported assets and insufficient funding cannot mutate the book
+  ---
+  duration_ms: 1.476875
+  type: 'test'
+  ...
+# Subtest: vault: quote execution is owner-bound, revision-bound, expiring and exactly once
+ok 59 - vault: quote execution is owner-bound, revision-bound, expiring and exactly once
+  ---
+  duration_ms: 10.311917
+  type: 'test'
+  ...
+# Subtest: vault: stale quote, stale tab and reused key with different action are rejected
+ok 60 - vault: stale quote, stale tab and reused key with different action are rejected
+  ---
+  duration_ms: 1.840292
+  type: 'test'
+  ...
+# Subtest: vault: covered fractional call cannot pledge stock twice; physical assignment transfers exact assets
+ok 61 - vault: covered fractional call cannot pledge stock twice; physical assignment transfers exact assets
+  ---
+  duration_ms: 1.971708
+  type: 'test'
+  ...
+# Subtest: vault: cash-secured put assignment buys precisely one share at the strike
+ok 62 - vault: cash-secured put assignment buys precisely one share at the strike
+  ---
+  duration_ms: 1.283375
+  type: 'test'
+  ...
+# Subtest: vault: cross collateral only releases matched expiry exposure and protects hedge removal
+ok 63 - vault: cross collateral only releases matched expiry exposure and protects hedge removal
+  ---
+  duration_ms: 2.588084
+  type: 'test'
+  ...
+# Subtest: vault: different expiries do not net; isolated mode reserves independently
+ok 64 - vault: different expiries do not net; isolated mode reserves independently
+  ---
+  duration_ms: 1.929875
+  type: 'test'
+  ...
+# Subtest: vault: stock loan prefunds interest and collateral; recall returns assets once
+ok 65 - vault: stock loan prefunds interest and collateral; recall returns assets once
+  ---
+  duration_ms: 1.763334
+  type: 'test'
+  ...
+# Subtest: vault: protected short covers from sale proceeds and locks maximum loss, including interest
+ok 66 - vault: protected short covers from sale proceeds and locks maximum loss, including interest
+  ---
+  duration_ms: 2.364416
+  type: 'test'
+  ...
+# Subtest: vault: short above cap exercises reserved stock and stays within maximum loss
+ok 67 - vault: short above cap exercises reserved stock and stays within maximum loss
+  ---
+  duration_ms: 1.782041
+  type: 'test'
+  ...
+# Subtest: vault: stock trades exchange assets, cannot oversell and cannot mint cash
+ok 68 - vault: stock trades exchange assets, cannot oversell and cannot mint cash
+  ---
+  duration_ms: 1.40775
+  type: 'test'
+  ...
+# Subtest: vault: dividend cap settles from the committed event and conserves micro-unit payouts
+ok 69 - vault: dividend cap settles from the committed event and conserves micro-unit payouts
+  ---
+  duration_ms: 1.500167
+  type: 'test'
+  ...
+# Subtest: vault: every structure accepts valid collateral and settles before final date
+ok 70 - vault: every structure accepts valid collateral and settles before final date
+  ---
+  duration_ms: 25.832667
+  type: 'test'
+  ...
+# Subtest: risk: independent dense price sampling never exceeds the exact collateral envelope
+ok 71 - risk: independent dense price sampling never exceeds the exact collateral envelope
+  ---
+  duration_ms: 21.251709
+  type: 'test'
+  ...
+# Subtest: math: share quantity scales premium and dollar theta without changing per-share decay
+ok 72 - math: share quantity scales premium and dollar theta without changing per-share decay
+  ---
+  duration_ms: 0.157917
+  type: 'test'
+  ...
+# Subtest: vault: a stored book reopens with its positions and revision intact
+ok 73 - vault: a stored book reopens with its positions and revision intact
+  ---
+  duration_ms: 1.53775
+  type: 'test'
+  ...
+# Subtest: risk: cross-contract rounding cannot exceed collateral between strike boundaries
+ok 74 - risk: cross-contract rounding cannot exceed collateral between strike boundaries
+  ---
+  duration_ms: 0.292167
+  type: 'test'
+  ...
+# Subtest: risk: seeded mixed fractional cash portfolios are funded to the exact base unit
+ok 75 - risk: seeded mixed fractional cash portfolios are funded to the exact base unit
+  ---
+  duration_ms: 16.826083
+  type: 'test'
+  ...
+# Subtest: vault: fractional cross collateral settles after all free cash is withdrawn at a real stored close
+ok 76 - vault: fractional cross collateral settles after all free cash is withdrawn at a real stored close
+  ---
+  duration_ms: 2.687583
+  type: 'test'
+  ...
+1..76
+# tests 76
+# suites 0
+# pass 76
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3409.447667
+
+> oddlot@0.4.0 build
+> vinext build
+
+
+  vinext build  (Vite 8.3.0)
+
+[1/5] analyze client references...
+transforming...
+✓ 240 modules transformed.
+rendering chunks...
+✓ built in 346ms
+[2/5] analyze server references...
+transforming...
+✓ 920 modules transformed.
+rendering chunks...
+✓ built in 556ms
+[3/5] build rsc environment...
+transforming...
+✓ 231 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 298ms
+[4/5] build client environment...
+transforming...
+✓ 2668 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 1.08s
+[5/5] build ssr environment...
+transforming...
+✓ 917 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 436ms
+  Pre-rendering all routes (output: 'export')...
+[vinext] Production server for prerendering running at http://127.0.0.1:52780
+  Prerendered 3 routes (0 skipped).
+  Discovered 2 CDN warmup path(s).
+
+  Route (app)
+  ┌ ○ /
+  └ ○ /legacy
+
+  ○ Static
+
+  ○ Routes marked static were confirmed by speculative prerender (attempted render
+    succeeded without dynamic API usage).
+
+  Build complete. Run `vinext start` to start the production server.

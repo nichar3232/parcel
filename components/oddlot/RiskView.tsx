@@ -65,7 +65,7 @@ export function RiskView({ desk }: { desk: VaultController }) {
                 id: 'cross',
                 title: 'Cross collateral',
                 description:
-                  'Net obligations only within the same reference, expiry, and settlement type. Joint expiry settlement preserves those offsets.',
+                  'Net matching settlement obligations. Earlier guaranteed cash receipts can fund later obligations, with every intermediate cash deficit reserved.',
               },
               {
                 id: 'isolated',
@@ -97,7 +97,8 @@ export function RiskView({ desk }: { desk: VaultController }) {
             <h2>Settlement groups</h2>
             <p>
               Worst-case cash and share deliveries are checked at every strike
-              boundary and price tail.
+              boundary and price tail. Group figures precede calendar offsets;
+              the vault total above includes them.
             </p>
           </div>
         </div>
@@ -109,7 +110,7 @@ export function RiskView({ desk }: { desk: VaultController }) {
                   <th>Expiry group</th>
                   <th>Contracts</th>
                   <th>Settlement</th>
-                  <th>Your cash reserved</th>
+                  <th>Standalone group cash</th>
                   <th>Your shares reserved</th>
                   <th>Counterparty backing</th>
                 </tr>
@@ -122,7 +123,14 @@ export function RiskView({ desk }: { desk: VaultController }) {
                     </td>
                     <td>{g.positions}</td>
                     <td>{g.settlement}</td>
-                    <td>{usd(g.cash)}</td>
+                    <td>
+                      {usd(g.cash)}
+                      {g.cashMinimum > 0 && (
+                        <small>
+                          Guaranteed receipt {usd(g.cashMinimum, 6)}
+                        </small>
+                      )}
+                    </td>
                     <td>{qty(g.shares)} NVDA</td>
                     <td>
                       {usd(g.counterpartyCash)} + {qty(g.counterpartyShares)}{' '}
@@ -170,10 +178,10 @@ export function RiskView({ desk }: { desk: VaultController }) {
           <span className="od-eyebrow">EXPLICIT BOUNDARIES</span>
           <h3>Offsets must survive settlement.</h3>
           <p>
-            No offsets between different expiries, dividend and stock
-            references, cash and physical contracts, or external lenders. This
-            is a fully reserved delivery engine, not broker portfolio margin or
-            correlation-based leverage.
+            Calendar offsets use guaranteed minimum cash receipts only. A later
+            receipt cannot finance an earlier payment. Unrelated directional
+            bets, loan escrows and protected-short reserves receive no
+            correlation credit. Curves offset only identical opposite contracts.
           </p>
           <p>
             Stock shorts use covered protective calls, not a liquidation
