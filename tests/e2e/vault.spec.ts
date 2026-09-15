@@ -6,6 +6,7 @@ test.beforeEach(async ({ page }) => {
   page.on('pageerror', (e) => list.push(e.message));
   await page.goto('/');
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await nav(page, 'Vault');
 });
 test.afterEach(({ page }) => {
   expect(errors.get(page)).toEqual([]);
@@ -249,6 +250,7 @@ test('a dropped mutation response retries once with the same receipt, not anothe
   await expect(page.getByText('Vault deposit', { exact: true })).toHaveCount(1);
   await page.reload();
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await nav(page, 'Vault');
   await expect(page.locator('.od-capital-card')).toContainText('$100.00');
 });
 test('a second tab cannot overwrite the first tab’s vault revision', async ({
@@ -258,6 +260,7 @@ test('a second tab cannot overwrite the first tab’s vault revision', async ({
   const second = await context.newPage();
   await second.goto('/');
   await expect(second.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await nav(second, 'Vault');
   await second
     .getByRole('button', { name: 'Deposit USDC', exact: true })
     .click();
@@ -281,6 +284,7 @@ test('backend outage shows a recovery action and reconnect resumes the saved vau
   await page.unroute('**/api/vault');
   await page.getByRole('button', { name: 'Reconnect' }).click();
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await nav(page, 'Vault');
   await expect(page.locator('.od-capital-card')).toContainText('$100.00');
 });
 
@@ -378,6 +382,7 @@ test('two lost responses survive reload and resolve the original deposit exactly
   await expect(
     page.getByRole('button', { name: 'Resolve saved action' }),
   ).toBeVisible();
+  await nav(page, 'Vault');
   await page.getByRole('button', { name: 'Deposit USDC', exact: true }).click();
   await page.getByLabel('Amount', { exact: true }).fill('200');
   await page
@@ -399,6 +404,7 @@ test('two lost responses survive reload and resolve the original deposit exactly
   ).toHaveCount(0);
   expect(keys).toHaveLength(3);
   expect(new Set(keys).size).toBe(1);
+  await nav(page, 'Vault');
   await expect(page.locator('.od-capital-card')).toContainText('$100.00');
   await nav(page, 'Activity');
   await expect(page.getByText('Vault deposit', { exact: true })).toHaveCount(1);
@@ -489,6 +495,7 @@ test('a refreshed vault invalidates a reviewed stock trade without silently chan
   const second = await context.newPage();
   await second.goto('/');
   await expect(second.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await nav(second, 'Vault');
   await advance(second, '2025-01-27');
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.getByRole('dialog')).toContainText('Your vault changed');

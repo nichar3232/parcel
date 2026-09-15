@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   ChevronDown,
   CircleHelp,
+  Compass,
   Layers3,
   Landmark,
   Menu,
@@ -15,6 +16,8 @@ import {
   X,
 } from 'lucide-react';
 import { useVault } from '@/hooks/oddlot/use-vault';
+import { ExploreView } from '@/components/oddlot/consumer/ExploreView';
+import type { ExploreDraft } from '@/lib/oddlot/explore';
 import { VaultView } from '@/components/oddlot/VaultView';
 import { OptionsView } from '@/components/oddlot/OptionsView';
 import { LendingView } from '@/components/oddlot/LendingView';
@@ -30,7 +33,9 @@ import {
   usd,
 } from '@/components/oddlot/shared';
 import './oddlot.css';
+import './consumer.css';
 const navigation = [
+  { name: 'Explore', icon: Compass },
   { name: 'Vault', icon: Wallet },
   { name: 'Trade', icon: ArrowUpRight },
   { name: 'Underwrite', icon: Landmark },
@@ -41,14 +46,25 @@ const navigation = [
 ];
 export default function Home() {
   const desk = useVault(),
-    [page, setPage] = useState('Vault'),
+    [page, setPage] = useState('Explore'),
+    [launch, setLaunch] = useState<{
+      page: string;
+      draft: ExploreDraft;
+      id: number;
+    } | null>(null),
     [mobile, setMobile] = useState(false),
     [modal, setModal] = useState<'market' | 'wallet' | 'about' | null>(null),
     [nextDate, setNextDate] = useState('');
   const navigate = (value: string) => {
+    setLaunch(null);
     setPage(value);
     setMobile(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({
+      top: 0,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth',
+    });
   };
   const s = desk.state;
   const future = s?.market.dates.filter((d) => d > s.book.date) || [];
@@ -66,7 +82,7 @@ export default function Home() {
         />
       )}
       <aside className={`od-sidebar ${mobile ? 'open' : ''}`}>
-        <button className="od-brand" onClick={() => navigate('Vault')}>
+        <button className="od-brand" onClick={() => navigate('Explore')}>
           <span className="od-brand-symbol">
             <i />
             <i />
@@ -78,9 +94,9 @@ export default function Home() {
           PERSONAL WORKSPACE<Badge tone="nav">01</Badge>
         </div>
         <nav aria-label="Main navigation">
-          {navigation.map(({ name, icon: Icon }, i) => (
+          {navigation.map(({ name, icon: Icon }) => (
             <button
-              className={`od-nav-item ${page === name ? 'active' : ''} ${i === 5 ? 'separated' : ''}`}
+              className={`od-nav-item ${page === name ? 'active' : ''} ${name === 'Risk' ? 'separated' : ''}`}
               key={name}
               aria-current={page === name ? 'page' : undefined}
               onClick={() => navigate(name)}
@@ -194,17 +210,57 @@ export default function Home() {
             </output>
           ) : (
             <>
+              {page === 'Explore' && (
+                <ExploreView
+                  key={s.csrf.slice(0, 16)}
+                  desk={desk}
+                  navigate={navigate}
+                  openDraft={(destination, draft) => {
+                    setLaunch({ page: destination, draft, id: Date.now() });
+                    setPage(destination);
+                    window.scrollTo({
+                      top: 0,
+                      behavior: window.matchMedia(
+                        '(prefers-reduced-motion: reduce)',
+                      ).matches
+                        ? 'auto'
+                        : 'smooth',
+                    });
+                  }}
+                />
+              )}
               {page === 'Vault' && (
                 <VaultView desk={desk} navigate={navigate} />
               )}{' '}
               {page === 'Trade' && (
-                <OptionsView key="trade" desk={desk} mode="trade" />
+                <OptionsView
+                  key={`trade:${launch?.id || 0}`}
+                  initialDraft={
+                    launch?.page === page ? launch.draft : undefined
+                  }
+                  desk={desk}
+                  mode="trade"
+                />
               )}
               {page === 'Underwrite' && (
-                <OptionsView key="underwrite" desk={desk} mode="underwrite" />
+                <OptionsView
+                  key={`underwrite:${launch?.id || 0}`}
+                  initialDraft={
+                    launch?.page === page ? launch.draft : undefined
+                  }
+                  desk={desk}
+                  mode="underwrite"
+                />
               )}
               {page === 'Structures' && (
-                <OptionsView key="structures" desk={desk} mode="structures" />
+                <OptionsView
+                  key={`structures:${launch?.id || 0}`}
+                  initialDraft={
+                    launch?.page === page ? launch.draft : undefined
+                  }
+                  desk={desk}
+                  mode="structures"
+                />
               )}
               {page === 'Lending' && <LendingView desk={desk} />}{' '}
               {page === 'Risk' && <RiskView desk={desk} />}{' '}

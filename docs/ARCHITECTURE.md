@@ -2,6 +2,8 @@
 
 The new vault engine is specified in [PRODUCT.md](PRODUCT.md) and [DEVELOPMENT.md](DEVELOPMENT.md). It adds owner-scoped `vault_accounts` and `vault_quotes`, a settlement collateral engine with cross-contract rounding protection in `lib/oddlot`, and atomic actions in `server/oddlot`. The browser delegates all execution to that service. Custody is explicitly either persistent sandbox accounting or the current private-validator Oddlot protocol.
 
+The default Explore view is a presentation layer over the same engine. `lib/oddlot/explore.ts` builds validated fractional presets and model illustrations; `ExploreView` reuses `PayoffChart`, including underlying shares for protective puts and covered calls. Exploring does not mutate the vault. Opening a setup passes its complete terms to `OptionsView`, which requests the normal server-authoritative funded quote before confirmation. Displayed standalone exercise backing is not a portfolio collateral quote.
+
 ## Vault boundaries
 
 ```mermaid

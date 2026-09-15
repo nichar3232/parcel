@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
 import { ArrowRight, ChevronRight, LockKeyhole } from 'lucide-react';
+import type { ExploreDraft } from '@/lib/oddlot/explore';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { OrderTerms, Quote } from '@/lib/oddlot/types';
 import { deliveryBounds } from '@/lib/oddlot/envelope';
@@ -29,9 +30,11 @@ import {
 export function OptionsView({
   desk,
   mode,
+  initialDraft,
 }: {
   desk: VaultController;
   mode: 'trade' | 'underwrite' | 'structures';
+  initialDraft?: ExploreDraft;
 }) {
   const state = desk.state!;
   const future = selectableExpiries(state.book.date),
@@ -41,14 +44,15 @@ export function OptionsView({
     [browse, setBrowse] = useState(false),
     [category, setCategory] = useState('Direction');
   const [selected, setSelected] = useState(
-    mode === 'underwrite'
-      ? 'covered-call'
-      : mode === 'structures'
-        ? 'call-spread'
-        : 'call',
+    initialDraft?.templateId ||
+      (mode === 'underwrite'
+        ? 'covered-call'
+        : mode === 'structures'
+          ? 'call-spread'
+          : 'call'),
   );
-  const [draft, setDraft] = useState<OrderTerms>(() =>
-      templateTerms(selected, defaultExpiry),
+  const [draft, setDraft] = useState<OrderTerms>(
+      () => initialDraft?.terms || templateTerms(selected, defaultExpiry),
     ),
     [quote, setQuote] = useState<Quote | null>(null),
     [requesting, setRequesting] = useState(false),

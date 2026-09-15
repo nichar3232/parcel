@@ -88,7 +88,14 @@ export function PayoffChart({
               fill="#8891a2"
               fontSize="10"
             >
-              {usd(max - spread * n, terms.reference === 'dividend' ? 3 : 0)}
+              {usd(
+                max - spread * n,
+                terms.reference === 'dividend' || spread < 0.1
+                  ? 3
+                  : spread < 10
+                    ? 2
+                    : 0,
+              )}
             </text>
           </g>
         ))}
