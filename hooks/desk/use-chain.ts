@@ -2,7 +2,7 @@
 import type { ChainEvidence, ChainPosition, Health } from '@/lib/contracts/api';
 import type { Terms } from '@/lib/engine';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, requestKey, RequestError } from './use-portfolio';
+import { api, requestKey, RequestError } from '@/lib/client/api';
 export function useChain(
   csrf: string,
   terms: Terms,

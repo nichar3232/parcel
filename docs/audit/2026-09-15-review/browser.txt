@@ -1,0 +1,38 @@
+
+> oddlot@0.3.0 test:e2e
+> playwright test
+
+[WebServer] (node:89549) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:89550) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:89550) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+
+Running 22 tests using 1 worker
+
+(node:89559) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/e2e/desk.spec.ts:26:1 › complete historical lifecycle through the real backend, reload and both claims (1.0s)
+  ✓   2 tests/e2e/desk.spec.ts:58:1 › maker cancellation reclaims reserve and invalid builder inputs never crash (755ms)
+  ✓   3 tests/e2e/desk.spec.ts:81:1 › a stale second tab cannot overwrite a newer portfolio (550ms)
+  ✓   4 tests/e2e/desk.spec.ts:106:1 › backend failure is visible and reconnect restores the session (312ms)
+  ✓   5 tests/e2e/desk.spec.ts:118:1 › all views and dialogs work at desktop and mobile widths without page overflow (1.8s)
+  ✓   6 tests/e2e/desk.spec.ts:154:1 › missing historical observation keeps the reserve locked and recovery pays once (1.1s)
+  ✓   7 tests/e2e/desk.spec.ts:175:1 › a dropped mutation response retries the same request without a second quote (275ms)
+  ✓   8 tests/e2e/desk.spec.ts:197:1 › settlement uses the chain clock even when wall time is far ahead (3.7s)
+  ✓   9 tests/e2e/vault.spec.ts:65:1 › vault deposits, fractional covered underwriting, blocked withdrawal and expiry persist through reload (1.6s)
+  ✓  10 tests/e2e/vault.spec.ts:102:1 › structured orders release only valid collateral offsets; risk view stays synchronized (1.4s)
+  ✓  11 tests/e2e/vault.spec.ts:133:1 › lending, recall and a protected short complete through the real API (1.8s)
+  ✓  12 tests/e2e/vault.spec.ts:170:1 › dividend contracts execute and settle from the stored event (1.0s)
+  ✓  13 tests/e2e/vault.spec.ts:186:1 › every workspace view fits desktop and mobile, with accessible forms and no page overflow (7.0s)
+  ✓  14 tests/e2e/vault.spec.ts:226:1 › a dropped mutation response retries once with the same receipt, not another deposit (575ms)
+  ✓  15 tests/e2e/vault.spec.ts:244:1 › a second tab cannot overwrite the first tab’s vault revision (757ms)
+  ✓  16 tests/e2e/vault.spec.ts:264:1 › backend outage shows a recovery action and reconnect resumes the saved vault (609ms)
+  ✓  17 tests/e2e/vault.spec.ts:277:1 › invalid precision and out-of-range strikes never crash the payoff view (348ms)
+  ✓  18 tests/e2e/vault.spec.ts:309:1 › a delayed quote cannot replace edited contract terms (648ms)
+  ✓  19 tests/e2e/vault.spec.ts:347:1 › two lost responses survive reload and resolve the original deposit exactly once (795ms)
+  ✓  20 tests/e2e/vault.spec.ts:396:1 › an unreadable success response recovers using the same idempotency key (370ms)
+  ✓  21 tests/e2e/vault.spec.ts:417:1 › a delayed response from an old session cannot replace the new session vault (587ms)
+  ✓  22 tests/e2e/vault.spec.ts:470:1 › a refreshed vault invalidates a reviewed stock trade without silently changing its price (1.3s)
+
+  22 passed (29.7s)

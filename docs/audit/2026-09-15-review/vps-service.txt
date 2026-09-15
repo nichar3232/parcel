@@ -1,0 +1,8 @@
+active
+active
+/opt/stocklana/releases/20260915T051923Z
+{"ok":true,"app":"strata","database":"ready","chain":{"ready":true,"network":"localnet","slot":114175,"chainTime":1789456588},"serverTime":1789456589179}600 stocklana /opt/stocklana/.env
+600 stocklana /var/lib/stocklana/strata.sqlite
+Restart=always
+CPUQuotaPerSecUSec=1s
+MemoryMax=536870912

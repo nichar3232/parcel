@@ -68,6 +68,11 @@ test('vault deposits, fractional covered underwriting, blocked withdrawal and ex
   await deposit(page, 'NVDA', '0.333333');
   await deposit(page, 'USDC', '200');
   await nav(page, 'Underwrite');
+  await page.screenshot({
+    path: 'docs/audit/2026-09-15-review/invalid-terms.png',
+    fullPage: true,
+    animations: 'disabled',
+  });
   await page.getByLabel('Contract quantity').fill('0.333333');
   await page.getByLabel('Leg 1 strike', { exact: true }).fill('100');
   await page
@@ -267,4 +272,228 @@ test('backend outage shows a recovery action and reconnect resumes the saved vau
   await page.getByRole('button', { name: 'Reconnect' }).click();
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
   await expect(page.locator('.od-capital-card')).toContainText('$100.00');
+});
+
+test('invalid precision and out-of-range strikes never crash the payoff view', async ({
+  page,
+}) => {
+  await nav(page, 'Trade');
+  for (const quantity of ['0.0000001', '0.3333333', '1001']) {
+    await page.getByLabel('Contract quantity').fill(quantity);
+    await expect(
+      page.getByRole('button', { name: 'Review funded quote' }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole('heading', { name: 'Choose valid terms' }),
+    ).toBeVisible();
+    await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  }
+  await page.screenshot({
+    path: 'docs/audit/2026-09-15-review/invalid-terms.png',
+    fullPage: true,
+    animations: 'disabled',
+  });
+  await page.getByLabel('Contract quantity').fill('0.333333');
+  await page.getByLabel('Leg 1 strike', { exact: true }).fill('10000000000');
+  await expect(
+    page.getByRole('button', { name: 'Review funded quote' }),
+  ).toBeDisabled();
+  await page.getByLabel('Leg 1 strike', { exact: true }).fill('145');
+  await expect(
+    page.getByRole('button', { name: 'Review funded quote' }),
+  ).toBeEnabled();
+  await expect(
+    page.getByLabel('Option profit and loss across underlying prices'),
+  ).toBeVisible();
+});
+test('a delayed quote cannot replace edited contract terms', async ({
+  page,
+}) => {
+  await deposit(page, 'USDC', '500');
+  await nav(page, 'Trade');
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requested!: () => void;
+  const received = new Promise<void>((resolve) => {
+    requested = resolve;
+  });
+  await page.route('**/api/vault/quote', async (route) => {
+    const response = await route.fetch();
+    requested();
+    await gate;
+    await route.fulfill({ response });
+  });
+  await page.getByRole('button', { name: 'Review funded quote' }).click();
+  await received;
+  await page.getByLabel('Contract quantity').fill('0.25');
+  release();
+  await expect(
+    page.getByRole('button', { name: 'Review funded quote' }),
+  ).toBeEnabled();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.unroute('**/api/vault/quote');
+  await page.getByRole('button', { name: 'Review funded quote' }).click();
+  await expect(page.getByRole('dialog')).toContainText('0.25 shares');
+  await page
+    .getByRole('button', { name: 'Confirm contract', exact: true })
+    .click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(
+    page.getByRole('cell', { name: '0.25', exact: true }),
+  ).toBeVisible();
+});
+test('two lost responses survive reload and resolve the original deposit exactly once', async ({
+  page,
+}) => {
+  const keys: string[] = [];
+  await page.route('**/api/vault/actions', async (route) => {
+    keys.push(route.request().headers()['idempotency-key']);
+    if (keys.length <= 2) {
+      await route.fetch();
+      await route.abort('connectionreset');
+    } else await route.continue();
+  });
+  await page.getByRole('button', { name: 'Deposit USDC', exact: true }).click();
+  await page.getByLabel('Amount', { exact: true }).fill('100');
+  await page
+    .getByRole('button', { name: 'Confirm deposit', exact: true })
+    .click();
+  await expect(page.locator('.od-toast')).toContainText(
+    'Confirmation is pending',
+  );
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await page.reload();
+  await expect(
+    page.getByRole('button', { name: 'Resolve saved action' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Deposit USDC', exact: true }).click();
+  await page.getByLabel('Amount', { exact: true }).fill('200');
+  await page
+    .getByRole('button', { name: 'Confirm deposit', exact: true })
+    .click();
+  await expect(page.locator('.od-toast')).toContainText(
+    'Resolve the saved action',
+  );
+  expect(keys).toHaveLength(2);
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await page.screenshot({
+    path: 'docs/audit/2026-09-15-review/recovery.png',
+    fullPage: true,
+    animations: 'disabled',
+  });
+  await page.getByRole('button', { name: 'Resolve saved action' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Resolve saved action' }),
+  ).toHaveCount(0);
+  expect(keys).toHaveLength(3);
+  expect(new Set(keys).size).toBe(1);
+  await expect(page.locator('.od-capital-card')).toContainText('$100.00');
+  await nav(page, 'Activity');
+  await expect(page.getByText('Vault deposit', { exact: true })).toHaveCount(1);
+});
+test('an unreadable success response recovers using the same idempotency key', async ({
+  page,
+}) => {
+  const keys: string[] = [];
+  await page.route('**/api/vault/actions', async (route) => {
+    keys.push(route.request().headers()['idempotency-key']);
+    if (keys.length === 1) {
+      await route.fetch();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: '{truncated',
+      });
+    } else await route.continue();
+  });
+  await deposit(page, 'USDC', '100');
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBe(keys[1]);
+  await nav(page, 'Activity');
+  await expect(page.getByText('Vault deposit', { exact: true })).toHaveCount(1);
+});
+test('a delayed response from an old session cannot replace the new session vault', async ({
+  page,
+  context,
+}) => {
+  await deposit(page, 'USDC', '25');
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requested!: () => void;
+  const received = new Promise<void>((resolve) => {
+    requested = resolve;
+  });
+  await page.route('**/api/vault/actions', async (route) => {
+    const response = await route.fetch();
+    requested();
+    await gate;
+    await route.fulfill({ response });
+  });
+  await page.getByRole('button', { name: 'Deposit USDC', exact: true }).click();
+  await page.getByLabel('Amount', { exact: true }).fill('100');
+  await page
+    .getByRole('button', { name: 'Confirm deposit', exact: true })
+    .click();
+  await received;
+  const old = await page.request.get('/api/vault');
+  const { csrf } = await old.json();
+  await context.clearCookies();
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect
+    .poll(
+      async () => (await (await page.request.get('/api/vault')).json()).csrf,
+    )
+    .not.toBe(csrf);
+  // Wait for the new snapshot to reach React before releasing the old response.
+  await expect(page.locator('.od-capital-card')).toContainText('$0.00');
+  release();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (token) =>
+          sessionStorage.getItem(`oddlot-pending-${token.slice(0, 16)}`),
+        csrf,
+      ),
+    )
+    .toBeNull();
+  await expect(page.locator('.od-capital-card')).toContainText('$0.00');
+  if (await page.getByRole('dialog').count())
+    await page.getByRole('button', { name: 'Close dialog' }).click();
+  await nav(page, 'Activity');
+  await expect(page.getByText('Vault deposit', { exact: true })).toHaveCount(0);
+});
+
+test('a refreshed vault invalidates a reviewed stock trade without silently changing its price', async ({
+  page,
+  context,
+}) => {
+  await deposit(page, 'USDC', '1000');
+  await nav(page, 'Lending');
+  await page.getByRole('button', { name: 'Buy / sell stock' }).click();
+  await page.getByRole('button', { name: 'Review stock trade' }).click();
+  await expect(page.getByRole('dialog')).toContainText('$142.62');
+  const second = await context.newPage();
+  await second.goto('/');
+  await expect(second.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await advance(second, '2025-01-27');
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(page.getByRole('dialog')).toContainText('Your vault changed');
+  await expect(page.getByRole('dialog')).toContainText('$142.62');
+  await expect(
+    page.getByRole('button', { name: 'Confirm transaction' }),
+  ).toBeDisabled();
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await page.getByRole('button', { name: 'Review stock trade' }).click();
+  await expect(page.getByRole('dialog')).toContainText('$118.42');
+  await page.getByRole('button', { name: 'Confirm transaction' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await nav(page, 'Vault');
+  await expect(
+    page.getByRole('row').filter({ hasText: 'NVIDIA' }),
+  ).toContainText('1');
+  await second.close();
 });

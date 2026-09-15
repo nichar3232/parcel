@@ -1,9 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ArrowRight, ChevronRight, LockKeyhole } from 'lucide-react';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { OrderTerms, Quote } from '@/lib/oddlot/types';
 import { bounded, orderGreeks } from '@/lib/oddlot/math';
+import { parseOrderTerms } from '@/lib/oddlot/validation';
 import { templates, templateTerms } from '@/lib/oddlot/templates';
 import { PayoffChart } from './PayoffChart';
 import { ContractLegEditor } from './ContractLegEditor';
@@ -54,12 +55,14 @@ export function OptionsView({
           ? draft.expiry
           : defaultExpiry,
   };
-  const invalid =
-    !Number.isFinite(effective.quantity) ||
-    effective.quantity <= 0 ||
-    effective.quantity > 1000 ||
-    effective.legs.some((l) => !Number.isFinite(l.strike) || l.strike <= 0) ||
-    !future.length;
+  let validationError = '';
+  try {
+    parseOrderTerms(effective, state.book.date);
+  } catch (e) {
+    validationError = (e as Error).message;
+  }
+  const invalid = !!validationError;
+  const draftRevision = useRef(0);
   const g = invalid
     ? { price: 0, delta: 0, gamma: 0, theta: 0, vega: 0 }
     : orderGreeks(
@@ -71,23 +74,28 @@ export function OptionsView({
         effective.reference === 'dividend' ? 0.8 : state.market.volatility,
       );
   const select = (id: string) => {
+    draftRevision.current++;
     setSelected(id);
     setDraft(templateTerms(id, defaultExpiry));
     setError('');
     setQuote(null);
   };
   const update = (patch: Partial<OrderTerms>) => {
+    draftRevision.current++;
     setDraft((d) => ({ ...d, ...patch }));
     setQuote(null);
     setError('');
   };
   const request = async () => {
+    const requestedDraft = draftRevision.current;
     setRequesting(true);
     setError('');
     try {
-      setQuote(await desk.quote(effective));
+      const result = await desk.quote(effective);
+      if (draftRevision.current === requestedDraft) setQuote(result);
     } catch (e) {
-      setError((e as Error).message);
+      if (draftRevision.current === requestedDraft)
+        setError((e as Error).message);
     } finally {
       setRequesting(false);
     }
@@ -278,10 +286,7 @@ export function OptionsView({
                 }
               />
             ) : (
-              <Empty
-                title="Choose valid terms"
-                description="Your payoff appears as you enter a positive quantity and strikes."
-              />
+              <Empty title="Choose valid terms" description={validationError} />
             )}
             <div className="od-greeks">
               <Stat
@@ -426,6 +431,11 @@ export function OptionsView({
             <span>Available shares after trade</span>
             <b>{qty(quote.sharesAfter)} NVDA</b>
           </div>
+          {quote.revision !== state.revision && (
+            <p className="od-error" role="alert">
+              Your vault changed. Close this review and request a fresh quote.
+            </p>
+          )}
           {!quote.eligible && (
             <p className="od-error" role="alert">
               {quote.reason}
@@ -436,7 +446,9 @@ export function OptionsView({
             physical delivery. Both counterparties use isolated test capital.
           </p>
           <Button
-            disabled={desk.busy || !quote.eligible}
+            disabled={
+              desk.busy || !quote.eligible || quote.revision !== state.revision
+            }
             onClick={() => void execute()}
           >
             {desk.busy ? 'Executing…' : 'Confirm contract'}

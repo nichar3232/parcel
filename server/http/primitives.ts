@@ -159,6 +159,11 @@ export async function staticFile(
       );
     }
   }
+  // Re-check the final fallback too: index.html may itself be a symlink.
+  file = await realpath(file);
+  if (!file.startsWith(root + path.sep))
+    throw new ApiError(403, 'PATH', 'Forbidden path.');
+  info = await stat(file);
   const etag = `"${info.size.toString(16)}-${Math.floor(info.mtimeMs).toString(16)}"`;
   res.setHeader('ETag', etag);
   res.setHeader(

@@ -6,79 +6,113 @@ import type {
   VaultAction,
   VaultSnapshot,
 } from '@/lib/oddlot/types';
-import { api, requestKey, RequestError } from '@/hooks/desk/use-portfolio';
+import { api, requestKey, ambiguousResponse } from '@/lib/client/api';
+import {
+  clearPending,
+  loadPending,
+  savePending,
+  type PendingMutation,
+} from '@/lib/client/pending-vault';
+
 export function useVault() {
   const [state, setState] = useState<VaultSnapshot | null>(null),
     [busy, setBusy] = useState(false),
+    [pending, setPending] = useState(false),
     [error, setError] = useState(''),
     [toast, setToast] = useState('');
   const current = useRef<VaultSnapshot | null>(null),
-    lock = useRef(false);
+    lock = useRef(false),
+    pendingRequest = useRef<PendingMutation | null>(null),
+    refreshSequence = useRef(0);
   const update = useCallback((value: VaultSnapshot) => {
-    if (
-      !current.current ||
-      value.csrf !== current.current.csrf ||
-      value.revision >= current.current.revision
-    ) {
+    if (current.current && value.csrf !== current.current.csrf) return;
+    if (!current.current || value.revision >= current.current.revision) {
       current.current = value;
       setState(value);
     }
     setError('');
   }, []);
   const refresh = useCallback(async () => {
+    const sequence = ++refreshSequence.current;
     try {
       await api('/api/session');
-      update(await api<VaultSnapshot>('/api/vault'));
+      const value = await api<VaultSnapshot>('/api/vault');
+      if (sequence !== refreshSequence.current) return;
+      if (!current.current || current.current.csrf !== value.csrf) {
+        // A session change is accepted only through the latest explicit refresh,
+        // never through a delayed mutation response from an older account.
+        current.current = null;
+        pendingRequest.current = loadPending(value.csrf);
+        setPending(!!pendingRequest.current);
+      }
+      update(value);
     } catch (e) {
-      setError((e as Error).message);
+      if (sequence === refreshSequence.current) setError((e as Error).message);
     }
   }, [update]);
+  const cancelRefresh = useCallback(() => {
+    refreshSequence.current++;
+  }, []);
   useEffect(() => {
     void Promise.resolve().then(refresh);
     const focus = () => void refresh();
     window.addEventListener('focus', focus);
-    return () => window.removeEventListener('focus', focus);
-  }, [refresh]);
+    return () => {
+      window.removeEventListener('focus', focus);
+      cancelRefresh();
+    };
+  }, [refresh, cancelRefresh]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(''), 6000);
     return () => clearTimeout(timer);
   }, [toast]);
-  async function post<T>(url: string, body: unknown): Promise<T> {
-    if (!current.current) throw Error('Connect to your vault first.');
-    const key = requestKey();
-    const send = () =>
-      api<T>(url, {
+  async function post<T>(url: string, request: PendingMutation): Promise<T> {
+    const send = () => {
+      if (current.current?.csrf !== request.csrf)
+        throw Error('Your session changed. Reconnect before continuing.');
+      return api<T>(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': current.current!.csrf,
-          'Idempotency-Key': key,
+          'X-CSRF-Token': request.csrf,
+          'Idempotency-Key': request.key,
         },
-        body: JSON.stringify(body),
+        body: request.input,
       });
+    };
     try {
       return await send();
     } catch (e) {
-      if (e instanceof RequestError) throw e;
+      if (!ambiguousResponse(e)) throw e;
       return await send();
     }
   }
-  async function act(action: VaultAction) {
-    if (lock.current || !current.current) return false;
+  async function resolve(request: PendingMutation) {
     lock.current = true;
     setBusy(true);
     try {
-      update(
-        await post<VaultSnapshot>('/api/vault/actions', {
-          revision: current.current.revision,
-          action,
-        }),
-      );
+      const result = await post<VaultSnapshot>('/api/vault/actions', request);
+      clearPending(request.csrf);
+      if (current.current?.csrf !== request.csrf) return false;
+      pendingRequest.current = null;
+      setPending(false);
+      update(result);
       setToast('Vault updated. Balances and collateral verified.');
       return true;
     } catch (e) {
-      setToast((e as Error).message);
+      if (current.current?.csrf === request.csrf) {
+        if (!ambiguousResponse(e)) {
+          clearPending(request.csrf);
+          pendingRequest.current = null;
+          setPending(false);
+        }
+        setToast(
+          ambiguousResponse(e)
+            ? 'Confirmation is pending. Resolve the saved action before making another change.'
+            : (e as Error).message,
+        );
+      }
       await refresh();
       return false;
     } finally {
@@ -86,13 +120,57 @@ export function useVault() {
       setBusy(false);
     }
   }
+  async function act(
+    action: VaultAction,
+    reviewedRevision = current.current?.revision,
+  ) {
+    if (lock.current || !current.current) return false;
+    if (pendingRequest.current) {
+      setToast('Resolve the saved action before making another change.');
+      return false;
+    }
+    const request = {
+      csrf: current.current.csrf,
+      key: requestKey(),
+      input: JSON.stringify({ revision: reviewedRevision, action }),
+    };
+    try {
+      savePending(request);
+    } catch {
+      setToast(
+        'Browser recovery storage is unavailable. Enable it before changing the vault.',
+      );
+      return false;
+    }
+    pendingRequest.current = request;
+    setPending(true);
+    return resolve(request);
+  }
+  async function recover() {
+    if (lock.current || !pendingRequest.current) return false;
+    return resolve(pendingRequest.current);
+  }
   async function quote(terms: OrderTerms) {
     if (!current.current) throw Error('Connect to your vault first.');
+    if (pendingRequest.current)
+      throw Error('Resolve the saved action before requesting a quote.');
     return post<Quote>('/api/vault/quote', {
-      revision: current.current.revision,
-      terms,
+      csrf: current.current.csrf,
+      key: requestKey(),
+      input: JSON.stringify({ revision: current.current.revision, terms }),
     });
   }
-  return { state, busy, error, toast, setToast, refresh, act, quote };
+  return {
+    state,
+    busy,
+    pending,
+    error,
+    toast,
+    setToast,
+    refresh,
+    act,
+    quote,
+    recover,
+  };
 }
 export type VaultController = ReturnType<typeof useVault>;

@@ -1,6 +1,31 @@
 # Oddlot architecture
 
-The new vault engine is specified in [PRODUCT.md](PRODUCT.md) and [DEVELOPMENT.md](DEVELOPMENT.md). It adds owner-scoped `vault_accounts` and `vault_quotes`, an exact settlement collateral engine in `lib/oddlot`, and atomic actions in `server/oddlot`. The browser delegates all execution to that service. New vault custody is backend sandbox accounting.
+The new vault engine is specified in [PRODUCT.md](PRODUCT.md) and [DEVELOPMENT.md](DEVELOPMENT.md). It adds owner-scoped `vault_accounts` and `vault_quotes`, a settlement collateral engine with cross-contract rounding protection in `lib/oddlot`, and atomic actions in `server/oddlot`. The browser delegates all execution to that service. New vault custody is backend sandbox accounting.
+
+## Vault boundaries
+
+```mermaid
+flowchart LR
+  View[Oddlot feature views] --> Controller[useVault controller]
+  Controller --> Transport[Shared same-origin HTTP client]
+  Transport --> HTTP[Session and CSRF guarded vault routes]
+  HTTP --> Service[VaultService: revisions, quotes, receipts]
+  Service --> Ledger[Ledger: transfers and settlement]
+  Ledger --> Risk[Pure collateral and base-unit math]
+  Service --> DB[(SQLite transaction)]
+  View --> Validation[Shared term validation]
+  Service --> Validation
+```
+
+Views send intent, never replacement balances. `lib/client/api.ts` owns transport; `lib/client/pending-vault.ts` stores only a tab-local pending intent and idempotency key. `useVault` keeps the authoritative snapshot and accepts account changes only through the latest session refresh. A delayed response from another session cannot update the current view. A transport failure, server error, or unreadable response is ambiguous: the original mutation remains recoverable after reload, and new mutations are blocked until it resolves. Session storage contains no session cookie or full CSRF token.
+
+`lib/oddlot/validation.ts` is used before rendering option math and again at the server boundary. Quote responses are discarded when the draft changes. Quotes bind the stored account revision; reviewed stock/lending actions also preserve their original revision and displayed price. SQLite infrastructure failures remain server errors; rejected product rules return a conflict.
+
+| Vault route | Input and result |
+|---|---|
+| `GET /api/vault` | Session-owned book, revision, market and collateral |
+| `POST /api/vault/quote` | `{revision, terms}` → owner-bound, expiring quote |
+| `POST /api/vault/actions` | `{revision, action}` → committed snapshot and durable receipt |
 
 The retained Strata/Solana execution architecture below remains available at `/legacy`; its program does not implement the new vault rules.
 

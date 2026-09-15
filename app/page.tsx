@@ -170,6 +170,20 @@ export default function Home() {
               </Button>
             </div>
           )}
+          {desk.pending && !desk.busy && (
+            <div role="alert" className="od-connection-error">
+              <div>
+                <b>A saved action needs confirmation.</b>
+                <p>
+                  Resolve it using its original receipt before making another
+                  change.
+                </p>
+              </div>
+              <Button variant="secondary" onClick={() => void desk.recover()}>
+                Resolve saved action
+              </Button>
+            </div>
+          )}
           {!s ? (
             <output className="od-loading">
               <span className="od-loading-ring" />

@@ -1,7 +1,9 @@
 'use client';
 import { useState } from 'react';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
+import type { VaultAction } from '@/lib/oddlot/types';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
+import { amount } from '@/lib/oddlot/validation';
 import { days, optionGreeks } from '@/lib/oddlot/math';
 import {
   Badge,
@@ -26,31 +28,67 @@ export function LendingView({ desk }: { desk: VaultController }) {
     [cap, setCap] = useState('160'),
     [expiry, setExpiry] = useState(defaultExpiry),
     [side, setSide] = useState<'buy' | 'sell'>('buy'),
-    [review, setReview] = useState(false);
+    [review, setReview] = useState<{
+      action: VaultAction;
+      revision: number;
+      quantity: number;
+      price: number;
+      title: string;
+      label: string;
+      value: number;
+    } | null>(null);
   const end = expiry > s.book.date ? expiry : defaultExpiry,
     q = Number(quantity),
     k = Number(cap);
-  const valid =
-    Number.isFinite(q) &&
-    q > 0 &&
-    q <= 1000 &&
-    (mode !== 'short' || (Number.isFinite(k) && k > s.market.price)) &&
-    (mode === 'stock' || future.length > 0);
+  let valid = mode === 'stock' || future.length > 0;
+  try {
+    amount(q);
+    if (mode === 'short') {
+      amount(k, 0.000001, Math.min(10000, s.market.price * 2));
+      if (k <= s.market.price) valid = false;
+    }
+  } catch {
+    valid = false;
+  }
   const interest = (q * s.market.price * 0.035 * days(s.book.date, end)) / 365;
   const protection =
     Number.isFinite(k) && k > 0
       ? optionGreeks('call', s.market.price, k, days(s.book.date, end)).price *
         q
       : 0;
+  const openReview = () =>
+    setReview({
+      action:
+        mode === 'lend'
+          ? { type: 'lend', quantity: q, expiry: end }
+          : mode === 'short'
+            ? { type: 'short', quantity: q, cap: k, expiry: end }
+            : { type: 'stock', side, quantity: q },
+      revision: s.revision,
+      quantity: q,
+      price: s.market.price,
+      title:
+        mode === 'lend'
+          ? 'Fund this stock loan?'
+          : mode === 'short'
+            ? 'Open this protected short?'
+            : 'Confirm stock exchange',
+      label:
+        mode === 'lend'
+          ? 'Borrower posts cash'
+          : mode === 'short'
+            ? 'Maximum cash reserved'
+            : 'Total consideration',
+      value:
+        mode === 'lend'
+          ? q * s.market.price * 1.5
+          : mode === 'short'
+            ? q * k + interest
+            : q * s.market.price,
+    });
   const confirm = async () => {
-    const ok = await desk.act(
-      mode === 'lend'
-        ? { type: 'lend', quantity: q, expiry: end }
-        : mode === 'short'
-          ? { type: 'short', quantity: q, cap: k, expiry: end }
-          : { type: 'stock', side, quantity: q },
-    );
-    if (ok) setReview(false);
+    if (review && (await desk.act(review.action, review.revision)))
+      setReview(null);
   };
   const loans = s.book.loans.filter((p) => p.status === 'active'),
     shorts = s.book.shorts.filter((p) => p.status === 'active');
@@ -201,10 +239,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
                 </>
               )}
             </div>
-            <Button
-              disabled={!valid || desk.busy}
-              onClick={() => setReview(true)}
-            >
+            <Button disabled={!valid || desk.busy} onClick={openReview}>
               Review{' '}
               {mode === 'lend'
                 ? 'stock loan'
@@ -369,39 +404,28 @@ export function LendingView({ desk }: { desk: VaultController }) {
       </Panel>
       {review && (
         <Modal
-          title={
-            mode === 'lend'
-              ? 'Fund this stock loan?'
-              : mode === 'short'
-                ? 'Open this protected short?'
-                : 'Confirm stock exchange'
-          }
-          description={`${qty(q)} NVDA · ${usd(s.market.price)} stored reference`}
-          onClose={() => setReview(false)}
+          title={review.title}
+          description={`${qty(review.quantity)} NVDA · ${usd(review.price)} stored reference`}
+          onClose={() => setReview(null)}
         >
           <div className="od-review-line">
-            <span>
-              {mode === 'lend'
-                ? 'Borrower posts cash'
-                : mode === 'short'
-                  ? 'Maximum cash reserved'
-                  : 'Total consideration'}
-            </span>
-            <b>
-              {usd(
-                mode === 'lend'
-                  ? q * s.market.price * 1.5
-                  : mode === 'short'
-                    ? q * k + interest
-                    : q * s.market.price,
-              )}
-            </b>
+            <span>{review.label}</span>
+            <b>{usd(review.value)}</b>
           </div>
+          {review.revision !== s.revision && (
+            <p className="od-error" role="alert">
+              Your vault changed. Close this review and review the current
+              terms.
+            </p>
+          )}
           <p className="od-form-note">
             The transaction either updates every balance and reserve together or
             rolls back entirely. Amounts are validated again by the backend.
           </p>
-          <Button disabled={desk.busy} onClick={() => void confirm()}>
+          <Button
+            disabled={desk.busy || review.revision !== s.revision}
+            onClick={() => void confirm()}
+          >
             {desk.busy ? 'Confirming…' : 'Confirm transaction'}
           </Button>
         </Modal>

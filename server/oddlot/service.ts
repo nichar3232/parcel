@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { units } from '../../lib/engine';
 import {
   DIVIDEND,
   DIVIDEND_DATE,
@@ -7,12 +6,15 @@ import {
   marketRows,
   VOLATILITY,
 } from '../../lib/oddlot/market';
-import { bounded, mul, orderGreeks } from '../../lib/oddlot/math';
+import { mul, orderGreeks } from '../../lib/oddlot/math';
+import {
+  amount as parseAmount,
+  expiry,
+  parseOrderTerms,
+} from '../../lib/oddlot/validation';
 import { assertCollateral, risk } from '../../lib/oddlot/risk';
 import type {
   Asset,
-  Leg,
-  OrderTerms,
   Quote,
   VaultBook,
   VaultSnapshot,
@@ -35,69 +37,6 @@ import {
   transfer,
   validateLedger,
 } from './ledger';
-function number(value: unknown, min = 0.000001, max = 1000) {
-  if (typeof value !== 'number' || value < min || value > max)
-    throw Error(`Enter a number between ${min} and ${max}.`);
-  units(value);
-  return value;
-}
-function expiry(value: unknown, date: string) {
-  if (
-    typeof value !== 'string' ||
-    value <= date ||
-    !marketRows.some((r) => r.date === value)
-  )
-    throw Error('Select a future session in the stored market window.');
-  return value;
-}
-function terms(value: unknown, date: string): OrderTerms {
-  const t = object(value);
-  if (typeof t.name !== 'string' || t.name.length < 1 || t.name.length > 70)
-    throw Error('Provide a contract name of 1–70 characters.');
-  if (t.reference !== 'stock' && t.reference !== 'dividend')
-    throw Error('Choose a supported reference.');
-  if (t.settlement !== 'cash' && t.settlement !== 'physical')
-    throw Error('Choose cash or physical settlement.');
-  if (!Array.isArray(t.legs) || t.legs.length < 1 || t.legs.length > 4)
-    throw Error('A contract needs one to four option legs.');
-  const legs = t.legs.map((value): Leg => {
-    const l = object(value);
-    if (l.kind !== 'call' && l.kind !== 'put')
-      throw Error('Choose call or put.');
-    if (l.side !== 'buy' && l.side !== 'sell')
-      throw Error('Choose buy or sell.');
-    return {
-      kind: l.kind,
-      side: l.side,
-      strike: number(l.strike, 0.000001, 10000),
-      ratio: number(l.ratio, 1, 4),
-    };
-  });
-  if (legs.some((l) => !Number.isInteger(l.ratio)))
-    throw Error('Leg ratios must be whole numbers.');
-  if (t.settlement === 'cash' && !bounded(legs))
-    throw Error(
-      'Unbounded cash-settled calls require physical share backing. Use physical settlement or add a cap.',
-    );
-  const end = expiry(t.expiry, date);
-  if (
-    t.reference === 'dividend' &&
-    (t.settlement !== 'cash' || end !== DIVIDEND_DATE)
-  )
-    throw Error(
-      'Dividend contracts cash-settle at the committed March 12 event.',
-    );
-  if (t.reference === 'dividend' && legs.some((l) => l.strike > 0.1))
-    throw Error('Dividend strikes use dollars per share, up to $0.10.');
-  return {
-    name: t.name,
-    quantity: number(t.quantity),
-    expiry: end,
-    reference: t.reference,
-    settlement: t.settlement,
-    legs,
-  };
-}
 export class VaultService {
   constructor(
     private store: Store,
@@ -145,6 +84,12 @@ export class VaultService {
       return this.store.transaction(run);
     } catch (e) {
       if (e instanceof ApiError) throw e;
+      if (
+        e instanceof Error &&
+        'code' in e &&
+        String(e.code).startsWith('ERR_SQLITE')
+      )
+        throw e;
       throw new ApiError(409, 'VAULT_REJECTED', (e as Error).message);
     }
   }
@@ -159,7 +104,7 @@ export class VaultService {
       if (cached) return cached;
       const current = this.read(session);
       this.revision(request, current.revision);
-      const parsed = terms(request.terms, current.book.date),
+      const parsed = parseOrderTerms(request.terms, current.book.date),
         cost = premium(parsed, current.book),
         preview = structuredClone(current.book);
       let eligible = true,
@@ -219,7 +164,7 @@ export class VaultService {
           throw Error('Choose USDC or NVDA.');
         if (a.direction !== 'deposit' && a.direction !== 'withdraw')
           throw Error('Choose deposit or withdraw.');
-        const amount = number(
+        const amount = parseAmount(
             a.amount,
             0.000001,
             a.asset === 'USDC' ? 1000000 : 1000,
@@ -238,7 +183,7 @@ export class VaultService {
       } else if (a.type === 'stock') {
         if (a.side !== 'buy' && a.side !== 'sell')
           throw Error('Choose buy or sell.');
-        const quantity = number(a.quantity),
+        const quantity = parseAmount(a.quantity),
           cash = mul(quantity, mark(book.date));
         if (a.side === 'buy') {
           transfer(book.vault, book.market, 'USDC', cash);
@@ -292,7 +237,7 @@ export class VaultService {
           `${a.mode === 'cross' ? 'Cross' : 'Isolated'} collateral applied to the entire vault`,
         );
       } else if (a.type === 'lend') {
-        openLoan(book, number(a.quantity), expiry(a.expiry, book.date));
+        openLoan(book, parseAmount(a.quantity), expiry(a.expiry, book.date));
       } else if (a.type === 'recall') {
         const p = book.loans.find(
           (p) => p.id === a.id && p.status === 'active',
@@ -302,8 +247,8 @@ export class VaultService {
       } else if (a.type === 'short') {
         openShort(
           book,
-          number(a.quantity),
-          number(a.cap, 0.000001, 10000),
+          parseAmount(a.quantity),
+          parseAmount(a.cap, 0.000001, 10000),
           expiry(a.expiry, book.date),
         );
       } else if (a.type === 'close-short') {

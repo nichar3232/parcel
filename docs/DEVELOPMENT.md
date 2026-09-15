@@ -76,3 +76,10 @@ After `GET /api/session`, `GET /api/vault` returns the vault book, its independe
 `VaultAction` in `lib/oddlot/types.ts` defines transfers, stock trades, quote execution, option close, margin policy, lend/recall, protected short/close and market advancement. The client never supplies a settlement price, reserve, loan interest amount, counterparty balance or replacement book. New routes share the same authentication and static-serving process as the original backend. `/legacy` serves the retained Strata desk with its original API and independent practice balances.
 
 Migration `002-vaults.sql` adds accounts and quotes without rewriting old sessions or portfolios. Fresh and existing databases run both idempotent migrations on startup. The new client uses only relative API URLs. `npm run demo` enables the entire vault ledger with the separate chain service disabled; `/api/ready` can therefore return 503 while the keyless vault is fully operable. Production operator checks should inspect the returned chain reason as well as liveness.
+
+
+## Recovering a vault mutation
+
+The browser saves a pending mutation's original body and key in session storage before sending it. If both responses are lost, an HTTP 5xx arrives, or the response is unreadable, use **Resolve saved action**. The same intent/key survives a tab reload. Other mutations and quote requests stay blocked until it resolves. A definitive API rejection clears the pending intent. Storage must be available before the first mutation; the client fails closed if it cannot save recovery state. Do not clear browser data while an action is unresolved.
+
+The September 15 [follow-up audit](audit/2026-09-15-review/REPORT.md) covers real HTTP guards, injected transaction failure, disk reopen, legacy database migration, fractional cross-contract rounding, invalid form inputs, delayed quotes, account changes, and interrupted responses.

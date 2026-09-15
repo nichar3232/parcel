@@ -22,9 +22,9 @@ Cash structures require a bounded high-price call tail. Put payoffs remain bound
 
 ## Cross collateral
 
-Positions net only if reference, expiry and settlement type agree. For each group, evaluate every strike boundary, both sides of that boundary, zero price and the high-price tail. Reserve the worst cash delivery and worst share delivery separately, for both parties. Cross cash and physical groups never offset; neither do different expiries or dividend references. All positions due at an expiry clear together, so a zero-reserve offsetting book cannot be broken into an underfunded individual settlement.
+Positions net only if reference, expiry and settlement type agree. For each group, evaluate every strike boundary, both sides of that boundary, zero price and the high-price tail. Reserve the worst cash delivery and worst share delivery separately, for both parties. Cross cash and physical groups never offset; neither do different expiries or dividend references. Cash contracts truncate separately to six-decimal settlement units. Cross groups reserve up to one additional base unit per unmatched fractional contract after the first, capped by the sum of isolated reserves. Exactly opposing cash functions cancel without this allowance. All positions due at an expiry clear together, so a zero-reserve offsetting book cannot be broken into an underfunded individual settlement.
 
-The engine never gives scenario/correlation credit across issuers or outside protocols. This is an exact delivery-envelope method, not regulatory portfolio margin. Traditional portfolio margin uses a different model and regulatory framework; [Cboe's explanation](https://www.cboe.com/markets/us/options/margin/portfolio-margining-rules) provides context.
+The engine never gives scenario/correlation credit across issuers or outside protocols. This is a delivery-envelope method with a conservative allowance for cross-contract cash rounding, not regulatory portfolio margin. Traditional portfolio margin uses a different model and regulatory framework; [Cboe's explanation](https://www.cboe.com/markets/us/options/margin/portfolio-margining-rules) provides context.
 
 ## Lending and protected shorts
 

@@ -31,7 +31,7 @@ Use Node 22.23.2 from `.nvmrc`. Open `http://localhost:3025`. This single server
 - **Stock lending:** the test borrower prefunds 150% opening-value cash collateral plus term interest; principal shares remain earmarked. Recall returns shares and accrued interest.
 - **Long/short stock:** spot longs are cash funded. Shorts pair the borrow with a covered protective call, and reserve the maximum repurchase cost plus term interest.
 - **Cross collateral:** only net obligations within identical reference, expiry and settlement groups. No offsets across dates, references, settlement types or outside lenders. Isolated mode is also enforced.
-- **Activity:** persistent receipts, transaction history, export, stale-tab protection and safe HTTP retries.
+- **Activity:** persistent receipts, transaction history, export, stale-tab protection and safe HTTP retries, including pending-action recovery after reload.
 
 Start by depositing one NVDA share, choose **Underwrite → Covered call**, review the actual premium and reserve, and confirm. Use **Market controls** to advance historical sessions; due positions settle at their exact stored expiry observation. The UI does not fabricate balances after an API failure.
 
@@ -59,7 +59,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-CI runs this flow on Linux from a clean checkout. Tests cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, capped shorts, dividends, browser recovery and mobile overflow. Actual Solana program verification remains an explicit operator command.
+CI runs this flow on Linux from a clean checkout. Tests cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, capped shorts, dividends, browser recovery and mobile overflow. The follow-up audit expands this to 51 application tests and 22 browser journeys. Actual Solana program verification remains an explicit operator command. See the [findings and verification evidence](docs/audit/2026-09-15-review/REPORT.md).
 
 ## Pricing and release boundaries
 

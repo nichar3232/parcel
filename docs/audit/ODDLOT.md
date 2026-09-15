@@ -1,5 +1,7 @@
 # Oddlot release verification
 
+> The [follow-up audit](2026-09-15-review/REPORT.md) found and corrected gaps in this initial verification. This document is retained as the original release record.
+
 September 15, 2026. This review covers the new granular-options and vault product. Original Strata contract evidence is preserved separately.
 
 ## Execution scope

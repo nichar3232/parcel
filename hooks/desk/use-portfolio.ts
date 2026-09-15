@@ -1,46 +1,8 @@
 'use client';
-import type { ApiErrorBody, SessionPortfolio } from '@/lib/contracts/api';
+import type { SessionPortfolio } from '@/lib/contracts/api';
 import { initialBook, type Action } from '@/lib/engine';
+import { api, requestKey, RequestError } from '@/lib/client/api';
 import { useCallback, useEffect, useRef, useState } from 'react';
-export const requestKey = () =>
-  Array.from(crypto.getRandomValues(new Uint8Array(24)), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
-export class RequestError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public status: number,
-  ) {
-    super(message);
-  }
-}
-export async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(url, {
-    ...init,
-    credentials: 'same-origin',
-    signal: init?.signal || AbortSignal.timeout(20000),
-  });
-  let data: unknown;
-  try {
-    data = await r.json();
-  } catch {
-    throw new RequestError(
-      'The server returned an unreadable response. Check the backend connection.',
-      'INVALID_RESPONSE',
-      r.status,
-    );
-  }
-  if (!r.ok) {
-    const e = data as ApiErrorBody;
-    throw new RequestError(
-      e.error || 'Request failed.',
-      e.code || 'REQUEST',
-      r.status,
-    );
-  }
-  return data as T;
-}
 export function usePortfolio(notify: (message: string) => void) {
   const [snapshot, setSnapshot] = useState<SessionPortfolio | null>(null),
     [busy, setBusy] = useState(false),

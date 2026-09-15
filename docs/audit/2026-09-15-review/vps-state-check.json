@@ -1,0 +1,9 @@
+{
+  "checkedAt": "2026-09-15T07:20:04.588Z",
+  "integrity": "ok",
+  "accountsChecked": 12,
+  "collateralFailures": 0,
+  "databaseBytes": 462848,
+  "receiptCount": 135,
+  "note": "Read-only check of current saved books against corrected collateral rules; no ledger or service mutation."
+}

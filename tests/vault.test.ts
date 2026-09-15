@@ -5,11 +5,13 @@ import { Store } from '../server/db/store';
 import { VaultService } from '../server/oddlot/service';
 import { initialVault, totals, validateLedger } from '../server/oddlot/ledger';
 import {
+  add,
   cashPayoff,
   deliveries,
   optionGreeks,
   orderGreeks,
 } from '../lib/oddlot/math';
+import { units } from '../lib/engine';
 import { marginGroups } from '../lib/oddlot/risk';
 import { templateTerms, templates } from '../lib/oddlot/templates';
 import type { OrderTerms, VaultAction } from '../lib/oddlot/types';
@@ -437,7 +439,7 @@ void test('risk: independent dense price sampling never exceeds the exact collat
       const spot = t.reference === 'dividend' ? i / 10000 : i / 5;
       const d = deliveries(terms, spot);
       assert.ok(
-        d.cash >= -r.cash - 0.000001 && d.cash <= r.counterpartyCash + 0.000001,
+        d.cash >= -r.cash && d.cash <= r.counterpartyCash,
         `${t.id} cash at ${spot}`,
       );
       assert.ok(
@@ -478,6 +480,138 @@ void test('vault: a stored book reopens with its positions and revision intact',
     assert.deepEqual(next.snapshot(a.session), a.state);
     const independent = a.store.createSession();
     assert.equal(next.snapshot(independent.session).book.options.length, 0);
+  } finally {
+    a.store.close();
+  }
+});
+
+void test('risk: cross-contract rounding cannot exceed collateral between strike boundaries', () => {
+  const terms = templateTerms('secured-put', '2025-02-07');
+  terms.quantity = 0.020402;
+  terms.settlement = 'cash';
+  const positions = [100.165478, 105.431558, 106.349041].map((strike, i) => ({
+    id: String(i),
+    premium: 0,
+    opened: '2025-01-24',
+    status: 'active' as const,
+    terms: {
+      ...terms,
+      legs: [
+        {
+          kind: 'put' as const,
+          side: i === 0 ? ('buy' as const) : ('sell' as const),
+          ratio: i === 0 ? 2 : 1,
+          strike,
+        },
+      ],
+    },
+  }));
+  const [r] = marginGroups(positions, 'cross');
+  const delivery = positions.reduce(
+    (sum, p) => add(sum, deliveries(p.terms, 86.179546).cash),
+    0,
+  );
+  assert.equal(delivery, -0.233596);
+  assert.ok(r.cash >= -delivery);
+  assert.ok(
+    r.cash <=
+      marginGroups(positions, 'isolated').reduce((s, g) => add(s, g.cash), 0),
+  );
+  const reverse = positions.map((p) => ({
+    ...p,
+    id: 'reverse-' + p.id,
+    terms: {
+      ...p.terms,
+      legs: p.terms.legs.map((l) => ({
+        ...l,
+        side: l.side === 'buy' ? ('sell' as const) : ('buy' as const),
+      })),
+    },
+  }));
+  assert.equal(marginGroups([...positions, ...reverse], 'cross')[0].cash, 0);
+  assert.equal(
+    marginGroups([...positions, ...reverse], 'cross')[0].counterpartyCash,
+    0,
+  );
+});
+void test('risk: seeded mixed fractional cash portfolios are funded to the exact base unit', () => {
+  let seed = 12345;
+  const random = () =>
+    (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+  for (let trial = 0; trial < 100; trial++) {
+    const positions = Array.from({ length: 2 + (trial % 5) }, (_, i) => {
+      const terms = templateTerms(
+        i % 2 ? 'put-spread' : 'call-spread',
+        '2025-02-07',
+      );
+      terms.quantity = (1 + Math.floor(random() * 999999)) / 1e6;
+      for (const l of terms.legs)
+        l.strike = Math.round((100 + random() * 50) * 1e6) / 1e6;
+      return {
+        id: String(i),
+        terms,
+        premium: 0,
+        opened: '2025-01-24',
+        status: 'active' as const,
+      };
+    });
+    const [r] = marginGroups(positions, 'cross');
+    for (let sample = 0; sample < 200; sample++) {
+      const spot = BigInt(Math.floor(random() * 200_000_000));
+      // Independent integer oracle: truncate only after summing a contract's legs.
+      const cash = positions.reduce((sum, p) => {
+        const raw = p.terms.legs.reduce((n, l) => {
+          const diff =
+            l.kind === 'call' ? spot - units(l.strike) : units(l.strike) - spot;
+          return (
+            n +
+            (diff > 0n ? diff : 0n) *
+              units(p.terms.quantity) *
+              BigInt(l.ratio) *
+              (l.side === 'buy' ? 1n : -1n)
+          );
+        }, 0n);
+        return sum + raw / 1_000_000n;
+      }, 0n);
+      assert.ok(
+        cash >= -units(r.cash) && cash <= units(r.counterpartyCash),
+        `${trial}:${sample}`,
+      );
+    }
+  }
+});
+
+void test('vault: fractional cross collateral settles after all free cash is withdrawn at a real stored close', () => {
+  const a = setup();
+  try {
+    a.deposit('USDC', 100);
+    for (const [i, strike] of [150.165478, 155.431558, 156.349041].entries()) {
+      const t = templateTerms('secured-put', '2025-02-11');
+      t.quantity = 0.020402;
+      t.settlement = 'cash';
+      t.legs = [
+        {
+          kind: 'put',
+          side: i === 0 ? 'buy' : 'sell',
+          ratio: i === 0 ? 2 : 1,
+          strike,
+        },
+      ];
+      a.execute(t);
+    }
+    assert.equal(a.state.risk.cash, 0.233597);
+    a.act({
+      type: 'transfer',
+      asset: 'USDC',
+      direction: 'withdraw',
+      amount: a.state.risk.freeCash,
+    });
+    a.act({ type: 'advance', date: '2025-02-11' });
+    assert.equal(a.state.market.price, 132.8);
+    assert.equal(a.state.book.vault.USDC, 0.000001);
+    assert.ok(a.state.book.options.every((p) => p.status === 'settled'));
+    assert.equal(a.state.risk.cash, 0);
+    validateLedger(a.state.book, totals(initialVault()));
   } finally {
     a.store.close();
   }
