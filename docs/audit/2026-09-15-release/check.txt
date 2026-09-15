@@ -478,7 +478,7 @@ computing gzip size...
   Discovered 2 CDN warmup path(s).
 [0m
   Route (app)
-  ┌ ○ /      
+  ┌ ○ /
   └ ○ /legacy
 
   ○ Static
@@ -487,4 +487,3 @@ computing gzip size...
     succeeded without dynamic API usage).
 
   Build complete. Run `vinext start` to start the production server.
-

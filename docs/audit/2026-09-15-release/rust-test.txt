@@ -11,4 +11,3 @@ test economics::tests::rejects_zero_payable_and_unfunded_exercise ... ok
 test economics::tests::fractional_cross_cash_never_underreserves ... ok
 
 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
-
