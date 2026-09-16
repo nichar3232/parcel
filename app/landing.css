@@ -384,3 +384,230 @@
     padding-left: 10px;
   }
 }
+
+/* ------------------------------------------------------------------
+   Below the hero.
+
+   The page was a hero and nothing else, with an About link pointing at
+   an anchor that did not exist. These are the desk's actual products,
+   each shown with a figure the app really produces rather than a claim
+   about what it can do.
+   ------------------------------------------------------------------ */
+.lp {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp {
+    scroll-behavior: auto;
+  }
+}
+.lp-section {
+  scroll-margin-top: 64px;
+  border-top: 1px solid var(--line);
+}
+.lp-section-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 72px 32px;
+}
+.lp-section-copy h2 {
+  font-size: 34px;
+  line-height: 1.18;
+  letter-spacing: -0.8px;
+  margin-top: 14px;
+  max-width: 17ch;
+}
+.lp-section-copy p {
+  margin-top: 14px;
+  color: var(--body);
+  max-width: 46ch;
+}
+.lp-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 20px;
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--accent-ink);
+}
+.lp-inline-link:hover {
+  gap: 11px;
+}
+
+/* One worked example per product, as a key/value strip. */
+.lp-example {
+  margin: 0;
+  display: grid;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 18px 44px -30px rgba(15, 20, 23, 0.25);
+}
+.lp-example > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 20px;
+  padding: 18px 22px;
+  background: var(--panel);
+}
+.lp-example dt {
+  color: var(--muted);
+  font-size: 14px;
+}
+.lp-example dd {
+  margin: 0;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.lp-example > div:nth-child(2) dd {
+  color: var(--accent-ink);
+}
+
+/* The cue that there is more page below the fold. */
+.lp-scroll {
+  grid-column: 1 / -1;
+  justify-self: center;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.lp-scroll i {
+  width: 9px;
+  height: 9px;
+  border-right: 1.5px solid var(--accent-ink);
+  border-bottom: 1.5px solid var(--accent-ink);
+  transform: rotate(45deg);
+  animation: lp-nudge 1.8s ease-in-out infinite;
+}
+@keyframes lp-nudge {
+  0%,
+  100% {
+    transform: rotate(45deg) translate(0, 0);
+  }
+  50% {
+    transform: rotate(45deg) translate(3px, 3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-scroll i {
+    animation: none;
+  }
+}
+
+.lp-how-inner {
+  grid-template-columns: 0.85fr 1.15fr;
+  align-items: start;
+}
+.lp-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.lp-steps li {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 18px 22px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.lp-steps b {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent-ink);
+  padding-top: 2px;
+}
+.lp-steps strong {
+  display: block;
+  font-weight: 550;
+}
+.lp-steps span {
+  display: block;
+  margin-top: 3px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.lp-close-inner {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  text-align: center;
+  gap: 0;
+  padding: 88px 32px;
+}
+.lp-close h2 {
+  font-size: 38px;
+  letter-spacing: -1px;
+}
+.lp-close p {
+  margin-top: 12px;
+  color: var(--body);
+  max-width: 44ch;
+}
+.lp-close .lp-btn {
+  margin-top: 26px;
+}
+
+.lp-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 22px 32px 34px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+@media (max-width: 1100px) {
+  .lp-section-inner,
+  .lp-how-inner {
+    grid-template-columns: 1fr;
+    gap: 34px;
+    padding: 52px 32px;
+  }
+  .lp-section-copy h2 {
+    font-size: 29px;
+    max-width: none;
+  }
+}
+@media (max-width: 720px) {
+  .lp-section-inner,
+  .lp-how-inner,
+  .lp-close-inner,
+  .lp-foot {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .lp-close-inner {
+    padding-top: 56px;
+    padding-bottom: 56px;
+  }
+  .lp-close h2 {
+    font-size: 30px;
+  }
+  .lp-foot {
+    flex-direction: column;
+    gap: 6px;
+  }
+}

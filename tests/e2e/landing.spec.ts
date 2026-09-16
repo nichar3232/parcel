@@ -17,6 +17,25 @@ test('the landing page shows the products and routes into the desk', async ({
   // the preview card carries the numbers, not prose
   for (const v of ['$0.70', '¼ share', 'USDC', 'Solana'])
     await expect(page.locator('.lp-stats')).toContainText(v);
+  // every product has a section below the fold, with a worked figure
+  for (const id of [
+    'options',
+    'underwriting',
+    'structures',
+    'pre-ipo',
+    'lending',
+    'how',
+  ])
+    await expect(page.locator(`#${id}`)).toHaveCount(1);
+  await expect(page.locator('#pre-ipo')).toContainText('231.50 USDC');
+  // no in-page link points at an anchor that does not exist
+  expect(
+    await page.evaluate(() =>
+      [...document.querySelectorAll('a[href^="#"]')]
+        .map((a) => a.getAttribute('href') as string)
+        .filter((h) => h !== '#' && !document.querySelector(h)),
+    ),
+  ).toEqual([]);
   await page.getByRole('link', { name: /Launch app/ }).click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');

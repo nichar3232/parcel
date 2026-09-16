@@ -2,11 +2,89 @@ import Link from 'next/link';
 import './landing.css';
 
 const PRODUCTS = [
-  { name: 'Portfolio', href: '/app' },
-  { name: 'Options', href: '/app' },
-  { name: 'Underwriting', href: '/app' },
-  { name: 'Structures', href: '/app' },
-  { name: 'Lending', href: '/app' },
+  { name: 'Options', href: '#options' },
+  { name: 'Underwriting', href: '#underwriting' },
+  { name: 'Structures', href: '#structures' },
+  { name: 'Pre-IPO', href: '#pre-ipo' },
+  { name: 'Lending', href: '#lending' },
+];
+
+/**
+ * What the desk actually does, each with a figure taken from the app
+ * rather than a claim about it.
+ */
+const OFFERINGS = [
+  {
+    id: 'options',
+    kicker: 'Options',
+    title: 'Buy a contract the size of your position.',
+    body: 'A listed contract needs a hundred shares. Size to one, or to a quarter of one.',
+    rows: [
+      ['Buy 1× NVDA $145 call', 'Feb 7'],
+      ['Premium', '$4.04'],
+      ['Cash to fund exercise', '$149.04'],
+    ],
+  },
+  {
+    id: 'underwriting',
+    kicker: 'Underwriting',
+    title: 'Write the other side, fully collateralized.',
+    body: 'Deposit a share, write a call against it. The reserve is visible before you sign.',
+    rows: [
+      ['Covered call on', '¼ share'],
+      ['Premium received', 'kept either way'],
+      ['Shares reserved', 'until expiry'],
+    ],
+  },
+  {
+    id: 'structures',
+    kicker: 'Structures',
+    title: 'Spreads, collars and capped curves.',
+    body: 'Up to four legs under one collateral rule. Offsets release capital only when settlement allows.',
+    rows: [
+      ['Legs per contract', 'up to 4'],
+      ['Collateral', 'cross or isolated'],
+      ['Payoff', 'priced before you commit'],
+    ],
+  },
+  {
+    id: 'pre-ipo',
+    kicker: 'Pre-IPO',
+    title: 'Covered calls on sponsor tokens.',
+    body: 'Every mint is read on chain first. A token the issuer can move out of escrow cannot back a contract.',
+    rows: [
+      ['Escrow', '0.25 T-OpenAI'],
+      ['If exercised above $900', '231.50 USDC'],
+      ['If it expires', '6.50 USDC'],
+    ],
+  },
+  {
+    id: 'lending',
+    kicker: 'Lending',
+    title: 'Lend stock against funded collateral.',
+    body: 'The borrower posts cash and the full term’s interest up front. Pledged protection cannot be reused.',
+    rows: [
+      ['Lend', '1 NVDA'],
+      ['Borrower posts', '$213.93'],
+      ['Rate', '3.50% APR'],
+    ],
+  },
+];
+
+const STEPS = [
+  ['Fund a vault', 'Deposit USDC or shares. Balances persist across reloads.'],
+  [
+    'Size the contract',
+    'Choose share-equivalents, a premium budget, or a dollar sensitivity.',
+  ],
+  [
+    'Review the exact figures',
+    'Premium, collateral and worst-case delivery before anything is signed.',
+  ],
+  [
+    'Settle against the vault',
+    'Expiries settle together so collateral offsets survive.',
+  ],
 ];
 
 const STATS = [
@@ -142,7 +220,77 @@ export default function Landing() {
             ))}
           </div>
         </figure>
+
+        <a className="lp-scroll" href="#options" aria-label="See the products">
+          <span>See what it does</span>
+          <i aria-hidden />
+        </a>
       </section>
+
+      {OFFERINGS.map((o) => (
+        <section className="lp-section" id={o.id} key={o.id}>
+          <div className="lp-section-inner">
+            <div className="lp-section-copy">
+              <span className="lp-kicker">{o.kicker}</span>
+              <h2>{o.title}</h2>
+              <p>{o.body}</p>
+              <Link className="lp-inline-link" href="/app">
+                Open in the desk <span aria-hidden>&rarr;</span>
+              </Link>
+            </div>
+            <dl className="lp-example">
+              {o.rows.map(([k, v]) => (
+                <div key={k}>
+                  <dt>{k}</dt>
+                  <dd>{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+      ))}
+
+      <section className="lp-section lp-how" id="how">
+        <div className="lp-section-inner lp-how-inner">
+          <div className="lp-section-copy">
+            <span className="lp-kicker">How it works</span>
+            <h2>Four steps, no hidden leverage.</h2>
+            <p>
+              Every contract is fully collateralized against your own vault.
+              Nothing is borrowed on your behalf.
+            </p>
+          </div>
+          <ol className="lp-steps">
+            {STEPS.map(([title, detail], i) => (
+              <li key={title}>
+                <b>{String(i + 1).padStart(2, '0')}</b>
+                <div>
+                  <strong>{title}</strong>
+                  <span>{detail}</span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="lp-section lp-close">
+        <div className="lp-section-inner lp-close-inner">
+          <h2>Open the desk.</h2>
+          <p>
+            A historical NVDA replay, a funded sandbox vault, and the full
+            contract workflow.
+          </p>
+          <Link className="lp-btn lp-btn-primary" href="/app">
+            Launch the desk <span aria-hidden>&rarr;</span>
+          </Link>
+        </div>
+      </section>
+
+      <footer className="lp-foot">
+        <span>Oddlot · Precision for every position.</span>
+        <span>Historical replay · NVDA, Jan–Mar 2025</span>
+      </footer>
     </div>
   );
 }
