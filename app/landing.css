@@ -710,21 +710,31 @@
   color: var(--muted);
 }
 
-/* The meta list sits under the buttons, so it stops where they do
-   rather than running on past them. */
-.lp-meta {
-  max-width: 100%;
+/* The meta list sits under the buttons and stops where they do.
+   The grid track is sized by the button row alone: the list declares
+   width:0 so it adds nothing to that measurement, then min-width:100%
+   makes it fill the track the buttons set, and wrap inside it. No
+   magic number, and it still holds if the button labels change. */
+.lp-hero-cta {
+  display: grid;
+  justify-items: start;
   width: fit-content;
-  row-gap: 6px;
+  max-width: 100%;
 }
-.lp-meta li:first-child {
-  padding-left: 2px;
+.lp-meta {
+  width: 0;
+  min-width: 100%;
+  row-gap: 8px;
 }
-@media (max-width: 480px) {
-  .lp-meta li + li {
-    margin-left: 12px;
-    padding-left: 12px;
-  }
+/* No separators. A dot between items is orphaned at the end of a line
+   as soon as the list wraps, so the gap does the separating instead. */
+.lp-meta {
+  column-gap: 22px;
+}
+.lp-meta li + li {
+  border-left: 0;
+  margin-left: 0;
+  padding-left: 0;
 }
 
 /* About is not a product, so it sits with the other page-level links

@@ -10,19 +10,23 @@ const PRODUCTS = [
   { name: 'Lending', href: '#lending' },
 ];
 
+/**
+ * The spine every product above shares. Written to hold for all five,
+ * not for the options flow alone.
+ */
 const STEPS = [
   ['Fund a vault', 'Deposit USDC or shares. Balances persist across reloads.'],
   [
-    'Size the contract',
-    'Choose share-equivalents, a premium budget, or a dollar sensitivity.',
+    'Pick a position',
+    'An option, a structure, a covered call on a sponsor token, or a stock loan.',
   ],
   [
-    'Review the exact figures',
-    'Premium, collateral and worst-case delivery before anything is signed.',
+    'Size it to what you own',
+    'Share-equivalents, a premium budget, a dollar sensitivity, or a share count.',
   ],
   [
-    'Settle against the vault',
-    'Expiries settle together so collateral offsets survive.',
+    'Review the exact figures, then settle',
+    'Premium, collateral and worst case before you sign; settlement returns to the same vault.',
   ],
 ];
 
@@ -70,19 +74,21 @@ export default function Landing() {
             calls, protective puts. Fully collateralized in USDC and settled
             against your vault.
           </p>
-          <div className="lp-hero-actions">
-            <Link className="lp-btn lp-btn-primary" href="/app">
-              Launch app <span aria-hidden>&rarr;</span>
-            </Link>
-            <a className="lp-btn" href="#products">
-              Explore the products
-            </a>
+          <div className="lp-hero-cta">
+            <div className="lp-hero-actions">
+              <Link className="lp-btn lp-btn-primary" href="/app">
+                Launch app <span aria-hidden>&rarr;</span>
+              </Link>
+              <a className="lp-btn" href="#products">
+                Explore the products
+              </a>
+            </div>
+            <ul className="lp-meta">
+              <li>Fractional sizing</li>
+              <li>USDC collateral</li>
+              <li>Settled on Solana</li>
+            </ul>
           </div>
-          <ul className="lp-meta">
-            <li>Fractional sizing</li>
-            <li>USDC collateral</li>
-            <li>Settled on Solana</li>
-          </ul>
         </div>
 
         <figure className="lp-card">
@@ -204,10 +210,11 @@ export default function Landing() {
         <div className="lp-section-inner lp-how-inner">
           <div className="lp-section-copy">
             <span className="lp-kicker">How it works</span>
-            <h2>Four steps, no hidden leverage.</h2>
+            <h2>The same four steps, whichever one you use.</h2>
             <p>
-              Every contract is fully collateralized against your own vault.
-              Nothing is borrowed on your behalf.
+              All five products run on one vault and one collateral rule. Every
+              position is fully funded from assets you already hold, and nothing
+              is borrowed on your behalf.
             </p>
           </div>
           <ol className="lp-steps">
