@@ -29,7 +29,7 @@ try {
       await page.getByRole('button', { name: 'Open navigation' }).click();
     await page
       .getByRole('navigation', { name: 'Main navigation' })
-      .getByRole('button', { name: 'Activity', exact: true })
+      .getByRole('button', { name: 'Vault', exact: true })
       .click();
     await expect(
       page.getByRole('heading', { name: 'Confirmed on Solana localnet' }),

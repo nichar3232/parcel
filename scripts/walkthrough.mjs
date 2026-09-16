@@ -1,5 +1,5 @@
-// Drives the landing page and the four-step build flow, capturing each screen.
-// Usage: node scripts/walkthrough.mjs [baseUrl] [outDir]
+// Drives the landing page and the vault -> builder -> quote path,
+// capturing each screen. Usage: node scripts/walkthrough.mjs [baseUrl] [outDir]
 import { chromium } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -11,11 +11,16 @@ await mkdir(out, { recursive: true });
 const browser = await chromium.launch();
 
 async function shoot(page, name, opts = {}) {
-  const file = `${out}/${name}.png`;
-  await page.screenshot({ path: file, ...opts });
+  await page.screenshot({ path: `${out}/${name}.png`, ...opts });
   shots.push(name);
   console.log(`  ✓ ${name}`);
 }
+
+const nav = (page, name) =>
+  page
+    .getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('button', { name, exact: true })
+    .click();
 
 async function run(width, height, tag) {
   const ctx = await browser.newContext({ viewport: { width, height } });
@@ -26,58 +31,55 @@ async function run(width, height, tag) {
 
   console.log(`\n${tag} (${width}x${height})`);
 
-  // --- landing ---
   await page.goto(base, { waitUntil: 'networkidle' });
   await shoot(page, `${tag}-01-landing-hero`);
   await shoot(page, `${tag}-02-landing-full`, { fullPage: true });
 
-  // --- enter the desk via the CTA, proving the landing links through ---
   await page
     .getByRole('link', { name: /launch app/i })
     .first()
     .click();
   await page.waitForURL('**/app');
+  await page.waitForSelector('.oddlot[data-ready="true"]');
+  await shoot(page, `${tag}-03-vault`, { fullPage: true });
+
+  const mobile = width < 900;
+  if (mobile)
+    await page.getByRole('button', { name: 'Open navigation' }).click();
+  await nav(page, 'Structures');
+  await page.waitForSelector('.od-builder-grid');
+  await shoot(page, `${tag}-04-structures`, { fullPage: true });
+
+  // size the spread past a single share, then take a funded quote
+  await page.getByLabel('Contract quantity').fill('8');
+  await page.waitForTimeout(400);
+  await shoot(page, `${tag}-05-sized`);
+  await page.getByRole('button', { name: 'Review funded quote' }).click();
+  await page.getByRole('dialog').waitFor();
+  await shoot(page, `${tag}-06-quote`);
   await page
-    .getByRole('heading', { name: /what are you trying to do/i })
-    .waitFor();
-  await shoot(page, `${tag}-03-step1-intent`);
+    .getByRole('button', { name: /close|cancel/i })
+    .first()
+    .click()
+    .catch(() => {});
+  await page.waitForTimeout(300);
 
-  // --- step 1 -> 2 ---
-  await page.getByRole('button', { name: /explore the upside/i }).click();
-  await page.getByRole('heading', { name: /how much of it/i }).waitFor();
-  await shoot(page, `${tag}-04-step2-size`);
-
-  // change the size to prove the figures are live
-  await page.getByRole('button', { name: /^size 0\.5 shares$/i }).click();
-  await shoot(page, `${tag}-05-step2-resized`);
-
-  // --- step 2 -> 3 ---
-  await page.getByRole('button', { name: /review the payoff/i }).click();
-  await page.getByRole('heading', { name: /here is the trade-off/i }).waitFor();
-  await page.waitForTimeout(400); // let the payoff chart settle
-  await shoot(page, `${tag}-06-step3-review`);
-
-  // --- step 3 -> 4 ---
-  await page.getByRole('button', { name: /fund this position/i }).click();
-  await page.getByRole('heading', { name: /^fund it\.$/i }).waitFor();
-  await shoot(page, `${tag}-07-step4-fund`);
-
-  // --- hand off to the builder ---
-  await page.getByRole('button', { name: /open in the builder/i }).click();
-  await page.waitForTimeout(700);
-  await shoot(page, `${tag}-08-builder`);
+  if (mobile)
+    await page.getByRole('button', { name: 'Open navigation' }).click();
+  await nav(page, 'Risk');
+  await page.waitForTimeout(300);
+  await shoot(page, `${tag}-07-risk`, { fullPage: true });
 
   await ctx.close();
   return errors;
 }
 
-const desktopErrors = await run(1440, 900, 'desktop');
-const mobileErrors = await run(390, 844, 'mobile');
+const errors = [
+  ...(await run(1440, 900, 'desktop')),
+  ...(await run(390, 844, 'mobile')),
+].filter((e) => !/favicon|og\.png/i.test(e));
 await browser.close();
 
-const errors = [...desktopErrors, ...mobileErrors].filter(
-  (e) => !/favicon|og\.png/i.test(e),
-);
 console.log(`\n${shots.length} screens captured to ${out}/`);
 if (errors.length) {
   console.log(`\n${errors.length} console error(s):`);

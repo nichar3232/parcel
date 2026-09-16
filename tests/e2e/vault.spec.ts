@@ -94,7 +94,7 @@ test('vault deposits, fractional covered underwriting, blocked withdrawal and ex
   await advance(page, '2025-01-27');
   await page.reload();
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
-  await nav(page, 'Activity');
+  await nav(page, 'Vault');
   await expect(page.getByText('Expiry settled', { exact: true })).toBeVisible();
   await expect(
     page.getByText('Contract opened', { exact: true }),
@@ -169,7 +169,7 @@ test('lending, recall and a protected short complete through the real API', asyn
   await expect(page.getByRole('button', { name: 'Cover & repay' })).toHaveCount(
     0,
   );
-  await nav(page, 'Activity');
+  await nav(page, 'Vault');
   await expect(
     page.getByText('Protected short closed', { exact: true }),
   ).toBeVisible();
@@ -191,7 +191,7 @@ test('dividend contracts execute and settle from the stored event', async ({
   await expect(
     page.getByRole('cell', { name: 'Dividend call spread', exact: true }),
   ).toHaveCount(0);
-  await nav(page, 'Activity');
+  await nav(page, 'Vault');
   await expect(page.getByText('Expiry settled', { exact: true })).toBeVisible();
 });
 test('every workspace view fits desktop and mobile, with accessible forms and no page overflow', async ({
@@ -206,7 +206,6 @@ test('every workspace view fits desktop and mobile, with accessible forms and no
       'Structures',
       'Lending',
       'Risk',
-      'Activity',
     ]) {
       await nav(page, name);
       await expect(page.locator('h1')).toBeVisible();
@@ -246,7 +245,7 @@ test('a dropped mutation response retries once with the same receipt, not anothe
     } else await route.continue();
   });
   await deposit(page, 'USDC', '100');
-  await nav(page, 'Activity');
+  await nav(page, 'Vault');
   await expect(page.getByText('Vault deposit', { exact: true })).toHaveCount(1);
   await page.reload();
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
@@ -406,7 +405,7 @@ test('two lost responses survive reload and resolve the original deposit exactly
   expect(new Set(keys).size).toBe(1);
   await nav(page, 'Vault');
   await expect(page.locator('.od-capital-card')).toContainText('$100.00');
-  await nav(page, 'Activity');
+  await nav(page, 'Vault');
   await expect(page.getByText('Vault deposit', { exact: true })).toHaveCount(1);
 });
 test('an unreadable success response recovers using the same idempotency key', async ({
@@ -427,7 +426,7 @@ test('an unreadable success response recovers using the same idempotency key', a
   await deposit(page, 'USDC', '100');
   expect(keys).toHaveLength(2);
   expect(keys[0]).toBe(keys[1]);
-  await nav(page, 'Activity');
+  await nav(page, 'Vault');
   await expect(page.getByText('Vault deposit', { exact: true })).toHaveCount(1);
 });
 test('a delayed response from an old session cannot replace the new session vault', async ({
@@ -479,7 +478,7 @@ test('a delayed response from an old session cannot replace the new session vaul
   await expect(page.locator('.od-capital-card')).toContainText('$0.00');
   if (await page.getByRole('dialog').count())
     await page.getByRole('button', { name: 'Close dialog' }).click();
-  await nav(page, 'Activity');
+  await nav(page, 'Vault');
   await expect(page.getByText('Vault deposit', { exact: true })).toHaveCount(0);
 });
 
@@ -675,7 +674,7 @@ test('hourly contracts settle through the UI at the explicit test clock', async 
   await expect(page.getByRole('cell', { name: /^Call spread / })).toHaveCount(
     0,
   );
-  await nav(page, 'Activity');
+  await nav(page, 'Vault');
   await expect(page.getByText('Expiry settled', { exact: true })).toBeVisible();
 });
 test('dividend convexity and progressive controls remain usable at mobile width', async ({

@@ -3,11 +3,11 @@ import { useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, Plus, ShieldCheck } from 'lucide-react';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { Asset } from '@/lib/oddlot/types';
+import { ActivityLedger } from './ActivityLedger';
 import {
   AssetIcon,
   Badge,
   Button,
-  Empty,
   Field,
   Heading,
   LinkButton,
@@ -249,33 +249,7 @@ export function VaultView({
           </button>
         ))}
       </div>
-      <Panel>
-        <div className="od-panel-heading">
-          <h2>Recent activity</h2>
-          <LinkButton onClick={() => navigate('Activity')}>
-            View ledger
-          </LinkButton>
-        </div>
-        {book.events.length ? (
-          <div className="od-event-preview">
-            {book.events.slice(0, 3).map((e) => (
-              <div key={e.id}>
-                <span className="od-transaction-icon">↗</span>
-                <div>
-                  <b>{e.title}</b>
-                  <p>{e.detail}</p>
-                </div>
-                <small>{e.date}</small>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <Empty
-            title="Your vault is ready."
-            description="Move test assets from your wallet into the vault. Every movement appears in the ledger."
-          />
-        )}
-      </Panel>
+      <ActivityLedger desk={desk} />
       {transfer && (
         <Modal
           onClose={() => setTransfer(null)}

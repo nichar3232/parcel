@@ -2,8 +2,13 @@
 import { useState } from 'react';
 import { Download, Search } from 'lucide-react';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
-import { Badge, Button, Empty, Heading, Panel, qty, usd } from './shared';
-export function ActivityView({ desk }: { desk: VaultController }) {
+import { Badge, Button, Empty, Panel, qty, usd } from './shared';
+
+/**
+ * The full ledger: chain proof, searchable history and JSON export.
+ * Rendered inside the vault rather than behind its own tab.
+ */
+export function ActivityLedger({ desk }: { desk: VaultController }) {
   const s = desk.state!,
     [search, setSearch] = useState('');
   const rows = s.book.events.filter((e) =>
@@ -38,17 +43,6 @@ export function ActivityView({ desk }: { desk: VaultController }) {
   };
   return (
     <>
-      <Heading
-        eyebrow="THE RECORD BEHIND YOUR BALANCES"
-        title="Every movement, accounted for."
-        description="Deposits, trades, commitments, and settlement in one persistent activity ledger."
-        action={
-          <Button variant="secondary" onClick={download}>
-            <Download size={16} />
-            Export ledger
-          </Button>
-        }
-      />
       {s.chain && (
         <Panel className="od-chain-proof">
           <div className="od-panel-heading">
@@ -80,6 +74,13 @@ export function ActivityView({ desk }: { desk: VaultController }) {
       )}
       <Panel>
         <div className="od-panel-heading">
+          <h2>Activity ledger</h2>
+          <Button variant="secondary" onClick={download}>
+            <Download size={16} />
+            Export ledger
+          </Button>
+        </div>
+        <div className="od-panel-heading od-ledger-controls">
           <div className="od-search">
             <Search size={16} />
             <input

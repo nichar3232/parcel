@@ -21,7 +21,7 @@ test('the landing page shows the products and routes into the desk', async ({
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
-    'What are you trying to do?',
+    'A little stock',
   );
   expect(errors).toEqual([]);
 });

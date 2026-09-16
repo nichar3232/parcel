@@ -2,11 +2,9 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import {
-  Activity,
   ArrowUpRight,
   ChevronDown,
   CircleHelp,
-  Compass,
   Layers3,
   Landmark,
   Menu,
@@ -16,13 +14,11 @@ import {
   X,
 } from 'lucide-react';
 import { useVault } from '@/hooks/oddlot/use-vault';
-import { GuidedFlow } from '@/components/oddlot/consumer/GuidedFlow';
 import type { ExploreDraft } from '@/lib/oddlot/explore';
 import { VaultView } from '@/components/oddlot/VaultView';
 import { OptionsView } from '@/components/oddlot/OptionsView';
 import { LendingView } from '@/components/oddlot/LendingView';
 import { RiskView } from '@/components/oddlot/RiskView';
-import { ActivityView } from '@/components/oddlot/ActivityView';
 import {
   Button,
   Field,
@@ -33,20 +29,17 @@ import {
 } from '@/components/oddlot/shared';
 import '@/app/oddlot.css';
 import '@/app/theme.css';
-import '@/app/flow.css';
 const navigation = [
-  { name: 'Build', icon: Compass },
   { name: 'Vault', icon: Wallet },
   { name: 'Trade', icon: ArrowUpRight },
   { name: 'Underwrite', icon: Landmark },
   { name: 'Structures', icon: Layers3 },
   { name: 'Lending', icon: SlidersHorizontal },
   { name: 'Risk', icon: ShieldCheck },
-  { name: 'Activity', icon: Activity },
 ];
 export default function Workspace() {
   const desk = useVault(),
-    [page, setPage] = useState('Build'),
+    [page, setPage] = useState('Vault'),
     [launch, setLaunch] = useState<{
       page: string;
       draft: ExploreDraft;
@@ -82,7 +75,7 @@ export default function Workspace() {
         />
       )}
       <header className="od-appbar">
-        <button className="od-brand" onClick={() => navigate('Build')}>
+        <button className="od-brand" onClick={() => navigate('Vault')}>
           <span className="od-brand-symbol">
             <i />
             <i />
@@ -188,25 +181,6 @@ export default function Workspace() {
             </output>
           ) : (
             <>
-              {page === 'Build' && (
-                <GuidedFlow
-                  key={s.csrf.slice(0, 16)}
-                  desk={desk}
-                  navigate={navigate}
-                  openDraft={(destination, draft) => {
-                    setLaunch({ page: destination, draft, id: Date.now() });
-                    setPage(destination);
-                    window.scrollTo({
-                      top: 0,
-                      behavior: window.matchMedia(
-                        '(prefers-reduced-motion: reduce)',
-                      ).matches
-                        ? 'auto'
-                        : 'smooth',
-                    });
-                  }}
-                />
-              )}
               {page === 'Vault' && (
                 <VaultView desk={desk} navigate={navigate} />
               )}{' '}
@@ -242,7 +216,6 @@ export default function Workspace() {
               )}
               {page === 'Lending' && <LendingView desk={desk} />}{' '}
               {page === 'Risk' && <RiskView desk={desk} />}{' '}
-              {page === 'Activity' && <ActivityView desk={desk} />}
             </>
           )}
         </main>
