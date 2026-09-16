@@ -82,101 +82,79 @@ export default function Workspace() {
           onClick={() => setMobile(false)}
         />
       )}
-      <aside className={`od-sidebar ${mobile ? 'open' : ''}`}>
+      <header className="od-appbar">
         <button className="od-brand" onClick={() => navigate('Build')}>
           <span className="od-brand-symbol">
             <i />
             <i />
             <i />
           </span>
-          Oddlot<span className="od-brand-dot">.</span>
+          ODDLOT
         </button>
-        <div className="od-workspace-label">
-          PERSONAL WORKSPACE<Badge tone="nav">01</Badge>
-        </div>
-        <nav aria-label="Main navigation">
-          {navigation.map(({ name, icon: Icon }) => (
-            <button
-              className={`od-nav-item ${page === name ? 'active' : ''} ${name === 'Risk' ? 'separated' : ''}`}
-              key={name}
-              aria-current={page === name ? 'page' : undefined}
-              onClick={() => navigate(name)}
-            >
-              <Icon size={18} />
-              <span>{name}</span>
-              {page === name && <i />}
+        <button
+          className="od-mobile-menu od-icon-button"
+          aria-label="Open navigation"
+          onClick={() => setMobile(true)}
+        >
+          <Menu size={21} />
+        </button>
+        <aside className={`od-sidebar ${mobile ? 'open' : ''}`}>
+          <nav aria-label="Main navigation">
+            {navigation.map(({ name, icon: Icon }) => (
+              <button
+                className={`od-nav-item ${page === name ? 'active' : ''}`}
+                key={name}
+                aria-current={page === name ? 'page' : undefined}
+                onClick={() => navigate(name)}
+              >
+                <Icon size={17} />
+                <span>{name}</span>
+              </button>
+            ))}
+          </nav>
+          <div className="od-nav-bottom">
+            <button onClick={() => setModal('about')}>
+              <CircleHelp size={16} />
+              How Oddlot works
             </button>
-          ))}
-        </nav>
-        <div className="od-nav-bottom">
-          <div className="od-nav-note">
-            <span className="od-small-square" />
-            <p>Options, by the share.</p>
-            <small>
-              Precisely sized.
-              <br />
-              Fully accounted for.
-            </small>
+            <a
+              href="https://github.com/nichar3232/oddlot"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Project repository
+              <ArrowUpRight size={15} />
+            </a>
           </div>
-          <button onClick={() => setModal('about')}>
-            <CircleHelp size={16} />
-            How Oddlot works
-          </button>
-          <a
-            href="https://github.com/nichar3232/oddlot"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Project repository
-            <ArrowUpRight size={15} />
-          </a>
-          <div className="od-environment">
+        </aside>
+        <div className="od-topbar-actions">
+          <span className="od-environment">
             <i />
-            {s?.mode === 'localnet'
-              ? 'Solana local validator'
-              : 'Sandbox environment'}
-          </div>
-        </div>
-      </aside>
-      <div className="od-workspace">
-        <header className="od-topbar">
-          <div>
-            <button
-              className="od-mobile-menu od-icon-button"
-              aria-label="Open navigation"
-              onClick={() => setMobile(true)}
-            >
-              <Menu size={21} />
-            </button>
-            <span className="od-breadcrumb">
-              Workspace <b>/</b> <strong>{page}</strong>
+            {s?.mode === 'localnet' ? 'LOCALNET' : 'SANDBOX'}
+          </span>
+          <button
+            className="od-market-button"
+            onClick={() => setModal('market')}
+            disabled={!s}
+          >
+            <i />
+            <span>
+              {s ? `${dateLabel(s.book.date)} · Historical` : 'Connecting'}
             </span>
-          </div>
-          <div className="od-topbar-actions">
-            <button
-              className="od-market-button"
-              onClick={() => setModal('market')}
-              disabled={!s}
-            >
-              <i />
-              <span>
-                {s
-                  ? `${dateLabel(s.book.date)} · Historical market`
-                  : 'Connecting'}
-              </span>
-              <ChevronDown size={13} />
-            </button>
-            <button
-              className="od-wallet-button"
-              onClick={() => setModal('wallet')}
-              disabled={!s}
-            >
-              <Wallet size={16} />
-              <span>Test wallet</span>
-              <ChevronDown size={13} />
-            </button>
-          </div>
-        </header>
+            <ChevronDown size={13} />
+          </button>
+          <button
+            className="od-wallet-button"
+            onClick={() => setModal('wallet')}
+            disabled={!s}
+          >
+            <Wallet size={16} />
+            <span>Test wallet</span>
+            <ChevronDown size={13} />
+          </button>
+        </div>
+      </header>
+      <div className="od-workspace">
         <main id="workspace" className="od-main" tabIndex={-1}>
           {desk.error && (
             <div role="alert" className="od-connection-error">

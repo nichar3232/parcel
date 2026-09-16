@@ -67,8 +67,8 @@ export function PayoffChart({
       >
         <defs>
           <linearGradient id={id} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="#e8590c" stopOpacity=".17" />
-            <stop offset="1" stopColor="#e8590c" stopOpacity="0" />
+            <stop offset="0" stopColor="#3fc98e" stopOpacity=".17" />
+            <stop offset="1" stopColor="#3fc98e" stopOpacity="0" />
           </linearGradient>
         </defs>
         {[0, 0.25, 0.5, 0.75, 1].map((n) => (
@@ -78,14 +78,14 @@ export function PayoffChart({
               x2="640"
               y1={24 + n * 192}
               y2={24 + n * 192}
-              stroke="#ece5da"
+              stroke="#eef3f4"
               strokeDasharray="3 5"
             />
             <text
               x="40"
               y={28 + n * 192}
               textAnchor="end"
-              fill="#8d8478"
+              fill="#78868e"
               fontSize="10"
             >
               {usd(
@@ -100,11 +100,11 @@ export function PayoffChart({
           </g>
         ))}
         <path d={`${line} L640,${zero} L48,${zero}Z`} fill={`url(#${id})`} />
-        <line x1="48" x2="640" y1={zero} y2={zero} stroke="#c3b9a9" />
+        <line x1="48" x2="640" y1={zero} y2={zero} stroke="#cdd7da" />
         <path
           d={line}
           fill="none"
-          stroke="#e8590c"
+          stroke="#3fc98e"
           strokeWidth="3"
           strokeLinejoin="round"
         />
@@ -113,14 +113,14 @@ export function PayoffChart({
           x2={x(selected)}
           y1="24"
           y2="216"
-          stroke="#b0a596"
+          stroke="#a9b4b8"
           strokeDasharray="3 3"
         />
         <circle
           cx={x(selected)}
           cy={y(pnl)}
           r="5"
-          fill="#e8590c"
+          fill="#3fc98e"
           stroke="white"
           strokeWidth="2"
         />
@@ -130,7 +130,7 @@ export function PayoffChart({
             x={x(v)}
             y="244"
             textAnchor="middle"
-            fill="#8d8478"
+            fill="#78868e"
             fontSize="11"
           >
             {usd(v, terms.reference === 'dividend' ? 3 : 0)}

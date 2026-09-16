@@ -57,6 +57,8 @@
 /* ---------- progress rail ---------- */
 .gf-rail {
   list-style: none;
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
   margin: 0 0 -1px;
   padding: 0;
   display: grid;
@@ -90,7 +92,7 @@
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: #b3a99a;
+  color: #a9b4b8;
 }
 .gf-rail-label {
   font-size: 13px;
@@ -107,7 +109,7 @@
   color: var(--od-ink);
   font-weight: 600;
   border-bottom-color: var(--od-accent);
-  background: #fdf7f2;
+  background: #eefaf4;
 }
 .gf-rail li.current .gf-rail-n {
   color: var(--od-accent);
@@ -116,8 +118,10 @@
 /* ---------- panel ---------- */
 .gf-panel {
   border: 1px solid var(--od-line);
+  border-radius: 14px;
   background: #fff;
   padding: 30px 28px;
+  box-shadow: 0 1px 2px rgba(15, 20, 23, 0.04);
 }
 .gf-end {
   text-align: center;
@@ -139,6 +143,8 @@
 /* ---------- 01 intent ---------- */
 .gf-intents {
   display: grid;
+  border-radius: 12px;
+  overflow: hidden;
   grid-template-columns: repeat(3, 1fr);
   border: 1px solid var(--od-line);
   background: var(--od-line);
@@ -165,7 +171,7 @@
   transition: background 0.12s;
 }
 .gf-intent:hover {
-  background: #fdf7f2;
+  background: #eefaf4;
 }
 .gf-intent:hover::before,
 .gf-intent.selected::before {
@@ -195,7 +201,7 @@
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.12em;
-  color: #a89d8e;
+  color: #96a3a8;
   border-top: 1px solid var(--od-line);
   padding-top: 10px;
   width: 100%;
@@ -243,6 +249,7 @@
 }
 .gf-chips button {
   border: 1px solid var(--od-line);
+  border-radius: 8px;
   margin-left: -1px;
   background: #fff;
   color: var(--od-muted);
@@ -260,9 +267,9 @@
   z-index: 1;
 }
 .gf-chips button.selected {
-  background: var(--od-ink);
-  border-color: var(--od-ink);
-  color: var(--od-paper);
+  background: #e7f7ef;
+  border-color: var(--od-accent);
+  color: var(--od-accent-ink);
   font-weight: 600;
   position: relative;
   z-index: 2;
@@ -283,7 +290,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   margin-top: 26px;
-  border-top: 2px solid var(--od-ink);
+  border-top: 1px solid var(--od-line);
 }
 .gf-ledger > div {
   padding: 16px 20px 4px 0;
@@ -319,9 +326,9 @@
   margin: 20px 0 0;
   padding: 14px 16px;
   border-left: 3px solid var(--od-accent);
-  background: #fdf7f2;
+  background: #eefaf4;
   font-size: 13px;
-  color: #3d372f;
+  color: var(--od-body);
   line-height: 1.6;
 }
 .gf-model-note {
@@ -368,16 +375,17 @@
   margin-top: 16px;
   padding: 12px 14px;
   border-left: 3px solid var(--od-red, #b3261e);
-  background: #fdf3f2;
+  background: #fdf2f1;
   font-size: 12px;
-  color: #6f2b26;
+  color: #8a3a33;
   line-height: 1.55;
 }
 .gf-fund-side {
   border: 1px solid var(--od-line);
+  border-radius: 12px;
   padding: 20px 18px;
   align-self: start;
-  background: #fdfcfa;
+  background: #fafcfc;
 }
 .gf-fund-side strong {
   font-family: var(--mono);
@@ -420,6 +428,7 @@
 }
 .gf-back {
   border: 1px solid var(--od-line);
+  border-radius: 10px;
   background: #fff;
   color: var(--od-muted);
   padding: 11px 18px;

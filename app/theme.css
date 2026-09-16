@@ -1,111 +1,395 @@
 /* ------------------------------------------------------------------
-   Sharpening layer. Loaded after oddlot.css.
-   The base sheets carry layout; this carries the ink-on-paper voice:
-   hard edges, real rules, one amber signal, no pastel fills.
+   App skin. Loaded after oddlot.css so it wins on the legacy rules.
+   Same system as the landing: cool grey canvas, white cards, soft
+   radii, one green accent. Navigation lives in the top bar.
    ------------------------------------------------------------------ */
 
 .oddlot,
 .od-dialog {
-  --od-radius: 0px;
-  --od-rule: 1px solid var(--od-line);
-  --od-rule-strong: 2px solid var(--od-ink);
+  --od-ink: #0f1417;
+  --od-body: #4d5a61;
+  --od-muted: #78868e;
+  --od-line: #e2e8ea;
+  --od-panel: #ffffff;
+  --od-bg: #f4f7f8;
+  --od-accent: #6fdcaa;
+  --od-accent-ink: #0d5c3d;
+  --od-green: #1b9a68;
+  --od-red: #d2544c;
+  --od-blue: #6fdcaa;
+  --od-paper: #ffffff;
+  --od-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+.oddlot {
+  color: var(--od-ink);
+  background:
+    radial-gradient(
+      110% 70% at 88% 0%,
+      rgba(111, 220, 170, 0.1) 0%,
+      rgba(111, 220, 170, 0) 55%
+    ),
+    linear-gradient(180deg, #f7fafb 0%, var(--od-bg) 100%);
+  font-size: 14px;
 }
 
-/* 1. Flatten every corner. Pills, cards, tiles, inputs, buttons. ---- */
-.oddlot *,
-.od-dialog * {
-  border-radius: 0 !important;
+/* ---------- top app bar ---------- */
+.od-appbar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  height: 64px;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--od-line);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(8px);
+}
+.oddlot .od-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--od-ink);
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+.od-brand-symbol {
+  display: grid;
+  grid-template-columns: repeat(2, 7px);
+  gap: 2px;
+  width: auto;
+  transform: rotate(-9deg);
+}
+.od-brand-symbol i {
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  background: var(--od-accent);
+}
+.od-brand-symbol i:nth-child(2) {
+  background: var(--od-ink);
+}
+.od-brand-symbol i:last-child {
+  grid-column: 2;
+  background: #b9ecd4;
 }
 
-/* 2. Kill soft drop shadows; depth comes from rules, not blur. ------ */
-.oddlot *,
-.od-dialog * {
-  box-shadow: none !important;
+/* the nav keeps its .od-sidebar hook but reads as a top-bar row */
+.oddlot .od-sidebar {
+  position: static;
+  inset: auto;
+  flex-direction: row;
+  align-items: center;
+  width: auto;
+  margin-right: auto;
+  padding: 0;
+  background: none;
+  color: var(--od-body);
+  z-index: auto;
 }
+.oddlot .od-sidebar nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.oddlot .od-nav-item {
+  width: auto;
+  height: 34px;
+  gap: 8px;
+  margin: 0;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--od-body);
+  font-size: 14px;
+}
+.oddlot .od-nav-item svg {
+  opacity: 0.55;
+}
+.oddlot .od-nav-item:hover {
+  background: #eef3f4;
+  color: var(--od-ink);
+}
+.oddlot .od-nav-item.active {
+  background: #e7f7ef;
+  color: var(--od-accent-ink);
+  font-weight: 600;
+}
+.oddlot .od-nav-item.active svg {
+  opacity: 1;
+  color: var(--od-accent-ink);
+}
+.oddlot .od-nav-item i {
+  display: none;
+}
+.oddlot .od-nav-bottom {
+  display: none;
+}
+
+/* ---------- top bar actions ---------- */
+.od-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.oddlot .od-environment {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px 5px 10px;
+  border: 1px solid var(--od-line);
+  border-radius: 999px;
+  background: var(--od-panel);
+  font-family: var(--od-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--od-body);
+}
+.oddlot .od-environment i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2fb87e;
+}
+.oddlot .od-market-button,
+.oddlot .od-wallet-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 13px;
+  border: 1px solid var(--od-line);
+  border-radius: 8px;
+  background: var(--od-panel);
+  color: var(--od-body);
+  font-size: 13px;
+  font-weight: 500;
+}
+.oddlot .od-market-button:hover:not(:disabled),
+.oddlot .od-wallet-button:hover:not(:disabled) {
+  border-color: #c9d3d6;
+  color: var(--od-ink);
+}
+.oddlot .od-market-button i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--od-accent);
+}
+
+/* ---------- workspace shell ---------- */
+.oddlot .od-workspace {
+  margin: 0;
+  padding: 0;
+  min-height: auto;
+}
+.oddlot .od-main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 40px 28px 64px;
+}
+.oddlot .od-footer {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 18px 28px 30px;
+  border-top: 1px solid var(--od-line);
+  color: var(--od-muted);
+  font-size: 12px;
+}
+
+/* ---------- surfaces ---------- */
 .oddlot .od-panel,
 .od-dialog {
-  border: var(--od-rule);
+  border: 1px solid var(--od-line);
+  border-radius: 14px;
   background: var(--od-panel);
+  box-shadow: 0 1px 2px rgba(15, 20, 23, 0.04);
+}
+.od-dialog {
+  box-shadow: 0 24px 60px -28px rgba(15, 20, 23, 0.3);
 }
 
-/* 3. Selected states: solid ink block, not a tinted wash. ---------- */
-.od-category-tabs button {
-  border: 1px solid var(--od-line) !important;
-  background: var(--od-panel) !important;
-  color: var(--od-muted) !important;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  font-size: 11px;
+/* ---------- controls ---------- */
+.oddlot input,
+.oddlot select,
+.od-dialog input,
+.od-dialog select {
+  border-radius: 8px;
+  border: 1px solid var(--od-line);
+  color: var(--od-ink);
 }
-.od-category-tabs button:hover {
-  border-color: var(--od-ink) !important;
-  color: var(--od-ink) !important;
-}
-.od-category-tabs button.selected {
-  background: var(--od-ink) !important;
-  border-color: var(--od-ink) !important;
-  color: var(--od-paper) !important;
-  font-weight: 600;
-}
-
-/* 5. Buttons: square, ink-filled, amber only for the primary act. --- */
-.oddlot button.od-button-primary,
-.oddlot .od-primary,
-.od-dialog button.od-button-primary {
-  background: var(--od-ink);
-  color: var(--od-paper);
-  border: 1px solid var(--od-ink);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-.oddlot button.od-button-primary:hover:not(:disabled) {
-  background: var(--od-accent);
+.oddlot input:focus,
+.oddlot select:focus {
   border-color: var(--od-accent);
 }
-
-/* 6. Numerals in mono so figures line up and read as data. --------- */
-.od-metric-value,
-.od-review-line b {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-/* 8. Focus ring matches the accent. -------------------------------- */
 .oddlot button:focus-visible,
 .oddlot a:focus-visible,
 .od-dialog button:focus-visible {
-  outline: 2px solid var(--od-accent) !important;
+  outline: 2px solid var(--od-accent-ink);
   outline-offset: 2px;
 }
 
-/* 9. Sidebar: warm near-black, amber current-page marker. ----------- */
-.od-sidebar {
-  background: #14110e;
-  border-right: 1px solid #241f19;
+/* category tabs read as a segmented control, not bubbles */
+.od-category-tabs button {
+  border: 1px solid var(--od-line);
+  border-radius: 8px;
+  background: var(--od-panel);
+  color: var(--od-body);
+  font-size: 13px;
+  font-weight: 500;
 }
-.od-nav-item.active {
-  background: #211c16 !important;
-  color: #fff !important;
+.od-category-tabs button:hover {
+  border-color: #c9d3d6;
+  color: var(--od-ink);
 }
-.od-nav-item.active i {
-  background: var(--od-accent) !important;
-}
-.od-brand-symbol i {
-  background: var(--od-accent) !important;
-}
-.od-brand-symbol i:last-child {
-  background: #8a6a4a !important;
-}
-.od-brand-dot {
-  color: var(--od-accent) !important;
+.od-category-tabs button.selected {
+  background: #e7f7ef;
+  border-color: var(--od-accent);
+  color: var(--od-accent-ink);
+  font-weight: 600;
 }
 
-/* 10. Semantic figures. -------------------------------------------- */
-.oddlot .is-gain {
+/* ---------- figures ---------- */
+.od-metric-value,
+.od-review-line b {
+  font-family: var(--od-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.oddlot .is-gain,
+.oddlot .od-positive {
   color: var(--od-green);
 }
-.oddlot .is-loss {
+.oddlot .is-loss,
+.oddlot .od-negative {
   color: var(--od-red);
+}
+
+/* ---------- mobile: the top nav becomes a drawer again ---------- */
+@media (max-width: 900px) {
+  .od-appbar {
+    gap: 12px;
+    padding: 0 16px;
+  }
+  .oddlot .od-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 260px;
+    flex-direction: column;
+    align-items: stretch;
+    margin: 0;
+    padding: 24px 16px;
+    background: var(--od-panel);
+    border-right: 1px solid var(--od-line);
+    transform: translateX(-100%);
+    transition: transform 0.18s;
+    z-index: 40;
+  }
+  .oddlot .od-sidebar.open {
+    transform: none;
+  }
+  .oddlot .od-sidebar nav {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+  .oddlot .od-nav-item {
+    width: 100%;
+    height: 42px;
+  }
+  .oddlot .od-nav-bottom {
+    display: grid;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--od-line);
+  }
+  .oddlot .od-nav-bottom > button,
+  .oddlot .od-nav-bottom > a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 0;
+    background: none;
+    color: var(--od-body);
+    font-size: 13px;
+  }
+  .oddlot .od-main {
+    padding: 24px 16px 48px;
+  }
+  .oddlot .od-environment,
+  .oddlot .od-market-button span {
+    display: none;
+  }
+}
+@media (min-width: 901px) {
+  .oddlot .od-mobile-menu,
+  .oddlot .od-mobile-scrim {
+    display: none;
+  }
+}
+
+/* ---------- buttons ---------- */
+.oddlot .od-button,
+.od-dialog .od-button {
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.oddlot .od-button.primary,
+.od-dialog .od-button.primary {
+  background: var(--od-accent);
+  border: 1px solid var(--od-accent);
+  color: #06311f;
+}
+.oddlot .od-button.primary:hover:not(:disabled),
+.od-dialog .od-button.primary:hover:not(:disabled) {
+  background: #5bd29c;
+  border-color: #5bd29c;
+}
+.oddlot .od-button.secondary,
+.od-dialog .od-button.secondary {
+  background: var(--od-panel);
+  border: 1px solid var(--od-line);
+  color: var(--od-ink);
+}
+.oddlot .od-button.secondary:hover:not(:disabled),
+.od-dialog .od-button.secondary:hover:not(:disabled) {
+  border-color: #c9d3d6;
+}
+
+/* ---------- shell: keep the footer on the floor ---------- */
+.oddlot {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.oddlot .od-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+}
+.oddlot .od-main {
+  flex: 1;
+  width: 100%;
+}
+.oddlot .od-footer {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* the legacy reference-move slider still carried the old accent */
+.oddlot input[type='range'] {
+  accent-color: #3fc98e;
 }
