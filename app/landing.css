@@ -726,10 +726,14 @@
   min-width: 100%;
   row-gap: 8px;
 }
-/* No separators. A dot between items is orphaned at the end of a line
-   as soon as the list wraps, so the gap does the separating instead. */
+/* All three read as one line, inside the width the buttons set, so the
+   type steps down rather than the list wrapping. */
 .lp-meta {
-  column-gap: 22px;
+  flex-wrap: nowrap;
+  column-gap: 16px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 .lp-meta li + li {
   border-left: 0;

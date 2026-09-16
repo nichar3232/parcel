@@ -94,9 +94,6 @@ export default function Landing() {
         <figure className="lp-card">
           <figcaption>
             <span className="lp-card-kicker">Position preview</span>
-            <span className="lp-card-tag">
-              <i /> {HERO.openLabel} close {HERO.spotLabel}
-            </span>
           </figcaption>
           <h2>
             {HERO.title}
