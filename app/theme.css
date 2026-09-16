@@ -393,3 +393,160 @@
 .oddlot input[type='range'] {
   accent-color: #3fc98e;
 }
+
+/* ------------------------------------------------------------------
+   Density cleanup. The legacy sheet was drawn for a much denser
+   layout: micro type, hairline stacks and controls packed with no
+   breathing room. These bring it up to the current scale.
+   ------------------------------------------------------------------ */
+
+/* Helper copy was 10px and shouted down with !important. */
+.oddlot .od-form-note,
+.od-dialog .od-form-note {
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  color: var(--od-muted) !important;
+  margin: 10px 0 0 !important;
+}
+
+/* The sizing disclosure drew a rule above and below, so collapsing it
+   left an empty banded strip in the middle of the form. */
+.oddlot .od-sizing {
+  border-block: 0;
+  border: 1px solid var(--od-line);
+  border-radius: 12px;
+  background: #fbfdfd;
+  margin: 16px 0 20px;
+  padding: 14px 16px;
+}
+.oddlot .od-sizing summary {
+  color: var(--od-accent-ink);
+  font-size: 13px;
+  list-style: none;
+}
+.oddlot .od-sizing[open] summary {
+  margin-bottom: 18px;
+}
+.oddlot .od-sizing .od-button {
+  margin-top: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 16px;
+}
+
+/* Segmented controls: one treatment everywhere. */
+.oddlot .od-segmented {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--od-line);
+  border-radius: 10px;
+  background: #f1f5f6;
+}
+.oddlot .od-segmented button {
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--od-muted);
+}
+.oddlot .od-segmented button:hover {
+  color: var(--od-ink);
+}
+.oddlot .od-segmented button.selected {
+  background: var(--od-panel);
+  color: var(--od-ink);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15, 20, 23, 0.08);
+}
+
+/* Template cards: even heights, chevron aligned to the kicker. */
+.oddlot .od-template {
+  border-radius: 12px;
+  padding: 18px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.oddlot .od-template p {
+  margin-top: 2px;
+}
+.oddlot .od-template svg {
+  position: absolute;
+  top: 18px;
+  right: 16px;
+  color: var(--od-muted);
+}
+.oddlot .od-template.selected {
+  border-color: var(--od-accent);
+}
+
+/* Fields and labels. */
+.oddlot .od-field,
+.od-dialog .od-field {
+  font-size: 12px;
+}
+.oddlot .od-field > span,
+.od-dialog .od-field > span {
+  color: var(--od-body);
+}
+.oddlot .od-legs-label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  border-top: 1px solid var(--od-line);
+  padding-top: 18px;
+  margin-bottom: 4px;
+}
+.oddlot .od-basic-leg {
+  border-color: var(--od-line);
+  padding: 16px;
+  gap: 14px;
+}
+
+/* "Make your next move" cards sat at uneven heights with a floating
+   arrow; pin the arrow to the floor so the row reads as one band. */
+.oddlot .od-next-move-card,
+.oddlot .od-cta-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.oddlot .od-next-move-card > svg:last-child,
+.oddlot .od-cta-card > svg:last-child {
+  margin-top: auto;
+}
+
+/* The buy/sell sign was a bare glyph that sat low and read as an
+   underscore on sell rows; make it a deliberate badge. */
+.oddlot .od-leg-side {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  background: #e7f7ef;
+  color: var(--od-accent-ink);
+}
+.oddlot .od-leg-side.sell {
+  background: #fdeeed;
+  color: #a33f37;
+}
+.oddlot .od-basic-leg .od-leg-side {
+  margin-top: 0;
+}
+
+/* Empty states reserved 170px plus generous padding, which left large
+   dead panels on a fresh vault. */
+.oddlot .od-empty {
+  min-height: 0;
+  padding: 30px 24px 34px;
+  gap: 8px;
+}
+.oddlot .od-empty p {
+  max-width: 46ch;
+}
