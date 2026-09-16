@@ -67,8 +67,19 @@ export function OptionsChain({
       legs: [{ kind, side, strike, ratio: 1 }],
     });
   };
-  const priceLabel = (p: number) =>
-    usd(Math.abs(p), Math.abs(p) > 0 && Math.abs(p) < 0.0001 ? 6 : 4);
+  // Chain premiums read at two decimals. A non-zero premium must never
+  // render as $0.00, so anything that would round to zero is marked as
+  // below a cent rather than shown as free.
+  const chainPrice = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const priceLabel = (p: number) => {
+    const v = Math.abs(p);
+    return v > 0 && v < 0.005 ? '<$0.01' : chainPrice.format(v);
+  };
   return (
     <Panel className="od-chain">
       <div className="od-panel-heading">
