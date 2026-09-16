@@ -8,12 +8,11 @@ test('the landing page states the problem and routes into the desk', async ({
   await page.goto('/');
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
-    'An option contract is 100 shares.',
+    'Options, by the share.',
   );
-  // the comparison that carries the pitch
   await expect(page.locator('.lp-hero-figure')).toContainText('$14,262');
   await expect(page.locator('.lp-hero-figure')).toContainText('$0.70');
-  await page.getByRole('link', { name: /Build a position/ }).click();
+  await page.getByRole('link', { name: /Launch app/ }).click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
   await expect(page.getByRole('heading', { level: 1 })).toContainText(

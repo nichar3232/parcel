@@ -33,7 +33,7 @@ async function run(width, height, tag) {
 
   // --- enter the desk via the CTA, proving the landing links through ---
   await page
-    .getByRole('link', { name: /build a position/i })
+    .getByRole('link', { name: /launch app/i })
     .first()
     .click();
   await page.waitForURL('**/app');
