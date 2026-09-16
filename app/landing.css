@@ -98,25 +98,6 @@
   align-items: center;
   gap: 14px;
 }
-.lp-env {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 5px 12px 5px 10px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--body);
-  background: var(--panel);
-}
-.lp-env i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #2fb87e;
-}
 .lp a.lp-cta {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -375,9 +356,6 @@
   }
   .lp-stats > div:nth-child(-n + 2) {
     border-bottom: 1px solid var(--line);
-  }
-  .lp-env {
-    display: none;
   }
   .lp-meta li + li {
     margin-left: 10px;

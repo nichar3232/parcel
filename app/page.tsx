@@ -50,9 +50,6 @@ export default function Landing() {
           <a className="lp-nav-about" href="#how">
             About
           </a>
-          <span className="lp-env">
-            <i /> SANDBOX
-          </span>
           <Link className="lp-cta" href="/app">
             Open the desk
           </Link>
