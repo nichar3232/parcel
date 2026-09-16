@@ -171,28 +171,28 @@ export function LendingView({ desk }: { desk: VaultController }) {
           />
         </Panel>
       </div>
-      <Panel className="od-order-form">
-        <div className="od-panel-heading">
-          <h2>Put your capital to work</h2>
-          <Badge>NVDA</Badge>
-        </div>
-        <div className="od-segmented">
-          {(['lend', 'short', 'stock'] as const).map((m) => (
-            <button
-              key={m}
-              className={mode === m ? 'selected' : ''}
-              onClick={() => setMode(m)}
-            >
-              {m === 'lend'
-                ? 'Lend stock'
-                : m === 'short'
-                  ? 'Protected short'
-                  : 'Buy / sell stock'}
-            </button>
-          ))}
-        </div>
-        <div className="od-ticket">
-          <div className="od-ticket-inputs">
+      <div className="od-builder-grid">
+        <Panel className="od-order-form">
+          <div className="od-panel-heading">
+            <h2>Put your capital to work</h2>
+            <Badge>NVDA</Badge>
+          </div>
+          <div className="od-segmented">
+            {(['lend', 'short', 'stock'] as const).map((m) => (
+              <button
+                key={m}
+                className={mode === m ? 'selected' : ''}
+                onClick={() => setMode(m)}
+              >
+                {m === 'lend'
+                  ? 'Lend stock'
+                  : m === 'short'
+                    ? 'Protected short'
+                    : 'Buy / sell stock'}
+              </button>
+            ))}
+          </div>
+          <div className="od-form-content">
             <Field label="Share quantity">
               <input
                 type="number"
@@ -238,8 +238,6 @@ export function LendingView({ desk }: { desk: VaultController }) {
                 />
               </Field>
             )}
-          </div>
-          <div className="od-ticket-summary">
             <div className="od-order-summary">
               {mode === 'lend' ? (
                 <>
@@ -300,192 +298,197 @@ export function LendingView({ desk }: { desk: VaultController }) {
               <ArrowRight size={16} />
             </Button>
             <p className="od-form-note">
-              All assets, counterparties, and rates in this environment are for
-              testing. The borrower sells the borrowed stock and funds a capped
-              repurchase; pledged protection cannot be reused.
+              Test assets and counterparties. Pledged protection cannot be
+              reused.
             </p>
           </div>
-        </div>
-      </Panel>
-      <Panel>
-        <div className="od-panel-heading">
-          <h2>Stock loans</h2>
-          <Badge tone="neutral">{loans.length} active</Badge>
-        </div>
-        {loans.length ? (
-          <div className="od-table-wrap">
-            <table className="od-table">
-              <thead>
-                <tr>
-                  <th>Principal / borrower use</th>
-                  <th>Term ends</th>
-                  <th>Borrower cash collateral</th>
-                  <th>Interest prepaid</th>
-                  <th>
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {loans.map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      <b>{qty(p.quantity)} NVDA</b>
-                      {p.productive && (
-                        <small>
-                          Sold at {usd(p.productive.entry)} · protected at{' '}
-                          {usd(p.productive.cap)}
-                        </small>
-                      )}
-                    </td>
-                    <td>{dateLabel(p.expiry)}</td>
-                    <td>{usd(p.collateral)}</td>
-                    <td>{usd(p.prepaidInterest, 4)}</td>
-                    <td>
-                      <Button
-                        variant="quiet"
-                        disabled={desk.busy}
-                        onClick={() =>
-                          setReview({
-                            action: { type: 'recall', id: p.id },
-                            revision: s.revision,
-                            quantity: p.quantity,
-                            price: s.market.price,
-                            title: 'Review stock recall',
-                            label: 'Interest you receive',
-                            value: accruedInterest(
-                              p.prepaidInterest,
-                              p.opened,
-                              p.expiry,
-                              s.book.date,
-                            ),
-                            details: [
-                              ['Shares returned', `${qty(p.quantity)} NVDA`],
-                              [
-                                'Unused borrower collateral',
-                                'Returned to borrower after repurchase',
-                              ],
-                            ],
-                          })
-                        }
-                      >
-                        Recall shares
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty
-            title="No shares out on loan."
-            description="Lend available stock to receive a collateral-backed claim and prepaid test interest."
-          />
-        )}
-      </Panel>
-      <Panel>
-        <div className="od-panel-heading">
-          <h2>Protected shorts</h2>
-          <Badge tone="neutral">{shorts.length} active</Badge>
-        </div>
-        {shorts.length ? (
-          <div className="od-table-wrap">
-            <table className="od-table">
-              <thead>
-                <tr>
-                  <th>Quantity</th>
-                  <th>Entry</th>
-                  <th>Protection strike</th>
-                  <th>Term ends</th>
-                  <th>Maximum cash reserved</th>
-                  <th>
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {shorts.map((p) => (
-                  <tr key={p.id}>
-                    <td>{qty(p.quantity)} NVDA</td>
-                    <td>{usd(p.entry)}</td>
-                    <td>{usd(p.cap)}</td>
-                    <td>{dateLabel(p.expiry)}</td>
-                    <td>{usd(p.quantity * p.cap + p.maxInterest)}</td>
-                    <td>
-                      <Button
-                        variant="quiet"
-                        disabled={desk.busy}
-                        onClick={() =>
-                          setReview({
-                            action: { type: 'close-short', id: p.id },
-                            revision: s.revision,
-                            quantity: p.quantity,
-                            price: s.market.price,
-                            title: 'Review short close',
-                            label: 'You pay to cover and repay',
-                            value: shortCloseAmounts(
-                              p,
-                              s.market.price,
-                              s.book.date,
-                            ).total,
-                            details: [
-                              [
-                                'Repurchase cost',
-                                usd(
-                                  shortCloseAmounts(
-                                    p,
-                                    s.market.price,
-                                    s.book.date,
-                                  ).repurchase,
-                                  6,
+        </Panel>
+
+        <div className="od-builder-insight">
+          <Panel>
+            <div className="od-panel-heading">
+              <h2>Stock loans</h2>
+              <Badge tone="neutral">{loans.length} active</Badge>
+            </div>
+            {loans.length ? (
+              <div className="od-table-wrap">
+                <table className="od-table">
+                  <thead>
+                    <tr>
+                      <th>Principal / borrower use</th>
+                      <th>Term ends</th>
+                      <th>Borrower cash collateral</th>
+                      <th>Interest prepaid</th>
+                      <th>
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loans.map((p) => (
+                      <tr key={p.id}>
+                        <td>
+                          <b>{qty(p.quantity)} NVDA</b>
+                          {p.productive && (
+                            <small>
+                              Sold at {usd(p.productive.entry)} · protected at{' '}
+                              {usd(p.productive.cap)}
+                            </small>
+                          )}
+                        </td>
+                        <td>{dateLabel(p.expiry)}</td>
+                        <td>{usd(p.collateral)}</td>
+                        <td>{usd(p.prepaidInterest, 4)}</td>
+                        <td>
+                          <Button
+                            variant="quiet"
+                            disabled={desk.busy}
+                            onClick={() =>
+                              setReview({
+                                action: { type: 'recall', id: p.id },
+                                revision: s.revision,
+                                quantity: p.quantity,
+                                price: s.market.price,
+                                title: 'Review stock recall',
+                                label: 'Interest you receive',
+                                value: accruedInterest(
+                                  p.prepaidInterest,
+                                  p.opened,
+                                  p.expiry,
+                                  s.book.date,
                                 ),
-                              ],
-                              [
-                                'Accrued borrow cost',
-                                usd(
-                                  shortCloseAmounts(
-                                    p,
-                                    s.market.price,
-                                    s.book.date,
-                                  ).interest,
-                                  6,
-                                ),
-                              ],
-                              [
-                                'Total position P&L including paid protection',
-                                usd(
-                                  shortCloseAmounts(
-                                    p,
-                                    s.market.price,
-                                    s.book.date,
-                                  ).pnl,
-                                  6,
-                                ),
-                              ],
-                              [
-                                'Protective call retired',
-                                `Strike ${usd(p.cap, 6)} · expiry ${p.expiry}`,
-                              ],
-                            ],
-                          })
-                        }
-                      >
-                        Cover & repay
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty
-            title="No open stock shorts."
-            description="A protective call makes the maximum repayment explicit before the borrow begins."
-          />
-        )}
-      </Panel>
+                                details: [
+                                  [
+                                    'Shares returned',
+                                    `${qty(p.quantity)} NVDA`,
+                                  ],
+                                  [
+                                    'Unused borrower collateral',
+                                    'Returned to borrower after repurchase',
+                                  ],
+                                ],
+                              })
+                            }
+                          >
+                            Recall shares
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <Empty
+                title="No shares out on loan."
+                description="Lend available stock to receive a collateral-backed claim and prepaid test interest."
+              />
+            )}
+          </Panel>
+          <Panel>
+            <div className="od-panel-heading">
+              <h2>Protected shorts</h2>
+              <Badge tone="neutral">{shorts.length} active</Badge>
+            </div>
+            {shorts.length ? (
+              <div className="od-table-wrap">
+                <table className="od-table">
+                  <thead>
+                    <tr>
+                      <th>Quantity</th>
+                      <th>Entry</th>
+                      <th>Protection strike</th>
+                      <th>Term ends</th>
+                      <th>Maximum cash reserved</th>
+                      <th>
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shorts.map((p) => (
+                      <tr key={p.id}>
+                        <td>{qty(p.quantity)} NVDA</td>
+                        <td>{usd(p.entry)}</td>
+                        <td>{usd(p.cap)}</td>
+                        <td>{dateLabel(p.expiry)}</td>
+                        <td>{usd(p.quantity * p.cap + p.maxInterest)}</td>
+                        <td>
+                          <Button
+                            variant="quiet"
+                            disabled={desk.busy}
+                            onClick={() =>
+                              setReview({
+                                action: { type: 'close-short', id: p.id },
+                                revision: s.revision,
+                                quantity: p.quantity,
+                                price: s.market.price,
+                                title: 'Review short close',
+                                label: 'You pay to cover and repay',
+                                value: shortCloseAmounts(
+                                  p,
+                                  s.market.price,
+                                  s.book.date,
+                                ).total,
+                                details: [
+                                  [
+                                    'Repurchase cost',
+                                    usd(
+                                      shortCloseAmounts(
+                                        p,
+                                        s.market.price,
+                                        s.book.date,
+                                      ).repurchase,
+                                      6,
+                                    ),
+                                  ],
+                                  [
+                                    'Accrued borrow cost',
+                                    usd(
+                                      shortCloseAmounts(
+                                        p,
+                                        s.market.price,
+                                        s.book.date,
+                                      ).interest,
+                                      6,
+                                    ),
+                                  ],
+                                  [
+                                    'Total position P&L including paid protection',
+                                    usd(
+                                      shortCloseAmounts(
+                                        p,
+                                        s.market.price,
+                                        s.book.date,
+                                      ).pnl,
+                                      6,
+                                    ),
+                                  ],
+                                  [
+                                    'Protective call retired',
+                                    `Strike ${usd(p.cap, 6)} · expiry ${p.expiry}`,
+                                  ],
+                                ],
+                              })
+                            }
+                          >
+                            Cover & repay
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <Empty
+                title="No open stock shorts."
+                description="A protective call makes the maximum repayment explicit before the borrow begins."
+              />
+            )}
+          </Panel>
+        </div>
+      </div>
       {review && (
         <Modal
           title={review.title}

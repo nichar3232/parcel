@@ -399,9 +399,8 @@ export function OptionsView({
               </Button>
               <p className="od-form-note">
                 <LockKeyhole size={12} />
-                Physical buyers prefund exercise cash or delivery shares in
-                addition to premium. Cash spreads fund their bounded obligation.
-                The quote shows the full requirement.
+                Physical buyers prefund exercise cash or shares on top of
+                premium. The quote shows the full requirement.
               </p>
             </div>
           </Panel>

@@ -111,9 +111,8 @@ export function RiskView({
           <div>
             <h2>Settlement groups</h2>
             <p>
-              Worst-case cash and share deliveries are checked at every strike
-              boundary and price tail. Group figures precede calendar offsets;
-              the vault total above includes them.
+              Worst-case delivery is checked at every strike boundary and price
+              tail, before calendar offsets.
             </p>
           </div>
         </div>
@@ -190,9 +189,8 @@ export function RiskView({
             </div>
           </div>
           <p className="od-form-note">
-            A share has one job at a time. Covered calls reserve shares and a
-            stock loan removes them from your spendable vault, so withdrawals
-            and sales must leave every remaining commitment fully funded.
+            A share has one job at a time. Withdrawals and sales must leave
+            every remaining commitment fully funded.
           </p>
         </div>
       </Panel>

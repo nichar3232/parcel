@@ -144,17 +144,17 @@ export function evaluateMint(
   // and needs the issuer to thaw it before anything can be deposited.
   if (onchain.extensions.includes('defaultAccountState'))
     disclosures.push(
-      'New token accounts for this mint follow an issuer-set default state. If the issuer switches that default to frozen, new escrow accounts will require issuer action.',
+      'New accounts follow an issuer-set default state. If the issuer switches it to frozen, a new escrow needs issuer action.',
     );
 
   if (onchain.transferFeeBasisPoints)
     disclosures.push(
-      `Every transfer of this token withholds a ${(onchain.transferFeeBasisPoints / 100).toFixed(2)}% issuer fee. The contract records the amount the escrow actually received, so the buyer receives exactly that and the fee is never silently borne by the buyer.`,
+      `A ${(onchain.transferFeeBasisPoints / 100).toFixed(2)}% issuer fee is withheld on every transfer. The contract records what the escrow actually received, so the buyer is never charged it silently.`,
     );
 
   if (onchain.freezeAuthority)
     disclosures.push(
-      'The issuer holds freeze authority and can freeze the escrow account, which would delay exercise or expiry recovery until unfrozen.',
+      'The issuer can freeze the escrow account, delaying exercise or expiry recovery until unfrozen.',
     );
 
   // Two extensions can map to the same reason; state it once.

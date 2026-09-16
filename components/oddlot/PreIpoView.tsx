@@ -146,31 +146,21 @@ export function PreIpoView() {
       />
 
       {!data.executionEnabled && (
-        <Panel className="od-preipo-banner">
-          <div className="od-panel-heading">
-            <h2>
-              <Lock size={16} /> Signing is not available in this build
-            </h2>
-            <Badge tone="neutral">{data.network}</Badge>
-          </div>
-          <div className="od-panel-body">
-            <p className="od-form-note">
-              No covered-call program is configured, so this screen verifies and
-              prices only. Nothing here escrows, transfers or spends a sponsor
-              token. The sandbox vault elsewhere in this app is accounting, not
-              on-chain custody, and is not used by this contract.
-            </p>
-          </div>
+        <Panel className="od-notice">
+          <Lock size={15} />
+          <p>
+            <b>Signing is off in this build.</b> No program is configured, so
+            this screen verifies and prices only. Nothing escrows or spends a
+            token.
+          </p>
+          <Badge tone="neutral">{data.network}</Badge>
         </Panel>
       )}
 
       {data.warnings.map((w) => (
-        <Panel key={w} className="od-preipo-warning">
-          <div className="od-panel-body flush">
-            <p className="od-form-note">
-              <AlertTriangle size={14} /> {w}
-            </p>
-          </div>
+        <Panel key={w} className="od-notice warn">
+          <AlertTriangle size={15} />
+          <p>{w}</p>
         </Panel>
       ))}
 
@@ -221,42 +211,42 @@ export function PreIpoView() {
       </Panel>
 
       {current && (
-        <Panel className="od-order-form">
-          <div className="od-panel-heading">
-            <h2>Write a covered call</h2>
-            <Badge tone="neutral">{current.asset.symbol}</Badge>
-          </div>
-
-          {!current.verdict.escrowSupported ? (
-            <div className="od-panel-body">
-              <p className="od-form-note">
-                Not escrowable in this version. {reasons.length} mint feature
-                {reasons.length === 1 ? '' : 's'} read from the mint account
-                cannot be guaranteed to a buyer:
-              </p>
-              <ul className="od-reason-list">
-                {reasons.map((b) => (
-                  <li key={b.code + b.detail}>
-                    <Lock size={13} />
-                    <span>{BLOCKER_LABEL[b.code] || b.code}</span>
-                    <code>{b.code}</code>
-                  </li>
-                ))}
-              </ul>
-              <details className="od-sizing od-terms">
-                <summary>Why each one blocks escrow</summary>
-                <div className="od-terms-body">
-                  {reasons.map((b) => (
-                    <p className="od-form-note" key={b.code + b.detail}>
-                      <b>{BLOCKER_LABEL[b.code] || b.code}.</b> {b.detail}
-                    </p>
-                  ))}
-                </div>
-              </details>
+        <div className="od-builder-grid">
+          <Panel className="od-order-form">
+            <div className="od-panel-heading">
+              <h2>Write a covered call</h2>
+              <Badge tone="neutral">{current.asset.symbol}</Badge>
             </div>
-          ) : (
-            <div className="od-ticket">
-              <div className="od-ticket-inputs">
+
+            {!current.verdict.escrowSupported ? (
+              <div className="od-panel-body">
+                <p className="od-form-note">
+                  Not escrowable in this version. {reasons.length} mint feature
+                  {reasons.length === 1 ? '' : 's'} read from the mint account
+                  cannot be guaranteed to a buyer:
+                </p>
+                <ul className="od-reason-list">
+                  {reasons.map((b) => (
+                    <li key={b.code + b.detail}>
+                      <Lock size={13} />
+                      <span>{BLOCKER_LABEL[b.code] || b.code}</span>
+                      <code>{b.code}</code>
+                    </li>
+                  ))}
+                </ul>
+                <details className="od-sizing od-terms">
+                  <summary>Why each one blocks escrow</summary>
+                  <div className="od-terms-body">
+                    {reasons.map((b) => (
+                      <p className="od-form-note" key={b.code + b.detail}>
+                        <b>{BLOCKER_LABEL[b.code] || b.code}.</b> {b.detail}
+                      </p>
+                    ))}
+                  </div>
+                </details>
+              </div>
+            ) : (
+              <div className="od-form-content">
                 <Field label={`Tokens to escrow (${current.asset.symbol})`}>
                   <input
                     value={amount}
@@ -281,9 +271,6 @@ export function PreIpoView() {
                     onChange={(e) => setExercise(e.target.value)}
                   />
                 </Field>
-              </div>
-
-              <div className="od-ticket-summary">
                 <div className="od-order-summary">
                   <div>
                     <span>Derived strike per token</span>
@@ -321,66 +308,109 @@ export function PreIpoView() {
                     sign.
                   </p>
                 )}
-                {current.onchain &&
-                  current.verdict.disclosures.map((d) => (
-                    <p className="od-form-note disclosure" key={d}>
-                      <AlertTriangle size={13} /> {d}
-                    </p>
-                  ))}
               </div>
-            </div>
-          )}
-
-          <div className="od-terms-strip">
-            <details className="od-sizing od-terms">
-              <summary>Issuer terms and restrictions</summary>
-              <div className="od-terms-body">
-                <p className="od-form-note">
-                  {current.asset.issuerTerms.instrument}
-                </p>
-                <h3 className="od-preipo-subhead">Rights the issuer retains</h3>
-                <ul className="od-preipo-list">
-                  {current.asset.issuerTerms.issuerRights.map((r) => (
-                    <li key={r}>{r}</li>
-                  ))}
-                </ul>
-                <h3 className="od-preipo-subhead">Restrictions</h3>
-                <ul className="od-preipo-list">
-                  {current.asset.issuerTerms.restrictions.map((r) => (
-                    <li key={r}>{r}</li>
-                  ))}
-                </ul>
-                <a
-                  className="od-external"
-                  href={current.asset.issuerTerms.reference}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Issuer docs <ExternalLink size={13} />
-                </a>
-              </div>
-            </details>
-          </div>
-
-          <div className="od-panel-foot od-basis">
-            <span>Verified on chain</span>
-            {current.onchain && (
-              <span>
-                <a
-                  className="od-external"
-                  href={EXPLORER(current.asset.mint, data.network)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {current.asset.mint.slice(0, 6)}…
-                  {current.asset.mint.slice(-6)}
-                </a>{' '}
-                · {current.onchain.decimals} decimals ·{' '}
-                {current.onchain.network}
-              </span>
             )}
+          </Panel>
+
+          <div className="od-builder-insight">
+            <Panel>
+              <div className="od-panel-heading">
+                <h2>What happens at expiry</h2>
+                <Badge tone="neutral">
+                  {summary
+                    ? `Strike $${summary.derivedStrikePerToken}`
+                    : 'Set terms'}
+                </Badge>
+              </div>
+              {summary ? (
+                <div className="od-outcomes">
+                  <div className="od-outcome">
+                    <span className="od-outcome-when">
+                      Above ${summary.derivedStrikePerToken} · buyer exercises
+                    </span>
+                    <strong>{summary.sellerReceivesIfExercised} USDC</strong>
+                    <small>
+                      You deliver {summary.underlyingAmount}{' '}
+                      {current.asset.symbol}. Premium and exercise payment are
+                      both yours.
+                    </small>
+                  </div>
+                  <div className="od-outcome keep">
+                    <span className="od-outcome-when">
+                      At or below ${summary.derivedStrikePerToken} · it expires
+                    </span>
+                    <strong>{summary.sellerKeepsIfUnexercised} USDC</strong>
+                    <small>
+                      You keep the premium and all {summary.underlyingAmount}{' '}
+                      {current.asset.symbol}.
+                    </small>
+                  </div>
+                </div>
+              ) : (
+                <Empty
+                  title="Set the terms to price it."
+                  description="Enter a token quantity, a premium and an exercise payment to see both outcomes."
+                />
+              )}
+              {current.onchain &&
+                current.verdict.disclosures.map((d) => (
+                  <p className="od-form-note disclosure od-inset" key={d}>
+                    <AlertTriangle size={13} /> {d}
+                  </p>
+                ))}
+              <div className="od-terms-strip">
+                <details className="od-sizing od-terms">
+                  <summary>Issuer terms and restrictions</summary>
+                  <div className="od-terms-body">
+                    <p className="od-form-note">
+                      {current.asset.issuerTerms.instrument}
+                    </p>
+                    <h3 className="od-preipo-subhead">
+                      Rights the issuer retains
+                    </h3>
+                    <ul className="od-preipo-list">
+                      {current.asset.issuerTerms.issuerRights.map((r) => (
+                        <li key={r}>{r}</li>
+                      ))}
+                    </ul>
+                    <h3 className="od-preipo-subhead">Restrictions</h3>
+                    <ul className="od-preipo-list">
+                      {current.asset.issuerTerms.restrictions.map((r) => (
+                        <li key={r}>{r}</li>
+                      ))}
+                    </ul>
+                    <a
+                      className="od-external"
+                      href={current.asset.issuerTerms.reference}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Issuer docs <ExternalLink size={13} />
+                    </a>
+                  </div>
+                </details>
+              </div>
+              {current.onchain && (
+                <div className="od-panel-foot od-basis">
+                  <span>Verified on chain</span>
+                  <span>
+                    <a
+                      className="od-external"
+                      href={EXPLORER(current.asset.mint, data.network)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {current.asset.mint.slice(0, 6)}…
+                      {current.asset.mint.slice(-6)}
+                    </a>{' '}
+                    · {current.onchain.decimals} decimals ·{' '}
+                    {current.onchain.network}
+                  </span>
+                </div>
+              )}
+            </Panel>
           </div>
-        </Panel>
+        </div>
       )}
 
       {confirm && current && summary && (
