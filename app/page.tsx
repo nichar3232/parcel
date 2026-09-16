@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Mark } from '@/components/brand/Mark';
+import { Showcase } from '@/components/brand/Showcase';
 import { EXAMPLES, HERO } from '@/lib/oddlot/landing';
 import './landing.css';
 
@@ -174,26 +175,7 @@ export default function Landing() {
               hand.
             </p>
           </div>
-          <div className="lp-grid">
-            {EXAMPLES.map((o) => (
-              <article className="lp-tile" id={o.id} key={o.id}>
-                <span className="lp-kicker">{o.kicker}</span>
-                <h3>{o.title}</h3>
-                <p>{o.body}</p>
-                <dl className="lp-example">
-                  {o.rows.map(([k, v]) => (
-                    <div key={k}>
-                      <dt>{k}</dt>
-                      <dd>{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <Link className="lp-inline-link" href={`/app?at=${o.id}`}>
-                  Open in the desk <span aria-hidden>&rarr;</span>
-                </Link>
-              </article>
-            ))}
-          </div>
+          <Showcase products={EXAMPLES} />
         </div>
       </section>
 

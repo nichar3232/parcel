@@ -52,17 +52,27 @@ test('the landing page shows the products and routes into the desk', async ({
       ].map((m) => Number(m[1])),
     );
   expect(ys.at(-1)!).toBeLessThan(ys[0]);
-  // every product has a section below the fold, with a worked figure
-  for (const id of [
-    'options',
-    'underwriting',
-    'structures',
-    'pre-ipo',
-    'lending',
-    'how',
-  ])
-    await expect(page.locator(`#${id}`)).toHaveCount(1);
-  await expect(page.locator('#pre-ipo')).toContainText('231.50 USDC');
+  // one product at a time: five tabs, exactly one open panel
+  const tabs = ['Options', 'Underwriting', 'Structures', 'Pre-IPO', 'Lending'];
+  await expect(page.getByRole('tab')).toHaveCount(tabs.length);
+  await expect(page.locator('.lp-panel')).toHaveCount(1);
+  await expect(page.locator('#how')).toHaveCount(1);
+
+  // each shows a worked figure and a preview of what it does
+  for (const name of tabs) {
+    await page.getByRole('tab', { name, exact: true }).click();
+    await expect(page.getByRole('tab', { name, exact: true })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    const panel = page.locator('.lp-panel');
+    await expect(panel.locator('.lp-example > div')).not.toHaveCount(0);
+    await expect(
+      panel.locator('.lp-preview-chart, .lp-outcomes, .lp-split'),
+    ).toHaveCount(1);
+  }
+  await page.getByRole('tab', { name: 'Pre-IPO', exact: true }).click();
+  await expect(page.locator('.lp-panel')).toContainText('231.50 USDC');
   // no in-page link points at an anchor that does not exist
   expect(
     await page.evaluate(() =>
@@ -71,6 +81,12 @@ test('the landing page shows the products and routes into the desk', async ({
         .filter((h) => h !== '#' && !document.querySelector(h)),
     ),
   ).toEqual([]);
+  // a product link in the nav opens that product
+  await page.goto('/#structures');
+  await expect(
+    page.getByRole('tab', { name: 'Structures', exact: true }),
+  ).toHaveAttribute('aria-selected', 'true');
+
   await page.getByRole('link', { name: /Launch app/ }).click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');

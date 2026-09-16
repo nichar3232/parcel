@@ -67,26 +67,54 @@ const CALL_PREMIUM = premiumOf(HERO_CALL);
 // The same window the desk's own payoff chart draws: spot ±35%.
 const LOW = Math.round(SPOT * 0.65),
   HIGH = Math.round(SPOT * 1.35);
-const pnlAt = (price: number) =>
-  strategyPnl(HERO_CALL, price, SPOT, CALL_PREMIUM, 0);
 
-const SAMPLES = Array.from({ length: 81 }, (_, i) => {
-  const price = LOW + ((HIGH - LOW) * i) / 80;
-  return { price, pnl: pnlAt(price) };
-});
-const MIN = Math.min(...SAMPLES.map((s) => s.pnl));
-const MAX = Math.max(...SAMPLES.map((s) => s.pnl));
+export interface Payoff {
+  line: string;
+  area: string;
+  zeroY: number;
+  strikes: { value: number; x: number }[];
+  axis: string[];
+  best: number;
+  worst: number;
+}
 
-/** Map the computed payoff into the hero card's 760×240 viewBox. */
-const X = (price: number) => 40 + ((price - LOW) / (HIGH - LOW)) * 680;
-const Y = (pnl: number) => 32 + ((MAX - pnl) / (MAX - MIN || 1)) * 168;
+/**
+ * Project a contract's payoff at expiry into a 760×240 viewBox.
+ *
+ * Every product that has a shape gets one from here, so the previews
+ * are the same arithmetic the desk runs rather than drawings of it.
+ */
+export function payoff(terms: OrderTerms, premium: number, stock = 0): Payoff {
+  const samples = Array.from({ length: 81 }, (_, i) => {
+    const price = LOW + ((HIGH - LOW) * i) / 80;
+    return { price, pnl: strategyPnl(terms, price, SPOT, premium, stock) };
+  });
+  const min = Math.min(...samples.map((s) => s.pnl));
+  const max = Math.max(...samples.map((s) => s.pnl));
+  const x = (price: number) => 40 + ((price - LOW) / (HIGH - LOW)) * 680;
+  const y = (pnl: number) => 32 + ((max - pnl) / (max - min || 1)) * 168;
+  const line = samples
+    .map(
+      (s, i) =>
+        `${i ? 'L' : 'M'}${x(s.price).toFixed(1)},${y(s.pnl).toFixed(1)}`,
+    )
+    .join(' ');
+  return {
+    line,
+    area: `${line} L${x(HIGH).toFixed(1)},${y(0).toFixed(1)} L${x(LOW).toFixed(1)},${y(0).toFixed(1)} Z`,
+    zeroY: y(0),
+    strikes: terms.legs.map((l) => ({ value: l.strike, x: x(l.strike) })),
+    axis: [usd(LOW, 0), usd(SPOT), usd(HIGH, 0)],
+    best: max,
+    worst: min,
+  };
+}
+
+const HERO_PAYOFF = payoff(HERO_CALL, CALL_PREMIUM);
+const MIN = HERO_PAYOFF.worst;
 
 /** A long call breaks even at the strike plus what it cost. */
 const BREAK_EVEN = HERO_CALL.legs[0].strike + CALL_PREMIUM / HERO_CALL.quantity;
-
-const path = SAMPLES.map(
-  (s, i) => `${i ? 'L' : 'M'}${X(s.price).toFixed(1)},${Y(s.pnl).toFixed(1)}`,
-).join(' ');
 
 export const HERO = {
   title: HERO_CALL.name,
@@ -97,11 +125,11 @@ export const HERO = {
   expiryLabel: dayLabel(EXPIRY),
   dte: Math.round(days(OPEN_DATE, EXPIRY)),
   strikes: HERO_CALL.legs.map((l) => l.strike),
-  axis: [usd(LOW, 0), usd(SPOT), usd(HIGH, 0)],
-  zeroY: Y(0),
-  strikeX: HERO_CALL.legs.map((l) => X(l.strike)),
-  line: path,
-  area: `${path} L${X(HIGH).toFixed(1)},${Y(0).toFixed(1)} L${X(LOW).toFixed(1)},${Y(0).toFixed(1)} Z`,
+  axis: HERO_PAYOFF.axis,
+  zeroY: HERO_PAYOFF.zeroY,
+  strikeX: HERO_PAYOFF.strikes.map((k) => k.x),
+  line: HERO_PAYOFF.line,
+  area: HERO_PAYOFF.area,
   // On a long call the premium is the whole downside, and the upside
   // has no ceiling to quote, so the card quotes neither a best case nor
   // a cap it does not have.
@@ -156,7 +184,34 @@ export const PREIPO_EXPIRY = new Date(
   .toISOString()
   .slice(0, 10);
 
-export const EXAMPLES = [
+/**
+ * Each product carries a preview: the shape it makes, or the two ways
+ * it can end, or how its collateral divides. All of it computed.
+ */
+export type Preview =
+  | { kind: 'payoff'; payoff: Payoff; caption: string }
+  | {
+      kind: 'outcomes';
+      caption: string;
+      outcomes: { when: string; value: string; note: string }[];
+    }
+  | {
+      kind: 'split';
+      caption: string;
+      parts: { label: string; value: string; share: number }[];
+    };
+
+const COVERED_PAYOFF = payoff(COVERED, premiumOf(COVERED), COVERED.quantity);
+const SPREAD_PAYOFF = payoff(SPREAD, SPREAD_PREMIUM);
+
+export const EXAMPLES: {
+  id: string;
+  kicker: string;
+  title: string;
+  body: string;
+  rows: string[][];
+  preview: Preview;
+}[] = [
   {
     id: 'options',
     kicker: 'Options',
@@ -167,6 +222,12 @@ export const EXAMPLES = [
       ['Premium', usd(CALL_PREMIUM)],
       ['Cash to fund exercise', usd(145 * 1 + CALL_PREMIUM)],
     ],
+    preview: {
+      kind: 'payoff',
+      payoff: HERO_PAYOFF,
+      caption:
+        'Loses the premium and nothing more; above the strike it keeps paying.',
+    },
   },
   {
     id: 'underwriting',
@@ -178,6 +239,12 @@ export const EXAMPLES = [
       ['Premium received', usd(COVERED_PREMIUM)],
       ['Shares reserved', '0.25 NVDA'],
     ],
+    preview: {
+      kind: 'payoff',
+      payoff: COVERED_PAYOFF,
+      caption:
+        'The premium cushions the downside and the call caps the gain above the strike.',
+    },
   },
   {
     id: 'structures',
@@ -189,6 +256,11 @@ export const EXAMPLES = [
       ['Premium, and the most you can lose', usd(SPREAD_PREMIUM)],
       ['Upside capped above $160', usd(SPREAD_CAP)],
     ],
+    preview: {
+      kind: 'payoff',
+      payoff: SPREAD_PAYOFF,
+      caption: 'Bounded at both ends: a known cost against a known ceiling.',
+    },
   },
   {
     id: 'pre-ipo',
@@ -203,6 +275,22 @@ export const EXAMPLES = [
       ],
       ['If it expires', `${PREIPO.premium.toFixed(2)} USDC`],
     ],
+    preview: {
+      kind: 'outcomes',
+      caption: 'Two ways it ends, both known before you sign.',
+      outcomes: [
+        {
+          when: `Above $${(PREIPO.exercise / PREIPO.tokens).toLocaleString('en-US')}`,
+          value: `${(PREIPO.premium + PREIPO.exercise).toFixed(2)} USDC`,
+          note: `You deliver ${PREIPO.tokens} T-OpenAI.`,
+        },
+        {
+          when: 'At or below',
+          value: `${PREIPO.premium.toFixed(2)} USDC`,
+          note: `You keep the premium and the ${PREIPO.tokens} T-OpenAI.`,
+        },
+      ],
+    },
   },
   {
     id: 'lending',
@@ -217,5 +305,21 @@ export const EXAMPLES = [
         `${usd(LOAN_INTEREST, 4)} · ${(LOAN_RATE * 100).toFixed(2)}% APR`,
       ],
     ],
+    preview: {
+      kind: 'split',
+      caption: 'What the borrower posts before a share moves.',
+      parts: [
+        {
+          label: 'Stock lent, at the reference close',
+          value: usd(SPOT),
+          share: 1,
+        },
+        {
+          label: 'Cash collateral posted',
+          value: usd(LOAN_COLLATERAL),
+          share: LOAN_COLLATERAL / SPOT,
+        },
+      ],
+    },
   },
 ];
