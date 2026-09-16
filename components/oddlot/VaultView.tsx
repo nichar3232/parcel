@@ -205,7 +205,6 @@ export function VaultView({
       </Panel>
       <div className="od-section-heading">
         <h2>Make your next move</h2>
-        <span>One share is enough to get started.</span>
       </div>
       <div className="od-three-grid">
         {[

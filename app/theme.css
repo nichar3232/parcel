@@ -1269,12 +1269,10 @@
   border: 1px solid var(--od-line);
   color: var(--od-ink);
 }
-/* The decorative ring was tuned for a black ground. */
+/* The decorative ring was drawn for a black ground. On white it is a
+   pale green loop cutting across the numbers. */
 .oddlot .od-capital-card:after {
-  border-color: rgba(111, 220, 170, 0.22);
-  box-shadow:
-    0 0 0 37px rgba(111, 220, 170, 0.05),
-    0 0 0 72px rgba(111, 220, 170, 0.035);
+  content: none;
 }
 .oddlot .od-card-top {
   color: var(--od-muted);
@@ -1464,4 +1462,9 @@
   .oddlot .od-builder-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* The wordmark is a link home now, not a tab. */
+.oddlot a.od-brand {
+  text-decoration: none;
 }

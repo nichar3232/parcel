@@ -73,14 +73,14 @@ export default function Workspace() {
         />
       )}
       <header className="od-appbar">
-        <button className="od-brand" onClick={() => navigate('Portfolio')}>
+        <Link className="od-brand" href="/" aria-label="Oddlot home">
           <span className="od-brand-symbol">
             <i />
             <i />
             <i />
           </span>
           ODDLOT
-        </button>
+        </Link>
         <button
           className="od-mobile-menu od-icon-button"
           aria-label="Open navigation"
