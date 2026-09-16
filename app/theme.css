@@ -938,3 +938,85 @@
   color: var(--od-muted);
   max-width: 70ch;
 }
+
+/* ------------------------------------------------------------------
+   Panel bodies.
+   .od-panel carries no padding of its own: .od-panel-heading pads the
+   header and each view pads its own body (.od-form-content,
+   .od-table-wrap, .od-policy-grid…). Pre-IPO had no such wrapper, so
+   its copy, inputs and cards sat flush on the border and the panel's
+   overflow:hidden clipped whatever reached the right edge. This is
+   that missing wrapper, on the same 24px gutter as every other page.
+   ------------------------------------------------------------------ */
+.oddlot .od-panel-body {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  padding: 0 24px 22px;
+}
+/* A panel with no heading above it needs its top padding back. */
+.oddlot .od-panel-body.flush {
+  padding-top: 22px;
+}
+.oddlot .od-panel-body > * {
+  min-width: 0;
+}
+/* The wrapper owns the vertical rhythm; children stop adding their own. */
+.oddlot .od-panel-body > .od-preipo-subhead,
+.oddlot .od-panel-body > .od-preipo-list,
+.oddlot .od-panel-body > .od-preipo-error {
+  margin: 0;
+}
+/* The blockers keep one gap between their lead-in and the first reason. */
+.oddlot .od-panel-body .od-preipo-blockers ul {
+  margin: 14px 0 0;
+}
+/* Buttons size to their label rather than stretching across the grid. */
+.oddlot .od-panel-body > .od-button {
+  justify-self: start;
+}
+/* A contiguous run of key/value rows reads as one table, not as
+   separately spaced rows, so it opts out of the wrapper's gap. */
+.oddlot .od-review-lines,
+.od-dialog .od-review-lines {
+  display: grid;
+  min-width: 0;
+}
+.oddlot .od-review-lines .od-review-line:last-child,
+.od-dialog .od-review-lines .od-review-line:last-child {
+  border-bottom: 0;
+}
+
+/* Two panels side by side start at the top; the shorter one does not
+   stretch into a column of empty white. */
+.od-preipo-grid {
+  align-items: start;
+}
+/* Long, unbreakable values (mints, programs) wrap instead of running
+   under the panel border. */
+.oddlot .od-panel-body .od-review-line b,
+.oddlot .od-panel-body .od-review-line a,
+.oddlot .od-panel-body .od-review-line span {
+  overflow-wrap: anywhere;
+}
+/* Disclosures sit with their icon, like the banner notes above them. */
+.oddlot .od-form-note.disclosure {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.oddlot .od-form-note.disclosure svg {
+  flex: none;
+  margin-top: 4px;
+}
+
+/* Match the tighter gutter the rest of the desk uses on small screens. */
+@media (max-width: 760px) {
+  .oddlot .od-panel-body {
+    padding: 0 20px 20px;
+  }
+  .oddlot .od-panel-body.flush {
+    padding-top: 20px;
+  }
+}
