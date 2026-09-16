@@ -7,6 +7,7 @@ import {
   CircleHelp,
   Layers3,
   Landmark,
+  Rocket,
   Menu,
   ShieldCheck,
   SlidersHorizontal,
@@ -19,6 +20,7 @@ import { VaultView } from '@/components/oddlot/VaultView';
 import { OptionsView } from '@/components/oddlot/OptionsView';
 import { LendingView } from '@/components/oddlot/LendingView';
 import { RiskView } from '@/components/oddlot/RiskView';
+import { PreIpoView } from '@/components/oddlot/PreIpoView';
 import {
   Button,
   Field,
@@ -34,6 +36,7 @@ const navigation = [
   { name: 'Trade', icon: ArrowUpRight },
   { name: 'Underwrite', icon: Landmark },
   { name: 'Structures', icon: Layers3 },
+  { name: 'Pre-IPO', icon: Rocket },
   { name: 'Lending', icon: SlidersHorizontal },
   { name: 'Risk', icon: ShieldCheck },
 ];
@@ -214,6 +217,7 @@ export default function Workspace() {
                   mode="structures"
                 />
               )}
+              {page === 'Pre-IPO' && <PreIpoView />}
               {page === 'Lending' && <LendingView desk={desk} />}{' '}
               {page === 'Risk' && <RiskView desk={desk} />}{' '}
             </>

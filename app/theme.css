@@ -644,3 +644,247 @@
   background: #3fc98e;
   border: 2px solid #fff;
 }
+
+/* ---------- pre-IPO covered calls ---------- */
+.od-preipo-assets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+.od-preipo-asset {
+  display: grid;
+  gap: 5px;
+  justify-items: start;
+  padding: 16px;
+  border: 1px solid var(--od-line);
+  border-radius: 12px;
+  background: var(--od-panel);
+  text-align: left;
+}
+.od-preipo-asset:hover {
+  border-color: #c9d3d6;
+}
+.od-preipo-asset.selected {
+  border-color: var(--od-accent);
+  background: #f2fbf7;
+}
+.od-preipo-asset.blocked {
+  opacity: 0.78;
+}
+.od-preipo-provider {
+  font-family: var(--od-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--od-muted);
+}
+.od-preipo-asset strong {
+  font-size: 15px;
+  color: var(--od-ink);
+}
+.od-preipo-mint,
+.od-preipo-price {
+  font-family: var(--od-mono);
+  font-size: 11px;
+  color: var(--od-muted);
+}
+.od-preipo-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--od-accent-ink);
+}
+.od-preipo-asset.blocked .od-preipo-status {
+  color: #a33f37;
+}
+.od-preipo-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 16px;
+}
+.od-preipo-blockers ul,
+.od-preipo-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--od-body);
+  line-height: 1.6;
+}
+.od-preipo-blockers li,
+.od-preipo-list li {
+  margin-bottom: 7px;
+}
+.od-preipo-subhead {
+  font-size: 11px;
+  padding-top: 14px;
+  border-top: 1px solid var(--od-line);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--od-muted);
+  margin: 18px 0 0;
+  font-family: var(--od-mono);
+}
+.od-preipo-error {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--od-red);
+  background: #fdf2f1;
+  font-size: 12px;
+  color: #8a3a33;
+}
+.od-preipo-banner,
+.od-preipo-warning {
+  border-left: 3px solid var(--od-accent);
+}
+.od-preipo-warning {
+  border-left-color: #d9a441;
+}
+@media (max-width: 900px) {
+  .od-preipo-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Selection must not change an element's metrics. Bolding only the
+   selected item made it wider, so picking a tab resized it and shifted
+   everything after it. Keep one weight and reserve the bold width so
+   the row is identical in every state.
+   ------------------------------------------------------------------ */
+.oddlot .od-category-tabs button,
+.oddlot .od-nav-item,
+.oddlot .od-segmented button {
+  font-weight: 500;
+  font-synthesis-weight: none;
+}
+.oddlot .od-category-tabs button.selected,
+.oddlot .od-nav-item.active,
+.oddlot .od-segmented button.selected {
+  font-weight: 500;
+}
+/* Distinguish the selected item by colour and fill, not by weight. */
+.oddlot .od-category-tabs button.selected {
+  background: #e7f7ef;
+  border-color: var(--od-accent);
+  color: var(--od-accent-ink);
+}
+
+/* Template cards keep one width per row whatever the category holds. */
+.oddlot .od-template-grid {
+  align-items: stretch;
+}
+.oddlot .od-template {
+  min-height: 132px;
+}
+
+/* ---------- pre-IPO layout ---------- */
+.od-preipo-asset {
+  /* Fixed row rhythm so cards line up whatever each one carries. */
+  grid-template-rows: auto auto auto auto;
+  min-height: 132px;
+  gap: 0;
+  align-content: start;
+}
+.od-preipo-asset strong {
+  margin: 6px 0 4px;
+  line-height: 1.3;
+  /* Long issuer names must wrap inside the card, never spill past it. */
+  overflow-wrap: anywhere;
+}
+.od-preipo-mint {
+  overflow-wrap: anywhere;
+  margin-bottom: 8px;
+}
+.od-preipo-status {
+  margin-top: auto;
+}
+.od-preipo-price {
+  margin-top: 6px;
+}
+.od-preipo-banner .od-panel-heading h2,
+.od-preipo-warning .od-panel-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.od-preipo-warning .od-form-note,
+.od-preipo-banner .od-form-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.od-preipo-warning .od-form-note svg,
+.od-preipo-banner .od-form-note svg {
+  flex: none;
+  margin-top: 3px;
+}
+/* Blockers read as a list of reasons, not a wall of bold text. */
+.od-preipo-blockers ul {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: grid;
+  gap: 12px;
+}
+.od-preipo-blockers li {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--od-line);
+  border-left: 3px solid var(--od-red);
+  border-radius: 10px;
+  background: #fdfbfb;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--od-body);
+}
+.od-preipo-blockers li b {
+  font-family: var(--od-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #a33f37;
+}
+.od-preipo-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  gap: 8px;
+}
+.od-preipo-list li {
+  position: relative;
+  margin: 0;
+  padding-left: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.od-preipo-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c2ccd0;
+}
+.od-preipo-subhead + .od-preipo-list {
+  margin-top: 10px;
+}
+.od-preipo-grid .od-review-line {
+  padding: 9px 0;
+}
+.od-preipo-grid .od-review-line b,
+.od-preipo-grid .od-review-line a {
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+/* The confirmation prints a full mint address; let it wrap. */
+.od-dialog .od-mono {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}

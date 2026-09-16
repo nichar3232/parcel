@@ -34,7 +34,9 @@ test('the vault opens the workspace and carries the full ledger', async ({
   );
   // the ledger moved here from its own tab; its search and export came with it
   await expect(page.getByLabel('Search activity')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Export ledger' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Export ledger' }),
+  ).toBeVisible();
 });
 
 test('sizing is not capped at a single share', async ({ page }) => {
@@ -85,10 +87,18 @@ test('the removed tabs are gone and the rest still navigate', async ({
     'Trade',
     'Underwrite',
     'Structures',
+    'Pre-IPO',
     'Lending',
     'Risk',
   ]);
-  for (const name of ['Trade', 'Underwrite', 'Structures', 'Lending', 'Risk']) {
+  for (const name of [
+    'Trade',
+    'Underwrite',
+    'Structures',
+    'Pre-IPO',
+    'Lending',
+    'Risk',
+  ]) {
     await nav(page, name);
     await expect(page.locator('h1')).toBeVisible();
   }

@@ -1,4 +1,5 @@
 import { OddlotAdapter } from './oddlot/chain/adapter';
+import { loadAssets } from './preipo/assets';
 import { VaultChainCoordinator } from './oddlot/chain/coordinator';
 import { VaultService } from './oddlot/service';
 import { readFile } from 'node:fs/promises';
@@ -148,6 +149,22 @@ export function createApp(
           401,
           'SESSION_REQUIRED',
           'Load a session before using the desk.',
+        );
+      if (url.pathname === '/api/preipo/assets' && method === 'GET')
+        return json(
+          res,
+          200,
+          await loadAssets({
+            verifyRpcUrl:
+              process.env.PREIPO_VERIFY_RPC_URL ||
+              'https://api.mainnet-beta.solana.com',
+            verifyNetwork: (process.env.PREIPO_VERIFY_NETWORK || 'mainnet') as
+              | 'mainnet'
+              | 'devnet'
+              | 'localnet',
+            programId: process.env.PREIPO_PROGRAM_ID || null,
+            usdcMint: process.env.PREIPO_USDC_MINT || null,
+          }),
         );
       if (url.pathname === '/api/vault' && method === 'GET')
         return json(
