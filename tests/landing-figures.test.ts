@@ -38,14 +38,14 @@ void test('every example states when it ends', () => {
   for (const e of EXAMPLES)
     assert.ok(
       e.rows.some(([, v]) =>
-        /^[A-Z][a-z]{2} \d{1,2} '\d{2}$/.test(v.split(' · ').pop() as string),
+        /^\d{2}\/\d{2}\/\d{4}$/.test(v.split(' · ').pop() as string),
       ),
       `${e.id} does not show an expiry`,
     );
 });
 
-void test('expiries are written the way an options chain writes them', () => {
-  assert.match(HERO.expiryLabel, /^[A-Z][a-z]{2} \d{1,2} '\d{2}$/);
+void test('expiries are listed the way an options chain lists them', () => {
+  assert.match(HERO.expiryLabel, /^\d{2}\/\d{2}\/\d{4}$/);
   for (const e of EXAMPLES)
     for (const [, v] of e.rows)
       assert.ok(!/\b\d+d\b/.test(v), `${e.id} still abbreviates a term: ${v}`);

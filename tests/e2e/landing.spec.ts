@@ -10,17 +10,17 @@ test('the landing page shows the products and routes into the desk', async ({
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
     'Options sized to what you own',
   );
-  // product offerings are reachable from the top nav
+  // the product nav lists the products, and only the products
   await expect(
     page.getByRole('navigation', { name: 'Products' }).getByRole('link'),
-  ).toHaveCount(6);
+  ).toHaveCount(5);
+  // About is a page-level link, so it sits with the other ones
+  await expect(page.locator('.lp-nav-right').getByText('About')).toBeVisible();
   // the preview card is a priced position, with a term, not a mock-up
   for (const k of ['Size', 'Cost, and max loss', 'Break-even', 'Expiry'])
     await expect(page.locator('.lp-stats')).toContainText(k);
   await expect(page.locator('.lp-stats')).toContainText(/\$\d+\.\d{2}/);
-  await expect(page.locator('.lp-stats')).toContainText(
-    /[A-Z][a-z]{2} \d{1,2} '\d{2}/,
-  );
+  await expect(page.locator('.lp-stats')).toContainText(/\d{2}\/\d{2}\/\d{4}/);
   // the payoff is drawn from the engine: one point per sample, and the
   // two strikes are labelled on it
   await expect(page.locator('.lp-card .lp-strike')).toHaveCount(2);

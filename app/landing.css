@@ -726,3 +726,19 @@
     padding-left: 12px;
   }
 }
+
+/* About is not a product, so it sits with the other page-level links
+   on the right rather than at the end of the product list. */
+.lp-nav-about {
+  font-size: 14px;
+  color: var(--body);
+  margin-right: 4px;
+}
+.lp-nav-about:hover {
+  color: var(--ink);
+}
+@media (max-width: 1100px) {
+  .lp-nav-about {
+    display: none;
+  }
+}

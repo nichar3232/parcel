@@ -44,9 +44,11 @@ export default function Landing() {
               {p.name}
             </Link>
           ))}
-          <a href="#how">About</a>
         </nav>
         <div className="lp-nav-right">
+          <a className="lp-nav-about" href="#how">
+            About
+          </a>
           <span className="lp-env">
             <i /> SANDBOX
           </span>
