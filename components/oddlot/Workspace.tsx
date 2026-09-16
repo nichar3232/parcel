@@ -5,8 +5,6 @@ import {
   ArrowUpRight,
   ChevronDown,
   CircleHelp,
-  Layers3,
-  Landmark,
   Rocket,
   Menu,
   ShieldCheck,
@@ -17,7 +15,7 @@ import {
 import { useVault } from '@/hooks/oddlot/use-vault';
 import type { ExploreDraft } from '@/lib/oddlot/explore';
 import { VaultView } from '@/components/oddlot/VaultView';
-import { OptionsView } from '@/components/oddlot/OptionsView';
+import { TradeView, type TradeMode } from '@/components/oddlot/TradeView';
 import { LendingView } from '@/components/oddlot/LendingView';
 import { RiskView } from '@/components/oddlot/RiskView';
 import { PreIpoView } from '@/components/oddlot/PreIpoView';
@@ -32,17 +30,14 @@ import {
 import '@/app/oddlot.css';
 import '@/app/theme.css';
 const navigation = [
-  { name: 'Vault', icon: Wallet },
+  { name: 'Portfolio', icon: Wallet },
   { name: 'Trade', icon: ArrowUpRight },
-  { name: 'Underwrite', icon: Landmark },
-  { name: 'Structures', icon: Layers3 },
   { name: 'Pre-IPO', icon: Rocket },
   { name: 'Lending', icon: SlidersHorizontal },
-  { name: 'Risk', icon: ShieldCheck },
 ];
 export default function Workspace() {
   const desk = useVault(),
-    [page, setPage] = useState('Vault'),
+    [page, setPage] = useState('Portfolio'),
     [launch, setLaunch] = useState<{
       page: string;
       draft: ExploreDraft;
@@ -78,7 +73,7 @@ export default function Workspace() {
         />
       )}
       <header className="od-appbar">
-        <button className="od-brand" onClick={() => navigate('Vault')}>
+        <button className="od-brand" onClick={() => navigate('Portfolio')}>
           <span className="od-brand-symbol">
             <i />
             <i />
@@ -184,42 +179,22 @@ export default function Workspace() {
             </output>
           ) : (
             <>
-              {page === 'Vault' && (
-                <VaultView desk={desk} navigate={navigate} />
-              )}{' '}
+              {page === 'Portfolio' && (
+                <>
+                  <VaultView desk={desk} navigate={navigate} />
+                  <RiskView desk={desk} embedded />
+                </>
+              )}
               {page === 'Trade' && (
-                <OptionsView
-                  key={`trade:${launch?.id || 0}`}
-                  initialDraft={
-                    launch?.page === page ? launch.draft : undefined
-                  }
+                <TradeView
                   desk={desk}
-                  mode="trade"
-                />
-              )}
-              {page === 'Underwrite' && (
-                <OptionsView
-                  key={`underwrite:${launch?.id || 0}`}
-                  initialDraft={
-                    launch?.page === page ? launch.draft : undefined
-                  }
-                  desk={desk}
-                  mode="underwrite"
-                />
-              )}
-              {page === 'Structures' && (
-                <OptionsView
-                  key={`structures:${launch?.id || 0}`}
-                  initialDraft={
-                    launch?.page === page ? launch.draft : undefined
-                  }
-                  desk={desk}
-                  mode="structures"
+                  draftKey={launch?.id}
+                  draftMode={launch?.page as TradeMode | undefined}
+                  initialDraft={launch?.draft}
                 />
               )}
               {page === 'Pre-IPO' && <PreIpoView />}
-              {page === 'Lending' && <LendingView desk={desk} />}{' '}
-              {page === 'Risk' && <RiskView desk={desk} />}{' '}
+              {page === 'Lending' && <LendingView desk={desk} />}
             </>
           )}
         </main>
@@ -340,7 +315,7 @@ export default function Workspace() {
           <Button
             onClick={() => {
               setModal(null);
-              navigate('Vault');
+              navigate('Portfolio');
             }}
           >
             Go to vault deposits

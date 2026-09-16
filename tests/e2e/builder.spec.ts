@@ -18,6 +18,15 @@ const nav = (page: Page, name: string) =>
     .getByRole('button', { name, exact: true })
     .click();
 
+/** Underwrite and Structures are modes inside Trade, not destinations. */
+const tradeMode = async (page: Page, mode: string) => {
+  await nav(page, 'Trade');
+  await page
+    .getByRole('group', { name: 'Trading mode' })
+    .getByRole('button', { name: mode, exact: true })
+    .click();
+};
+
 /** The quote the backend actually priced, not what the form claims. */
 function quoteFor(page: Page) {
   return page.waitForResponse(
@@ -40,7 +49,7 @@ test('the vault opens the workspace and carries the full ledger', async ({
 });
 
 test('sizing is not capped at a single share', async ({ page }) => {
-  await nav(page, 'Structures');
+  await tradeMode(page, 'Structures');
   await page.getByLabel('Contract quantity').fill('8');
   const response = quoteFor(page);
   await page.getByRole('button', { name: 'Review funded quote' }).click();
@@ -60,7 +69,7 @@ for (const [view, template, kind, side] of [
   test(`${view} reaches a funded quote for a fractional ${template}`, async ({
     page,
   }) => {
-    await nav(page, view);
+    await tradeMode(page, view);
     await page.getByLabel('Contract quantity').fill('0.25');
     const response = quoteFor(page);
     await page.getByRole('button', { name: 'Review funded quote' }).click();
@@ -76,30 +85,25 @@ for (const [view, template, kind, side] of [
     expect(snapshot.revision).toBe(0);
   });
 
-test('the removed tabs are gone and the rest still navigate', async ({
+test('the menu is four items and the folded views still work', async ({
   page,
 }) => {
   const items = page
     .getByRole('navigation', { name: 'Main navigation' })
     .getByRole('button');
-  await expect(items).toHaveText([
-    'Vault',
-    'Trade',
-    'Underwrite',
-    'Structures',
-    'Pre-IPO',
-    'Lending',
-    'Risk',
-  ]);
-  for (const name of [
-    'Trade',
-    'Underwrite',
-    'Structures',
-    'Pre-IPO',
-    'Lending',
-    'Risk',
-  ]) {
+  await expect(items).toHaveText(['Portfolio', 'Trade', 'Pre-IPO', 'Lending']);
+  for (const name of ['Trade', 'Pre-IPO', 'Lending', 'Portfolio']) {
     await nav(page, name);
     await expect(page.locator('h1')).toBeVisible();
   }
+  // Underwrite and Structures still exist, as modes inside Trade.
+  for (const mode of ['Trade', 'Underwrite', 'Structures']) {
+    await tradeMode(page, mode);
+    await expect(page.locator('.od-builder-grid')).toBeVisible();
+  }
+  // Risk is a section of Portfolio rather than its own page.
+  await nav(page, 'Portfolio');
+  await expect(page.locator('.od-section-break')).toContainText(
+    'What your collateral covers',
+  );
 });

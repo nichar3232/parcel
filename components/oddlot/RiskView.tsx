@@ -12,17 +12,33 @@ import {
   qty,
   usd,
 } from './shared';
-export function RiskView({ desk }: { desk: VaultController }) {
+export function RiskView({
+  desk,
+  embedded = false,
+}: {
+  desk: VaultController;
+  embedded?: boolean;
+}) {
   const { state: s, busy, act } = desk;
   if (!s) return null;
   const r = s.risk;
   return (
     <>
-      <Heading
-        eyebrow="EVERY OBLIGATION ACCOUNTED FOR"
-        title="See what your collateral covers."
-        description="Margin follows enforceable settlement obligations. A shared vault does not mean shared assumptions."
-      />
+      {embedded ? (
+        <div className="od-section-break">
+          <h2>What your collateral covers</h2>
+          <p>
+            Margin follows enforceable settlement obligations. A shared vault
+            does not mean shared assumptions.
+          </p>
+        </div>
+      ) : (
+        <Heading
+          eyebrow="EVERY OBLIGATION ACCOUNTED FOR"
+          title="See what your collateral covers."
+          description="Margin follows enforceable settlement obligations. A shared vault does not mean shared assumptions."
+        />
+      )}
       <div className="od-three-grid od-metrics">
         <Panel>
           <Stat

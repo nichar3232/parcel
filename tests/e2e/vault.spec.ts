@@ -6,12 +6,40 @@ test.beforeEach(async ({ page }) => {
   page.on('pageerror', (e) => list.push(e.message));
   await page.goto('/app');
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
-  await nav(page, 'Vault');
+  await nav(page, 'Portfolio');
 });
 test.afterEach(({ page }) => {
   expect(errors.get(page)).toEqual([]);
 });
+const TRADE_MODES: Record<string, string> = {
+  Trade: 'Trade',
+  Underwrite: 'Underwrite',
+  Structures: 'Structures',
+};
+
+/**
+ * Navigate by the old view names. Underwrite and Structures are now modes
+ * inside Trade, and Risk is a section of Portfolio, so this maps each old
+ * name onto its new location.
+ */
 async function nav(page: Page, name: string) {
+  if (TRADE_MODES[name]) {
+    await navTop(page, 'Trade');
+    await page
+      .getByRole('group', { name: 'Trading mode' })
+      .getByRole('button', { name: TRADE_MODES[name], exact: true })
+      .click();
+    return;
+  }
+  if (name === 'Risk') {
+    await navTop(page, 'Portfolio');
+    await page.locator('.od-section-break').scrollIntoViewIfNeeded();
+    return;
+  }
+  await navTop(page, name === 'Vault' ? 'Portfolio' : name);
+}
+
+async function navTop(page: Page, name: string) {
   if (
     (await page.getByRole('button', { name: 'Open navigation' }).isVisible()) &&
     (await page.locator('.od-sidebar.open').count()) === 0
@@ -199,14 +227,7 @@ test('every workspace view fits desktop and mobile, with accessible forms and no
 }) => {
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
-    for (const name of [
-      'Vault',
-      'Trade',
-      'Underwrite',
-      'Structures',
-      'Lending',
-      'Risk',
-    ]) {
+    for (const name of ['Portfolio', 'Trade', 'Pre-IPO', 'Lending']) {
       await nav(page, name);
       await expect(page.locator('h1')).toBeVisible();
       await expect

@@ -22,6 +22,15 @@ const nav = (page, name) =>
     .getByRole('button', { name, exact: true })
     .click();
 
+/** Underwrite and Structures are modes inside Trade. */
+const tradeMode = async (page, mode) => {
+  await nav(page, 'Trade');
+  await page
+    .getByRole('group', { name: 'Trading mode' })
+    .getByRole('button', { name: mode, exact: true })
+    .click();
+};
+
 async function run(width, height, tag) {
   const ctx = await browser.newContext({ viewport: { width, height } });
   const page = await ctx.newPage();
@@ -46,7 +55,7 @@ async function run(width, height, tag) {
   const mobile = width < 900;
   if (mobile)
     await page.getByRole('button', { name: 'Open navigation' }).click();
-  await nav(page, 'Structures');
+  await tradeMode(page, 'Structures');
   await page.waitForSelector('.od-builder-grid');
   await shoot(page, `${tag}-04-structures`, { fullPage: true });
 
@@ -66,9 +75,11 @@ async function run(width, height, tag) {
 
   if (mobile)
     await page.getByRole('button', { name: 'Open navigation' }).click();
-  await nav(page, 'Risk');
+  // Risk is a section of Portfolio now, not its own destination.
+  await nav(page, 'Portfolio');
+  await page.locator('.od-section-break').scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
-  await shoot(page, `${tag}-07-risk`, { fullPage: true });
+  await shoot(page, `${tag}-07-portfolio-risk`, { fullPage: true });
 
   await ctx.close();
   return errors;
