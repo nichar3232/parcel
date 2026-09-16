@@ -49,9 +49,9 @@
   gap: 34px;
   height: 64px;
   padding: 0 32px;
-  border-bottom: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(8px);
+  box-shadow: 0 1px 16px -8px rgba(15, 20, 23, 0.16);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -564,9 +564,6 @@
   }
 }
 
-.lp-how {
-  border-top: 1px solid var(--line);
-}
 .lp-how-inner {
   display: grid;
   grid-template-columns: 0.85fr 1.15fr;
@@ -606,9 +603,6 @@
   color: var(--muted);
 }
 
-.lp-close {
-  border-top: 1px solid var(--line);
-}
 .lp-close-inner {
   display: grid;
   justify-items: center;
@@ -635,7 +629,6 @@
   max-width: 1360px;
   margin: 0 auto;
   padding: 22px 32px 34px;
-  border-top: 1px solid var(--line);
   font-size: 13px;
   color: var(--muted);
 }

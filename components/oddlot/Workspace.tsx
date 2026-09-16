@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { Mark } from '@/components/brand/Mark';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowUpRight,
   ChevronDown,
@@ -36,9 +36,37 @@ const navigation = [
   { name: 'Pre-IPO', icon: Rocket },
   { name: 'Lending', icon: SlidersHorizontal },
 ];
+/**
+ * Where a link from the landing page should land.
+ *
+ * The desk keeps its view in state rather than in the URL, so a link to
+ * a product has to name the view and, for the three trade modes, the
+ * mode. Anything unrecognised falls through to the vault.
+ *
+ * Read after mount, never as initial state. Seeding state from the URL
+ * makes the client's first render disagree with the server's, and React
+ * does not repair attribute mismatches while hydrating: the desk
+ * switched to Structures while the sidebar kept the server's "active"
+ * class on Portfolio. Resolving it on the server is not open either —
+ * /app is prerendered to a static file, and reading searchParams makes
+ * the route dynamic, which removes that file and drops the route
+ * through to the landing page.
+ */
+const ENTRY: Record<string, { page: string; mode?: TradeMode }> = {
+  portfolio: { page: 'Portfolio' },
+  options: { page: 'Trade', mode: 'trade' },
+  underwriting: { page: 'Trade', mode: 'underwrite' },
+  structures: { page: 'Trade', mode: 'structures' },
+  'pre-ipo': { page: 'Pre-IPO' },
+  lending: { page: 'Lending' },
+};
+
 export default function Workspace() {
   const desk = useVault(),
-    [page, setPage] = useState('Portfolio'),
+    // One piece of state: which view, and for Trade which of its modes.
+    [view, setView] = useState<{ page: string; mode?: TradeMode }>({
+      page: 'Portfolio',
+    }),
     [launch, setLaunch] = useState<{
       page: string;
       draft: ExploreDraft;
@@ -47,9 +75,18 @@ export default function Workspace() {
     [mobile, setMobile] = useState(false),
     [modal, setModal] = useState<'market' | 'wallet' | 'about' | null>(null),
     [nextDate, setNextDate] = useState('');
+  useEffect(() => {
+    const at = new URLSearchParams(window.location.search).get('at');
+    const entry = (at && ENTRY[at.toLowerCase()]) || null;
+    // The URL is an external system and this reads it once, after
+    // hydration, which is the one shape the rule cannot express.
+    // oxlint-disable-next-line react/react-compiler
+    if (entry) setView(entry);
+  }, []);
+  const page = view.page;
   const navigate = (value: string) => {
     setLaunch(null);
-    setPage(value);
+    setView({ page: value });
     setMobile(false);
     window.scrollTo({
       top: 0,
@@ -186,7 +223,9 @@ export default function Workspace() {
                 <TradeView
                   desk={desk}
                   draftKey={launch?.id}
-                  draftMode={launch?.page as TradeMode | undefined}
+                  draftMode={
+                    (launch?.page as TradeMode | undefined) || view.mode
+                  }
                   initialDraft={launch?.draft}
                 />
               )}

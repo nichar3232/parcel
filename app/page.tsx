@@ -191,7 +191,7 @@ export default function Landing() {
                     </div>
                   ))}
                 </dl>
-                <Link className="lp-inline-link" href="/app">
+                <Link className="lp-inline-link" href={`/app?at=${o.id}`}>
                   Open in the desk <span aria-hidden>&rarr;</span>
                 </Link>
               </article>
