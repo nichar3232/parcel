@@ -689,11 +689,6 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 19px;
 }
-.od-two-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px;
-}
 .od-action-card {
   background: #fff;
   border: 1px solid #e8eaeb;
@@ -1058,34 +1053,6 @@
 .od-negative {
   color: #778388 !important;
 }
-.od-explainer {
-  padding: 25px;
-}
-.od-explainer h3 {
-  font-size: 18px;
-  font-weight: 530;
-  letter-spacing: -0.5px;
-  margin: 10px 0;
-}
-.od-explainer p {
-  font-size: 12px;
-  line-height: 1.9;
-  color: #8e989b;
-  margin-top: 8px;
-}
-.od-explainer > div:not(.od-shield) {
-  display: flex;
-  justify-content: space-between;
-  gap: 15px;
-  padding-top: 12px;
-  font-size: 12px;
-  color: #939da0;
-}
-.od-explainer b {
-  color: #707c80;
-  font-size: 12px;
-  font-weight: 500;
-}
 .od-external {
   color: #3dc68d !important;
   display: inline-flex;
@@ -1138,53 +1105,6 @@
   top: 16px;
   right: 11px;
   color: #9ccab7;
-}
-.od-lending-explainer {
-  padding: 30px;
-}
-.od-lending-explainer h2 {
-  font-size: 24px;
-  letter-spacing: -0.7px;
-  line-height: 1.35;
-  margin: 14px 0;
-}
-.od-shield {
-  width: 53px;
-  height: 53px;
-  background: #f4f5f5;
-  border-radius: 12px;
-  color: #6e797d;
-  display: grid;
-  place-items: center;
-  margin-bottom: 25px;
-}
-.od-explainer ol {
-  counter-reset: steps;
-  list-style: none;
-  padding: 12px 0 0;
-  margin: 0;
-}
-.od-explainer li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: #7c888c;
-  margin: 16px 0;
-  line-height: 1.8;
-}
-.od-explainer li:before {
-  counter-increment: steps;
-  content: counter(steps, decimal-leading-zero);
-  font-size: 11px;
-  color: #4bca95;
-  border: 1px solid #d8ece4;
-  border-radius: 50%;
-  width: 25px;
-  height: 25px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
 }
 .od-policy-grid {
   display: grid;
@@ -1543,9 +1463,6 @@
   .od-action-card h3 {
     font-size: 14px;
   }
-  .od-two-grid {
-    grid-template-columns: 1fr;
-  }
   .od-policy-grid {
     grid-template-columns: 1fr;
   }
@@ -1784,7 +1701,6 @@
 .od-main .od-empty p,
 .od-main .od-action-card p,
 .od-main .od-template p,
-.od-main .od-explainer p,
 .od-main .od-field,
 .od-main .od-field small,
 .od-main .od-muted,
@@ -2023,4 +1939,27 @@
     padding-inline: 8px;
     border-radius: 8px;
   }
+}
+
+/* ------------------------------------------------------------------
+   A ticket with nothing to pair with is a ticket, not half a spread.
+   The lending form used to sit beside an explainer card; with the card
+   gone it keeps a readable measure instead of stretching to the page.
+   ------------------------------------------------------------------ */
+.od-single-form {
+  display: grid;
+  max-width: 560px;
+}
+/* Where the data came from is a footnote on the chart it qualifies,
+   not a headline of its own. */
+.od-basis {
+  color: #939da0;
+  gap: 16px;
+}
+.od-basis > span:last-child {
+  text-align: right;
+  color: #6c777b;
+}
+.od-audit-strip h3 {
+  margin: 0 0 4px;
 }

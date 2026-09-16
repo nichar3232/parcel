@@ -454,46 +454,23 @@ export function OptionsView({
                   />
                 )}
               </div>
-            </Panel>
-            <Panel className="od-explainer">
-              <span className="od-eyebrow">THE DETAILS MATTER</span>
-              <h3>
-                {effective.reference === 'dividend'
-                  ? 'A dividend reference, not a token rebase.'
-                  : 'Small contracts. The same option economics.'}
-              </h3>
-              <p>
-                {effective.reference === 'dividend'
-                  ? 'This contract references the stored $0.01 NVDA cash dividend for the March 12, 2025 event. It does not transfer dividend rights or assume an issuer pays cash to token holders.'
-                  : 'Fractional sizing scales premium and dollar Greeks. It does not reduce percentage time decay or change an option’s sensitivity per share.'}
-              </p>
-              <div>
-                <span>Price source</span>
-                <b>
+              <div className="od-panel-foot od-basis">
+                <span>Pricing basis</span>
+                <span>
                   {effective.reference === 'dividend'
                     ? 'Committed dividend event'
                     : state.book.date.includes('T')
                       ? 'Daily close carried forward'
-                      : 'Stored historical close'}
-                </b>
-              </div>
-              <div>
-                <span>Premium & volatility</span>
-                <b>
-                  Test pricing model ·{' '}
-                  {effective.reference === 'dividend' ? '80' : '45'}% vol
-                </b>
-              </div>
-              <div>
-                <span>Reference price</span>
-                <b>
+                      : 'Stored historical close'}{' '}
+                  · Test model{' '}
+                  {effective.reference === 'dividend' ? '80' : '45'}% vol · Ref{' '}
                   {usd(
                     effective.reference === 'dividend'
                       ? state.market.dividend
                       : state.market.price,
                     effective.reference === 'dividend' ? 4 : 2,
                   )}
-                </b>
+                </span>
               </div>
             </Panel>
           </div>

@@ -1,5 +1,4 @@
 'use client';
-import Link from 'next/link';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import {
   Badge,
@@ -164,59 +163,45 @@ export function RiskView({
           />
         )}
       </Panel>
-      <div className="od-two-grid">
-        <Panel className="od-explainer">
-          <span className="od-eyebrow">NO DOUBLE COUNTING</span>
-          <h3>A share has one job at a time.</h3>
-          <p>
-            Covered calls reserve shares. A stock loan removes those shares from
-            your spendable vault. Withdrawals and stock sales must leave all
-            remaining commitments fully funded.
+      <Panel>
+        <div className="od-panel-heading">
+          <h2>Collateral requirements</h2>
+          <Badge tone="neutral">
+            {r.releasedValue > 0 ? 'Offsets applied' : 'No offsets'}
+          </Badge>
+        </div>
+        <div className="od-panel-body">
+          <div className="od-review-lines">
+            <div className="od-review-line">
+              <span>Standalone cash requirement</span>
+              <b>{usd(r.grossCash)}</b>
+            </div>
+            <div className="od-review-line">
+              <span>Standalone share requirement</span>
+              <b>{qty(r.grossShares)} NVDA</b>
+            </div>
+            <div className="od-review-line">
+              <span>Applied cash requirement</span>
+              <b>{usd(r.cash)}</b>
+            </div>
+            <div className="od-review-line">
+              <span>Applied share requirement</span>
+              <b>{qty(r.shares)} NVDA</b>
+            </div>
+          </div>
+          <p className="od-form-note">
+            A share has one job at a time. Covered calls reserve shares and a
+            stock loan removes them from your spendable vault, so withdrawals
+            and sales must leave every remaining commitment fully funded.
           </p>
-          <div>
-            <span>Standalone cash requirement</span>
-            <b>{usd(r.grossCash)}</b>
-          </div>
-          <div>
-            <span>Standalone share requirement</span>
-            <b>{qty(r.grossShares)} NVDA</b>
-          </div>
-          <div>
-            <span>Applied cash requirement</span>
-            <b>{usd(r.cash)}</b>
-          </div>
-          <div>
-            <span>Applied share requirement</span>
-            <b>{qty(r.shares)} NVDA</b>
-          </div>
-        </Panel>
-        <Panel className="od-explainer">
-          <span className="od-eyebrow">EXPLICIT BOUNDARIES</span>
-          <h3>Offsets must survive settlement.</h3>
-          <p>
-            Calendar offsets use guaranteed minimum cash receipts only. A later
-            receipt cannot finance an earlier payment. Unrelated directional
-            bets, loan escrows and protected-short reserves receive no
-            correlation credit. Curves offset only identical opposite contracts.
-          </p>
-          <p>
-            Stock shorts use covered protective calls, not a liquidation
-            assumption. Loans pre-fund test interest. Prices and options
-            premiums remain clearly identified as historical observations and
-            model values.
-          </p>
-          <Link className="od-external" href="/legacy">
-            Open the retained Solana escrow desk ↗
-          </Link>
-        </Panel>
-      </div>
+        </div>
+      </Panel>
       <Panel className="od-audit-strip">
         <div>
-          <Badge tone="green">Transactional</Badge>
-          <h3>Every mutation has a receipt.</h3>
+          <h3>Vault integrity</h3>
           <p>
-            Session ownership, revision checks, idempotency keys, and
-            conservation checks protect the ledger.
+            Re-read every balance and reserve from the ledger and compare it
+            with what this screen shows.
           </p>
         </div>
         <Button variant="secondary" onClick={() => void desk.refresh()}>

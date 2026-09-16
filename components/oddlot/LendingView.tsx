@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { VaultAction } from '@/lib/oddlot/types';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import { amount } from '@/lib/oddlot/validation';
@@ -171,7 +171,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
           />
         </Panel>
       </div>
-      <div className="od-builder-grid">
+      <div className="od-single-form">
         <Panel className="od-order-form">
           <div className="od-panel-heading">
             <h2>Put your capital to work</h2>
@@ -303,51 +303,6 @@ export function LendingView({ desk }: { desk: VaultController }) {
               repurchase; pledged protection cannot be reused.
             </p>
           </div>
-        </Panel>
-        <Panel className="od-explainer od-lending-explainer">
-          <div className="od-shield">
-            <ShieldCheck size={30} />
-          </div>
-          <span className="od-eyebrow">COLLATERAL BEFORE CONFIDENCE</span>
-          <h2>
-            {mode === 'short'
-              ? 'A finite reserve needs a finite obligation.'
-              : mode === 'lend'
-                ? 'Know what backs your stock loan.'
-                : 'Ownership starts with full funding.'}
-          </h2>
-          <p>
-            {mode === 'short'
-              ? 'An ordinary short can lose without limit. Oddlot’s protected short pairs each borrowed share with a covered call and reserves the strike cash plus full-term borrow cost. Sale proceeds remain in the vault.'
-              : mode === 'lend'
-                ? 'The test borrower transfers 150% of the opening stock value as cash collateral, plus the entire term’s interest. The borrower sells the stock to the test market and buys a covered call capped at 150% of entry. Cash escrow funds repayment even if the stock rises past that cap.'
-                : 'Spot purchases exchange your available USDC for shares at the stored reference price. Selling is limited to owned, unencumbered shares; it cannot silently create a naked short.'}
-          </p>
-          <ol>
-            {(mode === 'short'
-              ? [
-                  'Borrow and sell the exact share quantity.',
-                  'Buy a share-backed protective call.',
-                  'Lock the maximum repayment and borrow cost.',
-                  'Repurchase or exercise, then return the shares.',
-                ]
-              : mode === 'lend'
-                ? [
-                    'Check that your shares are available.',
-                    'Verify the borrower’s funded collateral.',
-                    'Sell borrowed stock and fund call protection.',
-                    'Recall anytime; receive accrued test interest.',
-                  ]
-                : [
-                    'Deposit cash into your vault.',
-                    'Review the exact reference and consideration.',
-                    'Exchange assets atomically.',
-                    'Use available shares for covered underwriting.',
-                  ]
-            ).map((t) => (
-              <li key={t}>{t}</li>
-            ))}
-          </ol>
         </Panel>
       </div>
       <Panel>
