@@ -160,6 +160,82 @@ export function PreIpoView() {
       termsError = (e as Error).message;
     }
 
+  const escrowable = data.assets.filter((a) => a.verdict.escrowSupported);
+  const blocked = data.assets.filter((a) => !a.verdict.escrowSupported);
+  // Every rejected asset here fails for the same reasons, so the page
+  // states them once for the group instead of eight times.
+  const shared = [
+    ...new Set(blocked.flatMap((a) => a.verdict.blockers.map((b) => b.code))),
+  ].filter((code) =>
+    blocked.every((a) => a.verdict.blockers.some((b) => b.code === code)),
+  );
+  const blockedReason = shared.length
+    ? `All ${blocked.length} carry the same ${shared.length} mint features. One is decisive alone: ${(BLOCKER_LABEL[shared[0]] || shared[0]).toLowerCase()}.`
+    : `All ${blocked.length} carry a mint feature this contract cannot guarantee.`;
+
+  const card = (a: (typeof data.assets)[number]) => {
+    const meta = a.quote?.meta || {};
+    const logo = typeof meta.image === 'string' ? meta.image : null;
+    const sector = typeof meta.sector === 'string' ? meta.sector : null;
+    const holders = num(meta.holders);
+    const valuation = num(meta.markValuation) ?? num(meta.impliedValuation);
+    return (
+      <button
+        key={a.asset.id}
+        className={`od-preipo-asset ${a.asset.id === selected ? 'selected' : ''} ${a.verdict.escrowSupported ? '' : 'blocked'}`}
+        aria-pressed={a.asset.id === selected}
+        onClick={() => setSelected(a.asset.id)}
+      >
+        <span className="od-preipo-head">
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt="" className="od-preipo-logo" />
+          ) : (
+            <span className="od-preipo-logo letter">
+              {a.asset.displayName.replace(/^Tessera T-/, '')[0]}
+            </span>
+          )}
+          <span>
+            <strong>
+              {a.asset.displayName
+                .replace(/^Tessera T-/, '')
+                .replace(/ PreStocks$/, '')}
+            </strong>
+            <span className="od-preipo-provider">
+              {a.asset.issuerTerms.issuer}
+              {sector ? ` · ${sector}` : ''}
+            </span>
+          </span>
+        </span>
+
+        <span className="od-preipo-figures">
+          <b>
+            {a.quote?.markPriceUsd != null
+              ? usd(a.quote.markPriceUsd)
+              : 'No price'}
+          </b>
+          <span>
+            {valuation ? `${big(valuation)} valuation` : ''}
+            {valuation && holders ? ' · ' : ''}
+            {holders ? `${holders.toLocaleString('en-US')} holders` : ''}
+          </span>
+        </span>
+
+        <span className="od-preipo-status">
+          {a.verdict.escrowSupported ? (
+            <>
+              <ShieldCheck size={13} /> Escrowable
+            </>
+          ) : (
+            <>
+              <Lock size={13} /> Not escrowable
+            </>
+          )}
+        </span>
+      </button>
+    );
+  };
+
   return (
     <>
       <Heading
@@ -177,81 +253,26 @@ export function PreIpoView() {
 
       <Panel>
         <div className="od-panel-heading">
-          <h2>Verified assets</h2>
+          <h2>Verified on chain</h2>
           <Badge tone="neutral">
-            {data.assets.filter((a) => a.verdict.escrowSupported).length} of{' '}
-            {data.assets.length} escrowable
+            {escrowable.length} escrowable · {blocked.length} rejected
           </Badge>
         </div>
         <div className="od-panel-body">
-          <div className="od-preipo-assets">
-            {data.assets.map((a) => {
-              const meta = a.quote?.meta || {};
-              const logo = typeof meta.image === 'string' ? meta.image : null;
-              const sector =
-                typeof meta.sector === 'string' ? meta.sector : null;
-              const holders = num(meta.holders);
-              const valuation =
-                num(meta.markValuation) ?? num(meta.impliedValuation);
-              return (
-                <button
-                  key={a.asset.id}
-                  className={`od-preipo-asset ${a.asset.id === selected ? 'selected' : ''} ${a.verdict.escrowSupported ? '' : 'blocked'}`}
-                  aria-pressed={a.asset.id === selected}
-                  onClick={() => setSelected(a.asset.id)}
-                >
-                  <span className="od-preipo-head">
-                    {logo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={logo} alt="" className="od-preipo-logo" />
-                    ) : (
-                      <span className="od-preipo-logo letter">
-                        {a.asset.displayName.replace(/^Tessera T-/, '')[0]}
-                      </span>
-                    )}
-                    <span>
-                      <strong>
-                        {a.asset.displayName
-                          .replace(/^Tessera T-/, '')
-                          .replace(/ PreStocks$/, '')}
-                      </strong>
-                      <span className="od-preipo-provider">
-                        {a.asset.issuerTerms.issuer}
-                        {sector ? ` · ${sector}` : ''}
-                      </span>
-                    </span>
-                  </span>
+          <div className="od-preipo-assets">{escrowable.map(card)}</div>
 
-                  <span className="od-preipo-figures">
-                    <b>
-                      {a.quote?.markPriceUsd != null
-                        ? usd(a.quote.markPriceUsd)
-                        : 'No price'}
-                    </b>
-                    <span>
-                      {valuation ? `${big(valuation)} valuation` : ''}
-                      {valuation && holders ? ' · ' : ''}
-                      {holders
-                        ? `${holders.toLocaleString('en-US')} holders`
-                        : ''}
-                    </span>
-                  </span>
-
-                  <span className="od-preipo-status">
-                    {a.verdict.escrowSupported ? (
-                      <>
-                        <ShieldCheck size={13} /> Escrowable
-                      </>
-                    ) : (
-                      <>
-                        <Lock size={13} /> Not escrowable
-                      </>
-                    )}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {blocked.length > 0 && (
+            <>
+              <div className="od-preipo-groupline">
+                <h3>Rejected by their own mint</h3>
+                <p className="od-form-note">
+                  {blockedReason} Select one for the full list, read from its
+                  mint account.
+                </p>
+              </div>
+              <div className="od-preipo-assets">{blocked.map(card)}</div>
+            </>
+          )}
         </div>
       </Panel>
 
