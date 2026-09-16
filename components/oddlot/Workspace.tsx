@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { Mark } from '@/components/brand/Mark';
+import { ThemeToggle } from '@/components/brand/Theme';
 import { useEffect, useState } from 'react';
 import {
   ArrowUpRight,
@@ -152,6 +153,7 @@ export default function Workspace() {
           </div>
         </aside>
         <div className="od-topbar-actions">
+          <ThemeToggle />
           <span className="od-environment">
             <i />
             {s?.mode === 'localnet' ? 'LOCALNET' : 'SANDBOX'}

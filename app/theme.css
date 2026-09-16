@@ -18,6 +18,8 @@
   --od-red: #d2544c;
   --od-blue: #6fdcaa;
   --od-paper: #ffffff;
+  --od-ring-used: #456be8;
+  --od-ring-free: #e9edf5;
   --od-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 .oddlot {
@@ -1465,4 +1467,292 @@
 /* The wordmark is a link home now, not a tab. */
 .oddlot a.od-brand {
   text-decoration: none;
+}
+
+/* ------------------------------------------------------------------
+   Dark theme.
+
+   The whole skin is tokens, so the dark scheme is a second set of
+   values for them rather than a second stylesheet. Anything in the
+   legacy sheet that still holds a literal colour is remapped below,
+   under the same [data-theme='dark'] gate.
+
+   The canvas is a warm-neutral charcoal rather than pure black: the
+   panels have to sit above it, and #000 leaves nowhere to go.
+   ------------------------------------------------------------------ */
+[data-theme='dark'] .oddlot,
+[data-theme='dark'] .od-dialog {
+  --od-ink: #eef3f4;
+  --od-body: #c2ced2;
+  --od-muted: #9dadb3;
+  --od-line: #2a3336;
+  --od-panel: #161c1f;
+  --od-bg: #0e1315;
+  --od-accent: #4fc99a;
+  --od-accent-ink: #7fe3b9;
+  --od-green: #4fc99a;
+  --od-red: #e0736b;
+  --od-blue: #4fc99a;
+  --od-paper: #161c1f;
+  --od-ring-used: #4fc99a;
+  --od-ring-free: #2a3336;
+  color-scheme: dark;
+}
+[data-theme='dark'] .oddlot {
+  background:
+    radial-gradient(
+      110% 70% at 88% 0%,
+      rgba(79, 201, 154, 0.08) 0%,
+      rgba(79, 201, 154, 0) 55%
+    ),
+    linear-gradient(180deg, #121719 0%, var(--od-bg) 100%);
+}
+
+/* The toggle in the desk's app bar. */
+.oddlot .pc-theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--od-line);
+  border-radius: 9px;
+  background: none;
+  color: var(--od-muted);
+  cursor: pointer;
+}
+.oddlot .pc-theme:hover {
+  color: var(--od-ink);
+}
+
+/* ------------------------------------------------------------------
+   Dark: the legacy sheet's literals.
+
+   oddlot.css predates the tokens and holds ~230 literal colours. The
+   ones that actually reach the screen are remapped here. Found by
+   walking the rendered DOM in dark mode for light-on-dark boxes and
+   text below WCAG AA, not by reading the stylesheet.
+   ------------------------------------------------------------------ */
+[data-theme='dark'] .oddlot .od-appbar {
+  background: rgba(14, 19, 21, 0.82);
+}
+[data-theme='dark'] .oddlot .od-skip {
+  background: var(--od-panel);
+  color: var(--od-ink);
+}
+[data-theme='dark'] .oddlot .od-sidebar,
+[data-theme='dark'] .oddlot .od-action-card,
+[data-theme='dark'] .oddlot .od-policy,
+[data-theme='dark'] .oddlot .od-template,
+[data-theme='dark'] .oddlot .od-basic-leg,
+[data-theme='dark'] .oddlot .od-leg,
+[data-theme='dark'] .oddlot .od-quote-premium,
+[data-theme='dark'] .oddlot .od-curve-review {
+  background: var(--od-panel);
+  border-color: var(--od-line);
+}
+[data-theme='dark'] .oddlot .od-nav-item.active,
+[data-theme='dark'] .oddlot .od-category-tabs button.selected {
+  background: rgba(79, 201, 154, 0.14);
+  color: var(--od-accent-ink);
+  border-color: rgba(79, 201, 154, 0.3);
+}
+[data-theme='dark'] .oddlot .od-nav-item {
+  color: var(--od-body);
+}
+
+/* Chips and pills. */
+[data-theme='dark'] .oddlot .od-badge,
+[data-theme='dark'] .od-dialog .od-badge {
+  background: rgba(79, 201, 154, 0.14);
+  color: var(--od-accent-ink);
+}
+[data-theme='dark'] .oddlot .od-badge.neutral {
+  background: #222b2e;
+  color: var(--od-body);
+}
+[data-theme='dark'] .oddlot .od-asset-icon {
+  background: rgba(79, 201, 154, 0.16);
+  color: var(--od-accent-ink);
+}
+[data-theme='dark'] .oddlot .od-empty-mark {
+  background: #222b2e;
+  color: var(--od-muted);
+}
+
+/* Segmented controls and mode switches. */
+[data-theme='dark'] .oddlot .od-segmented,
+[data-theme='dark'] .oddlot .od-trade-modes,
+[data-theme='dark'] .oddlot .od-tabs {
+  background: #1d2427;
+  border-color: var(--od-line);
+}
+[data-theme='dark'] .oddlot .od-segmented button,
+[data-theme='dark'] .oddlot .od-trade-modes button {
+  color: var(--od-muted);
+}
+[data-theme='dark'] .oddlot .od-segmented button.selected,
+[data-theme='dark'] .oddlot .od-trade-modes button.selected {
+  background: var(--od-panel);
+  color: var(--od-ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Tables and forms. */
+[data-theme='dark'] .oddlot .od-table th {
+  background: #1d2427;
+  color: var(--od-body);
+}
+[data-theme='dark'] .oddlot .od-table td,
+[data-theme='dark'] .oddlot .od-table th {
+  border-color: var(--od-line);
+}
+[data-theme='dark'] .oddlot .od-field input,
+[data-theme='dark'] .oddlot .od-field select,
+[data-theme='dark'] .od-dialog .od-field input,
+[data-theme='dark'] .od-dialog .od-field select {
+  background: #11171a;
+  color: var(--od-ink);
+  border-color: var(--od-line);
+}
+[data-theme='dark'] .oddlot .od-sizing {
+  background: #11171a;
+  border-color: var(--od-line);
+}
+[data-theme='dark'] .oddlot .od-progress {
+  background: #2a3336;
+}
+[data-theme='dark'] .oddlot input[type='range'],
+[data-theme='dark'] .oddlot input[type='range']::-webkit-slider-runnable-track,
+[data-theme='dark'] .oddlot input[type='range']::-moz-range-track {
+  background: #2a3336;
+}
+[data-theme='dark'] .oddlot input[type='range']::-webkit-slider-thumb,
+[data-theme='dark'] .oddlot input[type='range']::-moz-range-thumb {
+  border-color: var(--od-panel);
+}
+
+/* Secondary text that the legacy sheet pins to a light-theme grey. */
+[data-theme='dark'] .od-main .od-heading p,
+[data-theme='dark'] .od-main .od-panel-heading p,
+[data-theme='dark'] .od-main .od-empty p,
+[data-theme='dark'] .od-main .od-action-card p,
+[data-theme='dark'] .od-main .od-template p,
+[data-theme='dark'] .od-main .od-explainer p,
+[data-theme='dark'] .od-main .od-field,
+[data-theme='dark'] .od-main .od-field small,
+[data-theme='dark'] .od-main .od-muted,
+[data-theme='dark'] .od-main .od-table th,
+[data-theme='dark'] .od-main .od-table td > small,
+[data-theme='dark'] .od-main .od-asset-cell small,
+[data-theme='dark'] .oddlot .od-form-note,
+[data-theme='dark'] .od-dialog .od-form-note {
+  color: var(--od-muted) !important;
+}
+[data-theme='dark'] .oddlot .od-field > label,
+[data-theme='dark'] .od-dialog .od-field > label {
+  color: var(--od-body);
+}
+
+/* Pre-IPO surfaces. */
+[data-theme='dark'] .oddlot .od-preipo-asset {
+  background: var(--od-panel);
+}
+[data-theme='dark'] .oddlot .od-preipo-asset.selected {
+  background: rgba(79, 201, 154, 0.1);
+}
+[data-theme='dark'] .oddlot .od-preipo-blockers li,
+[data-theme='dark'] .oddlot .od-reason-list li,
+[data-theme='dark'] .oddlot .od-outcome {
+  background: var(--od-panel);
+}
+[data-theme='dark'] .oddlot .od-preipo-error {
+  background: rgba(224, 115, 107, 0.12);
+  color: #f0a09a;
+}
+[data-theme='dark'] .oddlot .od-ticket-summary {
+  background: #11171a;
+}
+
+/* Dialogs and toasts. */
+[data-theme='dark'] .od-dialog {
+  background: var(--od-panel);
+  color: var(--od-ink);
+  border-color: var(--od-line);
+}
+[data-theme='dark'] .oddlot .od-toast {
+  background: var(--od-panel);
+  color: var(--od-ink);
+  border-color: var(--od-line);
+}
+[data-theme='dark'] .oddlot .od-button.secondary,
+[data-theme='dark'] .oddlot .od-button.quiet,
+[data-theme='dark'] .od-dialog .od-button.secondary {
+  background: #222b2e;
+  color: var(--od-ink);
+  border-color: var(--od-line);
+}
+
+/* Dark: the remaining legacy literals, from a second audit pass. */
+[data-theme='dark'] .oddlot .od-review-line b,
+[data-theme='dark'] .od-dialog .od-review-line b,
+[data-theme='dark'] .oddlot .od-order-summary > div > b,
+[data-theme='dark'] .oddlot .od-external,
+[data-theme='dark'] .oddlot .od-link,
+[data-theme='dark'] .oddlot .od-leg-side,
+[data-theme='dark'] .oddlot .od-positive,
+[data-theme='dark'] .oddlot .od-stat.positive strong {
+  color: var(--od-accent-ink) !important;
+}
+[data-theme='dark'] .oddlot .od-leg-side.sell,
+[data-theme='dark'] .oddlot .od-negative,
+[data-theme='dark'] .oddlot .od-preipo-asset.blocked .od-preipo-status,
+[data-theme='dark'] .oddlot .od-preipo-blockers li b,
+[data-theme='dark'] .oddlot .od-error {
+  color: #f0a09a !important;
+}
+[data-theme='dark'] .oddlot .od-preipo-status {
+  color: var(--od-accent-ink);
+}
+[data-theme='dark'] .oddlot h3,
+[data-theme='dark'] .oddlot .od-empty h3,
+[data-theme='dark'] .oddlot .od-action-card h3,
+[data-theme='dark'] .oddlot .od-policy h3,
+[data-theme='dark'] .oddlot .od-template h3,
+[data-theme='dark'] .oddlot .od-capital-bottom b,
+[data-theme='dark'] .oddlot .od-stat strong,
+[data-theme='dark'] .oddlot .od-donut-value,
+[data-theme='dark'] .oddlot .od-chart-slider b,
+[data-theme='dark'] .oddlot .od-legend b {
+  color: var(--od-ink);
+}
+[data-theme='dark'] .oddlot .od-order-summary > div > span:last-child,
+[data-theme='dark'] .oddlot .od-basis,
+[data-theme='dark'] .oddlot .od-basis > span:last-child,
+[data-theme='dark'] .oddlot .od-chart-caption,
+[data-theme='dark'] .oddlot .od-stat > span,
+[data-theme='dark'] .oddlot .od-stat small,
+[data-theme='dark'] .oddlot .od-empty,
+[data-theme='dark'] .oddlot .od-search {
+  color: var(--od-body);
+}
+
+/* Dark: the last two surfaces the audit found. */
+[data-theme='dark'] .oddlot .od-donut > div {
+  background: var(--od-panel);
+}
+[data-theme='dark'] .oddlot .od-donut strong {
+  color: var(--od-ink);
+}
+[data-theme='dark'] .oddlot .od-donut small {
+  color: var(--od-muted);
+}
+[data-theme='dark'] .oddlot .od-basic-leg .od-leg-side {
+  background: rgba(79, 201, 154, 0.16);
+  color: var(--od-accent-ink);
+}
+[data-theme='dark'] .oddlot .od-basic-leg .od-leg-side.sell {
+  background: rgba(224, 115, 107, 0.16);
+  color: #f0a09a;
 }

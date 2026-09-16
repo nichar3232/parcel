@@ -1,15 +1,17 @@
 import Link from 'next/link';
 import { Mark } from '@/components/brand/Mark';
 import { Showcase } from '@/components/brand/Showcase';
+import { ThemeToggle } from '@/components/brand/Theme';
 import { EXAMPLES, HERO } from '@/lib/oddlot/landing';
 import './landing.css';
 
+/** The nav opens each product in the desk; the tabs below preview it. */
 const PRODUCTS = [
-  { name: 'Options', href: '#options' },
-  { name: 'Underwriting', href: '#underwriting' },
-  { name: 'Structures', href: '#structures' },
-  { name: 'Pre-IPO', href: '#pre-ipo' },
-  { name: 'Lending', href: '#lending' },
+  { name: 'Options', href: '/app?at=options' },
+  { name: 'Underwriting', href: '/app?at=underwriting' },
+  { name: 'Structures', href: '/app?at=structures' },
+  { name: 'Pre-IPO', href: '/app?at=pre-ipo' },
+  { name: 'Lending', href: '/app?at=lending' },
 ];
 
 /**
@@ -51,6 +53,7 @@ export default function Landing() {
           <a className="lp-nav-about" href="#how">
             About
           </a>
+          <ThemeToggle />
           <Link className="lp-cta" href="/app">
             Open the desk
           </Link>

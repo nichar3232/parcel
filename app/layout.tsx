@@ -3,6 +3,14 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 const sans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const mono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
+/**
+ * Applied before paint. Reading the stored theme in React would render
+ * one frame in the wrong scheme on every load.
+ */
+const THEME_BOOT = `(()=>{try{var s=localStorage.getItem('theme');
+if(s!=='dark'&&s!=='light')s=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+document.documentElement.dataset.theme=s;}catch(e){}})()`;
+
 export const metadata: Metadata = {
   title: 'Parcel — Options, by the share.',
   icons: { icon: '/favicon.svg' },
@@ -38,7 +46,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
+      </head>
       <body className={`${sans.variable} ${mono.variable}`}>{children}</body>
     </html>
   );

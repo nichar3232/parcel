@@ -92,8 +92,10 @@ export function VaultView({
           <div className="od-allocation-body">
             <div
               className="od-donut"
+              // Through tokens, so the theme can reach them. An inline
+              // literal is the one thing a stylesheet cannot override.
               style={{
-                background: `conic-gradient(#456be8 0 ${risk.utilization * 100}%,#e9edf5 ${risk.utilization * 100}% 100%)`,
+                background: `conic-gradient(var(--od-ring-used) 0 ${risk.utilization * 100}%,var(--od-ring-free) ${risk.utilization * 100}% 100%)`,
               }}
             >
               <div>

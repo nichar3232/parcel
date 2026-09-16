@@ -857,3 +857,60 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- dark theme ---------- */
+[data-theme='dark'] .lp {
+  --ink: #eef3f4;
+  --body: #b3c0c4;
+  --muted: #84949a;
+  --line: #2a3336;
+  --panel: #161c1f;
+  --bg: #0e1315;
+  --accent: #4fc99a;
+  --accent-ink: #7fe3b9;
+  color-scheme: dark;
+  background:
+    radial-gradient(
+      120% 90% at 82% 8%,
+      rgba(79, 201, 154, 0.1) 0%,
+      rgba(79, 201, 154, 0) 55%
+    ),
+    linear-gradient(180deg, #121719 0%, var(--bg) 100%);
+}
+[data-theme='dark'] .lp-nav {
+  background: rgba(14, 19, 21, 0.72);
+  box-shadow: 0 1px 16px -8px rgba(0, 0, 0, 0.7);
+}
+[data-theme='dark'] .lp-tabs {
+  background: #1d2427;
+}
+[data-theme='dark'] .lp-tabs button.selected {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+[data-theme='dark'] .lp-panel,
+[data-theme='dark'] .lp-card {
+  box-shadow: 0 24px 60px -40px rgba(0, 0, 0, 0.8);
+}
+[data-theme='dark'] .lp-example,
+[data-theme='dark'] .lp-outcomes,
+[data-theme='dark'] .lp-steps li {
+  box-shadow: none;
+}
+
+/* The toggle, shared with the desk's app bar. */
+.pc-theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.pc-theme:hover {
+  color: var(--ink);
+}
