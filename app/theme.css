@@ -1212,6 +1212,10 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
+}
+.oddlot .od-builder-insight > .od-panel > * {
+  min-width: 0;
 }
 /* The payoff chart takes the slack and stays centred in it. */
 .oddlot .od-builder-insight .od-payoff {
@@ -1240,7 +1244,224 @@
 .oddlot .od-order-form {
   display: flex;
   flex-direction: column;
+  /* A flex container sizes to its children's min-content unless told
+     otherwise, which on a narrow screen pushes the panel wider than
+     the column holding it. */
+  min-width: 0;
+}
+.oddlot .od-order-form > * {
+  min-width: 0;
 }
 .oddlot .od-order-form > .od-form-content {
   flex: 1;
+}
+
+/* ------------------------------------------------------------------
+   The vault balance card.
+
+   It was a dark gradient panel sitting beside white ones, the only
+   surface in the app with its own palette. Same white card, same
+   border and radius as every other panel; the balance still leads
+   because of its size, not because the box around it is black.
+   ------------------------------------------------------------------ */
+.oddlot .od-capital-card {
+  background: var(--od-panel);
+  border: 1px solid var(--od-line);
+  color: var(--od-ink);
+}
+/* The decorative ring was tuned for a black ground. */
+.oddlot .od-capital-card:after {
+  border-color: rgba(111, 220, 170, 0.22);
+  box-shadow:
+    0 0 0 37px rgba(111, 220, 170, 0.05),
+    0 0 0 72px rgba(111, 220, 170, 0.035);
+}
+.oddlot .od-card-top {
+  color: var(--od-muted);
+}
+.oddlot .od-card-top svg {
+  color: var(--od-green);
+}
+.oddlot .od-capital-card > strong,
+.oddlot .od-capital-bottom b {
+  color: var(--od-ink);
+}
+.oddlot .od-capital-card > p,
+.oddlot .od-capital-card > small,
+.oddlot .od-capital-bottom small {
+  color: var(--od-muted);
+}
+.oddlot .od-progress {
+  background: #eaeff0;
+}
+.oddlot .od-progress i {
+  background: var(--od-green);
+}
+/* Both halves of the vault row end together, like every other row. */
+.oddlot .od-vault-grid {
+  align-items: stretch;
+}
+
+/* ------------------------------------------------------------------
+   Density.
+
+   The desk was laid out at landing-page spacing: 40px of page padding,
+   24px between every section, a 170px floor under every empty state.
+   On a working screen that reads as a half-empty page. Tighten the
+   whole vertical rhythm by roughly a third; nothing here changes what
+   is on the screen, only how much air sits between it.
+   ------------------------------------------------------------------ */
+.oddlot .od-main {
+  gap: 16px;
+}
+@media (min-width: 901px) {
+  .oddlot .od-main {
+    padding: 26px 28px 40px;
+  }
+}
+.oddlot .od-heading {
+  margin-bottom: 0;
+}
+.oddlot .od-heading h1 {
+  line-height: 1.15;
+}
+.oddlot .od-heading p {
+  margin-top: 5px;
+}
+.oddlot .od-trade-modes {
+  margin: 0 0 4px;
+}
+.oddlot .od-builder-grid,
+.oddlot .od-vault-grid {
+  gap: 16px;
+}
+.oddlot .od-builder-insight {
+  gap: 16px;
+}
+.oddlot .od-three-grid {
+  gap: 16px;
+}
+.oddlot .od-panel-heading {
+  padding: 18px 24px;
+}
+.oddlot .od-form-content {
+  gap: 16px;
+}
+@media (min-width: 761px) {
+  .oddlot .od-form-content {
+    padding: 4px 24px 22px;
+  }
+}
+@media (max-width: 760px) {
+  .oddlot .od-panel-heading {
+    padding: 16px 20px;
+  }
+  .oddlot .od-form-content {
+    padding: 4px 20px 20px;
+  }
+}
+.oddlot .od-panel-body {
+  gap: 12px;
+  padding-bottom: 20px;
+}
+@media (min-width: 761px) {
+  .oddlot .od-segmented {
+    margin: 0 24px;
+  }
+}
+/* A three-way control must be allowed to shrink before its panel grows. */
+.oddlot .od-segmented {
+  min-width: 0;
+}
+.oddlot .od-segmented button {
+  min-width: 0;
+  white-space: normal;
+}
+.oddlot .od-stat {
+  padding: 18px 24px;
+}
+.oddlot .od-capital-card {
+  min-height: 0;
+}
+@media (min-width: 761px) {
+  .oddlot .od-capital-card {
+    padding: 20px 24px;
+  }
+}
+.oddlot .od-capital-bottom {
+  margin-top: 18px;
+}
+.oddlot .od-progress {
+  margin-top: 14px;
+}
+/* An empty state states the fact; it does not need 170px to do it. */
+.oddlot .od-empty {
+  min-height: 0;
+  padding: 26px 20px 28px;
+  gap: 5px;
+}
+.oddlot .od-empty-mark {
+  width: 28px;
+  height: 28px;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+.oddlot .od-outcome {
+  padding: 16px 18px;
+}
+.oddlot .od-outcomes {
+  margin: 0 20px 20px;
+}
+@media (min-width: 761px) {
+  .oddlot .od-outcomes {
+    margin: 0 24px 20px;
+  }
+}
+.oddlot .od-reason-list li {
+  padding: 9px 14px;
+}
+.oddlot .od-table th,
+.oddlot .od-table td {
+  padding-block: 12px;
+}
+.oddlot .od-notice {
+  padding: 11px 18px;
+}
+.oddlot .od-terms-strip .od-sizing {
+  margin: 10px 0 18px;
+}
+
+/* Two stacked heading rows paid for their padding twice. */
+.oddlot .od-ledger-controls {
+  padding-top: 0;
+}
+/* A section break inside a page, not between two pages. */
+.oddlot .od-section-break {
+  margin: 16px 0 10px;
+  padding-top: 18px;
+}
+/* The balance card fills the row, so its progress bar sits at the foot
+   of the card rather than leaving a band of white beneath it. */
+.oddlot .od-capital-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.oddlot .od-capital-card > .od-progress {
+  margin-top: auto;
+}
+
+/* A grid track sized 1fr still takes its automatic minimum from the
+   item's min-content, so a panel that cannot shrink widens the whole
+   row. Let every desk-row child shrink, and say minmax(0, …) outright
+   on the narrow layouts where the row is a single column. */
+.oddlot .od-builder-grid > *,
+.oddlot .od-vault-grid > *,
+.oddlot .od-three-grid > * {
+  min-width: 0;
+}
+@media (max-width: 1000px) {
+  .oddlot .od-builder-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
