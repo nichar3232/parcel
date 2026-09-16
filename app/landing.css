@@ -403,23 +403,75 @@
 }
 .lp-section {
   scroll-margin-top: 64px;
-  border-top: 1px solid var(--line);
 }
 .lp-section-inner {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 64px;
-  align-items: center;
   max-width: 1360px;
   margin: 0 auto;
   padding: 72px 32px;
+}
+.lp-section-head {
+  max-width: 52ch;
+  margin-bottom: 34px;
+}
+.lp-section-head h2 {
+  font-size: 34px;
+  line-height: 1.18;
+  letter-spacing: -0.8px;
+  margin-top: 12px;
+}
+.lp-section-head p {
+  margin-top: 12px;
+  color: var(--body);
+}
+
+/* One tile per product. A grid reads as a set; five ruled rows read as
+   a list that will not end. */
+.lp-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 18px;
+}
+.lp-tile {
+  scroll-margin-top: 88px;
+  display: flex;
+  flex-direction: column;
+  padding: 26px 26px 24px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 18px 44px -34px rgba(15, 20, 23, 0.3);
+}
+.lp-tile h3 {
+  margin: 12px 0 0;
+  font-size: 20px;
+  line-height: 1.25;
+  letter-spacing: -0.4px;
+  font-weight: 600;
+}
+.lp-tile p {
+  margin-top: 9px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.lp-tile .lp-example {
+  margin-top: 18px;
+}
+.lp-tile .lp-inline-link {
+  margin-top: auto;
+  padding-top: 18px;
+}
+/* Three tiles, then two wider ones, rather than two tiles and a hole. */
+.lp-grid > * {
+  grid-column: span 2;
+}
+.lp-grid > :nth-child(n + 4) {
+  grid-column: span 3;
 }
 .lp-section-copy h2 {
   font-size: 34px;
   line-height: 1.18;
   letter-spacing: -0.8px;
   margin-top: 14px;
-  max-width: 17ch;
 }
 .lp-section-copy p {
   margin-top: 14px;
@@ -454,19 +506,21 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 20px;
-  padding: 18px 22px;
+  gap: 16px;
+  padding: 12px 16px;
   background: var(--panel);
 }
 .lp-example dt {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 .lp-example dd {
   margin: 0;
+  font-size: 13px;
   font-weight: 550;
   font-variant-numeric: tabular-nums;
   text-align: right;
+  white-space: nowrap;
 }
 .lp-example > div:nth-child(2) dd {
   color: var(--accent-ink);
@@ -510,8 +564,13 @@
   }
 }
 
+.lp-how {
+  border-top: 1px solid var(--line);
+}
 .lp-how-inner {
+  display: grid;
   grid-template-columns: 0.85fr 1.15fr;
+  gap: 48px;
   align-items: start;
 }
 .lp-steps {
@@ -547,12 +606,14 @@
   color: var(--muted);
 }
 
+.lp-close {
+  border-top: 1px solid var(--line);
+}
 .lp-close-inner {
-  grid-template-columns: 1fr;
+  display: grid;
   justify-items: center;
   text-align: center;
-  gap: 0;
-  padding: 88px 32px;
+  padding: 80px 32px;
 }
 .lp-close h2 {
   font-size: 38px;
@@ -580,15 +641,31 @@
 }
 
 @media (max-width: 1100px) {
-  .lp-section-inner,
+  .lp-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lp-grid > *,
+  .lp-grid > :nth-child(n + 4) {
+    grid-column: auto;
+  }
   .lp-how-inner {
     grid-template-columns: 1fr;
-    gap: 34px;
+    gap: 30px;
+  }
+  .lp-section-inner {
     padding: 52px 32px;
   }
-  .lp-section-copy h2 {
+  .lp-section-head h2 {
     font-size: 29px;
-    max-width: none;
+  }
+}
+@media (max-width: 760px) {
+  .lp-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lp-grid > *,
+  .lp-grid > :nth-child(n + 4) {
+    grid-column: auto;
   }
 }
 @media (max-width: 720px) {
@@ -610,4 +687,25 @@
     flex-direction: column;
     gap: 6px;
   }
+}
+
+/* Strike guides on the hero payoff, so the shape has a scale. */
+.lp-strike {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+}
+.lp-strike-label {
+  fill: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.lp-card h2 small {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--muted);
 }

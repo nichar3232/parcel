@@ -9,6 +9,17 @@
  */
 
 export const USDC_DECIMALS = 6;
+
+/**
+ * How long an offer stays open, and how long the buyer may exercise.
+ * The interface and the landing page both read these, so what the page
+ * advertises is what the contract is built with.
+ */
+export const ACCEPTANCE_WINDOW_DAYS = 1;
+export const EXERCISE_WINDOW_DAYS = 7;
+const DAY = 86_400;
+export const ACCEPTANCE_WINDOW_SECONDS = ACCEPTANCE_WINDOW_DAYS * DAY;
+export const EXERCISE_WINDOW_SECONDS = EXERCISE_WINDOW_DAYS * DAY;
 export const U64_MAX = (1n << 64n) - 1n;
 
 export interface CoveredCallTerms {

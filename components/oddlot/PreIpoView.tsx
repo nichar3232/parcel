@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, ExternalLink, Lock, ShieldCheck } from 'lucide-react';
 import type { ResolvedAsset } from '@/lib/preipo/types';
 import {
+  ACCEPTANCE_WINDOW_SECONDS,
+  EXERCISE_WINDOW_SECONDS,
   parseUnits,
   summarise,
   validateTerms,
@@ -127,8 +129,8 @@ export function PreIpoView() {
         underlyingAmount: parseUnits(amount, decimals),
         totalExercisePayment: parseUnits(exercise, 6),
         totalPremium: parseUnits(premium, 6),
-        acceptanceDeadline: openedAt + 86_400,
-        exerciseExpiry: openedAt + 7 * 86_400,
+        acceptanceDeadline: openedAt + ACCEPTANCE_WINDOW_SECONDS,
+        exerciseExpiry: openedAt + EXERCISE_WINDOW_SECONDS,
         designatedBuyer: null,
       });
       summary = summarise(terms, decimals);

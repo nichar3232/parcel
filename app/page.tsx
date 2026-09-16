@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { EXAMPLES, HERO } from '@/lib/oddlot/landing';
 import './landing.css';
 
 const PRODUCTS = [
@@ -7,68 +8,6 @@ const PRODUCTS = [
   { name: 'Structures', href: '#structures' },
   { name: 'Pre-IPO', href: '#pre-ipo' },
   { name: 'Lending', href: '#lending' },
-];
-
-/**
- * What the desk actually does, each with a figure taken from the app
- * rather than a claim about it.
- */
-const OFFERINGS = [
-  {
-    id: 'options',
-    kicker: 'Options',
-    title: 'Buy a contract the size of your position.',
-    body: 'A listed contract needs a hundred shares. Size to one, or to a quarter of one.',
-    rows: [
-      ['Buy 1× NVDA $145 call', 'Feb 7'],
-      ['Premium', '$4.04'],
-      ['Cash to fund exercise', '$149.04'],
-    ],
-  },
-  {
-    id: 'underwriting',
-    kicker: 'Underwriting',
-    title: 'Write the other side, fully collateralized.',
-    body: 'Deposit a share, write a call against it. The reserve is visible before you sign.',
-    rows: [
-      ['Covered call on', '¼ share'],
-      ['Premium received', 'kept either way'],
-      ['Shares reserved', 'until expiry'],
-    ],
-  },
-  {
-    id: 'structures',
-    kicker: 'Structures',
-    title: 'Spreads, collars and capped curves.',
-    body: 'Up to four legs under one collateral rule. Offsets release capital only when settlement allows.',
-    rows: [
-      ['Legs per contract', 'up to 4'],
-      ['Collateral', 'cross or isolated'],
-      ['Payoff', 'priced before you commit'],
-    ],
-  },
-  {
-    id: 'pre-ipo',
-    kicker: 'Pre-IPO',
-    title: 'Covered calls on sponsor tokens.',
-    body: 'Every mint is read on chain first. A token the issuer can move out of escrow cannot back a contract.',
-    rows: [
-      ['Escrow', '0.25 T-OpenAI'],
-      ['If exercised above $900', '231.50 USDC'],
-      ['If it expires', '6.50 USDC'],
-    ],
-  },
-  {
-    id: 'lending',
-    kicker: 'Lending',
-    title: 'Lend stock against funded collateral.',
-    body: 'The borrower posts cash and the full term’s interest up front. Pledged protection cannot be reused.',
-    rows: [
-      ['Lend', '1 NVDA'],
-      ['Borrower posts', '$213.93'],
-      ['Rate', '3.50% APR'],
-    ],
-  },
 ];
 
 const STEPS = [
@@ -85,25 +24,6 @@ const STEPS = [
     'Settle against the vault',
     'Expiries settle together so collateral offsets survive.',
   ],
-];
-
-const STATS = [
-  { k: 'Premium', v: '$0.70' },
-  { k: 'Size', v: '¼ share' },
-  { k: 'Collateral', v: 'USDC' },
-  { k: 'Settles', v: 'Solana' },
-];
-
-/** Payoff of the quarter-share call spread shown in the preview card. */
-const CURVE = 'M 40 188 L 236 188 L 404 74 L 720 74';
-const POINTS: [number, number][] = [
-  [40, 188],
-  [138, 188],
-  [236, 188],
-  [320, 131],
-  [404, 74],
-  [562, 74],
-  [720, 74],
 ];
 
 export default function Landing() {
@@ -152,9 +72,9 @@ export default function Landing() {
             <Link className="lp-btn lp-btn-primary" href="/app">
               Launch app <span aria-hidden>&rarr;</span>
             </Link>
-            <Link className="lp-btn" href="/app">
+            <a className="lp-btn" href="#products">
               Explore the products
-            </Link>
+            </a>
           </div>
           <ul className="lp-meta">
             <li>Fractional sizing</li>
@@ -163,16 +83,25 @@ export default function Landing() {
           </ul>
         </div>
 
-        <figure className="lp-card" aria-hidden="true">
+        <figure className="lp-card">
           <figcaption>
             <span className="lp-card-kicker">Position preview</span>
             <span className="lp-card-tag">
-              <i /> Sample
+              <i /> {HERO.openLabel} close {HERO.spotLabel}
             </span>
           </figcaption>
-          <h2>NVDA call spread</h2>
+          <h2>
+            {HERO.title}
+            <small>
+              ${HERO.strikes[0]} / ${HERO.strikes[1]} · expires{' '}
+              {HERO.expiryLabel}
+            </small>
+          </h2>
           <div className="lp-chart">
-            <svg viewBox="0 0 760 240" preserveAspectRatio="none">
+            <svg viewBox="0 0 760 240">
+              <title>
+                {`Payoff at expiry for a quarter-share $${HERO.strikes[0]} / $${HERO.strikes[1]} NVDA call spread`}
+              </title>
               <defs>
                 <linearGradient id="lpFill" x1="0" y1="0" x2="0" y2="1">
                   <stop
@@ -183,36 +112,45 @@ export default function Landing() {
                   <stop offset="1" stopColor="var(--accent)" stopOpacity="0" />
                 </linearGradient>
               </defs>
-              {[40, 114, 188].map((y) => (
+              {HERO.strikeX.map((x, i) => (
                 <line
-                  key={y}
-                  x1="40"
-                  x2="720"
-                  y1={y}
-                  y2={y}
-                  className="lp-grid"
+                  key={HERO.strikes[i]}
+                  x1={x}
+                  x2={x}
+                  y1="24"
+                  y2="208"
+                  className="lp-strike"
                 />
               ))}
-              <path d={`${CURVE} L 720 188 L 40 188 Z`} fill="url(#lpFill)" />
-              <path d={CURVE} className="lp-line" />
-              {POINTS.map(([x, y]) => (
-                <circle
-                  key={`${x}-${y}`}
-                  cx={x}
-                  cy={y}
-                  r="4"
-                  className="lp-dot"
-                />
+              <path d={HERO.area} fill="url(#lpFill)" />
+              <line
+                x1="40"
+                x2="720"
+                y1={HERO.zeroY}
+                y2={HERO.zeroY}
+                className="lp-grid"
+              />
+              <path d={HERO.line} className="lp-line" />
+              {HERO.strikeX.map((x, i) => (
+                <text
+                  key={HERO.strikes[i]}
+                  x={x}
+                  y="222"
+                  className="lp-strike-label"
+                  textAnchor="middle"
+                >
+                  ${HERO.strikes[i]}
+                </text>
               ))}
             </svg>
             <div className="lp-axis">
-              <span>$93</span>
-              <span>$143</span>
-              <span>$193</span>
+              {HERO.axis.map((a) => (
+                <span key={a}>{a}</span>
+              ))}
             </div>
           </div>
           <div className="lp-stats">
-            {STATS.map((s) => (
+            {HERO.stats.map((s) => (
               <div key={s.k}>
                 <span>{s.k}</span>
                 <strong>{s.v}</strong>
@@ -221,34 +159,45 @@ export default function Landing() {
           </div>
         </figure>
 
-        <a className="lp-scroll" href="#options" aria-label="See the products">
+        <a className="lp-scroll" href="#products" aria-label="See the products">
           <span>See what it does</span>
           <i aria-hidden />
         </a>
       </section>
 
-      {OFFERINGS.map((o) => (
-        <section className="lp-section" id={o.id} key={o.id}>
-          <div className="lp-section-inner">
-            <div className="lp-section-copy">
-              <span className="lp-kicker">{o.kicker}</span>
-              <h2>{o.title}</h2>
-              <p>{o.body}</p>
-              <Link className="lp-inline-link" href="/app">
-                Open in the desk <span aria-hidden>&rarr;</span>
-              </Link>
-            </div>
-            <dl className="lp-example">
-              {o.rows.map(([k, v]) => (
-                <div key={k}>
-                  <dt>{k}</dt>
-                  <dd>{v}</dd>
-                </div>
-              ))}
-            </dl>
+      <section className="lp-section" id="products">
+        <div className="lp-section-inner lp-products">
+          <div className="lp-section-head">
+            <span className="lp-kicker">What the desk does</span>
+            <h2>Five products, one collateral rule.</h2>
+            <p>
+              Every figure below is priced by the desk from the stored NVDA
+              close of {HERO.spotLabel} on {HERO.openLabel}, not written by
+              hand.
+            </p>
           </div>
-        </section>
-      ))}
+          <div className="lp-grid">
+            {EXAMPLES.map((o) => (
+              <article className="lp-tile" id={o.id} key={o.id}>
+                <span className="lp-kicker">{o.kicker}</span>
+                <h3>{o.title}</h3>
+                <p>{o.body}</p>
+                <dl className="lp-example">
+                  {o.rows.map(([k, v]) => (
+                    <div key={k}>
+                      <dt>{k}</dt>
+                      <dd>{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <Link className="lp-inline-link" href="/app">
+                  Open in the desk <span aria-hidden>&rarr;</span>
+                </Link>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <section className="lp-section lp-how" id="how">
         <div className="lp-section-inner lp-how-inner">
