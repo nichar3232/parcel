@@ -5,6 +5,7 @@ const sans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const mono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'Oddlot — Options, by the share.',
+  icons: { icon: '/favicon.svg' },
   description:
     'Granular options, covered underwriting, stock lending and collateral vaults. Every share accounted for.',
   openGraph: {
