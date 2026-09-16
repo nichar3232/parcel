@@ -89,7 +89,7 @@ void test('the hero is a long call, whose upside does not stop', () => {
   assert.ok(
     Math.abs(strategyPnl(HERO_CALL, 95, SPOT, premium, 0) + premium) < 1e-6,
   );
-  assert.equal(stat('Cost, and max loss'), `$${premium.toFixed(2)}`);
+  assert.equal(stat('Max loss'), `$${premium.toFixed(2)}`);
   assert.equal(stat('Break-even'), `$${(145 + premium).toFixed(2)}`);
 
   // And it keeps paying: no ceiling, at any price you care to name.
@@ -120,6 +120,7 @@ void test('the spread keeps its cap, where the cap is the point', () => {
     EXAMPLES.find((e) => e.id === 'structures')!.rows,
   );
   assert.ok('Upside capped above $160' in rows);
+  assert.ok('Premium, and the most you can lose' in rows);
 });
 
 void test('the lending example uses the funding schedule', () => {

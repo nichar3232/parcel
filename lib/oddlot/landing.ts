@@ -107,7 +107,7 @@ export const HERO = {
   // a cap it does not have.
   stats: [
     { k: 'Size', v: '1 share' },
-    { k: 'Cost, and max loss', v: usd(-MIN) },
+    { k: 'Max loss', v: usd(-MIN) },
     { k: 'Break-even', v: usd(BREAK_EVEN) },
     { k: 'Expiry', v: dayLabel(EXPIRY) },
   ],
@@ -186,7 +186,7 @@ export const EXAMPLES = [
     body: 'Up to four legs under one collateral rule. Offsets release capital only when settlement allows.',
     rows: [
       ['¼× $145/$160 call spread', dayLabel(EXPIRY)],
-      ['Costs, and the most you can lose', usd(SPREAD_PREMIUM)],
+      ['Premium, and the most you can lose', usd(SPREAD_PREMIUM)],
       ['Upside capped above $160', usd(SPREAD_CAP)],
     ],
   },

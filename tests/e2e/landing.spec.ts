@@ -17,8 +17,25 @@ test('the landing page shows the products and routes into the desk', async ({
   // About is a page-level link, so it sits with the other ones
   await expect(page.locator('.lp-nav-right').getByText('About')).toBeVisible();
   // the preview card is a priced position, with a term, not a mock-up
-  for (const k of ['Size', 'Cost, and max loss', 'Break-even', 'Expiry'])
+  for (const k of ['Size', 'Max loss', 'Break-even', 'Expiry'])
     await expect(page.locator('.lp-stats')).toContainText(k);
+  // no stat label may wrap: a two-line label pushes its value off the
+  // baseline the other three sit on
+  const stats = await page.locator('.lp-stats > div').evaluateAll((ds) =>
+    ds.map((d) => {
+      const label = d.querySelector('span') as HTMLElement;
+      const line = parseFloat(getComputedStyle(label).lineHeight) || 16;
+      return {
+        lines: Math.round(label.getBoundingClientRect().height / line),
+        valueTop: Math.round(
+          (d.querySelector('strong') as HTMLElement).getBoundingClientRect()
+            .top,
+        ),
+      };
+    }),
+  );
+  for (const s of stats) expect(s.lines).toBe(1);
+  expect(new Set(stats.map((s) => s.valueTop)).size).toBe(1);
   await expect(page.locator('.lp-stats')).toContainText(/\$\d+\.\d{2}/);
   await expect(page.locator('.lp-stats')).toContainText(/\d{2}\/\d{2}\/\d{4}/);
   // the payoff is drawn from the engine, with the strike marked on it
