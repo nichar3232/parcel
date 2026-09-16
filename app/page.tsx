@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Mark } from '@/components/brand/Mark';
 import { EXAMPLES, HERO } from '@/lib/oddlot/landing';
 import './landing.css';
 
@@ -35,12 +36,8 @@ export default function Landing() {
     <div className="lp">
       <header className="lp-nav">
         <Link className="lp-mark" href="/">
-          <span className="lp-mark-glyph">
-            <i />
-            <i />
-            <i />
-          </span>
-          ODDLOT
+          <Mark size={22} />
+          PARCEL
         </Link>
         <nav aria-label="Products">
           {PRODUCTS.map((p) => (
@@ -69,7 +66,7 @@ export default function Landing() {
             Options sized to <em>what you own</em>
           </h1>
           <p>
-            A listed contract needs a hundred shares. Oddlot writes the same
+            A listed contract needs a hundred shares. Parcel writes the same
             structures against a fraction of one: spreads, collars, covered
             calls, protective puts. Fully collateralized in USDC and settled
             against your vault.
@@ -242,7 +239,7 @@ export default function Landing() {
       </section>
 
       <footer className="lp-foot">
-        <span>Oddlot · Precision for every position.</span>
+        <span>Parcel · Precision for every position.</span>
         <span>Historical replay · NVDA, Jan–Mar 2025</span>
       </footer>
     </div>

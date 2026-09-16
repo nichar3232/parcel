@@ -4,12 +4,12 @@ import './globals.css';
 const sans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const mono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 export const metadata: Metadata = {
-  title: 'Oddlot — Options, by the share.',
+  title: 'Parcel — Options, by the share.',
   icons: { icon: '/favicon.svg' },
   description:
     'Granular options, covered underwriting, stock lending and collateral vaults. Every share accounted for.',
   openGraph: {
-    title: 'Oddlot — Options, by the share.',
+    title: 'Parcel — Options, by the share.',
     description: 'Precisely sized. Fully accounted for.',
     images: [
       {
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Oddlot — Options, by the share.',
+    title: 'Parcel — Options, by the share.',
     description: 'Precisely sized. Fully accounted for.',
     images: [
       new URL('/og.png', process.env.SITE_ORIGIN || 'http://trading-01:3025')

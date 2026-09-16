@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { Mark } from '@/components/brand/Mark';
 import { useState } from 'react';
 import {
   ArrowUpRight,
@@ -73,13 +74,9 @@ export default function Workspace() {
         />
       )}
       <header className="od-appbar">
-        <Link className="od-brand" href="/" aria-label="Oddlot home">
-          <span className="od-brand-symbol">
-            <i />
-            <i />
-            <i />
-          </span>
-          ODDLOT
+        <Link className="od-brand" href="/" aria-label="Parcel home">
+          <Mark size={21} />
+          PARCEL
         </Link>
         <button
           className="od-mobile-menu od-icon-button"
@@ -105,7 +102,7 @@ export default function Workspace() {
           <div className="od-nav-bottom">
             <button onClick={() => setModal('about')}>
               <CircleHelp size={16} />
-              How Oddlot works
+              How Parcel works
             </button>
             <a
               href="https://github.com/nichar3232/oddlot"
@@ -199,7 +196,7 @@ export default function Workspace() {
           )}
         </main>
         <footer className="od-footer">
-          <span>Oddlot · Precision for every position.</span>
+          <span>Parcel · Precision for every position.</span>
           <span>
             {s?.mode === 'localnet'
               ? 'Solana local validator'
@@ -331,8 +328,8 @@ export default function Workspace() {
           </p>
           <p className="od-form-note">
             {s?.mode === 'localnet'
-              ? 'This session executes against the Oddlot Solana program on a private local validator. SPL test-token escrow backs its balances; the backend indexes confirmed results.'
-              : 'This session executes in the persistent sandbox ledger. Onchain vault execution requires the separately configured Oddlot local-validator program.'}{' '}
+              ? 'This session executes against the Parcel Solana program on a private local validator. SPL test-token escrow backs its balances; the backend indexes confirmed results.'
+              : 'This session executes in the persistent sandbox ledger. Onchain vault execution requires the separately configured Parcel local-validator program.'}{' '}
             Historical stock prices and model option premiums are used in both
             modes.
           </p>
