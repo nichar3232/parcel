@@ -62,7 +62,7 @@ export default function Landing() {
         <div className="lp-hero-copy">
           <span className="lp-kicker">Solana · Historical replay</span>
           <h1>
-            Options sized to <em>what you actually own</em>
+            Options sized to <em>what you own</em>
           </h1>
           <p>
             A listed contract needs a hundred shares. Oddlot writes the same

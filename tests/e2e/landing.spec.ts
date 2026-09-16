@@ -8,7 +8,7 @@ test('the landing page shows the products and routes into the desk', async ({
   await page.goto('/');
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
-    'Options sized to what you actually own',
+    'Options sized to what you own',
   );
   // product offerings are reachable from the top nav
   await expect(
