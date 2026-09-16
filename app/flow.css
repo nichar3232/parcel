@@ -243,7 +243,7 @@
 }
 .gf-chips {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 0;
   margin-bottom: 18px;
 }
@@ -283,6 +283,44 @@
   margin-top: 9px;
   font-size: 11px;
   color: var(--od-muted);
+}
+.gf-size-exact {
+  display: grid;
+  grid-template-columns: auto 110px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--od-line);
+}
+.gf-size-exact label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--od-muted);
+}
+.gf-size-exact input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--od-line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--od-ink);
+  color-scheme: light;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.gf-size-exact input:focus,
+.gf-size-exact input:focus-visible {
+  border-color: var(--od-accent);
+  outline: 2px solid #e7f7ef;
+  outline-offset: 1px;
+}
+.gf-size-exact small {
+  grid-column: 1 / -1;
+  margin-top: 0;
 }
 
 /* ---------- ledger strip ---------- */

@@ -142,11 +142,14 @@ export function GuidedFlow({
             <div className="gf-size-read">
               <label htmlFor="gf-size">Your share-equivalents</label>
               <strong>{qty(quantity)}</strong>
-              <span>of a share · {goal.tag.toLowerCase()}</span>
+              <span>
+                share-equivalent{quantity === 1 ? '' : 's'} ·{' '}
+                {goal.tag.toLowerCase()}
+              </span>
             </div>
             <div className="gf-size-controls">
               <div className="gf-chips">
-                {[0.1, 0.25, 0.5, 1].map((q) => (
+                {[0.1, 0.5, 1, 5, 10].map((q) => (
                   <button
                     key={q}
                     aria-label={`Size ${q} shares`}
@@ -163,12 +166,30 @@ export function GuidedFlow({
                 aria-label="Position size"
                 type="range"
                 min=".01"
-                max="1"
+                max="25"
                 step=".01"
                 value={quantity}
                 onChange={(e) => setQuantity(Number(e.target.value))}
               />
-              <small>Fractions are welcome. No 100-share lot.</small>
+              <div className="gf-size-exact">
+                <label htmlFor="gf-size-exact">Exact size</label>
+                <input
+                  id="gf-size-exact"
+                  aria-label="Exact position size"
+                  type="number"
+                  min="0.000001"
+                  max="1000"
+                  step="any"
+                  value={quantity}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    if (Number.isFinite(v) && v > 0) setQuantity(v);
+                  }}
+                />
+                <small>
+                  Fractions down to six decimals, or well past a single share.
+                </small>
+              </div>
             </div>
           </div>
           <div className="gf-ledger">

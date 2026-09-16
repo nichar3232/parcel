@@ -550,3 +550,97 @@
 .oddlot .od-empty p {
   max-width: 46ch;
 }
+
+/* Top bar controls were three different heights and did not share a
+   baseline; give them one metric. */
+.oddlot .od-environment,
+.oddlot .od-market-button,
+.oddlot .od-wallet-button {
+  height: 36px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  line-height: 1;
+}
+.oddlot .od-environment {
+  /* carried a border-top, padding-top and margin-top from when it sat
+     at the foot of the dark sidebar; that pushed it 10px below its
+     neighbours in the top bar */
+  margin: 0;
+  border-top: 0;
+  padding: 0 14px 0 12px;
+}
+.od-topbar-actions {
+  align-items: center;
+  gap: 8px;
+}
+
+/* ------------------------------------------------------------------
+   globals.css styles bare `input, select` for the retained dark desk
+   at /legacy. Those element selectors leak into this app and outrank
+   anything scoped with a single class, which is why fields rendered
+   on a near-black fill. Match their specificity from inside .oddlot.
+   ------------------------------------------------------------------ */
+.oddlot input:not([type='range']):not([type='checkbox']),
+.oddlot select,
+.od-dialog input:not([type='range']):not([type='checkbox']),
+.od-dialog select {
+  background: var(--od-panel);
+  border: 1px solid var(--od-line);
+  color: var(--od-ink);
+  border-radius: 8px;
+  color-scheme: light;
+}
+.oddlot input:not([type='range']):not([type='checkbox']):focus,
+.oddlot select:focus,
+.od-dialog input:not([type='range']):not([type='checkbox']):focus,
+.od-dialog select:focus {
+  border-color: var(--od-accent);
+  outline: 2px solid #e7f7ef;
+  outline-offset: 1px;
+}
+.oddlot input[type='range'] {
+  accent-color: #3fc98e;
+}
+
+/* Chrome's native range track renders near-black against this canvas,
+   and accent-color only tints the filled half. Draw it ourselves: a
+   light track with a green thumb. The value is shown numerically
+   beside every slider, so a filled portion is not load-bearing. */
+.oddlot input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #dfe6e8;
+  cursor: pointer;
+  color-scheme: light;
+}
+.oddlot input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #dfe6e8;
+}
+.oddlot input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: #3fc98e;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(15, 20, 23, 0.25);
+}
+.oddlot input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #dfe6e8;
+}
+.oddlot input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #3fc98e;
+  border: 2px solid #fff;
+}

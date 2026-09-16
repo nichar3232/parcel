@@ -75,6 +75,34 @@ test('the guided flow advances step by step and resizes without placing a trade'
   expect(after.revision).toBe(before.revision);
 });
 
+test('sizing is not capped at a single share', async ({ page }) => {
+  await page.getByRole('button', { name: /Protect my shares/ }).click();
+  await expect(
+    page.getByRole('slider', { name: 'Position size' }),
+  ).toHaveAttribute('max', '25');
+  const single = Number(
+    (await page.locator('.gf-ledger strong').first().innerText()).replace(
+      /[$,]/g,
+      '',
+    ),
+  );
+  await page.getByLabel('Exact position size').fill('8');
+  await expect(page.locator('.gf-size-read strong')).toHaveText('8');
+  const eight = Number(
+    (await page.locator('.gf-ledger strong').first().innerText()).replace(
+      /[$,]/g,
+      '',
+    ),
+  );
+  // premium must scale with size, not sit pinned at the one-share value
+  expect(eight).toBeGreaterThan(single * 10);
+  // and the position still carries through to a real funded quote
+  await page.getByRole('button', { name: 'Review the payoff' }).click();
+  await page.getByRole('button', { name: 'Fund this position' }).click();
+  await page.getByRole('button', { name: 'Open in the builder' }).click();
+  await expect(page.getByLabel('Contract quantity')).toHaveValue('8');
+});
+
 for (const [goal, template, kind, side, strikes] of [
   ['Explore the upside', 'Call spread', 'call', 'buy', [145, 155]],
   ['Protect my shares', 'Protective put', 'put', 'buy', [145]],
@@ -115,7 +143,7 @@ test('consumer mobile layout, keyboard resizing and direct desk access stay usab
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.getByRole('button', { name: /Explore the upside/ }).click();
-  await page.getByLabel('Position size').focus();
+  await page.getByRole('slider', { name: 'Position size' }).focus();
   await page.keyboard.press('ArrowRight');
   await expect(page.locator('.gf-size-read strong')).toHaveText('0.26');
   expect(
