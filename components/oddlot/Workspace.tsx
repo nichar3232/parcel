@@ -24,7 +24,6 @@ import { LendingView } from '@/components/oddlot/LendingView';
 import { RiskView } from '@/components/oddlot/RiskView';
 import { ActivityView } from '@/components/oddlot/ActivityView';
 import {
-  Badge,
   Button,
   Field,
   Modal,
