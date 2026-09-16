@@ -1020,3 +1020,30 @@
     padding-top: 20px;
   }
 }
+
+/* A body that hands off to a foot row should not pad twice. */
+.oddlot .od-panel-body:has(+ .od-panel-foot) {
+  padding-bottom: 0;
+}
+/* The disclosure's contents keep the same rhythm as a panel body. */
+.oddlot .od-terms-body {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.oddlot .od-terms-body > .od-preipo-subhead,
+.oddlot .od-terms-body > .od-preipo-list {
+  margin: 0;
+}
+/* The summary already separates the first subhead; it needs no rule. */
+.oddlot .od-terms-body > .od-preipo-subhead:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.oddlot .od-terms-body > .od-external {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}

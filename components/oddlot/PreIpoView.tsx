@@ -195,7 +195,7 @@ export function PreIpoView() {
       </Panel>
 
       {current && (
-        <div className="od-preipo-grid">
+        <div className="od-single-form">
           <Panel>
             <div className="od-panel-heading">
               <h2>Write a covered call</h2>
@@ -278,74 +278,65 @@ export function PreIpoView() {
                   )}
                 </>
               )}
-            </div>
-          </Panel>
 
-          <Panel>
-            <div className="od-panel-heading">
-              <h2>Issuer terms</h2>
-              <a
-                className="od-external"
-                href={current.asset.issuerTerms.reference}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Issuer docs <ExternalLink size={13} />
-              </a>
-            </div>
-            <div className="od-panel-body">
-              <p className="od-form-note">
-                {current.asset.issuerTerms.instrument}
-              </p>
-              <h3 className="od-preipo-subhead">Rights the issuer retains</h3>
-              <ul className="od-preipo-list">
-                {current.asset.issuerTerms.issuerRights.map((r) => (
-                  <li key={r}>{r}</li>
+              {current.onchain &&
+                current.verdict.disclosures.map((d) => (
+                  <p className="od-form-note disclosure" key={d}>
+                    <AlertTriangle size={13} /> {d}
+                  </p>
                 ))}
-              </ul>
-              <h3 className="od-preipo-subhead">Restrictions</h3>
-              <ul className="od-preipo-list">
-                {current.asset.issuerTerms.restrictions.map((r) => (
-                  <li key={r}>{r}</li>
-                ))}
-              </ul>
-              {current.onchain && (
-                <>
-                  <h3 className="od-preipo-subhead">Verified on chain</h3>
-                  <div className="od-review-lines">
-                    <div className="od-review-line">
-                      <span>Mint</span>
-                      <a
-                        className="od-external"
-                        href={EXPLORER(current.asset.mint, data.network)}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {current.asset.mint.slice(0, 10)}…{' '}
-                        <ExternalLink size={12} />
-                      </a>
-                    </div>
-                    <div className="od-review-line">
-                      <span>Token program</span>
-                      <b>{current.onchain.tokenProgram.slice(0, 8)}…</b>
-                    </div>
-                    <div className="od-review-line">
-                      <span>Decimals</span>
-                      <b>{current.onchain.decimals}</b>
-                    </div>
-                    <div className="od-review-line">
-                      <span>Network</span>
-                      <b>{current.onchain.network}</b>
-                    </div>
-                  </div>
-                  {current.verdict.disclosures.map((d) => (
-                    <p className="od-form-note disclosure" key={d}>
-                      <AlertTriangle size={13} /> {d}
-                    </p>
-                  ))}
-                </>
-              )}
+
+              {/* Material, but a wall of it beside the ticket reads as a
+                  prospectus. One line the reader can open when they want it. */}
+              <details className="od-sizing od-terms">
+                <summary>Issuer terms and restrictions</summary>
+                <div className="od-terms-body">
+                  <p className="od-form-note">
+                    {current.asset.issuerTerms.instrument}
+                  </p>
+                  <h3 className="od-preipo-subhead">
+                    Rights the issuer retains
+                  </h3>
+                  <ul className="od-preipo-list">
+                    {current.asset.issuerTerms.issuerRights.map((r) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                  <h3 className="od-preipo-subhead">Restrictions</h3>
+                  <ul className="od-preipo-list">
+                    {current.asset.issuerTerms.restrictions.map((r) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                  <a
+                    className="od-external"
+                    href={current.asset.issuerTerms.reference}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Issuer docs <ExternalLink size={13} />
+                  </a>
+                </div>
+              </details>
             </div>
+            {current.onchain && (
+              <div className="od-panel-foot od-basis">
+                <span>Verified on chain</span>
+                <span>
+                  <a
+                    className="od-external"
+                    href={EXPLORER(current.asset.mint, data.network)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {current.asset.mint.slice(0, 6)}…
+                    {current.asset.mint.slice(-6)}
+                  </a>{' '}
+                  · {current.onchain.decimals} decimals ·{' '}
+                  {current.onchain.network}
+                </span>
+              </div>
+            )}
           </Panel>
         </div>
       )}
