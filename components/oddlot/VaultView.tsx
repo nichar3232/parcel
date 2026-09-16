@@ -149,7 +149,7 @@ export function VaultView({
                 <th>In vault</th>
                 <th>Reserved</th>
                 <th>Available</th>
-                <th>Test wallet</th>
+                <th>Wallet</th>
                 <th>
                   <span className="sr-only">Actions</span>
                 </th>
@@ -166,7 +166,7 @@ export function VaultView({
                         <small>
                           {asset === 'NVDA'
                             ? 'NVDA · share-equivalents'
-                            : 'USDC · test settlement asset'}
+                            : 'USDC · settlement asset'}
                         </small>
                       </div>
                     </div>
@@ -256,8 +256,8 @@ export function VaultView({
           title={`${transfer.direction === 'deposit' ? 'Deposit' : 'Withdraw'} ${transfer.asset}`}
           description={
             transfer.direction === 'deposit'
-              ? 'Move assets from your test wallet into the collateral vault.'
-              : 'Only unencumbered assets can return to your test wallet.'
+              ? 'Move assets from your wallet into the collateral vault.'
+              : 'Only unencumbered assets can return to your wallet.'
           }
         >
           <Field
@@ -273,14 +273,6 @@ export function VaultView({
               onChange={(e) => setAmount(e.target.value)}
             />
           </Field>
-          <div className="od-review-line">
-            <span>Network / custody</span>
-            <b>Sandbox ledger</b>
-          </div>
-          <p className="od-form-note">
-            These are test assets in the persistent backend vault. No real
-            wallet funds move.
-          </p>
           <Button
             disabled={
               busy || !Number.isFinite(Number(amount)) || Number(amount) <= 0

@@ -31,11 +31,17 @@ export function PayoffChart({
     price,
     pnl: strategyPnl(terms, price, spot, premium, stockQuantity),
   }));
+  // Plot geometry. The chart shares a row with the order ticket, so it is
+  // drawn tall enough to fill that height instead of floating in it.
+  const TOP = 24,
+    PLOT = 430,
+    BASE = TOP + PLOT,
+    HEIGHT = BASE + 38;
   const min = Math.min(-0.01, ...rows.map((r) => r.pnl)),
     max = Math.max(0.01, ...rows.map((r) => r.pnl)),
     spread = max - min;
   const x = (v: number) => 48 + ((v - start) / (end - start)) * 592,
-    y = (v: number) => 24 + ((max - v) / spread) * 192;
+    y = (v: number) => TOP + ((max - v) / spread) * PLOT;
   const line = rows
       .map((r, i) => `${i ? 'L' : 'M'}${x(r.price)},${y(r.pnl)}`)
       .join(' '),
@@ -62,7 +68,7 @@ export function PayoffChart({
         </b>
       </div>
       <svg
-        viewBox="0 0 680 254"
+        viewBox={`0 0 680 ${HEIGHT}`}
         aria-label="Option profit and loss across underlying prices"
       >
         <defs>
@@ -76,14 +82,14 @@ export function PayoffChart({
             <line
               x1="48"
               x2="640"
-              y1={24 + n * 192}
-              y2={24 + n * 192}
+              y1={TOP + n * PLOT}
+              y2={TOP + n * PLOT}
               stroke="#eef3f4"
               strokeDasharray="3 5"
             />
             <text
               x="40"
-              y={28 + n * 192}
+              y={TOP + 4 + n * PLOT}
               textAnchor="end"
               fill="#78868e"
               fontSize="10"
@@ -111,8 +117,8 @@ export function PayoffChart({
         <line
           x1={x(selected)}
           x2={x(selected)}
-          y1="24"
-          y2="216"
+          y1={TOP}
+          y2={BASE}
           stroke="#a9b4b8"
           strokeDasharray="3 3"
         />
@@ -128,7 +134,7 @@ export function PayoffChart({
           <text
             key={v}
             x={x(v)}
-            y="244"
+            y={HEIGHT - 10}
             textAnchor="middle"
             fill="#78868e"
             fontSize="11"

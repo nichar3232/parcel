@@ -131,9 +131,7 @@ export function QuoteReview({
         {remaining > 0
           ? `Quote expires in ${remaining}s. `
           : 'Quote expired. Close this review and request a fresh quote. '}{' '}
-        Physical contracts prefund exercise cash and delivery shares. Quotes use
-        disclosed test counterparty capital; external liquidity is not
-        connected.
+        Physical contracts prefund exercise cash and delivery shares.
       </p>
       <Button
         disabled={

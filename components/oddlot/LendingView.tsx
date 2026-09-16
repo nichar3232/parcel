@@ -246,7 +246,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
                     <b>{usd(q * s.market.price * 1.5)}</b>
                   </div>
                   <div>
-                    <span>Test fixed borrow rate</span>
+                    <span>Borrow rate</span>
                     <b>3.50% APR</b>
                   </div>
                   <div>
@@ -297,10 +297,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
                   : 'stock trade'}
               <ArrowRight size={16} />
             </Button>
-            <p className="od-form-note">
-              Test assets and counterparties. Pledged protection cannot be
-              reused.
-            </p>
+            <p className="od-form-note">Pledged protection cannot be reused.</p>
           </div>
         </Panel>
 
@@ -381,7 +378,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
             ) : (
               <Empty
                 title="No shares out on loan."
-                description="Lend available stock to receive a collateral-backed claim and prepaid test interest."
+                description="Lend available stock to receive a collateral-backed claim and prepaid interest."
               />
             )}
           </Panel>

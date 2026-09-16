@@ -111,9 +111,8 @@ export function OptionsChain({
         </Field>
       </div>
       <p className="od-form-note od-chain-note">
-        Model premiums for the entire selected size. Buy and write use a
-        zero-spread test counterparty. Physical exercise requires separate cash
-        or shares. Hourly ticks carry the daily close forward.
+        Model premiums for the entire selected size. Physical exercise requires
+        separate cash or shares.
       </p>
       {error && (
         <p role="alert" className="od-error">

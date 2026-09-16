@@ -145,18 +145,6 @@ export function PreIpoView() {
         description="Write a fractional, physically settled covered call against tokens you already hold. Quantities are tokens, never company shares."
       />
 
-      {!data.executionEnabled && (
-        <Panel className="od-notice">
-          <Lock size={15} />
-          <p>
-            <b>Signing is off in this build.</b> No program is configured, so
-            this screen verifies and prices only. Nothing escrows or spends a
-            token.
-          </p>
-          <Badge tone="neutral">{data.network}</Badge>
-        </Panel>
-      )}
-
       {data.warnings.map((w) => (
         <Panel key={w} className="od-notice warn">
           <AlertTriangle size={15} />
@@ -296,18 +284,9 @@ export function PreIpoView() {
                   </div>
                 </div>
                 {termsError && <p className="od-preipo-error">{termsError}</p>}
-                <Button
-                  disabled={!summary || !data.executionEnabled}
-                  onClick={() => setConfirm(true)}
-                >
+                <Button disabled={!summary} onClick={() => setConfirm(true)}>
                   Review covered call
                 </Button>
-                {!data.executionEnabled && (
-                  <p className="od-form-note">
-                    Disabled: no program configured, so there is nothing to
-                    sign.
-                  </p>
-                )}
               </div>
             )}
           </Panel>
@@ -455,10 +434,9 @@ export function PreIpoView() {
             loses their whole {summary.buyerMaxLoss} USDC premium.
           </p>
           <p className="od-form-note">
-            An offer with no funded buyer stays unfilled. Nothing here invents a
-            counterparty.
+            An offer with no funded buyer stays unfilled.
           </p>
-          <Button disabled>Connect a wallet to sign</Button>
+          <Button disabled>Connect wallet to sign</Button>
         </Modal>
       )}
     </>

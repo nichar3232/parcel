@@ -1189,3 +1189,58 @@
   padding: 0 24px;
   margin-bottom: 14px !important;
 }
+
+/* ------------------------------------------------------------------
+   Equal-height desk rows.
+
+   A two-column row whose halves end at different heights reads as two
+   unrelated boxes. Stretch both to the row, and inside the right-hand
+   panel let one block absorb the slack so the extra space lands where
+   it belongs — around the chart, above the detail bar — instead of
+   below the panel.
+   ------------------------------------------------------------------ */
+.oddlot .od-builder-grid {
+  align-items: stretch;
+}
+.oddlot .od-builder-insight {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.oddlot .od-builder-insight > .od-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* The payoff chart takes the slack and stays centred in it. */
+.oddlot .od-builder-insight .od-payoff {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+/* An empty state fills its panel rather than sitting in the corner. */
+.oddlot .od-builder-insight > .od-panel > .od-empty {
+  flex: 1;
+}
+/* The outcome pair takes the slack, with each card centred in its
+   share of it, so the space lands on the numbers rather than in a hole
+   above the detail bar. */
+.oddlot .od-builder-insight .od-outcomes {
+  flex: 1;
+}
+.oddlot .od-outcome {
+  align-content: center;
+}
+/* Detail bars pin to the bottom of the panel they describe. */
+.oddlot .od-builder-insight .od-terms-strip {
+  margin-top: auto;
+}
+.oddlot .od-order-form {
+  display: flex;
+  flex-direction: column;
+}
+.oddlot .od-order-form > .od-form-content {
+  flex: 1;
+}

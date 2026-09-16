@@ -51,8 +51,7 @@ export function ActivityLedger({ desk }: { desk: VaultController }) {
           </div>
           <div className="od-proof-body">
             <p className="od-form-note">
-              Program execution and SPL test-token backing verified at slot{' '}
-              {s.chain.slot}. Private validator · test assets.
+              Program execution verified at slot {s.chain.slot}.
             </p>
             <details>
               <summary>

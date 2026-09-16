@@ -139,7 +139,7 @@ export default function Workspace() {
             disabled={!s}
           >
             <Wallet size={16} />
-            <span>Test wallet</span>
+            <span>Wallet</span>
             <ChevronDown size={13} />
           </button>
         </div>
@@ -201,11 +201,9 @@ export default function Workspace() {
         <footer className="od-footer">
           <span>Oddlot · Precision for every position.</span>
           <span>
-            Test assets ·{' '}
             {s?.mode === 'localnet'
               ? 'Solana local validator'
-              : 'Persistent sandbox vault'}{' '}
-            · No real funds
+              : 'Historical replay · NVDA, Jan–Mar 2025'}
           </span>
         </footer>
       </div>
@@ -224,7 +222,7 @@ export default function Workspace() {
       {modal === 'market' && s && (
         <Modal
           title="Market controls"
-          description="Advance the test clock. Hourly ticks carry forward the committed daily close; they are not historical intraday prices."
+          description="Advance the market clock. Hourly ticks carry forward the committed daily close; they are not historical intraday prices."
           onClose={() => setModal(null)}
         >
           <div className="od-review-line">
@@ -292,25 +290,21 @@ export default function Workspace() {
       )}
       {modal === 'wallet' && s && (
         <Modal
-          title="Your test wallet"
+          title="Your wallet"
           description="An isolated funding wallet for this browser session."
           onClose={() => setModal(null)}
         >
           <div className="od-review-line">
-            <span>Available test USDC</span>
+            <span>Available USDC</span>
             <b>{usd(s.book.wallet.USDC)}</b>
           </div>
           <div className="od-review-line">
-            <span>Available test NVDA</span>
+            <span>Available NVDA</span>
             <b>{qty(s.book.wallet.NVDA)} shares</b>
           </div>
           <p className="od-form-note">
-            Move these assets into your vault to trade or underwrite. The wallet
-            and vault balances persist across reloads.{' '}
-            {s.mode === 'localnet'
-              ? 'SPL test tokens back the program-controlled vault. Test signing keys are held by this service.'
-              : 'This session uses backend sandbox accounting.'}{' '}
-            There is no connected brokerage.
+            Move these assets into your vault to trade or underwrite. Wallet and
+            vault balances persist across reloads.
           </p>
           <Button
             onClick={() => {
