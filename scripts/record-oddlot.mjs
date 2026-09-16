@@ -43,7 +43,7 @@ const scenes = [
   [
     'Oddlot lets you size equity options to your actual exposure. One share is a denomination, not a minimum lot. This is the working product: historical NVIDIA prices, model premiums, and disclosed test liquidity. Our vault executes on a private Solana validator.',
     async () => {
-      await page.goto(base);
+      await page.goto(`${base}/app`);
       await expect(page.locator('.oddlot')).toHaveAttribute(
         'data-ready',
         'true',

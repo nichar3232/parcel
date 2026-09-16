@@ -9,7 +9,9 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 try {
-  await page.goto(process.env.ODDLOT_UI_URL || 'http://127.0.0.1:3030');
+  await page.goto(
+    (process.env.ODDLOT_UI_URL || 'http://127.0.0.1:3030') + '/app',
+  );
   await page.locator('.oddlot[data-ready="true"]').waitFor();
   const nav = async (name) => {
     const toggle = page.getByRole('button', { name: 'Open navigation' });

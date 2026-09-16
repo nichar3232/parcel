@@ -1,0 +1,111 @@
+/* ------------------------------------------------------------------
+   Sharpening layer. Loaded after oddlot.css.
+   The base sheets carry layout; this carries the ink-on-paper voice:
+   hard edges, real rules, one amber signal, no pastel fills.
+   ------------------------------------------------------------------ */
+
+.oddlot,
+.od-dialog {
+  --od-radius: 0px;
+  --od-rule: 1px solid var(--od-line);
+  --od-rule-strong: 2px solid var(--od-ink);
+}
+
+/* 1. Flatten every corner. Pills, cards, tiles, inputs, buttons. ---- */
+.oddlot *,
+.od-dialog * {
+  border-radius: 0 !important;
+}
+
+/* 2. Kill soft drop shadows; depth comes from rules, not blur. ------ */
+.oddlot *,
+.od-dialog * {
+  box-shadow: none !important;
+}
+.oddlot .od-panel,
+.od-dialog {
+  border: var(--od-rule);
+  background: var(--od-panel);
+}
+
+/* 3. Selected states: solid ink block, not a tinted wash. ---------- */
+.od-category-tabs button {
+  border: 1px solid var(--od-line) !important;
+  background: var(--od-panel) !important;
+  color: var(--od-muted) !important;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.od-category-tabs button:hover {
+  border-color: var(--od-ink) !important;
+  color: var(--od-ink) !important;
+}
+.od-category-tabs button.selected {
+  background: var(--od-ink) !important;
+  border-color: var(--od-ink) !important;
+  color: var(--od-paper) !important;
+  font-weight: 600;
+}
+
+/* 5. Buttons: square, ink-filled, amber only for the primary act. --- */
+.oddlot button.od-button-primary,
+.oddlot .od-primary,
+.od-dialog button.od-button-primary {
+  background: var(--od-ink);
+  color: var(--od-paper);
+  border: 1px solid var(--od-ink);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.oddlot button.od-button-primary:hover:not(:disabled) {
+  background: var(--od-accent);
+  border-color: var(--od-accent);
+}
+
+/* 6. Numerals in mono so figures line up and read as data. --------- */
+.od-metric-value,
+.od-review-line b {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* 8. Focus ring matches the accent. -------------------------------- */
+.oddlot button:focus-visible,
+.oddlot a:focus-visible,
+.od-dialog button:focus-visible {
+  outline: 2px solid var(--od-accent) !important;
+  outline-offset: 2px;
+}
+
+/* 9. Sidebar: warm near-black, amber current-page marker. ----------- */
+.od-sidebar {
+  background: #14110e;
+  border-right: 1px solid #241f19;
+}
+.od-nav-item.active {
+  background: #211c16 !important;
+  color: #fff !important;
+}
+.od-nav-item.active i {
+  background: var(--od-accent) !important;
+}
+.od-brand-symbol i {
+  background: var(--od-accent) !important;
+}
+.od-brand-symbol i:last-child {
+  background: #8a6a4a !important;
+}
+.od-brand-dot {
+  color: var(--od-accent) !important;
+}
+
+/* 10. Semantic figures. -------------------------------------------- */
+.oddlot .is-gain {
+  color: var(--od-green);
+}
+.oddlot .is-loss {
+  color: var(--od-red);
+}

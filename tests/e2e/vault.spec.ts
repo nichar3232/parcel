@@ -4,7 +4,7 @@ test.beforeEach(async ({ page }) => {
   const list: string[] = [];
   errors.set(page, list);
   page.on('pageerror', (e) => list.push(e.message));
-  await page.goto('/');
+  await page.goto('/app');
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
   await nav(page, 'Vault');
 });
@@ -258,7 +258,7 @@ test('a second tab cannot overwrite the first tab’s vault revision', async ({
   context,
 }) => {
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/app');
   await expect(second.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
   await nav(second, 'Vault');
   await second
@@ -493,7 +493,7 @@ test('a refreshed vault invalidates a reviewed stock trade without silently chan
   await page.getByRole('button', { name: 'Review stock trade' }).click();
   await expect(page.getByRole('dialog')).toContainText('$142.62');
   const second = await context.newPage();
-  await second.goto('/');
+  await second.goto('/app');
   await expect(second.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
   await nav(second, 'Vault');
   await advance(second, '2025-01-27');

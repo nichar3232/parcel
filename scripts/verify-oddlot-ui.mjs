@@ -15,7 +15,7 @@ const context = await browser.newContext({
   errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 try {
-  await page.goto('/');
+  await page.goto('/app');
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
   await page.getByRole('button', { name: 'Deposit USDC', exact: true }).click();
   await page.getByLabel('Amount', { exact: true }).fill('500');
