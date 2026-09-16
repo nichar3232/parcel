@@ -21,10 +21,20 @@ test('the landing page shows the products and routes into the desk', async ({
     await expect(page.locator('.lp-stats')).toContainText(k);
   await expect(page.locator('.lp-stats')).toContainText(/\$\d+\.\d{2}/);
   await expect(page.locator('.lp-stats')).toContainText(/\d{2}\/\d{2}\/\d{4}/);
-  // the payoff is drawn from the engine: one point per sample, and the
-  // two strikes are labelled on it
-  await expect(page.locator('.lp-card .lp-strike')).toHaveCount(2);
+  // the payoff is drawn from the engine, with the strike marked on it
+  await expect(page.locator('.lp-card .lp-strike')).toHaveCount(1);
   await expect(page.locator('.lp-card h2 small')).toContainText('expires');
+  // a long call's payoff rises to the right and is not capped
+  const ys = await page
+    .locator('.lp-card .lp-line')
+    .evaluate((el) =>
+      [
+        ...(el as SVGPathElement)
+          .getAttribute('d')!
+          .matchAll(/[ML][\d.]+,([\d.]+)/g),
+      ].map((m) => Number(m[1])),
+    );
+  expect(ys.at(-1)!).toBeLessThan(ys[0]);
   // every product has a section below the fold, with a worked figure
   for (const id of [
     'options',

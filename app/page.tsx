@@ -95,14 +95,13 @@ export default function Landing() {
           <h2>
             {HERO.title}
             <small>
-              ${HERO.strikes[0]} / ${HERO.strikes[1]} · expires{' '}
-              {HERO.expiryLabel}
+              {HERO.contract} · expires {HERO.expiryLabel}
             </small>
           </h2>
           <div className="lp-chart">
             <svg viewBox="0 0 760 240">
               <title>
-                {`Payoff at expiry for a quarter-share $${HERO.strikes[0]} / $${HERO.strikes[1]} NVDA call spread`}
+                {`Payoff at expiry for ${HERO.title}, ${HERO.strikes.map((k) => `$${k}`).join(' / ')}`}
               </title>
               <defs>
                 <linearGradient id="lpFill" x1="0" y1="0" x2="0" y2="1">

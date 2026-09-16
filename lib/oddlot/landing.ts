@@ -44,22 +44,31 @@ const terms = (
 const premiumOf = (t: OrderTerms) =>
   orderGreeks(t, SPOT, OPEN_DATE, VOLATILITY).price;
 
-/* ---------- the hero preview: a quarter-share call spread ---------- */
+/* ---------- the hero preview: one share-equivalent call ---------- */
 
-export const SPREAD = terms({
-  name: 'NVDA call spread',
-  quantity: 0.25,
-  legs: [
-    { kind: 'call', side: 'buy', strike: 145, ratio: 1 },
-    { kind: 'call', side: 'sell', strike: 160, ratio: 1 },
-  ],
+/**
+ * The hero shows a plain long call, not a spread.
+ *
+ * A spread's upside is capped by the leg you sell, so its payoff goes
+ * flat and stays flat however far the stock runs. That is the right
+ * shape for the structures tile, where the cap is the point, and the
+ * wrong shape for the front page: the thing this product does is let
+ * you buy one share-equivalent of a contract that would otherwise cost
+ * a hundred shares, and that contract's upside does not stop.
+ */
+export const HERO_CALL = terms({
+  name: 'NVDA call',
+  quantity: 1,
+  settlement: 'physical',
+  legs: [{ kind: 'call', side: 'buy', strike: 145, ratio: 1 }],
 });
-const SPREAD_PREMIUM = premiumOf(SPREAD);
+const CALL_PREMIUM = premiumOf(HERO_CALL);
 
-const LOW = 95,
-  HIGH = 195;
+// The same window the desk's own payoff chart draws: spot ±35%.
+const LOW = Math.round(SPOT * 0.65),
+  HIGH = Math.round(SPOT * 1.35);
 const pnlAt = (price: number) =>
-  strategyPnl(SPREAD, price, SPOT, SPREAD_PREMIUM, 0);
+  strategyPnl(HERO_CALL, price, SPOT, CALL_PREMIUM, 0);
 
 const SAMPLES = Array.from({ length: 81 }, (_, i) => {
   const price = LOW + ((HIGH - LOW) * i) / 80;
@@ -72,49 +81,54 @@ const MAX = Math.max(...SAMPLES.map((s) => s.pnl));
 const X = (price: number) => 40 + ((price - LOW) / (HIGH - LOW)) * 680;
 const Y = (pnl: number) => 32 + ((MAX - pnl) / (MAX - MIN || 1)) * 168;
 
-/**
- * Break-even on a debit spread: the long strike plus what the contract
- * cost per share. Quoted instead of the maximum gain, which on any
- * spread is a multiple of the premium and says nothing about the odds
- * of reaching it.
- */
-const BREAK_EVEN = SPREAD.legs[0].strike + SPREAD_PREMIUM / SPREAD.quantity;
+/** A long call breaks even at the strike plus what it cost. */
+const BREAK_EVEN = HERO_CALL.legs[0].strike + CALL_PREMIUM / HERO_CALL.quantity;
+
+const path = SAMPLES.map(
+  (s, i) => `${i ? 'L' : 'M'}${X(s.price).toFixed(1)},${Y(s.pnl).toFixed(1)}`,
+).join(' ');
 
 export const HERO = {
-  title: SPREAD.name,
+  title: HERO_CALL.name,
+  contract: `${HERO_CALL.quantity}× $${HERO_CALL.legs[0].strike} call`,
   spotLabel: usd(SPOT),
   openLabel: dayLabel(OPEN_DATE),
   expiry: EXPIRY,
   expiryLabel: dayLabel(EXPIRY),
   dte: Math.round(days(OPEN_DATE, EXPIRY)),
-  strikes: SPREAD.legs.map((l) => l.strike),
-  // The middle mark is the reference close, not a round number that
-  // would collide with a strike label.
+  strikes: HERO_CALL.legs.map((l) => l.strike),
   axis: [usd(LOW, 0), usd(SPOT), usd(HIGH, 0)],
   zeroY: Y(0),
-  strikeX: SPREAD.legs.map((l) => X(l.strike)),
-  line: SAMPLES.map(
-    (s, i) => `${i ? 'L' : 'M'}${X(s.price).toFixed(1)},${Y(s.pnl).toFixed(1)}`,
-  ).join(' '),
-  area: `${SAMPLES.map((s, i) => `${i ? 'L' : 'M'}${X(s.price).toFixed(1)},${Y(s.pnl).toFixed(1)}`).join(' ')} L${X(HIGH).toFixed(1)},${Y(0).toFixed(1)} L${X(LOW).toFixed(1)},${Y(0).toFixed(1)} Z`,
-  // On a debit spread the premium is also the worst case, so the card
-  // says that once rather than printing the same figure twice.
+  strikeX: HERO_CALL.legs.map((l) => X(l.strike)),
+  line: path,
+  area: `${path} L${X(HIGH).toFixed(1)},${Y(0).toFixed(1)} L${X(LOW).toFixed(1)},${Y(0).toFixed(1)} Z`,
+  // On a long call the premium is the whole downside, and the upside
+  // has no ceiling to quote, so the card quotes neither a best case nor
+  // a cap it does not have.
   stats: [
-    { k: 'Size', v: '¼ share' },
+    { k: 'Size', v: '1 share' },
     { k: 'Cost, and max loss', v: usd(-MIN) },
     { k: 'Break-even', v: usd(BREAK_EVEN) },
     { k: 'Expiry', v: dayLabel(EXPIRY) },
   ],
+  breakEven: usd(BREAK_EVEN),
 };
 
 /* ---------- one worked example per product ---------- */
 
-const CALL = terms({
-  quantity: 1,
-  settlement: 'physical',
-  legs: [{ kind: 'call', side: 'buy', strike: 145, ratio: 1 }],
+const SPREAD = terms({
+  name: 'NVDA call spread',
+  quantity: 0.25,
+  legs: [
+    { kind: 'call', side: 'buy', strike: 145, ratio: 1 },
+    { kind: 'call', side: 'sell', strike: 160, ratio: 1 },
+  ],
 });
-const CALL_PREMIUM = premiumOf(CALL);
+const SPREAD_PREMIUM = premiumOf(SPREAD);
+/** Selling the 160 leg caps the payoff at the width of the spread. */
+const SPREAD_CAP =
+  (SPREAD.legs[1].strike - SPREAD.legs[0].strike) * SPREAD.quantity -
+  SPREAD_PREMIUM;
 
 const COVERED = terms({
   quantity: 0.25,
@@ -173,7 +187,7 @@ export const EXAMPLES = [
     rows: [
       ['¼× $145/$160 call spread', dayLabel(EXPIRY)],
       ['Costs, and the most you can lose', usd(SPREAD_PREMIUM)],
-      ['Break-even', usd(BREAK_EVEN)],
+      ['Upside capped above $160', usd(SPREAD_CAP)],
     ],
   },
   {

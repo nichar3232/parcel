@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   EXAMPLES,
   HERO,
+  HERO_CALL,
   OPEN_DATE,
   PREIPO_EXPIRY,
   SPOT,
@@ -80,39 +81,45 @@ void test('the quoted single-call premium is what the engine prices', () => {
   );
 });
 
-void test('the hero card leads with the risk, not the best case', () => {
-  const spread: OrderTerms = {
-    name: 'NVDA call spread',
-    quantity: 0.25,
-    expiry: EXPIRY,
-    settlement: 'cash',
-    reference: 'stock',
-    legs: [
-      { kind: 'call', side: 'buy', strike: 145, ratio: 1 },
-      { kind: 'call', side: 'sell', strike: 160, ratio: 1 },
-    ],
-  };
-  const premium = orderGreeks(spread, SPOT, OPEN_DATE, VOLATILITY).price;
-  const best = strategyPnl(spread, 195, SPOT, premium, 0);
-  const worst = strategyPnl(spread, 95, SPOT, premium, 0);
+void test('the hero is a long call, whose upside does not stop', () => {
+  const premium = orderGreeks(HERO_CALL, SPOT, OPEN_DATE, VOLATILITY).price;
   const stat = (k: string) => HERO.stats.find((s) => s.k === k)!.v;
-  // A debit spread cannot lose more than it cost, and the card says so.
-  assert.ok(Math.abs(worst + premium) < 1e-6);
-  assert.equal(stat('Cost, and max loss'), `$${premium.toFixed(2)}`);
-  assert.equal(
-    stat('Break-even'),
-    `$${(145 + premium / spread.quantity).toFixed(2)}`,
+
+  // A long call loses only the premium, however far the stock falls.
+  assert.ok(
+    Math.abs(strategyPnl(HERO_CALL, 95, SPOT, premium, 0) + premium) < 1e-6,
   );
-  // The best case on any debit spread is a multiple of the premium, so
-  // it is not what the card leads with.
-  assert.ok(best > premium * 3);
-  assert.ok(!HERO.stats.some((s) => /max gain|most it can pay/i.test(s.k)));
-  // The drawn path has a point for every sample, inside the viewBox.
+  assert.equal(stat('Cost, and max loss'), `$${premium.toFixed(2)}`);
+  assert.equal(stat('Break-even'), `$${(145 + premium).toFixed(2)}`);
+
+  // And it keeps paying: no ceiling, at any price you care to name.
+  const far = [195, 300, 1000].map((p) =>
+    strategyPnl(HERO_CALL, p, SPOT, premium, 0),
+  );
+  for (let i = 1; i < far.length; i++) assert.ok(far[i] > far[i - 1]);
+  assert.ok(Math.abs(far[2] - (1000 - 145 - premium)) < 1e-6);
+
+  // So the card quotes no maximum, and no cap it does not have.
+  assert.ok(!HERO.stats.some((s) => /max gain|most it can pay|cap/i.test(s.k)));
+
+  // The drawn path has a point for every sample, inside the viewBox,
+  // and rises from left to right.
   assert.equal(HERO.line.split('L').length, 81);
-  for (const [, x, y] of HERO.line.matchAll(/[ML]([\d.]+),([\d.]+)/g)) {
-    assert.ok(Number(x) >= 0 && Number(x) <= 760);
-    assert.ok(Number(y) >= 0 && Number(y) <= 240);
-  }
+  const ys = [...HERO.line.matchAll(/[ML]([\d.]+),([\d.]+)/g)].map(
+    ([, x, y]) => {
+      assert.ok(Number(x) >= 0 && Number(x) <= 760);
+      assert.ok(Number(y) >= 0 && Number(y) <= 240);
+      return Number(y);
+    },
+  );
+  assert.ok(ys.at(-1)! < ys[0]); // lower y is a higher payoff
+});
+
+void test('the spread keeps its cap, where the cap is the point', () => {
+  const rows = Object.fromEntries(
+    EXAMPLES.find((e) => e.id === 'structures')!.rows,
+  );
+  assert.ok('Upside capped above $160' in rows);
 });
 
 void test('the lending example uses the funding schedule', () => {
