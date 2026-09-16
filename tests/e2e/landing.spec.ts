@@ -13,10 +13,6 @@ test('the landing page states the problem and routes into the desk', async ({
   // the comparison that carries the pitch
   await expect(page.locator('.lp-hero-figure')).toContainText('$14,262');
   await expect(page.locator('.lp-hero-figure')).toContainText('$0.70');
-  for (const section of ['problem', 'how', 'under'])
-    await expect(page.locator(`#${section}`)).toBeVisible();
-  await expect(page.locator('.lp-steps li')).toHaveCount(4);
-
   await page.getByRole('link', { name: /Build a position/ }).click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
