@@ -22,6 +22,27 @@ interface AssetsPayload {
   refreshedAt: string;
 }
 
+const usd = (n: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 2,
+  }).format(n);
+
+/** $950,000,000,000 is noise on a card; $950B is the number. */
+const big = (n: number) => {
+  const [unit, size] =
+    n >= 1e12
+      ? ['T', 1e12]
+      : n >= 1e9
+        ? ['B', 1e9]
+        : n >= 1e6
+          ? ['M', 1e6]
+          : ['', 1];
+  return `$${(n / size).toFixed(n / size >= 100 ? 0 : 1)}${unit}`;
+};
+const num = (v: unknown) => (typeof v === 'number' ? v : null);
+
 const EXPLORER = (mint: string, network: string) =>
   `https://explorer.solana.com/address/${mint}${network === 'mainnet' ? '' : `?cluster=${network}`}`;
 
@@ -75,7 +96,7 @@ export function PreIpoView() {
       <>
         <Heading
           eyebrow="PRE-IPO OPTIONS"
-          title="Covered calls on sponsor tokens."
+          title="Earn on pre-IPO stock you already hold."
           description="Verification could not complete."
         />
         <Panel>
@@ -92,7 +113,7 @@ export function PreIpoView() {
       <>
         <Heading
           eyebrow="PRE-IPO OPTIONS"
-          title="Covered calls on sponsor tokens."
+          title="Earn on pre-IPO stock you already hold."
           description="Reading each mint from the chain."
         />
         <Panel>
@@ -143,8 +164,8 @@ export function PreIpoView() {
     <>
       <Heading
         eyebrow="PRE-IPO OPTIONS"
-        title="Covered calls on sponsor tokens."
-        description="Write a fractional, physically settled covered call against tokens you already hold. Quantities are tokens, never company shares."
+        title="Earn on pre-IPO stock you already hold."
+        description="Tessera and PreStocks tokenise private companies. Write a fractional, physically settled covered call against the tokens and keep the premium. Quantities are tokens, never company shares."
       />
 
       {data.warnings.map((w) => (
@@ -164,38 +185,72 @@ export function PreIpoView() {
         </div>
         <div className="od-panel-body">
           <div className="od-preipo-assets">
-            {data.assets.map((a) => (
-              <button
-                key={a.asset.id}
-                className={`od-preipo-asset ${a.asset.id === selected ? 'selected' : ''} ${a.verdict.escrowSupported ? '' : 'blocked'}`}
-                aria-pressed={a.asset.id === selected}
-                onClick={() => setSelected(a.asset.id)}
-              >
-                <span className="od-preipo-provider">
-                  {a.asset.issuerTerms.issuer}
-                </span>
-                <strong>{a.asset.displayName}</strong>
-                <span className="od-preipo-mint">
-                  {a.asset.mint.slice(0, 6)}…{a.asset.mint.slice(-6)}
-                </span>
-                <span className="od-preipo-status">
-                  {a.verdict.escrowSupported ? (
-                    <>
-                      <ShieldCheck size={13} /> Escrowable
-                    </>
-                  ) : (
-                    <>
-                      <Lock size={13} /> Not escrowable
-                    </>
-                  )}
-                </span>
-                {a.quote?.markPriceUsd !== null && a.quote && (
-                  <span className="od-preipo-price">
-                    ${a.quote.markPriceUsd?.toFixed(2)} indicative
+            {data.assets.map((a) => {
+              const meta = a.quote?.meta || {};
+              const logo = typeof meta.image === 'string' ? meta.image : null;
+              const sector =
+                typeof meta.sector === 'string' ? meta.sector : null;
+              const holders = num(meta.holders);
+              const valuation =
+                num(meta.markValuation) ?? num(meta.impliedValuation);
+              return (
+                <button
+                  key={a.asset.id}
+                  className={`od-preipo-asset ${a.asset.id === selected ? 'selected' : ''} ${a.verdict.escrowSupported ? '' : 'blocked'}`}
+                  aria-pressed={a.asset.id === selected}
+                  onClick={() => setSelected(a.asset.id)}
+                >
+                  <span className="od-preipo-head">
+                    {logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logo} alt="" className="od-preipo-logo" />
+                    ) : (
+                      <span className="od-preipo-logo letter">
+                        {a.asset.displayName.replace(/^Tessera T-/, '')[0]}
+                      </span>
+                    )}
+                    <span>
+                      <strong>
+                        {a.asset.displayName
+                          .replace(/^Tessera T-/, '')
+                          .replace(/ PreStocks$/, '')}
+                      </strong>
+                      <span className="od-preipo-provider">
+                        {a.asset.issuerTerms.issuer}
+                        {sector ? ` · ${sector}` : ''}
+                      </span>
+                    </span>
                   </span>
-                )}
-              </button>
-            ))}
+
+                  <span className="od-preipo-figures">
+                    <b>
+                      {a.quote?.markPriceUsd != null
+                        ? usd(a.quote.markPriceUsd)
+                        : 'No price'}
+                    </b>
+                    <span>
+                      {valuation ? `${big(valuation)} valuation` : ''}
+                      {valuation && holders ? ' · ' : ''}
+                      {holders
+                        ? `${holders.toLocaleString('en-US')} holders`
+                        : ''}
+                    </span>
+                  </span>
+
+                  <span className="od-preipo-status">
+                    {a.verdict.escrowSupported ? (
+                      <>
+                        <ShieldCheck size={13} /> Escrowable
+                      </>
+                    ) : (
+                      <>
+                        <Lock size={13} /> Not escrowable
+                      </>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </Panel>
