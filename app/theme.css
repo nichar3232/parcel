@@ -1021,9 +1021,16 @@
   }
 }
 
-/* A body that hands off to a foot row should not pad twice. */
-.oddlot .od-panel-body:has(+ .od-panel-foot) {
+/* A body that hands off to a foot row or a terms strip should not pad
+   twice; the container below it owns that space. */
+.oddlot .od-panel-body:has(+ .od-panel-foot),
+.oddlot .od-panel-body:has(+ .od-terms-strip) {
   padding-bottom: 0;
+}
+/* Inside a body the grid gap sets the rhythm, so the disclosure drops
+   the standalone margins it carries in the trade ticket. */
+.oddlot .od-panel-body > .od-sizing {
+  margin: 0;
 }
 /* The disclosure's contents keep the same rhythm as a panel body. */
 .oddlot .od-terms-body {
@@ -1046,4 +1053,92 @@
   align-items: center;
   gap: 5px;
   font-size: 12px;
+}
+
+/* ------------------------------------------------------------------
+   The order ticket.
+
+   A ticket at half the page width leaves the other half empty, and a
+   column of prose is not a reason to fill it. Split the ticket itself
+   instead: what you type on the left, what it costs and the button
+   that commits it on the right. Both halves are the work.
+   ------------------------------------------------------------------ */
+.oddlot .od-ticket {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+.oddlot .od-ticket-inputs,
+.oddlot .od-ticket-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+  min-width: 0;
+  padding: 23px 24px 24px;
+}
+.oddlot .od-ticket-summary {
+  border-left: 1px solid var(--od-line);
+  background: #fbfcfc;
+}
+/* The summary heads its own column, so it needs no rule above it. */
+.oddlot .od-ticket-summary > .od-order-summary:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+/* The button is the column's commitment, not a footnote after it. */
+.oddlot .od-ticket-summary .od-button {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Reasons a mint cannot be escrowed: a list to scan, not to read. */
+.oddlot .od-reason-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+  background: var(--od-line);
+  border: 1px solid var(--od-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.oddlot .od-reason-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 11px 14px;
+  background: var(--od-panel);
+  font-size: 13px;
+  color: var(--od-body);
+}
+.oddlot .od-reason-list svg {
+  flex: none;
+  color: #a33f37;
+}
+.oddlot .od-reason-list code {
+  margin-left: auto;
+  font-family: var(--od-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--od-muted);
+  white-space: nowrap;
+}
+.oddlot .od-terms-strip {
+  padding: 0 24px;
+}
+.oddlot .od-terms-strip .od-sizing {
+  margin: 14px 0 22px;
+}
+
+@media (max-width: 900px) {
+  .oddlot .od-ticket {
+    grid-template-columns: 1fr;
+  }
+  .oddlot .od-ticket-summary {
+    border-left: 0;
+    border-top: 1px solid var(--od-line);
+  }
 }

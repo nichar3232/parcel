@@ -23,6 +23,21 @@ interface AssetsPayload {
 const EXPLORER = (mint: string, network: string) =>
   `https://explorer.solana.com/address/${mint}${network === 'mainnet' ? '' : `?cluster=${network}`}`;
 
+/** A blocker's code is a slug, not a sentence. Name each one in a few
+ *  words so the list scans; the full reason stays one click away. */
+const BLOCKER_LABEL: Record<string, string> = {
+  'permanent-delegate': 'Issuer can move escrowed tokens',
+  pausable: 'Issuer can pause transfers',
+  'transfer-hook': 'Transfers run issuer code',
+  'non-transferable': 'Token cannot be transferred',
+  'confidential-transfer': 'Balances not publicly verifiable',
+  'mutable-ui-multiplier': 'Issuer can rescale displayed amounts',
+  'unknown-extension': 'Unrecognised mint extension',
+  'unsupported-token-program': 'Unsupported token program',
+  'decimals-out-of-range': 'Decimals outside supported range',
+  'registry-mismatch': 'On-chain state differs from the registry',
+};
+
 export function PreIpoView() {
   const [data, setData] = useState<AssetsPayload | null>(null),
     [error, setError] = useState(''),
@@ -88,6 +103,17 @@ export function PreIpoView() {
     );
 
   const current = data.assets.find((a) => a.asset.id === selected) || null;
+  // Blockers and registry mismatches are the same thing to a reader: a
+  // reason this mint cannot be escrowed. Show them as one list.
+  const reasons = current
+    ? [
+        ...current.verdict.blockers,
+        ...current.registryMismatch.map((detail) => ({
+          code: 'registry-mismatch',
+          detail,
+        })),
+      ]
+    : [];
   const decimals =
     current?.onchain?.decimals ?? current?.asset.expectedDecimals ?? 9;
 
@@ -195,150 +221,166 @@ export function PreIpoView() {
       </Panel>
 
       {current && (
-        <div className="od-single-form">
-          <Panel>
-            <div className="od-panel-heading">
-              <h2>Write a covered call</h2>
-              <Badge tone="neutral">{current.asset.symbol}</Badge>
-            </div>
+        <Panel className="od-order-form">
+          <div className="od-panel-heading">
+            <h2>Write a covered call</h2>
+            <Badge tone="neutral">{current.asset.symbol}</Badge>
+          </div>
 
+          {!current.verdict.escrowSupported ? (
             <div className="od-panel-body">
-              {!current.verdict.escrowSupported ? (
-                <div className="od-preipo-blockers">
-                  <p className="od-form-note">
-                    This mint cannot back a covered call in this version. Every
-                    reason was read from the mint account itself:
-                  </p>
-                  <ul>
-                    {current.verdict.blockers.map((b) => (
-                      <li key={b.code}>
-                        <b>{b.code}</b>
-                        <span>{b.detail}</span>
-                      </li>
-                    ))}
-                    {current.registryMismatch.map((m) => (
-                      <li key={m}>
-                        <b>registry-mismatch</b>
-                        <span>{m}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <>
-                  <div className="od-form-grid">
-                    <Field label={`Tokens to escrow (${current.asset.symbol})`}>
-                      <input
-                        value={amount}
-                        inputMode="decimal"
-                        onChange={(e) => setAmount(e.target.value)}
-                      />
-                    </Field>
-                    <Field label="Total premium (USDC)">
-                      <input
-                        value={premium}
-                        inputMode="decimal"
-                        onChange={(e) => setPremium(e.target.value)}
-                      />
-                    </Field>
-                    <Field label="Total exercise payment (USDC)">
-                      <input
-                        value={exercise}
-                        inputMode="decimal"
-                        onChange={(e) => setExercise(e.target.value)}
-                      />
-                    </Field>
-                    <Field label="Derived strike per token">
-                      <input
-                        readOnly
-                        value={
-                          summary ? `$${summary.derivedStrikePerToken}` : '—'
-                        }
-                      />
-                    </Field>
-                  </div>
-                  {termsError && (
-                    <p className="od-preipo-error">{termsError}</p>
-                  )}
-                  <p className="od-form-note">
-                    The contract stores totals. The strike per token is derived
-                    from them for display and is never the settlement figure.
-                  </p>
-                  <Button
-                    disabled={!summary || !data.executionEnabled}
-                    onClick={() => setConfirm(true)}
-                  >
-                    Review covered call
-                  </Button>
-                  {!data.executionEnabled && (
-                    <p className="od-form-note">
-                      Disabled: no program configured, so there is nothing to
-                      sign.
-                    </p>
-                  )}
-                </>
-              )}
-
-              {current.onchain &&
-                current.verdict.disclosures.map((d) => (
-                  <p className="od-form-note disclosure" key={d}>
-                    <AlertTriangle size={13} /> {d}
-                  </p>
+              <p className="od-form-note">
+                Not escrowable in this version. {reasons.length} mint feature
+                {reasons.length === 1 ? '' : 's'} read from the mint account
+                cannot be guaranteed to a buyer:
+              </p>
+              <ul className="od-reason-list">
+                {reasons.map((b) => (
+                  <li key={b.code + b.detail}>
+                    <Lock size={13} />
+                    <span>{BLOCKER_LABEL[b.code] || b.code}</span>
+                    <code>{b.code}</code>
+                  </li>
                 ))}
-
-              {/* Material, but a wall of it beside the ticket reads as a
-                  prospectus. One line the reader can open when they want it. */}
+              </ul>
               <details className="od-sizing od-terms">
-                <summary>Issuer terms and restrictions</summary>
+                <summary>Why each one blocks escrow</summary>
                 <div className="od-terms-body">
-                  <p className="od-form-note">
-                    {current.asset.issuerTerms.instrument}
-                  </p>
-                  <h3 className="od-preipo-subhead">
-                    Rights the issuer retains
-                  </h3>
-                  <ul className="od-preipo-list">
-                    {current.asset.issuerTerms.issuerRights.map((r) => (
-                      <li key={r}>{r}</li>
-                    ))}
-                  </ul>
-                  <h3 className="od-preipo-subhead">Restrictions</h3>
-                  <ul className="od-preipo-list">
-                    {current.asset.issuerTerms.restrictions.map((r) => (
-                      <li key={r}>{r}</li>
-                    ))}
-                  </ul>
-                  <a
-                    className="od-external"
-                    href={current.asset.issuerTerms.reference}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Issuer docs <ExternalLink size={13} />
-                  </a>
+                  {reasons.map((b) => (
+                    <p className="od-form-note" key={b.code + b.detail}>
+                      <b>{BLOCKER_LABEL[b.code] || b.code}.</b> {b.detail}
+                    </p>
+                  ))}
                 </div>
               </details>
             </div>
-            {current.onchain && (
-              <div className="od-panel-foot od-basis">
-                <span>Verified on chain</span>
-                <span>
-                  <a
-                    className="od-external"
-                    href={EXPLORER(current.asset.mint, data.network)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {current.asset.mint.slice(0, 6)}…
-                    {current.asset.mint.slice(-6)}
-                  </a>{' '}
-                  · {current.onchain.decimals} decimals ·{' '}
-                  {current.onchain.network}
-                </span>
+          ) : (
+            <div className="od-ticket">
+              <div className="od-ticket-inputs">
+                <Field label={`Tokens to escrow (${current.asset.symbol})`}>
+                  <input
+                    value={amount}
+                    inputMode="decimal"
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
+                </Field>
+                <Field label="Total premium (USDC)">
+                  <input
+                    value={premium}
+                    inputMode="decimal"
+                    onChange={(e) => setPremium(e.target.value)}
+                  />
+                </Field>
+                <Field
+                  label="Total exercise payment (USDC)"
+                  help="The contract stores totals. The strike per token is derived from them for display and is never the settlement figure."
+                >
+                  <input
+                    value={exercise}
+                    inputMode="decimal"
+                    onChange={(e) => setExercise(e.target.value)}
+                  />
+                </Field>
               </div>
+
+              <div className="od-ticket-summary">
+                <div className="od-order-summary">
+                  <div>
+                    <span>Derived strike per token</span>
+                    <b>{summary ? `$${summary.derivedStrikePerToken}` : '—'}</b>
+                  </div>
+                  <div>
+                    <span>Premium you keep</span>
+                    <b>{summary ? `${summary.totalPremium} USDC` : '—'}</b>
+                  </div>
+                  <div>
+                    <span>Paid to you if exercised</span>
+                    <b>
+                      {summary ? `${summary.totalExercisePayment} USDC` : '—'}
+                    </b>
+                  </div>
+                  <div>
+                    <span>Tokens escrowed</span>
+                    <b>
+                      {summary
+                        ? `${summary.underlyingAmount} ${current.asset.symbol}`
+                        : '—'}
+                    </b>
+                  </div>
+                </div>
+                {termsError && <p className="od-preipo-error">{termsError}</p>}
+                <Button
+                  disabled={!summary || !data.executionEnabled}
+                  onClick={() => setConfirm(true)}
+                >
+                  Review covered call
+                </Button>
+                {!data.executionEnabled && (
+                  <p className="od-form-note">
+                    Disabled: no program configured, so there is nothing to
+                    sign.
+                  </p>
+                )}
+                {current.onchain &&
+                  current.verdict.disclosures.map((d) => (
+                    <p className="od-form-note disclosure" key={d}>
+                      <AlertTriangle size={13} /> {d}
+                    </p>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          <div className="od-terms-strip">
+            <details className="od-sizing od-terms">
+              <summary>Issuer terms and restrictions</summary>
+              <div className="od-terms-body">
+                <p className="od-form-note">
+                  {current.asset.issuerTerms.instrument}
+                </p>
+                <h3 className="od-preipo-subhead">Rights the issuer retains</h3>
+                <ul className="od-preipo-list">
+                  {current.asset.issuerTerms.issuerRights.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+                <h3 className="od-preipo-subhead">Restrictions</h3>
+                <ul className="od-preipo-list">
+                  {current.asset.issuerTerms.restrictions.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+                <a
+                  className="od-external"
+                  href={current.asset.issuerTerms.reference}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Issuer docs <ExternalLink size={13} />
+                </a>
+              </div>
+            </details>
+          </div>
+
+          <div className="od-panel-foot od-basis">
+            <span>Verified on chain</span>
+            {current.onchain && (
+              <span>
+                <a
+                  className="od-external"
+                  href={EXPLORER(current.asset.mint, data.network)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {current.asset.mint.slice(0, 6)}…
+                  {current.asset.mint.slice(-6)}
+                </a>{' '}
+                · {current.onchain.decimals} decimals ·{' '}
+                {current.onchain.network}
+              </span>
             )}
-          </Panel>
-        </div>
+          </div>
+        </Panel>
       )}
 
       {confirm && current && summary && (

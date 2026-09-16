@@ -171,28 +171,28 @@ export function LendingView({ desk }: { desk: VaultController }) {
           />
         </Panel>
       </div>
-      <div className="od-single-form">
-        <Panel className="od-order-form">
-          <div className="od-panel-heading">
-            <h2>Put your capital to work</h2>
-            <Badge>NVDA</Badge>
-          </div>
-          <div className="od-segmented">
-            {(['lend', 'short', 'stock'] as const).map((m) => (
-              <button
-                key={m}
-                className={mode === m ? 'selected' : ''}
-                onClick={() => setMode(m)}
-              >
-                {m === 'lend'
-                  ? 'Lend stock'
-                  : m === 'short'
-                    ? 'Protected short'
-                    : 'Buy / sell stock'}
-              </button>
-            ))}
-          </div>
-          <div className="od-form-content">
+      <Panel className="od-order-form">
+        <div className="od-panel-heading">
+          <h2>Put your capital to work</h2>
+          <Badge>NVDA</Badge>
+        </div>
+        <div className="od-segmented">
+          {(['lend', 'short', 'stock'] as const).map((m) => (
+            <button
+              key={m}
+              className={mode === m ? 'selected' : ''}
+              onClick={() => setMode(m)}
+            >
+              {m === 'lend'
+                ? 'Lend stock'
+                : m === 'short'
+                  ? 'Protected short'
+                  : 'Buy / sell stock'}
+            </button>
+          ))}
+        </div>
+        <div className="od-ticket">
+          <div className="od-ticket-inputs">
             <Field label="Share quantity">
               <input
                 type="number"
@@ -238,6 +238,8 @@ export function LendingView({ desk }: { desk: VaultController }) {
                 />
               </Field>
             )}
+          </div>
+          <div className="od-ticket-summary">
             <div className="od-order-summary">
               {mode === 'lend' ? (
                 <>
@@ -303,8 +305,8 @@ export function LendingView({ desk }: { desk: VaultController }) {
               repurchase; pledged protection cannot be reused.
             </p>
           </div>
-        </Panel>
-      </div>
+        </div>
+      </Panel>
       <Panel>
         <div className="od-panel-heading">
           <h2>Stock loans</h2>

@@ -1941,15 +1941,6 @@
   }
 }
 
-/* ------------------------------------------------------------------
-   A ticket with nothing to pair with is a ticket, not half a spread.
-   The lending form used to sit beside an explainer card; with the card
-   gone it keeps a readable measure instead of stretching to the page.
-   ------------------------------------------------------------------ */
-.od-single-form {
-  display: grid;
-  max-width: 560px;
-}
 /* Where the data came from is a footnote on the chart it qualifies,
    not a headline of its own. */
 .od-basis {
