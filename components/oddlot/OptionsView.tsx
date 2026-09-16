@@ -23,7 +23,7 @@ import {
   Heading,
   Panel,
   Stat,
-  dateLabel,
+  expiryLabel,
   qty,
   usd,
 } from './shared';
@@ -318,7 +318,7 @@ export function OptionsView({
                       : future
                     ).map((d) => (
                       <option key={d} value={d}>
-                        {dateLabel(d)}
+                        {expiryLabel(d)}
                       </option>
                     ))}
                   </select>
@@ -506,7 +506,7 @@ export function OptionsView({
                       <small>{p.id.slice(0, 8).toUpperCase()}</small>
                     </td>
                     <td>{qty(p.terms.quantity)}</td>
-                    <td>{dateLabel(p.terms.expiry)}</td>
+                    <td>{expiryLabel(p.terms.expiry)}</td>
                     <td>
                       {p.premium >= 0 ? 'Paid' : 'Received'}{' '}
                       {usd(

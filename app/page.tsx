@@ -64,8 +64,8 @@ export default function Landing() {
           </h1>
           <p>
             A listed contract needs a hundred shares. Oddlot writes the same
-            structures — spreads, collars, covered calls, protective puts —
-            against a fraction of one, fully collateralized in USDC and settled
+            structures against a fraction of one: spreads, collars, covered
+            calls, protective puts. Fully collateralized in USDC and settled
             against your vault.
           </p>
           <div className="lp-hero-actions">

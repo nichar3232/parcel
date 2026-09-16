@@ -15,10 +15,12 @@ test('the landing page shows the products and routes into the desk', async ({
     page.getByRole('navigation', { name: 'Products' }).getByRole('link'),
   ).toHaveCount(6);
   // the preview card is a priced position, with a term, not a mock-up
-  for (const k of ['Premium', 'Size', 'Max gain', 'Expiry'])
+  for (const k of ['Size', 'Cost, and max loss', 'Break-even', 'Expiry'])
     await expect(page.locator('.lp-stats')).toContainText(k);
   await expect(page.locator('.lp-stats')).toContainText(/\$\d+\.\d{2}/);
-  await expect(page.locator('.lp-stats')).toContainText(/\b\d+d\b/);
+  await expect(page.locator('.lp-stats')).toContainText(
+    /[A-Z][a-z]{2} \d{1,2} '\d{2}/,
+  );
   // the payoff is drawn from the engine: one point per sample, and the
   // two strikes are labelled on it
   await expect(page.locator('.lp-card .lp-strike')).toHaveCount(2);

@@ -20,7 +20,7 @@ import {
   Modal,
   Panel,
   Stat,
-  dateLabel,
+  expiryLabel,
   qty,
   usd,
 } from './shared';
@@ -218,7 +218,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
                 <select value={end} onChange={(e) => setExpiry(e.target.value)}>
                   {future.map((d) => (
                     <option key={d} value={d}>
-                      {dateLabel(d)}, 2025
+                      {expiryLabel(d)}
                     </option>
                   ))}
                 </select>
@@ -333,7 +333,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
                             </small>
                           )}
                         </td>
-                        <td>{dateLabel(p.expiry)}</td>
+                        <td>{expiryLabel(p.expiry)}</td>
                         <td>{usd(p.collateral)}</td>
                         <td>{usd(p.prepaidInterest, 4)}</td>
                         <td>
@@ -408,7 +408,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
                         <td>{qty(p.quantity)} NVDA</td>
                         <td>{usd(p.entry)}</td>
                         <td>{usd(p.cap)}</td>
-                        <td>{dateLabel(p.expiry)}</td>
+                        <td>{expiryLabel(p.expiry)}</td>
                         <td>{usd(p.quantity * p.cap + p.maxInterest)}</td>
                         <td>
                           <Button

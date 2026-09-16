@@ -27,12 +27,8 @@ const usd = (n: number, d = 2) =>
     maximumFractionDigits: d,
   }).format(n);
 
-export const dayLabel = (iso: string) =>
-  new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
+export { expiryLabel as dayLabel } from './format';
+import { expiryLabel as dayLabel } from './format';
 
 const terms = (
   over: Partial<OrderTerms> & Pick<OrderTerms, 'legs'>,
@@ -76,6 +72,14 @@ const MAX = Math.max(...SAMPLES.map((s) => s.pnl));
 const X = (price: number) => 40 + ((price - LOW) / (HIGH - LOW)) * 680;
 const Y = (pnl: number) => 32 + ((MAX - pnl) / (MAX - MIN || 1)) * 168;
 
+/**
+ * Break-even on a debit spread: the long strike plus what the contract
+ * cost per share. Quoted instead of the maximum gain, which on any
+ * spread is a multiple of the premium and says nothing about the odds
+ * of reaching it.
+ */
+const BREAK_EVEN = SPREAD.legs[0].strike + SPREAD_PREMIUM / SPREAD.quantity;
+
 export const HERO = {
   title: SPREAD.name,
   spotLabel: usd(SPOT),
@@ -93,14 +97,13 @@ export const HERO = {
     (s, i) => `${i ? 'L' : 'M'}${X(s.price).toFixed(1)},${Y(s.pnl).toFixed(1)}`,
   ).join(' '),
   area: `${SAMPLES.map((s, i) => `${i ? 'L' : 'M'}${X(s.price).toFixed(1)},${Y(s.pnl).toFixed(1)}`).join(' ')} L${X(HIGH).toFixed(1)},${Y(0).toFixed(1)} L${X(LOW).toFixed(1)},${Y(0).toFixed(1)} Z`,
+  // On a debit spread the premium is also the worst case, so the card
+  // says that once rather than printing the same figure twice.
   stats: [
-    { k: 'Premium', v: usd(SPREAD_PREMIUM) },
     { k: 'Size', v: '¼ share' },
-    { k: 'Max gain', v: usd(MAX) },
-    {
-      k: 'Expiry',
-      v: `${dayLabel(EXPIRY)} · ${Math.round(days(OPEN_DATE, EXPIRY))}d`,
-    },
+    { k: 'Cost, and max loss', v: usd(-MIN) },
+    { k: 'Break-even', v: usd(BREAK_EVEN) },
+    { k: 'Expiry', v: dayLabel(EXPIRY) },
   ],
 };
 
@@ -128,6 +131,17 @@ const LOAN_INTEREST = termInterest(LOAN_QTY, SPOT, OPEN_DATE, EXPIRY);
 /** Pre-IPO covered call, priced by the same totals the contract stores. */
 const PREIPO = { tokens: 0.25, premium: 6.5, exercise: 225 };
 
+/**
+ * A covered call written in the opening session expires one exercise
+ * window later, so the tile can name the date like every other product
+ * rather than describing the window.
+ */
+export const PREIPO_EXPIRY = new Date(
+  Date.parse(`${OPEN_DATE}T12:00:00Z`) + EXERCISE_WINDOW_DAYS * 86_400_000,
+)
+  .toISOString()
+  .slice(0, 10);
+
 export const EXAMPLES = [
   {
     id: 'options',
@@ -135,10 +149,7 @@ export const EXAMPLES = [
     title: 'Buy a contract the size of your position.',
     body: 'A listed contract needs a hundred shares. Size to one, or to a quarter of one.',
     rows: [
-      [
-        'Buy 1× NVDA $145 call',
-        `${dayLabel(EXPIRY)} · ${Math.round(days(OPEN_DATE, EXPIRY))}d`,
-      ],
+      ['Buy 1× NVDA $145 call', dayLabel(EXPIRY)],
       ['Premium', usd(CALL_PREMIUM)],
       ['Cash to fund exercise', usd(145 * 1 + CALL_PREMIUM)],
     ],
@@ -149,10 +160,7 @@ export const EXAMPLES = [
     title: 'Write the other side, fully collateralized.',
     body: 'Deposit a share, write a call against it. The reserve is visible before you sign.',
     rows: [
-      [
-        'Sell ¼× NVDA $150 call',
-        `${dayLabel(EXPIRY)} · ${Math.round(days(OPEN_DATE, EXPIRY))}d`,
-      ],
+      ['Sell ¼× NVDA $150 call', dayLabel(EXPIRY)],
       ['Premium received', usd(COVERED_PREMIUM)],
       ['Shares reserved', '0.25 NVDA'],
     ],
@@ -163,12 +171,9 @@ export const EXAMPLES = [
     title: 'Spreads, collars and capped curves.',
     body: 'Up to four legs under one collateral rule. Offsets release capital only when settlement allows.',
     rows: [
-      [
-        '¼× $145/$160 call spread',
-        `${dayLabel(EXPIRY)} · ${Math.round(days(OPEN_DATE, EXPIRY))}d`,
-      ],
-      ['Premium', usd(SPREAD_PREMIUM)],
-      ['Most it can pay', usd(MAX)],
+      ['¼× $145/$160 call spread', dayLabel(EXPIRY)],
+      ['Costs, and the most you can lose', usd(SPREAD_PREMIUM)],
+      ['Break-even', usd(BREAK_EVEN)],
     ],
   },
   {
@@ -177,7 +182,7 @@ export const EXAMPLES = [
     title: 'Covered calls on sponsor tokens.',
     body: 'Every mint is read on chain first. A token the issuer can move out of escrow cannot back a contract.',
     rows: [
-      ['Escrow', `${PREIPO.tokens} T-OpenAI · ${EXERCISE_WINDOW_DAYS}d`],
+      ['Escrow 0.25 T-OpenAI', dayLabel(PREIPO_EXPIRY)],
       [
         `If exercised above $${(PREIPO.exercise / PREIPO.tokens).toLocaleString('en-US')}`,
         `${(PREIPO.premium + PREIPO.exercise).toFixed(2)} USDC`,

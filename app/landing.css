@@ -709,3 +709,20 @@
   letter-spacing: 0.02em;
   color: var(--muted);
 }
+
+/* The meta list sits under the buttons, so it stops where they do
+   rather than running on past them. */
+.lp-meta {
+  max-width: 100%;
+  width: fit-content;
+  row-gap: 6px;
+}
+.lp-meta li:first-child {
+  padding-left: 2px;
+}
+@media (max-width: 480px) {
+  .lp-meta li + li {
+    margin-left: 12px;
+    padding-left: 12px;
+  }
+}

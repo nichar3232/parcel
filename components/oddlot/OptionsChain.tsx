@@ -4,7 +4,7 @@ import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { ChainCatalog } from '@/lib/oddlot/types';
 import type { OrderTerms } from '@/lib/oddlot/types';
 import { selectableExpiries } from '@/lib/oddlot/market';
-import { Button, Field, Panel, dateLabel, qty, usd } from './shared';
+import { Button, Field, Panel, expiryLabel, qty, usd } from './shared';
 export function OptionsChain({
   desk,
   onSelect,
@@ -94,7 +94,7 @@ export function OptionsChain({
           <select value={effective} onChange={(e) => setExpiry(e.target.value)}>
             {dates.map((d) => (
               <option key={d} value={d}>
-                {dateLabel(d)}
+                {expiryLabel(d)}
               </option>
             ))}
           </select>

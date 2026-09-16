@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { ArrowUpRight, X } from 'lucide-react';
+export { expiryLabel } from '@/lib/oddlot/format';
 import {
   Dialog,
   DialogContent,
