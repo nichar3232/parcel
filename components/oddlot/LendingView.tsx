@@ -11,15 +11,12 @@ import {
   protectionPremium,
 } from '@/lib/oddlot/funding';
 import {
-  RESERVES,
   health,
   healthTone,
   liquidationPrice,
-  rates,
   reserveOf,
   type Holding,
 } from '@/lib/oddlot/lending';
-import { AssetLogo } from './AssetLogo';
 import { Meter } from './charts';
 import {
   Badge,
@@ -27,28 +24,23 @@ import {
   Field,
   Line,
   Modal,
-  Money,
   Panel,
   PanelHead,
   Segmented,
-  Stat,
   expiryLabel,
   qty,
   usd,
 } from './shared';
 
-export type LendingTab = 'markets' | 'borrow';
+export type LendingTab = 'borrow';
 
-const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
 
 export function LendingView({
   desk,
   feed,
-  tab,
 }: {
   desk: VaultController;
   feed: MarkFeed;
-  tab: LendingTab;
 }) {
   const s = desk.state!;
 
@@ -86,10 +78,7 @@ export function LendingView({
     };
   }, [s, feed.marks]);
 
-  if (tab === 'borrow')
-    return <Borrow desk={desk} feed={feed} position={position} />;
-
-  return <Markets desk={desk} feed={feed} position={position} />;
+  return <Borrow desk={desk} feed={feed} position={position} />;
 }
 
 type Position = ReturnType<typeof usePositionShape>;
@@ -172,125 +161,6 @@ function HealthCard({ position }: { position: Position }) {
 }
 
 /* ---------------------------------------------------------------- */
-
-function Markets({
-  desk,
-  feed,
-  position,
-}: {
-  desk: VaultController;
-  feed: MarkFeed;
-  position: Position;
-}) {
-  const s = desk.state!;
-  const rows = RESERVES.map((r) => {
-    const mark = feed.marks[r.symbol];
-    const u = mark?.utilisation ?? 0.5;
-    const price = mark?.price ?? (r.symbol === 'NVDA' ? s.market.price : 1);
-    return { reserve: r, mark, price, ...rates(u, r) };
-  });
-
-  const held = (symbol: string) =>
-    symbol === 'NVDA'
-      ? s.book.vault.NVDA
-      : symbol === 'USDC'
-        ? s.book.vault.USDC
-        : 0;
-
-  return (
-    <>
-      <div className="od-grid-2">
-        <Panel>
-          <Stat
-            label="Your supplies"
-            value={<Money value={position.supplied} />}
-            detail={`${position.collateral.length} assets in the vault`}
-          />
-        </Panel>
-        <Panel>
-          <Stat
-            label="Your borrows"
-            value={<Money value={position.owed} />}
-            detail={
-              position.shorted
-                ? `${qty(position.shorted)} NVDA sold short`
-                : 'Nothing borrowed'
-            }
-          />
-        </Panel>
-        {/* "Available to borrow" is the meter in the health card below,
-            and "total market size" is a number nobody on this screen can
-            do anything with. */}
-      </div>
-
-      <div className="od-work od-lend-work">
-        <HealthCard position={position} />
-
-        <div className="od-insight">
-          <Panel>
-            <PanelHead
-              title="Reserves"
-              action={
-                <Badge tone={feed.connected ? 'green' : 'neutral'}>
-                  {feed.connected ? 'Live' : 'Simulated'}
-                </Badge>
-              }
-            />
-            <div className="od-table-wrap">
-              <table className="od-table">
-                <thead>
-                  {/* Six columns, not eight. Price belongs to the
-                      ticker, not to a rates table, and LTV and its
-                      liquidation threshold are one risk parameter read
-                      together — splitting them bought two headings and
-                      no information. */}
-                  <tr>
-                    <th>Asset</th>
-                    <th className="num">Supply APY</th>
-                    <th className="num">Borrow APY</th>
-                    <th className="num">You hold</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(({ reserve: r, supply, borrow }) => (
-                    <tr key={r.symbol} title={r.note}>
-                      <td>
-                        <div className="od-asset-cell">
-                          <AssetLogo symbol={r.symbol} size={26} />
-                          <div>
-                            <b>{r.symbol}</b>
-                            <small>{r.name}</small>
-                          </div>
-                        </div>
-                      </td>
-                      {/* Plain, not green and red. Lime and rose mean
-                          gain and loss everywhere else in the product;
-                          spending them on "supply" and "borrow" makes
-                          two neutral rates look like a result. */}
-                      <td className="num">{pct(supply)}</td>
-                      <td className="num">{pct(borrow)}</td>
-                      <td className="num">
-                        {/* Two decimals. The vault page is where a
-                            balance is read to the millionth; here it is
-                            a glance, and 10,283.996577 in a column of
-                            percentages is noise. */}
-                        {held(r.symbol)
-                          ? held(r.symbol).toLocaleString('en-US', {
-                              maximumFractionDigits: 2,
-                            })
-                          : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        </div>
-      </div>
-    </>
-  );
-}
 
 /* ---------------------------------------------------------------- */
 

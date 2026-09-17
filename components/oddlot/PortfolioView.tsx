@@ -12,7 +12,8 @@ import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { MarkFeed } from '@/hooks/oddlot/use-marks';
 import { orderGreeks } from '@/lib/oddlot/math';
 import { accruedInterest, shortCloseAmounts } from '@/lib/oddlot/funding';
-import type { Asset, VaultAction } from '@/lib/oddlot/types';
+import { QuoteReview } from './QuoteReview';
+import type { Asset, Quote, VaultAction } from '@/lib/oddlot/types';
 import { AssetLogo, ASSETS } from './AssetLogo';
 import { Meter } from './charts';
 import type { Transfer } from './TransferDialog';
@@ -249,6 +250,16 @@ function Positions({
    * with it, because a position you can see and cannot close is worse
    * than one you cannot see.
    */
+  // Closing an option. The button used to sit in a copy of this table
+  // on the trade screen, beside the ticket that builds new ones; the
+  // table is gone from there, so the action came here with it.
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [requesting, setRequesting] = useState(false);
+  const executeClose = async () => {
+    if (quote && (await desk.act({ type: 'execute', quoteId: quote.id })))
+      setQuote(null);
+  };
+
   const [review, setReview] = useState<{
     action: VaultAction;
     title: string;
@@ -325,10 +336,17 @@ function Positions({
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={desk.busy}
-                        onClick={() => navigate('Trade', 'trade')}
+                        disabled={requesting || desk.busy}
+                        onClick={() => {
+                          setRequesting(true);
+                          void desk
+                            .closeQuote(p.id)
+                            .then(setQuote)
+                            .catch((e) => desk.setToast((e as Error).message))
+                            .finally(() => setRequesting(false));
+                        }}
                       >
-                        Manage
+                        Close
                       </Button>
                     </td>
                   </tr>
@@ -511,6 +529,16 @@ function Positions({
             </table>
           </div>
         </Panel>
+      )}
+
+      {quote && (
+        <QuoteReview
+          quote={quote}
+          revision={s.revision}
+          busy={desk.busy}
+          onClose={() => setQuote(null)}
+          onConfirm={() => void executeClose()}
+        />
       )}
 
       {review && (

@@ -74,9 +74,9 @@ test('the shell is four destinations, each with its own sections', async ({
   // Every destination names itself, and its sections belong to it.
   const sections: Record<string, string[]> = {
     Portfolio: ['Holdings', 'Activity'],
-    Trade: ['Trade', 'Underwrite', 'Structures'],
+    Trade: ['Options', 'Structures'],
     'Pre-IPO': ['Market', 'Underwrite'],
-    Lending: ['Rates', 'Lend & borrow'],
+    Lending: ['Lend & borrow'],
   };
   for (const [name, tabs] of Object.entries(sections)) {
     await navTop(page, name);
@@ -91,9 +91,10 @@ test('the shell is four destinations, each with its own sections', async ({
     await expect(page.locator('.od-work')).toBeVisible();
   }
 
-  // Basic asks the question; Advanced opens the machinery.
+  // The contract is chosen on the ticket, in both modes; Advanced adds
+  // the leg editor and the surface.
   await nav(page, 'Trade');
-  await expect(page.locator('.od-intents .od-intent')).toHaveCount(2);
+  await expect(page.locator('.od-ticket .od-segmented')).toBeVisible();
   await expect(page.locator('.od-leg')).toHaveCount(0);
   await advanced(page);
   await expect(page.locator('.od-leg')).toHaveCount(1);

@@ -815,6 +815,13 @@
   font-size: 12.5px;
 }
 
+/* Four contract names do not fit across a 340px ticket, and a control
+   that scrolls sideways hides the option on the end. It wraps. */
+.od-ticket .od-segmented {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
 .od-borrow {
   display: grid;
   gap: 32px;

@@ -37,8 +37,12 @@ test('vault deposits, fractional covered underwriting, blocked withdrawal and ex
     .getByLabel('Expiration', { exact: true })
     .selectOption('2025-01-27');
   await execute(page);
+  await nav(page, 'Positions');
   await expect(
-    page.getByRole('cell', { name: '0.333333', exact: true }),
+    page
+      .getByRole('row')
+      .filter({ hasText: 'Covered call' })
+      .getByRole('cell', { name: '0.333333', exact: true }),
   ).toBeVisible();
   await nav(page, 'Vault');
   await page
@@ -312,6 +316,7 @@ test('a delayed quote cannot replace edited contract terms', async ({
     .getByRole('button', { name: 'Confirm contract', exact: true })
     .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await nav(page, 'Positions');
   await expect(
     page.getByRole('cell', { name: '0.25', exact: true }),
   ).toBeVisible();
@@ -497,6 +502,7 @@ test('option confirmation lists every leg and a close is priced before execution
     .getByRole('button', { name: 'Confirm contract', exact: true })
     .click();
   await expect(dialog).toHaveCount(0);
+  await nav(page, 'Positions');
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(dialog).toContainText('Review your close quote');
   await expect(dialog).toContainText('You receive');
@@ -567,6 +573,7 @@ test('options chain selects a contract into the same funded quote workflow', asy
     '145',
   );
   await execute(page);
+  await nav(page, 'Positions');
   await expect(
     page.getByRole('cell', { name: /^Long call 145 / }),
   ).toBeVisible();
@@ -618,7 +625,7 @@ test('capped curves review every parameter, execute, close with a priced quote a
   await page.getByRole('button', { name: 'Confirm contract' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.reload();
-  await nav(page, 'Structures');
+  await nav(page, 'Positions');
   await page
     .getByRole('row')
     .filter({ hasText: 'Capped exponential' })
@@ -640,6 +647,7 @@ test('hourly contracts settle through the UI at the explicit test clock', async 
     .selectOption('2025-01-24T01:00:00Z');
   await execute(page);
   await advance(page, '2025-01-24T01:00:00Z');
+  await nav(page, 'Positions');
   await expect(page.getByRole('cell', { name: /^Call spread / })).toHaveCount(
     0,
   );
@@ -659,6 +667,7 @@ test('dividend convexity and progressive controls remain usable at mobile width'
   await advanced(page);
   await page.getByLabel('Curve side').selectOption('sell');
   await execute(page);
+  await nav(page, 'Positions');
   await expect(
     page.getByRole('cell', { name: /^Dividend convexity / }),
   ).toBeVisible();

@@ -67,11 +67,23 @@ export async function nav(page: Page, name: string) {
     case 'Activity':
       await navTop(page, 'Portfolio');
       return section(page, 'Activity');
+    // Buying and writing are one section now; the side is a choice on
+    // the ticket.
     case 'Trade':
+      await navTop(page, 'Trade');
+      await section(page, 'Options');
+      return page
+        .getByRole('button', { name: 'Long call', exact: true })
+        .click();
     case 'Underwrite':
+      await navTop(page, 'Trade');
+      await section(page, 'Options');
+      return page
+        .getByRole('button', { name: 'Covered call', exact: true })
+        .click();
     case 'Structures':
       await navTop(page, 'Trade');
-      return section(page, name);
+      return section(page, 'Structures');
     case 'Lending':
       await navTop(page, 'Lending');
       return section(page, 'Lend & borrow');

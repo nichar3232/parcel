@@ -19,7 +19,7 @@ import { useVault } from '@/hooks/oddlot/use-vault';
 import { useMarks } from '@/hooks/oddlot/use-marks';
 import { PortfolioView, type PortfolioTab } from './PortfolioView';
 import { TradeView, type TradeTab } from './TradeView';
-import { LendingView, type LendingTab } from './LendingView';
+import { LendingView } from './LendingView';
 import { PreIpoView, type PreIpoTab } from './PreIpoView';
 import { TransferDialog, type Transfer } from './TransferDialog';
 import { Welcome, markWelcomeSeen, welcomeSeen } from './Welcome';
@@ -62,21 +62,20 @@ const TABS = {
     { id: 'overview', label: 'Holdings' },
     { id: 'activity', label: 'Activity' },
   ],
+  // Buying and writing ran the same ticket with the side flipped, so
+  // they are one section and the side is a choice on the ticket.
   Trade: [
-    { id: 'trade', label: 'Trade' },
-    { id: 'underwrite', label: 'Underwrite' },
+    { id: 'trade', label: 'Options' },
     { id: 'structures', label: 'Structures' },
   ],
   'Pre-IPO': [
     { id: 'market', label: 'Market' },
     { id: 'underwrite', label: 'Underwrite' },
   ],
-  // "Positions" listed the loans and shorts that Portfolio → Holdings
-  // already lists. A position is a position wherever it was opened.
-  Lending: [
-    { id: 'markets', label: 'Rates' },
-    { id: 'borrow', label: 'Lend & borrow' },
-  ],
+  // One screen. "Rates" was a table of five reserves, four of which
+  // this build cannot lend, borrow or short — it showed nothing a
+  // reader could act on. The one rate that matters is on the ticket.
+  Lending: [{ id: 'borrow', label: 'Lend & borrow' }],
 } as const;
 
 /**
@@ -94,7 +93,7 @@ const ENTRY: Record<string, { page: Page; tab?: string }> = {
   positions: { page: 'Portfolio' },
   options: { page: 'Trade', tab: 'trade' },
   trade: { page: 'Trade', tab: 'trade' },
-  underwriting: { page: 'Trade', tab: 'underwrite' },
+  underwriting: { page: 'Trade', tab: 'trade' },
   structures: { page: 'Trade', tab: 'structures' },
   'pre-ipo': { page: 'Pre-IPO' },
   lending: { page: 'Lending' },
@@ -339,7 +338,6 @@ export default function Workspace() {
             feed={feed}
             tab={current as TradeTab}
             advanced={advanced}
-            openPreIpo={() => navigate('Pre-IPO', 'underwrite')}
           />
         ) : page === 'Pre-IPO' ? (
           <PreIpoView
@@ -348,7 +346,7 @@ export default function Workspace() {
             openTrade={() => navigate('Trade', 'underwrite')}
           />
         ) : (
-          <LendingView desk={desk} feed={feed} tab={current as LendingTab} />
+          <LendingView desk={desk} feed={feed} />
         )}
       </main>
 

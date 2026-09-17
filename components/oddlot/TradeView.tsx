@@ -3,12 +3,6 @@ import { useRef, useState } from 'react';
 import {
   ArrowRight,
   LockKeyhole,
-  Rocket,
-  Shield,
-  Table2,
-  TrendingDown,
-  TrendingUp,
-  Wallet,
 } from 'lucide-react';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { MarkFeed } from '@/hooks/oddlot/use-marks';
@@ -43,50 +37,6 @@ import {
 
 export type TradeTab = 'trade' | 'underwrite' | 'structures';
 
-/**
- * The two decisions Basic mode is allowed to ask.
- *
- * The trade screen used to open on a leg editor, a ratio dropdown, a
- * settlement selector and a sizing calculator, which is a lot of
- * machinery to put in front of someone whose actual question is "do I
- * think it goes up". Basic asks that question with two cards and then
- * gets out of the way; everything else is one click into Advanced.
- */
-const INTENTS: Record<
-  TradeTab,
-  { id: string; icon: typeof TrendingUp; title: string; body: string }[]
-> = {
-  trade: [
-    {
-      id: 'call',
-      icon: TrendingUp,
-      title: 'I think it goes up',
-      body: 'Buy the right to buy at a fixed price. The premium is the most you can lose.',
-    },
-    {
-      id: 'put',
-      icon: TrendingDown,
-      title: 'I want downside cover',
-      body: 'Buy the right to sell at a fixed price. It puts a floor under a share you hold.',
-    },
-  ],
-  underwrite: [
-    {
-      id: 'covered-call',
-      icon: Shield,
-      title: 'Earn on shares I own',
-      body: 'Sell a call against your stock. You keep the premium; the upside is capped at the strike.',
-    },
-    {
-      id: 'secured-put',
-      icon: Wallet,
-      title: 'Earn on cash I hold',
-      body: 'Sell a put against reserved cash. You keep the premium, and may end up buying the share.',
-    },
-  ],
-  structures: [],
-};
-
 const CATEGORIES = [
   'Direction',
   'Volatility',
@@ -102,13 +52,11 @@ export function TradeView({
   feed,
   tab,
   advanced,
-  openPreIpo,
 }: {
   desk: VaultController;
   feed: MarkFeed;
   tab: TradeTab;
   advanced: boolean;
-  openPreIpo: () => void;
 }) {
   const state = desk.state!;
   // Hoisted: a memo keyed on `state.book.date` cannot be preserved
@@ -281,13 +229,13 @@ export function TradeView({
       setQuote(null);
   };
 
-  const active = state.book.options.filter((p) => p.status === 'active');
+  // "Trade" and "Underwrite" were two tabs running the same ticket with
+  // the side flipped, so they are one tab and the side is a choice on
+  // it.
   const choices = templates.filter((t) =>
-    tab === 'trade'
-      ? ['call', 'put'].includes(t.id)
-      : tab === 'underwrite'
-        ? ['covered-call', 'secured-put'].includes(t.id)
-        : !['call', 'put', 'covered-call', 'secured-put'].includes(t.id),
+    tab === 'structures'
+      ? !['call', 'put', 'covered-call', 'secured-put'].includes(t.id)
+      : ['call', 'put', 'covered-call', 'secured-put'].includes(t.id),
   );
 
   const single = effective.legs.length === 1 && !effective.curve;
@@ -295,27 +243,13 @@ export function TradeView({
 
   return (
     <>
-      {/* Basic opens on the question, not on the machinery. */}
-      {!advanced && tab !== 'structures' && (
-        <div className="od-intents">
-          {INTENTS[tab].map((i) => {
-            const Icon = i.icon;
-            return (
-              <button
-                key={i.id}
-                className={`od-intent ${selected === i.id ? 'selected' : ''}`}
-                aria-pressed={selected === i.id}
-                onClick={() => select(i.id)}
-              >
-                <Icon size={20} />
-                <strong>{i.title}</strong>
-                <p>{i.body}</p>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
+      {/* Five things used to be stacked on this page: a pair of intent
+          cards, the ticket, the payoff, a table of open contracts and
+          two footnotes pointing elsewhere. It is the ticket and the
+          payoff now. The intent cards asked the question the ticket's
+          own buy/sell control asks, open contracts live on Portfolio →
+          Holdings with every other position, and a footnote is not a
+          component. */}
       {tab === 'structures' && (
         <>
           <Segmented
@@ -360,7 +294,7 @@ export function TradeView({
         </>
       )}
 
-      {advanced && tab === 'trade' && (
+      {tab === 'trade' && (
         <div className="od-row-end">
           <Segmented
             label="Builder source"
@@ -379,7 +313,7 @@ export function TradeView({
         </div>
       )}
 
-      {browse && advanced && tab === 'trade' && (
+      {browse && tab === 'trade' && (
         <OptionsChain
           desk={desk}
           onSelect={(terms) => {
@@ -399,13 +333,13 @@ export function TradeView({
         />
       )}
 
-      {(!browse || !advanced || tab !== 'trade') && (
+      {(!browse || tab !== 'trade') && (
         <div className="od-work">
           {/* ---------------- the ticket ---------------- */}
           <Panel className="od-ticket">
             <PanelHead
               title={
-                tab === 'underwrite' ? 'Write an option' : 'Build your contract'
+                tab === 'structures' ? 'Build a structure' : 'Your contract'
               }
               action={
                 <Badge
@@ -416,7 +350,12 @@ export function TradeView({
               }
             />
             <div className="od-panel-body">
-              {advanced && tab !== 'structures' && (
+              {/* The first decision, on the ticket where it is acted
+                  on. It used to be a pair of cards stacked above the
+                  whole page in Basic and a control down here in
+                  Advanced, which is the same question asked twice in
+                  two places. */}
+              {tab !== 'structures' && (
                 <Segmented
                   label="Contract"
                   value={selected}
@@ -724,100 +663,6 @@ export function TradeView({
             )}
           </div>
         </div>
-      )}
-
-      <Panel>
-        <PanelHead
-          title="Open contracts"
-          description={
-            advanced
-              ? 'Expiry groups settle together to preserve collateral offsets.'
-              : undefined
-          }
-          action={
-            <Badge tone={active.length ? 'accent' : 'neutral'}>
-              {active.length} active
-            </Badge>
-          }
-        />
-        {active.length ? (
-          <div className="od-table-wrap">
-            <table className="od-table">
-              <thead>
-                <tr>
-                  <th>Contract</th>
-                  <th className="num">Quantity</th>
-                  <th>Expiry</th>
-                  <th className="num">Premium</th>
-                  <th>Settlement</th>
-                  <th>
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {active.map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      <b>{p.terms.name}</b>
-                      <small>{p.id.slice(0, 8).toUpperCase()}</small>
-                    </td>
-                    <td className="num">{qty(p.terms.quantity)}</td>
-                    <td>{expiryLabel(p.terms.expiry)}</td>
-                    <td className="num">
-                      {p.premium >= 0 ? 'Paid' : 'Received'}{' '}
-                      {usd(
-                        Math.abs(p.premium),
-                        p.terms.reference === 'dividend' ? 4 : 2,
-                      )}
-                    </td>
-                    <td>{p.terms.settlement}</td>
-                    <td>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={requesting || desk.busy}
-                        onClick={() => {
-                          setRequesting(true);
-                          void desk
-                            .closeQuote(p.id)
-                            .then(setQuote)
-                            .catch((e) => desk.setToast((e as Error).message))
-                            .finally(() => setRequesting(false));
-                        }}
-                      >
-                        Close
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty
-            title="Your next contract starts here"
-            description="Request a quote to see the exact premium and collateral needed before you commit."
-          />
-        )}
-      </Panel>
-
-      {!advanced && tab === 'trade' && (
-        <button className="od-chain-cue" onClick={() => setBrowse(true)}>
-          <Table2 size={15} />
-          Looking for a specific strike? The full options chain is in Advanced.
-        </button>
-      )}
-
-      {/* The same contract, against a different kind of underlying. It
-          is a separate desk because the collateral is a mint this vault
-          does not hold, not because it is a different product. */}
-      {tab === 'underwrite' && (
-        <button className="od-chain-cue" onClick={openPreIpo}>
-          <Rocket size={15} />
-          Writing against a pre-IPO token instead? Covered calls on sponsor
-          tokens are underwritten on the Pre-IPO desk.
-        </button>
       )}
 
       {quote && (
