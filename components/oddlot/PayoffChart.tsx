@@ -80,18 +80,24 @@ export function PayoffChart({
     // whose whole range is eleven cents needs three decimals; one that
     // spans four hundred dollars needs none.
     const step = span / 4;
-    const dp = step < 0.02 ? 4 : step < 0.2 ? 3 : step < 2 ? 2 : step < 20 ? 1 : 0;
+    const dp =
+      step < 0.02 ? 4 : step < 0.2 ? 3 : step < 2 ? 2 : step < 20 ? 1 : 0;
 
     const line = rows
-      .map((r, i) => `${i ? 'L' : 'M'}${x(r.price).toFixed(2)},${y(r.pnl).toFixed(2)}`)
+      .map(
+        (r, i) =>
+          `${i ? 'L' : 'M'}${x(r.price).toFixed(2)},${y(r.pnl).toFixed(2)}`,
+      )
       .join(' ');
 
     const crossings: number[] = [];
     for (let i = 1; i < rows.length; i++) {
       const a = rows[i - 1],
         b = rows[i];
-      if (a.pnl === 0 || (a.pnl < 0) === (b.pnl < 0)) continue;
-      crossings.push(a.price + (b.price - a.price) * (-a.pnl / (b.pnl - a.pnl)));
+      if (a.pnl === 0 || a.pnl < 0 === b.pnl < 0) continue;
+      crossings.push(
+        a.price + (b.price - a.price) * (-a.pnl / (b.pnl - a.pnl)),
+      );
     }
 
     return {
@@ -242,7 +248,7 @@ export function PayoffChart({
         {plot.crossings.map((p) => (
           <g key={p} className="od-chart-be">
             <circle cx={plot.x(p)} cy={plot.zeroY} r="3.5" />
-            <text x={plot.x(p)} y={plot.zeroY - 10} textAnchor="middle">
+            <text x={plot.x(p)} y={plot.zeroY - 14} textAnchor="middle">
               {usd(p, plot.hi - plot.lo < 1 ? 3 : 2)}
             </text>
           </g>
@@ -254,7 +260,12 @@ export function PayoffChart({
 
         <g className="od-chart-cursor">
           <line x1={cx} x2={cx} y1={F.y0} y2={F.y1} />
-          <circle cx={cx} cy={cy} r="5.5" className={pnl >= 0 ? 'up' : 'down'} />
+          <circle
+            cx={cx}
+            cy={cy}
+            r="5.5"
+            className={pnl >= 0 ? 'up' : 'down'}
+          />
         </g>
 
         <g className="od-chart-ticks">
@@ -264,7 +275,11 @@ export function PayoffChart({
               x={t.x}
               y={F.axisY}
               textAnchor={
-                i === 0 ? 'start' : i === plot.ticks.length - 1 ? 'end' : 'middle'
+                i === 0
+                  ? 'start'
+                  : i === plot.ticks.length - 1
+                    ? 'end'
+                    : 'middle'
               }
             >
               {t.label}

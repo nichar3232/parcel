@@ -208,7 +208,10 @@ test('a second tab cannot overwrite the first tab’s vault revision', async ({
 }) => {
   const second = await context.newPage();
   await second.goto('/app');
-  await expect(second.locator('.pc-desk')).toHaveAttribute('data-ready', 'true');
+  await expect(second.locator('.pc-desk')).toHaveAttribute(
+    'data-ready',
+    'true',
+  );
   await nav(second, 'Vault');
   await second
     .getByRole('button', { name: 'Deposit USDC', exact: true })
@@ -249,7 +252,10 @@ test('invalid precision and out-of-range strikes never crash the payoff view', a
     await expect(
       page.getByRole('heading', { name: 'Choose valid terms' }),
     ).toBeVisible();
-    await expect(page.locator('.pc-desk')).toHaveAttribute('data-ready', 'true');
+    await expect(page.locator('.pc-desk')).toHaveAttribute(
+      'data-ready',
+      'true',
+    );
   }
   await page.screenshot({
     path: 'test-results/audit/2026-09-15-review/invalid-terms.png',
@@ -446,7 +452,10 @@ test('a refreshed vault invalidates a reviewed stock trade without silently chan
   await expect(page.getByRole('dialog')).toContainText('$142.62');
   const second = await context.newPage();
   await second.goto('/app');
-  await expect(second.locator('.pc-desk')).toHaveAttribute('data-ready', 'true');
+  await expect(second.locator('.pc-desk')).toHaveAttribute(
+    'data-ready',
+    'true',
+  );
   await nav(second, 'Vault');
   await advance(second, '2025-01-27');
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
@@ -528,6 +537,13 @@ test('covered-call chart includes deposited stock downside', async ({
   await expect(page.locator('.od-payoff')).toContainText('Stock and options');
   await page.getByLabel('Reference price move').fill('-30');
   await expect(page.locator('.od-payoff-read b')).toHaveClass('down');
+
+  // The Greeks belong to Advanced, which is what the helper beside this
+  // one has always claimed. Net delta still has to account for the
+  // deposited stock; it is just no longer printed under the chart for a
+  // reader who has not asked for it.
+  await expect(page.locator('.od-greeks')).toHaveCount(0);
+  await advanced(page);
   await expect(page.locator('.od-greeks')).toContainText('Net delta');
 });
 

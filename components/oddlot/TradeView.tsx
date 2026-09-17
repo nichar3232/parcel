@@ -135,9 +135,8 @@ export function TradeView({
       defaultExpiry,
     ),
   );
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>(
-    'Direction',
-  );
+  const [category, setCategory] =
+    useState<(typeof CATEGORIES)[number]>('Direction');
   const [browse, setBrowse] = useState(false);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [requesting, setRequesting] = useState(false);
@@ -173,8 +172,11 @@ export function TradeView({
   const invalid = !!validationError;
 
   const reference =
-    effective.reference === 'dividend' ? state.market.dividend : state.market.price;
-  const vol = effective.reference === 'dividend' ? 0.8 : state.market.volatility;
+    effective.reference === 'dividend'
+      ? state.market.dividend
+      : state.market.price;
+  const vol =
+    effective.reference === 'dividend' ? 0.8 : state.market.volatility;
 
   const g = invalid
     ? { price: 0, delta: 0, gamma: 0, theta: 0, vega: 0 }
@@ -214,8 +216,10 @@ export function TradeView({
     for (let i = 1; i < rows.length; i++) {
       const a = rows[i - 1],
         b = rows[i];
-      if (a.pnl === 0 || (a.pnl < 0) === (b.pnl < 0)) continue;
-      breakEven.push(a.price + (b.price - a.price) * (-a.pnl / (b.pnl - a.pnl)));
+      if (a.pnl === 0 || a.pnl < 0 === b.pnl < 0) continue;
+      breakEven.push(
+        a.price + (b.price - a.price) * (-a.pnl / (b.pnl - a.pnl)),
+      );
     }
     const worst = Math.min(...rows.map((r) => r.pnl));
     const best = Math.max(...rows.map((r) => r.pnl));
@@ -330,10 +334,15 @@ export function TradeView({
                     : category === 'Cash flow'
                       ? t.id === 'box'
                       : category === 'Volatility'
-                        ? ['straddle', 'strangle', 'condor', 'butterfly'].includes(
+                        ? [
+                            'straddle',
+                            'strangle',
+                            'condor',
+                            'butterfly',
+                          ].includes(t.id)
+                        : ['call-spread', 'put-spread', 'collar'].includes(
                             t.id,
-                          )
-                        : ['call-spread', 'put-spread', 'collar'].includes(t.id),
+                          ),
               )
               .map((t) => (
                 <button
@@ -399,7 +408,9 @@ export function TradeView({
                 tab === 'underwrite' ? 'Write an option' : 'Build your contract'
               }
               action={
-                <Badge tone={live?.source === 'simulated' ? 'neutral' : 'green'}>
+                <Badge
+                  tone={live?.source === 'simulated' ? 'neutral' : 'green'}
+                >
                   NVDA {usd(state.market.price)}
                 </Badge>
               }
@@ -469,14 +480,17 @@ export function TradeView({
                     id="od-strike"
                     aria-label="Strike price"
                     type="range"
-                    min={Math.round(state.market.price * 0.7 / 2.5) * 2.5}
-                    max={Math.round(state.market.price * 1.3 / 2.5) * 2.5}
+                    min={Math.round((state.market.price * 0.7) / 2.5) * 2.5}
+                    max={Math.round((state.market.price * 1.3) / 2.5) * 2.5}
                     step="2.5"
                     value={effective.legs[0].strike}
                     onChange={(e) =>
                       update({
                         legs: [
-                          { ...effective.legs[0], strike: Number(e.target.value) },
+                          {
+                            ...effective.legs[0],
+                            strike: Number(e.target.value),
+                          },
                         ],
                       })
                     }
@@ -546,20 +560,32 @@ export function TradeView({
                         )
                   }
                 />
-                <Line
-                  label="Settlement"
-                  value={
-                    draft.settlement === 'physical'
-                      ? 'Fully funded physical delivery'
-                      : 'Cash, capped obligations'
-                  }
-                  tone="muted"
-                />
-                <Line
-                  label="Collateral mode"
-                  value={state.book.margin === 'cross' ? 'Cross' : 'Isolated'}
-                  tone="muted"
-                />
+                {/* Settlement convention and collateral mode are
+                    decisions, and Basic has already made both. Printing
+                    them on the ticket asks a first-time reader to have
+                    an opinion about words they have not met yet; the
+                    quote states them in full before anything is
+                    signed. */}
+                {advanced && (
+                  <>
+                    <Line
+                      label="Settlement"
+                      value={
+                        draft.settlement === 'physical'
+                          ? 'Fully funded physical delivery'
+                          : 'Cash, capped obligations'
+                      }
+                      tone="muted"
+                    />
+                    <Line
+                      label="Collateral mode"
+                      value={
+                        state.book.margin === 'cross' ? 'Cross' : 'Isolated'
+                      }
+                      tone="muted"
+                    />
+                  </>
+                )}
               </div>
 
               {error && (
@@ -590,8 +616,9 @@ export function TradeView({
               </Button>
               <p className="od-note">
                 <LockKeyhole size={12} />
-                Physical buyers prefund exercise cash or shares on top of the
-                premium. The quote shows the full requirement.
+                {advanced
+                  ? 'Physical buyers prefund exercise cash or shares on top of the premium. The quote shows the full requirement.'
+                  : 'Nothing is signed until you review the quote.'}
               </p>
             </div>
           </Panel>
@@ -618,52 +645,64 @@ export function TradeView({
                   onShock={setShock}
                 />
               ) : (
-                <Empty title="Choose valid terms" description={validationError} />
+                <Empty
+                  title="Choose valid terms"
+                  description={validationError}
+                />
               )}
-              <div className="od-greeks">
-                <Stat
-                  label="Per +1¢ move"
-                  value={usd((g.delta + includedStock) * 0.01, 4)}
-                  detail="Local estimate"
-                />
-                <Stat
-                  label={includedStock ? 'Net delta' : 'Delta'}
-                  value={(g.delta + includedStock).toFixed(3)}
-                  detail="Shares of exposure"
-                />
-                <Stat
-                  label="Theta per day"
-                  value={usd(g.theta, 4)}
-                  detail="Position-level decay"
-                />
-                {advanced && (
-                  <Stat
-                    label="Vega per vol point"
-                    value={usd(g.vega, 4)}
-                    detail="Modelled vol sensitivity"
-                  />
-                )}
-                {advanced && (
-                  <Stat
-                    label="Gamma"
-                    value={g.gamma.toFixed(4)}
-                    detail="Delta change per $1"
-                  />
-                )}
-              </div>
-              <div className="od-panel-foot">
-                <span>Pricing basis</span>
-                <span>
-                  {effective.reference === 'dividend'
-                    ? 'Committed dividend event'
-                    : session.includes('T')
-                      ? 'Daily close carried forward'
-                      : 'Stored historical close'}
-                  {' — Black-Scholes at '}
-                  {(vol * 100).toFixed(0)}% vol, reference{' '}
-                  {usd(reference, effective.reference === 'dividend' ? 4 : 2)}
-                </span>
-              </div>
+              {/* Delta, theta, vega and gamma are the vocabulary of
+                  someone who already knows what they are looking at.
+                  Under the chart in Basic they are five more numbers
+                  between the reader and the one decision on the page,
+                  so the whole row, and the pricing basis under it,
+                  belong to Advanced. */}
+              {advanced && (
+                <>
+                  <div className="od-greeks">
+                    <Stat
+                      label="Per +1¢ move"
+                      value={usd((g.delta + includedStock) * 0.01, 4)}
+                      detail="Local estimate"
+                    />
+                    <Stat
+                      label={includedStock ? 'Net delta' : 'Delta'}
+                      value={(g.delta + includedStock).toFixed(3)}
+                      detail="Shares of exposure"
+                    />
+                    <Stat
+                      label="Theta per day"
+                      value={usd(g.theta, 4)}
+                      detail="Position-level decay"
+                    />
+                    <Stat
+                      label="Vega per vol point"
+                      value={usd(g.vega, 4)}
+                      detail="Modelled vol sensitivity"
+                    />
+                    <Stat
+                      label="Gamma"
+                      value={g.gamma.toFixed(4)}
+                      detail="Delta change per $1"
+                    />
+                  </div>
+                  <div className="od-panel-foot">
+                    <span>Pricing basis</span>
+                    <span>
+                      {effective.reference === 'dividend'
+                        ? 'Committed dividend event'
+                        : session.includes('T')
+                          ? 'Daily close carried forward'
+                          : 'Stored historical close'}
+                      {' — Black-Scholes at '}
+                      {(vol * 100).toFixed(0)}% vol, reference{' '}
+                      {usd(
+                        reference,
+                        effective.reference === 'dividend' ? 4 : 2,
+                      )}
+                    </span>
+                  </div>
+                </>
+              )}
             </Panel>
 
             {advanced && !invalid && (
@@ -690,7 +729,11 @@ export function TradeView({
       <Panel>
         <PanelHead
           title="Open contracts"
-          description="Expiry groups settle together to preserve collateral offsets."
+          description={
+            advanced
+              ? 'Expiry groups settle together to preserve collateral offsets.'
+              : undefined
+          }
           action={
             <Badge tone={active.length ? 'accent' : 'neutral'}>
               {active.length} active

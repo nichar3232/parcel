@@ -25,7 +25,11 @@
 @import './tokens.css';
 
 .pc-desk {
-  --dk-gutter: clamp(16px, 2.4vw, 32px);
+  /* The desk is not a full-bleed dashboard. A wide window should show
+     the page sitting on the canvas with air either side, rather than
+     content running into the bezel — the tinted plot fields in
+     particular need somewhere to stop. */
+  --dk-gutter: clamp(20px, 4.4vw, 84px);
   --dk-bar: 60px;
   --dk-sub: 48px;
 
@@ -302,9 +306,9 @@
   display: flex;
   flex-direction: column;
   gap: 40px;
-  max-width: 1560px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 28px var(--dk-gutter) 56px;
+  padding: 28px var(--dk-gutter) 72px;
 }
 .od-main:focus {
   outline: none;
@@ -1287,10 +1291,18 @@
   stroke: var(--pc-text);
   stroke-width: 1.5;
 }
+/* Break-even is by definition where the curve meets the zero rule, so
+   its label lands on top of both lines unless it is given a halo. The
+   stroke is painted first and the fill over it, which knocks the lines
+   out from behind the glyphs. */
 .od-chart-be text {
   fill: var(--pc-text);
   font-family: var(--pc-mono);
   font-size: 10.5px;
+  paint-order: stroke fill;
+  stroke: var(--pc-void);
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 .od-chart-spot line {
   stroke: var(--pc-magenta);
@@ -2032,15 +2044,22 @@
   flex-direction: column;
 }
 
+/* Its own row, below the plot's tinted field rather than butted against
+   the rounded corner of it. The 1px background grid it used to draw
+   its dividers with only worked while the stats were filled. */
 .od-greeks {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 1px;
+  margin-top: 18px;
+  padding-top: 16px;
   border-top: 1px solid var(--pc-line-soft);
-  background: var(--pc-line-soft);
 }
 .od-greeks .od-stat {
-  background: var(--pc-surface);
+  padding-right: 18px;
+}
+.od-greeks .od-stat + .od-stat {
+  padding-left: 18px;
+  border-left: 1px solid var(--pc-line-soft);
 }
 .od-greeks .od-stat strong {
   font-size: 16px;
@@ -2092,25 +2111,24 @@
   font-size: 13.5px;
 }
 
+/* A quiet way out of Basic, not a piece of furniture. A dashed box the
+   width of the page is a louder object than the sentence inside it. */
 .od-chain-cue {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 9px;
-  padding: 12px 16px;
-  border: 1px dashed var(--pc-line);
-  border-radius: var(--pc-r);
+  gap: 8px;
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
   background: none;
   color: var(--pc-muted);
   font-family: inherit;
   font-size: 12.5px;
   cursor: pointer;
-  transition:
-    color 0.15s,
-    border-color 0.15s;
+  transition: color 0.15s;
 }
 .od-chain-cue:hover {
   color: var(--pc-cyan);
-  border-color: var(--pc-cyan-edge);
 }
 
 /* ---------- the surface ---------- */

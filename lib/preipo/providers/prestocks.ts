@@ -1,3 +1,4 @@
+import { fetchJsonWithRetry, type RetryOptions } from './retry';
 import type { ProviderQuote } from '../types';
 
 export const PRESTOCKS_ENDPOINT = 'https://prestocks.com/api/prestocks';
@@ -75,11 +76,14 @@ export function parsePreStocks(
 export async function fetchPreStocks(
   fetchImpl: typeof fetch = fetch,
   signal?: AbortSignal,
+  retry?: RetryOptions,
 ): Promise<ProviderQuote[]> {
-  const res = await fetchImpl(PRESTOCKS_ENDPOINT, {
+  const body = await fetchJsonWithRetry(
+    'PreStocks',
+    PRESTOCKS_ENDPOINT,
+    fetchImpl,
     signal,
-    headers: { accept: 'application/json' },
-  });
-  if (!res.ok) throw new Error(`PreStocks responded ${res.status}.`);
-  return parsePreStocks(await res.json(), new Date().toISOString());
+    retry,
+  );
+  return parsePreStocks(body, new Date().toISOString());
 }

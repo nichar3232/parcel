@@ -1,5 +1,6 @@
 import { readMints } from '../../lib/preipo/chain';
 import { fetchPreStocks } from '../../lib/preipo/providers/prestocks';
+import type { RetryOptions } from '../../lib/preipo/providers/retry';
 import { fetchTessera } from '../../lib/preipo/providers/tessera';
 import { registry } from '../../lib/preipo/registry';
 import { resolveAssets } from '../../lib/preipo/resolve';
@@ -35,6 +36,19 @@ const TTL_MS = 60_000;
 let cache: { at: number; payload: AssetsPayload } | null = null;
 
 /**
+ * The last quotes each provider successfully served.
+ *
+ * Both feeds are public endpoints polled on a timer from one address and
+ * both return the occasional 5xx under that. Dropping every price on the
+ * floor for a minute and putting a banner across the desk is the wrong
+ * trade: the prices are informational, they were right sixty seconds
+ * ago, and a stale mark is far more useful to a reader than no mark and
+ * an alarm. So a failed read falls back to the previous one, and only a
+ * provider that has never answered in this process produces a warning.
+ */
+const lastGood = new Map<string, ProviderQuote[]>();
+
+/**
  * Resolve the curated registry against the chain and both provider APIs.
  *
  * Provider outages degrade to "no price" rather than failing the request:
@@ -45,20 +59,34 @@ let cache: { at: number; payload: AssetsPayload } | null = null;
 export async function loadAssets(
   config: PreIpoConfig,
   now = Date.now(),
+  fetchImpl: typeof fetch = fetch,
+  retry?: RetryOptions,
 ): Promise<AssetsPayload> {
   if (cache && now - cache.at < TTL_MS) return cache.payload;
 
   const warnings: string[] = [];
   const quotes: ProviderQuote[] = [];
 
-  const settled = await Promise.allSettled([fetchTessera(), fetchPreStocks()]);
+  const settled = await Promise.allSettled([
+    fetchTessera(fetchImpl, undefined, retry),
+    fetchPreStocks(fetchImpl, undefined, retry),
+  ]);
   const labels = ['Tessera', 'PreStocks'];
   settled.forEach((r, i) => {
-    if (r.status === 'fulfilled') quotes.push(...r.value);
-    else
-      warnings.push(
-        `${labels[i]} price feed unavailable: ${(r.reason as Error).message}. Prices are informational and never settle a contract.`,
-      );
+    const label = labels[i];
+    if (r.status === 'fulfilled') {
+      lastGood.set(label, r.value);
+      quotes.push(...r.value);
+      return;
+    }
+    const held = lastGood.get(label);
+    if (held) {
+      quotes.push(...held);
+      return;
+    }
+    warnings.push(
+      `${label} prices are not available yet. Prices are informational and never settle a contract.`,
+    );
   });
 
   let onchain = new Map();
@@ -88,4 +116,5 @@ export async function loadAssets(
 
 export const resetAssetCache = () => {
   cache = null;
+  lastGood.clear();
 };

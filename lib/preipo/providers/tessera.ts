@@ -1,3 +1,4 @@
+import { fetchJsonWithRetry, type RetryOptions } from './retry';
 import type { ProviderQuote } from '../types';
 
 export const TESSERA_ENDPOINT =
@@ -67,11 +68,14 @@ export function parseTessera(
 export async function fetchTessera(
   fetchImpl: typeof fetch = fetch,
   signal?: AbortSignal,
+  retry?: RetryOptions,
 ): Promise<ProviderQuote[]> {
-  const res = await fetchImpl(TESSERA_ENDPOINT, {
+  const body = await fetchJsonWithRetry(
+    'Tessera',
+    TESSERA_ENDPOINT,
+    fetchImpl,
     signal,
-    headers: { accept: 'application/json' },
-  });
-  if (!res.ok) throw new Error(`Tessera responded ${res.status}.`);
-  return parseTessera(await res.json(), new Date().toISOString());
+    retry,
+  );
+  return parseTessera(body, new Date().toISOString());
 }

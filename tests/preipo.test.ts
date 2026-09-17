@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseTessera } from '../lib/preipo/providers/tessera';
+import { fetchTessera, parseTessera } from '../lib/preipo/providers/tessera';
 import { parsePreStocks } from '../lib/preipo/providers/prestocks';
+import { loadAssets, resetAssetCache } from '../server/preipo/assets';
 import { parseMintAccount } from '../lib/preipo/chain';
 import { evaluateMint, netAfterFee, transferFee } from '../lib/preipo/policy';
 import { registry, TOKEN_2022, byId } from '../lib/preipo/registry';
@@ -328,4 +329,123 @@ void test('every registry entry declares issuer rights and restrictions', () => 
       `${a.id} must state tokens are not shares`,
     );
   }
+});
+
+/* ------------------------------------------------------------------
+   Provider feed resilience.
+
+   Both endpoints are public and polled on a timer from one address, and
+   both return the occasional 5xx under that. A blip used to travel all
+   the way to a banner across the desk saying the price feed was
+   unavailable, which is alarming and wrong: the endpoint answers on the
+   next attempt, and the prices are informational either way.
+   ------------------------------------------------------------------ */
+
+const jsonResponse = (body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+const statusResponse = (status: number) =>
+  new Response('upstream failed', { status });
+
+/** Never actually sleep; the backoff schedule is not what is under test. */
+const noSleep = { sleep: async () => {} };
+
+void test('a 500 is retried and the next attempt is believed', async () => {
+  let calls = 0;
+  const impl = (async () => {
+    calls++;
+    return calls < 3 ? statusResponse(500) : jsonResponse(TESSERA_BODY);
+  }) as unknown as typeof fetch;
+
+  const quotes = await fetchTessera(impl, undefined, {
+    ...noSleep,
+    attempts: 3,
+  });
+  assert.equal(calls, 3);
+  assert.equal(quotes[0].symbol, 'T-OpenAI');
+});
+
+void test('a 4xx is raised at once rather than retried', async () => {
+  let calls = 0;
+  const impl = (async () => {
+    calls++;
+    return statusResponse(404);
+  }) as unknown as typeof fetch;
+
+  await assert.rejects(
+    () => fetchTessera(impl, undefined, { ...noSleep, attempts: 3 }),
+    /Tessera responded 404/,
+  );
+  // Asking a second time cannot make a wrong request right.
+  assert.equal(calls, 1);
+});
+
+void test('a transport error is retried, and the last one is reported', async () => {
+  let calls = 0;
+  const impl = (async () => {
+    calls++;
+    throw new Error('socket hang up');
+  }) as unknown as typeof fetch;
+
+  await assert.rejects(
+    () => fetchTessera(impl, undefined, { ...noSleep, attempts: 2 }),
+    /socket hang up/,
+  );
+  assert.equal(calls, 2);
+});
+
+void test('an exhausted feed keeps serving the prices it last had', async () => {
+  resetAssetCache();
+  const config = {
+    verifyRpcUrl: 'http://127.0.0.1:1',
+    verifyNetwork: 'mainnet' as const,
+    programId: null,
+    usdcMint: null,
+  };
+
+  let up = true;
+  const impl = (async (url: string) => {
+    if (!up) return statusResponse(500);
+    return jsonResponse(
+      String(url).includes('tessera') ? TESSERA_BODY : PRESTOCKS_BODY,
+    );
+  }) as unknown as typeof fetch;
+
+  const first = await loadAssets(config, 1_000, impl, noSleep);
+  const priced = first.assets.filter((a) => a.quote).length;
+  assert.ok(priced > 0, 'the healthy read should price some assets');
+  assert.deepEqual(
+    first.warnings.filter((w) => w.includes('price')),
+    [],
+  );
+
+  // Both feeds fall over, and the TTL has expired so the cache cannot
+  // hide it. The prices must survive anyway, and say nothing about it.
+  up = false;
+  const second = await loadAssets(config, 200_000, impl, noSleep);
+  assert.equal(second.assets.filter((a) => a.quote).length, priced);
+  assert.deepEqual(
+    second.warnings.filter((w) => w.includes('price')),
+    [],
+  );
+});
+
+void test('a feed that has never answered says so once', async () => {
+  resetAssetCache();
+  const impl = (async () => statusResponse(503)) as unknown as typeof fetch;
+  const payload = await loadAssets(
+    {
+      verifyRpcUrl: 'http://127.0.0.1:1',
+      verifyNetwork: 'mainnet',
+      programId: null,
+      usdcMint: null,
+    },
+    1_000,
+    impl,
+    noSleep,
+  );
+  assert.equal(payload.warnings.filter((w) => w.includes('price')).length, 2);
+  assert.ok(payload.warnings.some((w) => w.startsWith('Tessera prices')));
 });

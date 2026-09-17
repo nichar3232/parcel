@@ -19,7 +19,6 @@ import {
 } from '@/lib/preipo/terms';
 import { AssetLogo } from './AssetLogo';
 import { Scoreboard } from './Scoreboard';
-import { Tape } from './Tape';
 import {
   Badge,
   Button,
@@ -89,7 +88,9 @@ export function PreIpoView({
     let live = true;
     const load = () =>
       fetch('/api/preipo/assets')
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${r.status}`))))
+        .then((r) =>
+          r.ok ? r.json() : Promise.reject(new Error(`${r.status}`)),
+        )
         .then((d: AssetsPayload) => {
           if (!live) return;
           setData(d);
@@ -203,15 +204,12 @@ function AssetRow({
       </td>
       <td className="num">{price != null ? usd(price) : '—'}</td>
       <td className={`num ${mark && mark.change >= 0 ? 'od-up' : 'od-down'}`}>
-        {mark ? `${mark.change >= 0 ? '+' : ''}${(mark.change * 100).toFixed(2)}%` : '—'}
+        {mark
+          ? `${mark.change >= 0 ? '+' : ''}${(mark.change * 100).toFixed(2)}%`
+          : '—'}
       </td>
       <td className="num">{valuation ? compact(valuation) : '—'}</td>
-      <td className="num">
-        {holders ? holders.toLocaleString('en-US') : '—'}
-      </td>
-      <td className="num">
-        {mark ? `${mark.spreadBps} bps` : '—'}
-      </td>
+      <td className="num">{holders ? holders.toLocaleString('en-US') : '—'}</td>
       <td>
         {a.verdict.escrowSupported ? (
           <Badge tone="green">
@@ -305,7 +303,6 @@ function Market({
       <Panel>
         <PanelHead
           title="Pre-IPO market"
-          description="Sponsor-issued tokens tracking private companies. Quantities are tokens, never company shares."
           action={
             <Badge tone={feed.connected ? 'green' : 'neutral'}>
               {feed.connected ? 'Marks live' : 'Marks simulated'}
@@ -321,7 +318,6 @@ function Market({
                 <th className="num">Today</th>
                 <th className="num">Valuation</th>
                 <th className="num">Holders</th>
-                <th className="num">Spread</th>
                 <th>Escrow</th>
               </tr>
             </thead>
@@ -343,15 +339,11 @@ function Market({
             A token whose issuer can move it out of escrow cannot back a
             contract, whatever it is worth.
           </span>
-          <span>Refreshed {new Date(data.refreshedAt).toLocaleTimeString()}</span>
+          <span>
+            Refreshed {new Date(data.refreshedAt).toLocaleTimeString()}
+          </span>
         </div>
       </Panel>
-
-      <Tape
-        feed={feed}
-        title="Maker activity"
-        description="Mock tokens minted on a buy and burned on a sell, pegged to each sponsor's published mark."
-      />
     </>
   );
 }
@@ -522,7 +514,7 @@ function Underwrite({
                   label="Against the live mark"
                   value={
                     capped && strike
-                      ? `${(((strike as number) / (spot as number)) - 1 >= 0 ? '+' : '')}${((((strike as number) / (spot as number)) - 1) * 100).toFixed(1)}%`
+                      ? `${(strike as number) / (spot as number) - 1 >= 0 ? '+' : ''}${(((strike as number) / (spot as number) - 1) * 100).toFixed(1)}%`
                       : '—'
                   }
                   tone="muted"
@@ -586,9 +578,9 @@ function Underwrite({
                     <Money value={exercised} />
                   </strong>
                   <small>
-                    The buyer exercises. You deliver{' '}
-                    {summary.underlyingAmount} {current.asset.symbol} and keep
-                    both the premium and the exercise payment.
+                    The buyer exercises. You deliver {summary.underlyingAmount}{' '}
+                    {current.asset.symbol} and keep both the premium and the
+                    exercise payment.
                   </small>
                 </div>
                 <div className="od-outcome keep">
@@ -689,7 +681,10 @@ function Underwrite({
               label="Tokens escrowed"
               value={`${summary.underlyingAmount} ${current.asset.symbol}`}
             />
-            <Line label="Total premium" value={`${summary.totalPremium} USDC`} />
+            <Line
+              label="Total premium"
+              value={`${summary.totalPremium} USDC`}
+            />
             <Line
               label="Total exercise payment"
               value={`${summary.totalExercisePayment} USDC`}
@@ -707,7 +702,9 @@ function Underwrite({
             {summary.totalExercisePayment} USDC. A buyer who never exercises
             loses their whole {summary.buyerMaxLoss} USDC premium.
           </p>
-          <p className="od-note">An offer with no funded buyer stays unfilled.</p>
+          <p className="od-note">
+            An offer with no funded buyer stays unfilled.
+          </p>
           <Button full disabled>
             Connect wallet to sign
           </Button>
@@ -756,7 +753,10 @@ function OutcomeChart({
     O.y0 + ((max - v) / (max - min || 1)) * (O.y1 - O.y0);
   const line = (pts: { price: number; value: number }[]) =>
     pts
-      .map((p, i) => `${i ? 'L' : 'M'}${x(p.price).toFixed(1)},${y(p.value).toFixed(1)}`)
+      .map(
+        (p, i) =>
+          `${i ? 'L' : 'M'}${x(p.price).toFixed(1)},${y(p.value).toFixed(1)}`,
+      )
       .join(' ');
 
   return (
@@ -774,7 +774,11 @@ function OutcomeChart({
               y1={O.y0 + n * (O.y1 - O.y0)}
               y2={O.y0 + n * (O.y1 - O.y0)}
             />
-            <text x={O.x0 - 10} y={O.y0 + n * (O.y1 - O.y0) + 4} textAnchor="end">
+            <text
+              x={O.x0 - 10}
+              y={O.y0 + n * (O.y1 - O.y0) + 4}
+              textAnchor="end"
+            >
               {usd(max - (max - min) * n, 0)}
             </text>
           </g>

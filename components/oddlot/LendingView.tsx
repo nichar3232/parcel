@@ -23,7 +23,6 @@ import {
 } from '@/lib/oddlot/lending';
 import { AssetLogo } from './AssetLogo';
 import { Meter } from './charts';
-import { Tape } from './Tape';
 import {
   Badge,
   Button,
@@ -153,21 +152,20 @@ function HealthCard({ position }: { position: Position }) {
                 : 'var(--pc-down)'
           }
         />
-        <div className="od-lines">
-          <Line label="Supplied" value={usd(position.supplied)} />
-          <Line label="Borrowed" value={usd(position.owed)} />
-          <Line
-            label="Still available to borrow"
-            value={usd(position.available)}
-          />
-          {position.liquidation != null && position.shorted > 0 && (
+        {/* Supplied, borrowed and still-available were printed here as
+            well as in the rail directly above, which is the same three
+            figures twice on one screen. The only number this card owns
+            that nothing else shows is the price the short liquidates
+            at. */}
+        {position.liquidation != null && position.shorted > 0 && (
+          <div className="od-lines">
             <Line
               label="Short liquidates at"
               value={usd(position.liquidation)}
               tone="down"
             />
-          )}
-        </div>
+          </div>
+        )}
         <p className="od-note">
           <Info size={13} />
           Liquidation begins below 1.00.
@@ -327,13 +325,6 @@ function Markets({
           </Panel>
         </div>
       </div>
-
-      <Tape
-        feed={feed}
-        title="Pool activity"
-        description="What moves utilisation, and therefore the rates above."
-        symbols={RESERVES.map((r) => r.symbol)}
-      />
     </>
   );
 }
