@@ -132,14 +132,15 @@ export function payoff(terms: OrderTerms, premium: number, stock = 0): Payoff {
   const y = (pnl: number) =>
     PLOT.y0 + ((max - pnl) / span) * (PLOT.y1 - PLOT.y0);
   const points = samples.map(
-    (s) => [Number(x(s.price).toFixed(1)), Number(y(s.pnl).toFixed(1))] as [
-      number,
-      number,
-    ],
+    (s) =>
+      [Number(x(s.price).toFixed(1)), Number(y(s.pnl).toFixed(1))] as [
+        number,
+        number,
+      ],
   );
-  const line = points.map(([px, py], i) => `${i ? 'L' : 'M'}${px},${py}`).join(
-    ' ',
-  );
+  const line = points
+    .map(([px, py], i) => `${i ? 'L' : 'M'}${px},${py}`)
+    .join(' ');
 
   // Break-even is where the sampled payoff changes sign. Interpolating
   // between the two samples either side puts the label on the real
@@ -148,7 +149,7 @@ export function payoff(terms: OrderTerms, premium: number, stock = 0): Payoff {
   for (let i = 1; i < samples.length; i++) {
     const a = samples[i - 1],
       b = samples[i];
-    if (a.pnl === 0 || (a.pnl < 0) === (b.pnl < 0)) continue;
+    if (a.pnl === 0 || a.pnl < 0 === b.pnl < 0) continue;
     const t = -a.pnl / (b.pnl - a.pnl);
     const price = a.price + (b.price - a.price) * t;
     crossings.push({ value: price, x: x(price) });
@@ -565,6 +566,105 @@ export const EXAMPLES: {
           value: usd(LOAN_COLLATERAL),
           share: LOAN_COLLATERAL / SPOT,
         },
+      ],
+    },
+  },
+];
+
+/* ------------------------------------------------------------------
+   How it works.
+
+   Four steps, each with a figure the desk actually computes. The copy
+   used to sit beside four numbered paragraphs and nothing else, which
+   asked the reader to take the flow on trust; these show the screens
+   the words describe, and every figure in them is priced here rather
+   than typed.
+   ------------------------------------------------------------------ */
+
+/** A vault funded the way the walkthrough opens it. */
+const VAULT_USDC = 10_000;
+const VAULT_SHARES = 25;
+const VAULT_TOTAL = VAULT_USDC + VAULT_SHARES * SPOT;
+
+/** The premium at four sizes, so the sizing step shows the linearity. */
+const SIZES = [0.25, 0.5, 1, 2].map((q) => ({
+  label: `${q}×`,
+  cost: usd(premiumOf({ ...HERO_CALL, quantity: q })),
+  selected: q === 1,
+}));
+
+export type StepFigure =
+  | {
+      kind: 'balance';
+      total: string;
+      rows: { label: string; value: string; share: number }[];
+    }
+  | { kind: 'payoff'; payoff: Payoff; contract: string }
+  | { kind: 'sizes'; note: string; sizes: typeof SIZES }
+  | { kind: 'review'; rows: { label: string; value: string }[] };
+
+export const WALKTHROUGH: {
+  id: string;
+  title: string;
+  detail: string;
+  figure: StepFigure;
+}[] = [
+  {
+    id: 'fund',
+    title: 'Fund a vault',
+    detail:
+      'Deposit USDC or shares. The balance is yours, it persists across reloads, and nothing is ever borrowed against it on your behalf.',
+    figure: {
+      kind: 'balance',
+      total: usd(VAULT_TOTAL),
+      rows: [
+        {
+          label: 'USDC',
+          value: usd(VAULT_USDC),
+          share: VAULT_USDC / VAULT_TOTAL,
+        },
+        {
+          label: `${VAULT_SHARES} NVDA`,
+          value: usd(VAULT_SHARES * SPOT),
+          share: (VAULT_SHARES * SPOT) / VAULT_TOTAL,
+        },
+      ],
+    },
+  },
+  {
+    id: 'pick',
+    title: 'Pick a position',
+    detail:
+      'An option, a four-leg structure, a covered call on a sponsor token, or a stock loan. The shape it makes is drawn before you commit to it.',
+    figure: {
+      kind: 'payoff',
+      payoff: HERO_PAYOFF,
+      contract: `${HERO_CALL.quantity}× NVDA $${HERO_CALL.legs[0].strike} call, expiring ${dayLabel(EXPIRY)}`,
+    },
+  },
+  {
+    id: 'size',
+    title: 'Size it to what you own',
+    detail:
+      'Share-equivalents, a premium budget, a dollar sensitivity or a share count. A listed contract starts at a hundred shares; this one starts at a millionth of one.',
+    figure: {
+      kind: 'sizes',
+      note: `Premium for the $${HERO_CALL.legs[0].strike} call at each size.`,
+      sizes: SIZES,
+    },
+  },
+  {
+    id: 'settle',
+    title: 'Review, then settle',
+    detail:
+      'Premium, collateral and the worst case are on the ticket before you sign. Settlement returns to the same vault it was funded from.',
+    figure: {
+      kind: 'review',
+      rows: [
+        { label: 'Premium', value: usd(CALL_PREMIUM) },
+        { label: 'Break-even', value: usd(BREAK_EVEN) },
+        { label: 'Expiry', value: dayLabel(EXPIRY) },
+        { label: 'Worst case', value: usd(MIN) },
       ],
     },
   },

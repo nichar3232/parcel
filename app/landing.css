@@ -10,6 +10,13 @@
    previous version centred every section, which is what made it read
    as a template — a page of centred headlines has no spine, so the eye
    restarts at each one.
+
+   Nothing on this page is a card. Text, figures and stats sit on the
+   canvas and are separated by whitespace and hairlines; a filled,
+   bordered, drop-shadowed rounded box drawn around every block is what
+   makes a page look generated. The single exception is a plot, which
+   gets --pc-plot — a tint so faint it reads as a change of air — and
+   even that carries no border and no shadow.
    ------------------------------------------------------------------ */
 
 @import './tokens.css';
@@ -39,6 +46,12 @@
 .lp figure,
 .lp ol {
   margin: 0;
+}
+/* Zeroing padding on <figure> as well used to be part of this reset,
+   which silently outranked every later rule that tried to give a
+   figure its own padding — the tinted plot fields all sat flush
+   against their content. The UA only pads <ol>. */
+.lp ol {
   padding: 0;
 }
 .lp ol {
@@ -295,29 +308,7 @@
 
 .lp-viewer {
   position: relative;
-  padding: 22px;
-  border: 1px solid var(--pc-line);
-  border-radius: var(--pc-r-xl);
-  background:
-    radial-gradient(
-      120% 80% at 88% 0%,
-      var(--pc-cyan-wash) 0%,
-      transparent 58%
-    ),
-    var(--pc-surface);
-  box-shadow: var(--pc-rim), var(--pc-shadow);
   animation: pc-rise 0.6s ease both;
-}
-/* A duotone hairline along the top edge, so the card has an origin for
-   the light that the fades behind it are also coming from. */
-.lp-viewer::before {
-  content: '';
-  position: absolute;
-  inset: -1px -1px auto;
-  height: 1px;
-  border-radius: var(--pc-r-xl) var(--pc-r-xl) 0 0;
-  background: var(--pc-duo);
-  opacity: 0.7;
 }
 .lp-viewer header {
   display: flex;
@@ -356,8 +347,13 @@
   border-color: var(--pc-cyan-edge);
 }
 
+/* The one tinted field on the page. No border, no shadow: the plot
+   needs a ground to sit on, not a frame to sit in. */
 .lp-viewer-plot {
-  padding: 4px 0 0;
+  margin-top: 4px;
+  padding: 18px 20px 12px;
+  border-radius: var(--pc-r-lg);
+  background: var(--pc-plot);
 }
 .lp-viewer-plot svg {
   display: block;
@@ -420,16 +416,16 @@
 .lp-viewer-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1px;
-  margin-top: 18px;
-  border: 1px solid var(--pc-line-soft);
-  border-radius: var(--pc-r);
-  background: var(--pc-line-soft);
-  overflow: hidden;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--pc-line-soft);
 }
 .lp-viewer-stats > div {
-  padding: 12px 14px;
-  background: var(--pc-surface-2);
+  padding-right: 14px;
+}
+.lp-viewer-stats > div + div {
+  padding-left: 14px;
+  border-left: 1px solid var(--pc-line-soft);
 }
 .lp-viewer-stats dt {
   margin-bottom: 4px;
@@ -493,18 +489,19 @@
 .lp-rail {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1px;
-  border: 1px solid var(--pc-line-soft);
-  border-radius: var(--pc-r-lg);
-  background: var(--pc-line-soft);
-  overflow: hidden;
+  padding: 22px 0;
+  border-top: 1px solid var(--pc-line-soft);
+  border-bottom: 1px solid var(--pc-line-soft);
 }
 .lp-rail > div {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  padding: 18px 22px;
-  background: color-mix(in srgb, var(--pc-surface) 70%, transparent);
+  padding-right: 22px;
+}
+.lp-rail > div + div {
+  padding-left: 22px;
+  border-left: 1px solid var(--pc-line-soft);
 }
 .lp-rail span {
   color: var(--pc-muted);
@@ -524,50 +521,51 @@
 
 .lp-showcase {
   display: grid;
-  gap: 18px;
+  gap: 0;
 }
 .lp-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid var(--pc-line);
-  border-radius: var(--pc-r);
-  background: var(--pc-surface);
-  width: fit-content;
+  gap: 26px;
+  border-bottom: 1px solid var(--pc-line-soft);
 }
 .lp-tabs button {
-  padding: 8px 16px;
+  position: relative;
+  padding: 0 0 12px;
   border: 0;
-  border-radius: var(--pc-r-sm);
   background: none;
   color: var(--pc-muted);
   font-family: inherit;
   font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
-  transition:
-    color 0.15s,
-    background 0.15s;
+  transition: color 0.15s;
+}
+.lp-tabs button::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 1.5px;
+  background: var(--pc-cyan);
+  opacity: 0;
+  transition: opacity 0.15s;
 }
 .lp-tabs button:hover {
   color: var(--pc-text);
 }
 .lp-tabs button.selected {
-  background: var(--pc-cyan-wash);
-  color: var(--pc-cyan);
-  box-shadow: inset 0 0 0 1px var(--pc-cyan-edge);
+  color: var(--pc-text);
+}
+.lp-tabs button.selected::after {
+  opacity: 1;
 }
 
 .lp-panel {
   display: grid;
   grid-template-columns: minmax(0, 0.84fr) minmax(0, 1.16fr);
+  align-items: center;
   gap: clamp(28px, 4vw, 56px);
-  padding: clamp(24px, 3vw, 38px);
-  border: 1px solid var(--pc-line);
-  border-radius: var(--pc-r-xl);
-  background: var(--pc-surface);
-  box-shadow: var(--pc-rim);
+  padding-top: clamp(24px, 3vw, 36px);
 }
 .lp-panel-copy h3 {
   margin-bottom: 10px;
@@ -625,10 +623,9 @@
   flex-direction: column;
   justify-content: center;
   gap: 14px;
-  padding: 20px;
-  border: 1px solid var(--pc-line-soft);
+  padding: 20px 22px;
   border-radius: var(--pc-r-lg);
-  background: var(--pc-surface-2);
+  background: var(--pc-plot);
 }
 .lp-preview figcaption {
   color: var(--pc-muted);
@@ -647,10 +644,11 @@
   gap: 14px;
 }
 .lp-outcomes > div {
-  padding: 18px;
-  border: 1px solid var(--pc-line);
-  border-radius: var(--pc-r);
-  background: var(--pc-surface);
+  padding-right: 18px;
+}
+.lp-outcomes > div + div {
+  padding-left: 18px;
+  border-left: 1px solid var(--pc-line-soft);
 }
 .lp-outcomes span {
   display: block;
@@ -710,38 +708,199 @@
 
 /* ---------- how it works ---------- */
 
-.lp-steps {
+/* The claim on the left holds still while the walkthrough on the right
+   moves past it, which is the whole point of the section: four steps
+   that are all the same four steps, whichever product you came for.
+   Sticky rather than fixed — fixed copy follows the reader into the
+   footer, and it cannot be undone by the stacking media query below. */
+.lp-how-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1px;
-  border: 1px solid var(--pc-line-soft);
-  border-radius: var(--pc-r-lg);
-  background: var(--pc-line-soft);
-  overflow: hidden;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  align-items: start;
+  gap: clamp(40px, 6vw, 96px);
 }
-.lp-steps li {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 24px 22px 28px;
-  background: var(--pc-surface);
+.lp-how-copy {
+  position: sticky;
+  top: calc(68px + clamp(32px, 8vh, 96px));
 }
-.lp-steps b {
+.lp-how-copy h2 {
+  margin-bottom: 16px;
+}
+.lp-how-copy p {
+  max-width: 42ch;
+  color: var(--pc-body);
+}
+.lp-how-copy .lp-btn {
+  margin-top: 30px;
+}
+
+.lp-how-steps {
+  display: grid;
+  gap: clamp(48px, 7vh, 88px);
+}
+.lp-how-steps li {
+  display: grid;
+  gap: 22px;
+}
+
+/* A step's figure is a plot, a balance or a ticket — all three are
+   readings off the desk, so all three get the one tint and nothing
+   else. */
+.lp-step-figure {
+  display: grid;
+  gap: 12px;
+  padding: clamp(20px, 2.4vw, 30px);
+  border-radius: var(--pc-r-xl);
+  background: var(--pc-plot);
+}
+.lp-step-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.lp-step-note {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 11.5px;
+  letter-spacing: -0.01em;
+}
+
+.lp-step-copy {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 12px;
+}
+.lp-step-copy b {
+  grid-row: 1 / span 2;
+  justify-self: start;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--pc-cyan-edge);
+  border-radius: 50%;
   color: var(--pc-cyan);
   font-family: var(--pc-mono);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 500;
-  letter-spacing: 0.14em;
+  /* The circle is optically a line lower than the cap-height it sits
+     beside, because a ring centres on its own box rather than on the
+     text baseline. */
+  transform: translateY(2px);
 }
-.lp-steps strong {
-  font-size: 15.5px;
+.lp-step-copy strong {
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.015em;
 }
-.lp-steps span {
+.lp-step-copy p {
+  color: var(--pc-body);
+  font-size: 14px;
+  max-width: 52ch;
+}
+
+/* --- the three non-chart figures --- */
+
+.lp-step-balance b {
+  display: block;
+  margin-bottom: 20px;
+  font-size: clamp(30px, 3.4vw, 40px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+.lp-step-balance dl {
+  display: grid;
+  gap: 16px;
+}
+.lp-step-balance dl > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 16px;
+}
+.lp-step-balance dt {
   color: var(--pc-body);
   font-size: 13px;
-  line-height: 1.55;
+}
+.lp-step-balance dd {
+  font-family: var(--pc-mono);
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.lp-step-balance i {
+  grid-column: 1 / -1;
+  height: 6px;
+  min-width: 6px;
+  border-radius: 3px;
+  background: var(--pc-duo);
+}
+.lp-step-balance dl > div:last-child i {
+  background: var(--pc-faint);
+}
+
+.lp-step-sizes > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.lp-step-sizes span {
+  display: grid;
+  gap: 8px;
+  padding: 4px 0 4px 16px;
+  border-left: 1px solid var(--pc-line-soft);
+}
+.lp-step-sizes span:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.lp-step-sizes em {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 11px;
+  font-style: normal;
+  letter-spacing: 0.1em;
+}
+.lp-step-sizes b {
+  font-size: clamp(17px, 1.8vw, 21px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.lp-step-sizes .on em {
+  color: var(--pc-cyan);
+}
+.lp-step-sizes .lp-step-note {
+  margin-top: 18px;
+}
+
+.lp-step-review > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.lp-step-review > div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.lp-step-review > div:first-child {
+  padding-top: 0;
+}
+.lp-step-review dt {
+  color: var(--pc-body);
+  font-size: 13.5px;
+}
+.lp-step-review dd {
+  font-family: var(--pc-mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.lp-step-review > div:last-child dd {
+  color: var(--pc-down);
 }
 
 /* ---------- close ---------- */
@@ -753,17 +912,8 @@
   flex-wrap: wrap;
   gap: 28px;
   margin: clamp(80px, 11vh, 132px) 0 clamp(60px, 8vh, 96px);
-  padding: clamp(32px, 4vw, 48px);
-  border: 1px solid var(--pc-line);
-  border-radius: var(--pc-r-xl);
-  background:
-    radial-gradient(
-      90% 140% at 100% 0%,
-      var(--pc-magenta-wash) 0%,
-      transparent 60%
-    ),
-    var(--pc-surface);
-  box-shadow: var(--pc-rim);
+  padding-top: clamp(40px, 5vw, 56px);
+  border-top: 1px solid var(--pc-line-soft);
 }
 .lp-close h2 {
   margin-bottom: 10px;
@@ -805,8 +955,13 @@
   .lp-panel {
     grid-template-columns: minmax(0, 1fr);
   }
-  .lp-steps {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .lp-how-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Once the columns stack, "sticky" would pin the copy over the steps
+     it introduces. */
+  .lp-how-copy {
+    position: static;
   }
 }
 @media (max-width: 860px) {
@@ -822,15 +977,38 @@
   }
   .lp-rail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 22px;
+  }
+  .lp-rail > div:nth-child(odd) {
+    padding-left: 0;
+    border-left: 0;
   }
 }
 @media (max-width: 560px) {
   .lp-viewer-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 16px;
   }
-  .lp-steps,
+  .lp-viewer-stats > div:nth-child(odd) {
+    padding-left: 0;
+    border-left: 0;
+  }
   .lp-outcomes {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .lp-outcomes > div + div {
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--pc-line-soft);
+    padding-top: 18px;
+  }
+  .lp-step-sizes > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 0;
+  }
+  .lp-step-sizes span:nth-child(odd) {
+    padding-left: 0;
+    border-left: 0;
   }
   .lp-foot {
     flex-direction: column;

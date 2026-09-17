@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Mark } from '@/components/brand/Mark';
 import { Showcase } from '@/components/brand/Showcase';
+import { Steps } from '@/components/brand/Steps';
 import { StructureHero } from '@/components/brand/StructureHero';
 import { ThemeToggle } from '@/components/brand/Theme';
 import { EXAMPLES, HERO } from '@/lib/oddlot/landing';
@@ -27,26 +28,6 @@ const RAIL = [
   ['Session', HERO.openLabel],
   ['Model vol', '45%'],
   ['Minimum size', '0.000001 share'],
-];
-
-/**
- * The spine every product shares. Written to hold for all five,
- * not for the options flow alone.
- */
-const STEPS = [
-  ['Fund a vault', 'Deposit USDC or shares. Balances persist across reloads.'],
-  [
-    'Pick a position',
-    'An option, a structure, a covered call on a sponsor token, or a stock loan.',
-  ],
-  [
-    'Size it to what you own',
-    'Share-equivalents, a premium budget, a dollar sensitivity, or a share count.',
-  ],
-  [
-    'Review, then settle',
-    'Premium, collateral and worst case before you sign. Settlement returns to the same vault.',
-  ],
 ];
 
 export default function Landing() {
@@ -122,34 +103,24 @@ export default function Landing() {
           <div className="lp-section-head">
             <span className="lp-kicker">The products</span>
             <h2>Five ways to use one vault</h2>
-            <p>
-              Every figure below is priced by the desk from the stored NVDA
-              close of {HERO.spotLabel} on {HERO.openLabel}, not written by
-              hand.
-            </p>
           </div>
           <Showcase products={EXAMPLES} />
         </section>
 
         <section className="lp-section lp-how" id="how">
-          <div className="lp-section-head">
+          <Steps>
             <span className="lp-kicker">How it works</span>
-            <h2>The same four steps, whichever one you use</h2>
+            <h2>Deposit, position, settle.</h2>
             <p>
               All five products run on one vault and one collateral rule. Every
               position is funded from assets you already hold, and nothing is
               borrowed on your behalf.
             </p>
-          </div>
-          <ol className="lp-steps">
-            {STEPS.map(([title, detail], i) => (
-              <li key={title}>
-                <b>{String(i + 1).padStart(2, '0')}</b>
-                <strong>{title}</strong>
-                <span>{detail}</span>
-              </li>
-            ))}
-          </ol>
+            <Link className="lp-btn lp-btn-primary" href="/app">
+              Open the desk
+              <span aria-hidden>&rarr;</span>
+            </Link>
+          </Steps>
         </section>
 
         <section className="lp-close">

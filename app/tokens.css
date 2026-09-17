@@ -32,6 +32,17 @@
   --pc-raised: #1a1a25;
   --pc-hover: #20202d;
 
+  /* The only fill a content container is allowed.
+
+     Panels, cards and stat strips do not paint themselves any more —
+     they are held together by whitespace and hairlines, because a
+     filled rounded box around every paragraph is the thing that makes
+     a page read as generated rather than designed. A chart is the one
+     exception: a plot needs a field to sit in, so it gets this, which
+     is a change of air rather than a card. It carries no border and no
+     shadow, and nothing else in the product may use it. */
+  --pc-plot: rgba(255, 255, 255, 0.03);
+
   /* rules. -line is a visible division, -soft is a hairline that reads
      as a shadow rather than a border. */
   --pc-line: #23232f;
@@ -75,7 +86,8 @@
      a black shadow on a black canvas is invisible. */
   --pc-rim: inset 0 1px 0 rgba(255, 255, 255, 0.045);
   --pc-shadow: 0 18px 48px -24px rgba(0, 0, 0, 0.9);
-  --pc-glow: 0 0 0 1px var(--pc-cyan-edge), 0 8px 32px -12px rgba(34, 211, 238, 0.4);
+  --pc-glow:
+    0 0 0 1px var(--pc-cyan-edge), 0 8px 32px -12px rgba(34, 211, 238, 0.4);
 
   /* geometry */
   --pc-r-sm: 8px;
@@ -92,12 +104,17 @@
 [data-theme='light'] {
   color-scheme: light;
 
-  --pc-void: #f4f4f7;
+  /* Near-white, not grey. With the cards gone the canvas is what the
+     reader actually sees behind every word, and a grey page under
+     unfilled content reads as an unloaded state. */
+  --pc-void: #fcfcfd;
   --pc-bg: #f8f8fb;
   --pc-surface: #ffffff;
-  --pc-surface-2: #fbfbfe;
+  --pc-surface-2: #f4f4f7;
   --pc-raised: #f2f2f7;
   --pc-hover: #eaeaf2;
+
+  --pc-plot: rgba(11, 11, 18, 0.024);
 
   --pc-line: #e2e2ec;
   --pc-line-soft: #eeeef4;
@@ -136,7 +153,8 @@
 
   --pc-rim: inset 0 1px 0 rgba(255, 255, 255, 0.9);
   --pc-shadow: 0 16px 40px -28px rgba(11, 11, 18, 0.34);
-  --pc-glow: 0 0 0 1px var(--pc-cyan-edge), 0 8px 28px -14px rgba(8, 145, 178, 0.34);
+  --pc-glow:
+    0 0 0 1px var(--pc-cyan-edge), 0 8px 28px -14px rgba(8, 145, 178, 0.34);
 }
 
 /* ------------------------------------------------------------------
