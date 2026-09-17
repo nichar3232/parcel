@@ -1832,6 +1832,11 @@
   line-height: 1.45;
 }
 
+/* A picker hugs its options. As a flex item of the column it stretched
+   to the full measure, which made five choices look like a toolbar. */
+.od-main > .od-segmented {
+  align-self: flex-start;
+}
 .od-row-end {
   display: flex;
   justify-content: flex-end;
