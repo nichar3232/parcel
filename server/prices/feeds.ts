@@ -91,4 +91,29 @@ export const INSTRUMENTS: Instrument[] = [
   },
 ];
 
+/**
+ * Opening marks for the sponsor tokens, keyed by the symbol the
+ * registry uses.
+ *
+ * Nobody publishes a live feed for a private company, so these only
+ * have to be close enough to be sane for the first minute; the pre-IPO
+ * route re-anchors each one to whatever its provider is currently
+ * publishing. They exist so the engine can track these instruments
+ * from boot rather than from the first time somebody happens to open
+ * the pre-IPO screen.
+ */
+export const SPONSOR_SEEDS: Record<string, number> = {
+  'T-OpenAI': 812,
+  'T-Kalshi': 414,
+  'T-SpaceX': 423,
+  OPENAI: 966,
+  ANTHROPIC: 1007,
+  SPACEX: 153,
+  ANDURIL: 150,
+  NEURALINK: 318,
+  FIGUREAI: 178,
+  KALSHI: 865,
+  POLYMARKET: 145,
+};
+
 export const bySymbol = new Map(INSTRUMENTS.map((i) => [i.symbol, i]));

@@ -2359,12 +2359,17 @@
 .od-projection.risk b {
   color: var(--pc-down);
 }
+/* A max-width on a <td> does not constrain an auto-layout table, so
+   the rationale ran off the right edge instead of wrapping. The block
+   inside the cell is what carries the measure. */
 .od-why {
-  max-width: 34ch;
+  display: block;
+  max-width: 32ch;
   color: var(--pc-muted);
   font-size: 11.5px;
   line-height: 1.45;
-  text-align: left !important;
+  text-align: left;
+  white-space: normal;
 }
 
 /* ==================================================================
@@ -2409,6 +2414,16 @@
   backdrop-filter: blur(8px);
 }
 .od-welcome {
+  /* <dialog> brings its own absolute positioning and auto margins,
+     which override the scrim's centring and pin the card to the left. */
+  position: static;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  max-height: none;
+  color: inherit;
+
   width: min(520px, 100%);
   border: 1px solid var(--pc-line);
   border-radius: var(--pc-r-xl);
@@ -2523,4 +2538,110 @@
   .od-print time {
     display: none;
   }
+}
+
+/* ---------- the quote review ---------- */
+
+/* The one figure that decides whether to sign, at the size that decides
+   it. Everything else in the dialog is support. */
+.od-quote-premium {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  border: 1px solid var(--pc-cyan-edge);
+  border-radius: var(--pc-r);
+  background:
+    radial-gradient(
+      120% 140% at 100% 0%,
+      var(--pc-cyan-wash) 0%,
+      transparent 60%
+    ),
+    var(--pc-surface-2);
+}
+.od-quote-premium > span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.od-quote-premium > strong {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.od-quote-premium > small {
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+
+.od-quote-curve {
+  padding: 14px 16px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-surface-2);
+}
+.od-quote-curve b {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13.5px;
+  text-transform: capitalize;
+}
+.od-quote-curve p {
+  color: var(--pc-body);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.od-quote-legs {
+  border: 1px solid var(--pc-line-soft);
+  border-radius: var(--pc-r-sm);
+  overflow: hidden;
+}
+/* The side chip sits inline rather than turning the cell into a flex
+   container; a flex <td> stops participating in column sizing, which
+   pushed the last column out of the dialog. */
+.od-quote-legs th,
+.od-quote-legs td {
+  padding: 9px 8px;
+}
+.od-quote-legs td:first-child {
+  white-space: nowrap;
+}
+.od-quote-legs .od-leg-side {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  margin: 0 6px 0 0;
+  vertical-align: -3px;
+  font-size: 12px;
+}
+.od-quote-legs td:nth-child(2) {
+  text-transform: capitalize;
+}
+
+/* The countdown reads as a draining bar, not as a number to watch. */
+.od-quote-clock {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.od-quote-clock i {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--pc-cyan);
+  transition: width 0.25s linear;
+}
+.od-quote-clock span {
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-quote-clock.dead i {
+  background: var(--pc-down);
+}
+.od-quote-clock.dead span {
+  color: var(--pc-down);
 }

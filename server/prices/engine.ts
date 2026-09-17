@@ -1,4 +1,10 @@
-import { INSTRUMENTS, type Instrument, type Kind } from './feeds';
+import { registry } from '../../lib/preipo/registry';
+import {
+  INSTRUMENTS,
+  SPONSOR_SEEDS,
+  type Instrument,
+  type Kind,
+} from './feeds';
 import {
   CoinbaseSource,
   PythSource,
@@ -124,6 +130,13 @@ export class MarkEngine {
     });
     for (const i of INSTRUMENTS) this.state.set(i.symbol, seed(i, i.seed));
     this.seed = seed;
+    // Track every sponsor token from boot. Registering them lazily, on
+    // the first request that happened to read the providers, meant a
+    // reader who opened the pre-IPO screen first saw no change column
+    // and no spread until a later poll — and a restarted server lost
+    // them again until someone reloaded that one page.
+    for (const a of registry)
+      this.ensure(a.symbol, SPONSOR_SEEDS[a.symbol] ?? 250);
   }
 
   private seed: (i: Instrument, price: number) => State;

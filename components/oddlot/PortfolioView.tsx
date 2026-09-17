@@ -80,7 +80,11 @@ export function PortfolioView({
           book.date,
           p.terms.reference === 'dividend' ? 0.8 : market.volatility,
         ).price;
-        return { position: p, value, pnl: value - p.premium };
+        // A contract opened this session marks at what it cost. Left
+        // alone, floating point turns that into +$0.000000, which reads
+        // as a number rather than as "nothing has happened yet".
+        const drift = value - p.premium;
+        return { position: p, value, pnl: Math.abs(drift) < 5e-7 ? 0 : drift };
       }),
     [active, market, book.date],
   );

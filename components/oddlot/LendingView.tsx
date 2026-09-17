@@ -686,7 +686,9 @@ function Borrow({
                       <td className="num">{(r.ltv * 100).toFixed(0)}%</td>
                       <td className="num">{(r.liquidation * 100).toFixed(0)}%</td>
                       <td className="num od-down">{pct(rates(u, r).borrow)}</td>
-                      <td className="od-why">{r.note}</td>
+                      <td>
+                        <span className="od-why">{r.note}</span>
+                      </td>
                     </tr>
                   );
                 })}
