@@ -1,164 +1,299 @@
 'use client';
-import { useId, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { strategyPnl } from '@/lib/oddlot/math';
 import type { OrderTerms } from '@/lib/oddlot/types';
 import { usd } from './shared';
+
+/**
+ * The expiry payoff chart.
+ *
+ * The frame is one object. Every gridline, tick, strike rule and label
+ * is positioned from it, which is the whole fix for the old chart: it
+ * drew its plot between two hardcoded numbers and its axis between two
+ * others, so the labels sat a few units off the line they described and
+ * the curve ran out of the top of the box.
+ *
+ * Colour does the explaining. The region above the zero rule is filled
+ * in gain, the region below it in loss, and the reader gets the answer
+ * to "where do I make money" before reading a single number. The line
+ * itself stays neutral so the two fills are the only thing carrying
+ * meaning.
+ */
+const F = {
+  w: 880,
+  h: 352,
+  x0: 68,
+  x1: 858,
+  /** the band above the plot, where the strike labels live */
+  y0: 40,
+  y1: 292,
+  axisY: 322,
+} as const;
+
+const SAMPLES = 161;
+
 export function PayoffChart({
   terms,
   premium,
   spot,
   stockQuantity = 0,
+  shock,
+  onShock,
 }: {
   terms: OrderTerms;
   premium: number;
   spot: number;
   stockQuantity?: number;
+  /** Lifted when a parent wants the scrubber to survive a re-mount. */
+  shock?: number;
+  onShock?: (next: number) => void;
 }) {
-  const [shock, setShock] = useState(0),
-    id = useId().replaceAll(':', '');
-  const strikes = terms.curve
-    ? [terms.curve.lower, terms.curve.upper]
-    : terms.legs.map((l) => l.strike);
-  const start = Math.min(spot * 0.65, Math.min(...strikes) * 0.85),
-    end = Math.max(spot * 1.35, Math.max(...strikes) * 1.15);
-  const prices = [
-    ...new Set([
-      ...Array.from({ length: 81 }, (_, i) => start + ((end - start) * i) / 80),
-      ...strikes,
-    ]),
-  ].sort((a, b) => a - b);
-  const rows = prices.map((price) => ({
-    price,
-    pnl: strategyPnl(terms, price, spot, premium, stockQuantity),
-  }));
-  // Plot geometry. The chart shares a row with the order ticket, so it is
-  // drawn tall enough to fill that height instead of floating in it.
-  const TOP = 24,
-    PLOT = 430,
-    BASE = TOP + PLOT,
-    HEIGHT = BASE + 38;
-  const min = Math.min(-0.01, ...rows.map((r) => r.pnl)),
-    max = Math.max(0.01, ...rows.map((r) => r.pnl)),
-    spread = max - min;
-  const x = (v: number) => 48 + ((v - start) / (end - start)) * 592,
-    y = (v: number) => TOP + ((max - v) / spread) * PLOT;
-  const line = rows
-      .map((r, i) => `${i ? 'L' : 'M'}${x(r.price)},${y(r.pnl)}`)
-      .join(' '),
-    zero = y(0);
-  const selected = spot * (1 + shock / 100),
-    pnl = strategyPnl(terms, selected, spot, premium, stockQuantity);
+  const uid = useId().replaceAll(':', '');
+  const [ownShock, setOwnShock] = useState(0);
+  const move = shock ?? ownShock;
+  const setMove = onShock ?? setOwnShock;
+  const svg = useRef<SVGSVGElement>(null);
+
+  const plot = useMemo(() => {
+    const strikes = terms.curve
+      ? [terms.curve.lower, terms.curve.upper]
+      : terms.legs.map((l) => l.strike);
+    const lo = Math.min(spot * 0.65, Math.min(...strikes) * 0.85);
+    const hi = Math.max(spot * 1.35, Math.max(...strikes) * 1.15);
+    const rows = Array.from({ length: SAMPLES }, (_, i) => {
+      const price = lo + ((hi - lo) * i) / (SAMPLES - 1);
+      return {
+        price,
+        pnl: strategyPnl(terms, price, spot, premium, stockQuantity),
+      };
+    });
+
+    const min = Math.min(-1e-9, ...rows.map((r) => r.pnl));
+    const max = Math.max(1e-9, ...rows.map((r) => r.pnl));
+    const span = max - min;
+    const x = (v: number) => F.x0 + ((v - lo) / (hi - lo)) * (F.x1 - F.x0);
+    const y = (v: number) => F.y0 + ((max - v) / span) * (F.y1 - F.y0);
+
+    // Enough precision to separate two gridlines, and no more. A chart
+    // whose whole range is eleven cents needs three decimals; one that
+    // spans four hundred dollars needs none.
+    const step = span / 4;
+    const dp = step < 0.02 ? 4 : step < 0.2 ? 3 : step < 2 ? 2 : step < 20 ? 1 : 0;
+
+    const line = rows
+      .map((r, i) => `${i ? 'L' : 'M'}${x(r.price).toFixed(2)},${y(r.pnl).toFixed(2)}`)
+      .join(' ');
+
+    const crossings: number[] = [];
+    for (let i = 1; i < rows.length; i++) {
+      const a = rows[i - 1],
+        b = rows[i];
+      if (a.pnl === 0 || (a.pnl < 0) === (b.pnl < 0)) continue;
+      crossings.push(a.price + (b.price - a.price) * (-a.pnl / (b.pnl - a.pnl)));
+    }
+
+    return {
+      lo,
+      hi,
+      rows,
+      min,
+      max,
+      x,
+      y,
+      dp,
+      line,
+      crossings,
+      zeroY: y(0),
+      strikes: [...new Set(strikes)].sort((a, b) => a - b),
+      grid: [0, 0.25, 0.5, 0.75, 1].map((n) => ({
+        y: F.y0 + n * (F.y1 - F.y0),
+        label: usd(max - span * n, dp),
+      })),
+      ticks: [0, 0.25, 0.5, 0.75, 1].map((n) => {
+        const price = lo + (hi - lo) * n;
+        return { x: x(price), label: usd(price, hi - lo < 1 ? 3 : 0) };
+      }),
+    };
+  }, [terms, premium, spot, stockQuantity]);
+
+  const selected = spot * (1 + move / 100);
+  const pnl = strategyPnl(terms, selected, spot, premium, stockQuantity);
+  const cx = plot.x(selected),
+    cy = plot.y(pnl);
+  const dp = terms.reference === 'dividend' ? 4 : 2;
+
+  /** Map a pointer anywhere over the plot onto the shock slider. */
+  const scrub = (clientX: number) => {
+    const box = svg.current?.getBoundingClientRect();
+    if (!box) return;
+    const vx = ((clientX - box.left) / box.width) * F.w;
+    const price =
+      plot.lo +
+      ((Math.min(F.x1, Math.max(F.x0, vx)) - F.x0) / (F.x1 - F.x0)) *
+        (plot.hi - plot.lo);
+    setMove(
+      Math.round(Math.min(60, Math.max(-60, (price / spot - 1) * 100)) * 10) /
+        10,
+    );
+  };
+
   return (
     <div className="od-payoff">
-      {stockQuantity > 0 && (
-        <p className="od-form-note">
-          Includes {stockQuantity} NVDA acquired at {usd(spot)}. Stock losses
-          below the protected range remain yours.
-        </p>
-      )}
-      <div className="od-chart-caption">
-        <span>
-          {stockQuantity
-            ? 'Stock + options P&L at expiry'
-            : 'Options-only P&L at expiry'}
-        </span>
-        <b className={pnl >= 0 ? 'od-positive' : 'od-negative'}>
-          {pnl >= 0 ? '+' : ''}
-          {usd(pnl, terms.reference === 'dividend' ? 4 : 2)}
-        </b>
+      <div className="od-payoff-head">
+        <div>
+          <span>{stockQuantity ? 'Stock and options' : 'Options only'}</span>
+          <b>P&amp;L at expiry</b>
+        </div>
+        <div className="od-payoff-read">
+          <span>
+            At {usd(selected, plot.hi - plot.lo < 1 ? 4 : 2)}
+            {move ? ` (${move > 0 ? '+' : ''}${move}%)` : ' (spot)'}
+          </span>
+          <b className={pnl >= 0 ? 'up' : 'down'}>
+            {pnl > 0 ? '+' : ''}
+            {usd(pnl, dp)}
+          </b>
+        </div>
       </div>
+
       <svg
-        viewBox={`0 0 680 ${HEIGHT}`}
+        ref={svg}
+        viewBox={`0 0 ${F.w} ${F.h}`}
         aria-label="Option profit and loss across underlying prices"
+        className="od-payoff-svg"
+        onPointerMove={(e) => e.buttons !== 2 && scrub(e.clientX)}
+        onPointerDown={(e) => scrub(e.clientX)}
       >
         <defs>
-          <linearGradient id={id} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="#3fc98e" stopOpacity=".17" />
-            <stop offset="1" stopColor="#3fc98e" stopOpacity="0" />
+          <linearGradient id={`${uid}up`} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stopColor="var(--pc-up)" stopOpacity=".28" />
+            <stop offset="1" stopColor="var(--pc-up)" stopOpacity=".02" />
           </linearGradient>
-        </defs>
-        {[0, 0.25, 0.5, 0.75, 1].map((n) => (
-          <g key={n}>
-            <line
-              x1="48"
-              x2="640"
-              y1={TOP + n * PLOT}
-              y2={TOP + n * PLOT}
-              stroke="#eef3f4"
-              strokeDasharray="3 5"
+          <linearGradient id={`${uid}dn`} x1="0" x2="0" y1="1" y2="0">
+            <stop offset="0" stopColor="var(--pc-down)" stopOpacity=".26" />
+            <stop offset="1" stopColor="var(--pc-down)" stopOpacity=".02" />
+          </linearGradient>
+          {/* The fills are the same area path, clipped to the half of
+              the plot on their side of the zero rule. */}
+          <clipPath id={`${uid}above`}>
+            <rect
+              x={F.x0}
+              y={F.y0 - 2}
+              width={F.x1 - F.x0}
+              height={Math.max(0, plot.zeroY - F.y0 + 2)}
             />
-            <text
-              x="40"
-              y={TOP + 4 + n * PLOT}
-              textAnchor="end"
-              fill="#78868e"
-              fontSize="10"
-            >
-              {usd(
-                max - spread * n,
-                terms.reference === 'dividend' || spread < 0.1
-                  ? 3
-                  : spread < 10
-                    ? 2
-                    : 0,
-              )}
+          </clipPath>
+          <clipPath id={`${uid}below`}>
+            <rect
+              x={F.x0}
+              y={plot.zeroY}
+              width={F.x1 - F.x0}
+              height={Math.max(0, F.y1 - plot.zeroY + 2)}
+            />
+          </clipPath>
+        </defs>
+
+        <g className="od-chart-grid">
+          {plot.grid.map((g) => (
+            <g key={g.label + g.y}>
+              <line x1={F.x0} x2={F.x1} y1={g.y} y2={g.y} />
+              <text x={F.x0 - 12} y={g.y + 4} textAnchor="end">
+                {g.label}
+              </text>
+            </g>
+          ))}
+        </g>
+
+        <g className="od-chart-strikes">
+          {plot.strikes.map((k) => (
+            <g key={k}>
+              <line x1={plot.x(k)} x2={plot.x(k)} y1={F.y0} y2={F.y1} />
+              <text x={plot.x(k)} y={F.y0 - 12} textAnchor="middle">
+                {usd(k, k < 1 ? 3 : 0)}
+              </text>
+            </g>
+          ))}
+        </g>
+
+        <path
+          d={`${plot.line} L${F.x1},${plot.zeroY} L${F.x0},${plot.zeroY} Z`}
+          fill={`url(#${uid}up)`}
+          clipPath={`url(#${uid}above)`}
+        />
+        <path
+          d={`${plot.line} L${F.x1},${plot.zeroY} L${F.x0},${plot.zeroY} Z`}
+          fill={`url(#${uid}dn)`}
+          clipPath={`url(#${uid}below)`}
+        />
+
+        <line
+          className="od-chart-zero"
+          x1={F.x0}
+          x2={F.x1}
+          y1={plot.zeroY}
+          y2={plot.zeroY}
+        />
+        <path d={plot.line} className="od-chart-line" />
+
+        {/* Break-even is the number a reader looks for first, so it is
+            marked on the chart rather than only listed beside it. */}
+        {plot.crossings.map((p) => (
+          <g key={p} className="od-chart-be">
+            <circle cx={plot.x(p)} cy={plot.zeroY} r="3.5" />
+            <text x={plot.x(p)} y={plot.zeroY - 10} textAnchor="middle">
+              {usd(p, plot.hi - plot.lo < 1 ? 3 : 2)}
             </text>
           </g>
         ))}
-        <path d={`${line} L640,${zero} L48,${zero}Z`} fill={`url(#${id})`} />
-        <line x1="48" x2="640" y1={zero} y2={zero} stroke="#cdd7da" />
-        <path
-          d={line}
-          fill="none"
-          stroke="#3fc98e"
-          strokeWidth="3"
-          strokeLinejoin="round"
-        />
-        <line
-          x1={x(selected)}
-          x2={x(selected)}
-          y1={TOP}
-          y2={BASE}
-          stroke="#a9b4b8"
-          strokeDasharray="3 3"
-        />
-        <circle
-          cx={x(selected)}
-          cy={y(pnl)}
-          r="5"
-          fill="#3fc98e"
-          stroke="white"
-          strokeWidth="2"
-        />
-        {[start, spot, end].map((v) => (
-          <text
-            key={v}
-            x={x(v)}
-            y={HEIGHT - 10}
-            textAnchor="middle"
-            fill="#78868e"
-            fontSize="11"
-          >
-            {usd(v, terms.reference === 'dividend' ? 3 : 0)}
-          </text>
-        ))}
+
+        <g className="od-chart-spot">
+          <line x1={plot.x(spot)} x2={plot.x(spot)} y1={F.y0} y2={F.y1} />
+        </g>
+
+        <g className="od-chart-cursor">
+          <line x1={cx} x2={cx} y1={F.y0} y2={F.y1} />
+          <circle cx={cx} cy={cy} r="5.5" className={pnl >= 0 ? 'up' : 'down'} />
+        </g>
+
+        <g className="od-chart-ticks">
+          {plot.ticks.map((t, i) => (
+            <text
+              key={t.label + i}
+              x={t.x}
+              y={F.axisY}
+              textAnchor={
+                i === 0 ? 'start' : i === plot.ticks.length - 1 ? 'end' : 'middle'
+              }
+            >
+              {t.label}
+            </text>
+          ))}
+        </g>
       </svg>
+
       <label className="od-chart-slider">
         <span>Reference move</span>
         <input
           aria-label="Reference price move"
           type="range"
-          min="-30"
-          max="30"
-          step="1"
-          value={shock}
-          onChange={(e) => setShock(Number(e.target.value))}
+          min="-60"
+          max="60"
+          step="0.5"
+          value={move}
+          onChange={(e) => setMove(Number(e.target.value))}
         />
         <b>
-          {shock > 0 ? '+' : ''}
-          {shock}%
+          {move > 0 ? '+' : ''}
+          {move}%
         </b>
       </label>
+
+      {stockQuantity > 0 && (
+        <p className="od-note">
+          Includes {stockQuantity} NVDA acquired at {usd(spot)}. Stock losses
+          below the protected range remain yours.
+        </p>
+      )}
     </div>
   );
 }

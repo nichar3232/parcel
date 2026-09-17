@@ -34,8 +34,14 @@ export function StructureHero() {
 
   const [points, setPoints] = useState(current.payoff.points);
   const [zeroY, setZeroY] = useState(current.payoff.zeroY);
+  // What is on screen right now, so an interrupted morph resumes from
+  // where the line actually is rather than from where it started. Kept
+  // in an effect: reading or writing a ref during render is exactly the
+  // thing that makes a component miss an update.
   const live = useRef({ points, zeroY });
-  live.current = { points, zeroY };
+  useEffect(() => {
+    live.current = { points, zeroY };
+  });
 
   const reduced = useRef(false);
   useEffect(() => {
@@ -91,7 +97,7 @@ export function StructureHero() {
   const area = `${line} L${PLOT.x1},${zeroY.toFixed(1)} L${PLOT.x0},${zeroY.toFixed(1)} Z`;
 
   return (
-    <figure
+    <div
       className="lp-viewer"
       onMouseEnter={() => setHeld(true)}
       onMouseLeave={() => setHeld(false)}
@@ -111,11 +117,8 @@ export function StructureHero() {
       </header>
 
       <div className="lp-viewer-plot">
-        <svg
-          viewBox={`0 0 ${PLOT.w} ${PLOT.h}`}
-          role="img"
-          aria-label={current.blurb}
-        >
+        <svg viewBox={`0 0 ${PLOT.w} ${PLOT.h}`}>
+          <title>{`${current.name} payoff at expiry. ${current.blurb}`}</title>
           <defs>
             <linearGradient id="lpArea" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stopColor="var(--pc-cyan)" stopOpacity=".26" />
@@ -213,6 +216,6 @@ export function StructureHero() {
           </button>
         ))}
       </nav>
-    </figure>
+    </div>
   );
 }

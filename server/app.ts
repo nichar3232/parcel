@@ -1,3 +1,4 @@
+import { MarkEngine } from './prices/engine';
 import { OddlotAdapter } from './oddlot/chain/adapter';
 import { loadAssets } from './preipo/assets';
 import { VaultChainCoordinator } from './oddlot/chain/coordinator';
@@ -29,6 +30,12 @@ export function createApp(
   const vaultChain = config.oddlot
     ? new VaultChainCoordinator(store, vault, oddlotAdapter!)
     : undefined;
+  // Live marks are display and indicative pricing only; the vault's own
+  // accounting stays on the stored session clock so settlement remains
+  // deterministic. The engine never blocks a request: it ticks on its
+  // own and every route just reads the latest snapshot.
+  const marks = new MarkEngine();
+  marks.start();
   const portfolio = new PortfolioService(store),
     chain = new ChainService(
       store,
@@ -89,6 +96,8 @@ export function createApp(
           },
         );
       }
+      if (url.pathname === '/api/marks' && method === 'GET')
+        return json(res, 200, marks.snapshot());
       if (url.pathname === '/api/evidence' && method === 'GET') {
         try {
           return json(
@@ -246,5 +255,5 @@ export function createApp(
   server.requestTimeout = 15000;
   server.headersTimeout = 10000;
   server.keepAliveTimeout = 5000;
-  return { server, store, chain, portfolio, vault };
+  return { server, store, chain, portfolio, vault, marks };
 }

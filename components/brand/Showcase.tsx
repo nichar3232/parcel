@@ -13,12 +13,8 @@ function PayoffPreview({
 }) {
   const p = preview.payoff;
   return (
-    <svg
-      viewBox={`0 0 ${PLOT.w} ${PLOT.h}`}
-      className="lp-preview-chart"
-      role="img"
-      aria-label="Payoff at expiry"
-    >
+    <svg viewBox={`0 0 ${PLOT.w} ${PLOT.h}`} className="lp-preview-chart">
+      <title>Payoff at expiry</title>
       <defs>
         <linearGradient id="lpShowFill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="var(--pc-cyan)" stopOpacity=".26" />
@@ -81,9 +77,7 @@ function PayoffPreview({
 
 function Preview({ preview }: { preview: Preview }) {
   if (preview.kind === 'payoff')
-    return (
-      <PayoffPreview preview={preview} />
-    );
+    return <PayoffPreview preview={preview} />;
   if (preview.kind === 'outcomes')
     return (
       <div className="lp-outcomes">
