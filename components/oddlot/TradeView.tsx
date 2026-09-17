@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import {
   ArrowRight,
   LockKeyhole,
+  Rocket,
   Shield,
   Table2,
   TrendingDown,
@@ -101,11 +102,13 @@ export function TradeView({
   feed,
   tab,
   advanced,
+  openPreIpo,
 }: {
   desk: VaultController;
   feed: MarkFeed;
   tab: TradeTab;
   advanced: boolean;
+  openPreIpo: () => void;
 }) {
   const state = desk.state!;
   // Hoisted: a memo keyed on `state.book.date` cannot be preserved
@@ -214,11 +217,29 @@ export function TradeView({
       if (a.pnl === 0 || (a.pnl < 0) === (b.pnl < 0)) continue;
       breakEven.push(a.price + (b.price - a.price) * (-a.pnl / (b.pnl - a.pnl)));
     }
+    const worst = Math.min(...rows.map((r) => r.pnl));
+    const best = Math.max(...rows.map((r) => r.pnl));
+    const span = best - worst || 1;
+    /**
+     * Whether each end of the payoff has actually stopped moving.
+     *
+     * Read off the drawn shape rather than from the legs. `bounded()`
+     * answers whether the option legs net out, which is the question
+     * cash settlement asks — and it called a covered call uncapped,
+     * because the short call alone is. With the share included the
+     * position plainly stops at the strike, and the scoreboard was
+     * telling the writer their upside had no ceiling.
+     */
+    const flat = (a: number, b: number) => Math.abs(a - b) <= span * 0.004;
     return {
-      worst: Math.min(...rows.map((r) => r.pnl)),
-      best: Math.max(...rows.map((r) => r.pnl)),
+      worst,
+      best,
       breakEven,
-      capped: bounded(effective.legs) || !!effective.curve,
+      capped: flat(rows.at(-1)!.pnl, rows.at(-6)!.pnl),
+      // A position that is still losing at the bottom of the window has
+      // no worst case to quote, only a worst case at a price.
+      floored: flat(rows[0].pnl, rows[5].pnl),
+      riskAt: lo,
     };
   })();
 
@@ -505,6 +526,8 @@ export function TradeView({
                 risk={-Math.min(0, outcome.worst)}
                 reward={outcome.best}
                 capped={outcome.capped}
+                floored={outcome.floored}
+                riskAt={outcome.riskAt}
                 breakEven={outcome.breakEven}
                 premium={g.price}
                 decimals={effective.reference === 'dividend' ? 4 : 2}
@@ -740,6 +763,17 @@ export function TradeView({
         <button className="od-chain-cue" onClick={() => setBrowse(true)}>
           <Table2 size={15} />
           Looking for a specific strike? The full options chain is in Advanced.
+        </button>
+      )}
+
+      {/* The same contract, against a different kind of underlying. It
+          is a separate desk because the collateral is a mint this vault
+          does not hold, not because it is a different product. */}
+      {tab === 'underwrite' && (
+        <button className="od-chain-cue" onClick={openPreIpo}>
+          <Rocket size={15} />
+          Writing against a pre-IPO token instead? Covered calls on sponsor
+          tokens are underwritten on the Pre-IPO desk.
         </button>
       )}
 

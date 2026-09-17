@@ -2893,3 +2893,10 @@
     display: flex;
   }
 }
+
+.od-score-cell small {
+  display: block;
+  margin-top: 2px;
+  color: var(--pc-muted);
+  font-size: 11px;
+}

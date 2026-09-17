@@ -296,7 +296,7 @@ export function BookPayoff({
       zeroY: y(0),
       x,
       spot,
-      grid: [0, 0.5, 1].map((n) => ({
+      grid: [0, 0.25, 0.5, 0.75, 1].map((n) => ({
         y: B.y0 + n * (B.y1 - B.y0),
         label: usd(max - span * n, span < 10 ? 2 : 0),
       })),

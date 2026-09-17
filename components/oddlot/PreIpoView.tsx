@@ -1,6 +1,12 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ExternalLink, Lock, ShieldCheck } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  ExternalLink,
+  Lock,
+  ShieldCheck,
+} from 'lucide-react';
 import type { MarkFeed } from '@/hooks/oddlot/use-marks';
 import type { ResolvedAsset } from '@/lib/preipo/types';
 import {
@@ -68,10 +74,12 @@ export function PreIpoView({
   feed,
   tab,
   advanced,
+  openTrade,
 }: {
   feed: MarkFeed;
   tab: PreIpoTab;
   advanced: boolean;
+  openTrade: () => void;
 }) {
   const [data, setData] = useState<AssetsPayload | null>(null);
   const [error, setError] = useState('');
@@ -145,6 +153,7 @@ export function PreIpoView({
       escrowable={escrowable}
       onSelect={setSelected}
       advanced={advanced}
+      openTrade={openTrade}
     />
   );
 }
@@ -356,6 +365,7 @@ function Underwrite({
   escrowable,
   onSelect,
   advanced,
+  openTrade,
 }: {
   data: AssetsPayload;
   feed: MarkFeed;
@@ -363,6 +373,7 @@ function Underwrite({
   escrowable: ResolvedAsset[];
   onSelect: (id: string) => void;
   advanced: boolean;
+  openTrade: () => void;
 }) {
   const [amount, setAmount] = useState('0.25');
   const [premium, setPremium] = useState('6.50');
@@ -539,6 +550,11 @@ function Underwrite({
               >
                 Review covered call
               </Button>
+              <button className="od-chain-cue" onClick={openTrade}>
+                <ArrowLeftRight size={15} />
+                Writing against NVDA instead? That underwrites on the trade
+                desk, out of the same vault.
+              </button>
             </>
           )}
         </div>

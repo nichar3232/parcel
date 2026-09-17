@@ -19,6 +19,8 @@ export function Scoreboard({
   risk,
   reward,
   capped,
+  floored = true,
+  riskAt,
   breakEven,
   premium,
   decimals = 2,
@@ -27,7 +29,12 @@ export function Scoreboard({
   /** Worst case, as a positive number. */
   risk: number;
   reward: number;
+  /** Whether the payoff has stopped rising by the top of the window. */
   capped: boolean;
+  /** Whether it has stopped falling by the bottom of it. */
+  floored?: boolean;
+  /** The bottom of that window, for a loss that has not stopped there. */
+  riskAt?: number;
   breakEven: number[];
   premium: number;
   decimals?: number;
@@ -46,6 +53,13 @@ export function Scoreboard({
           <strong className="down">
             {invalid ? '—' : risk > 0 ? usd(risk, decimals) : 'Nothing'}
           </strong>
+          {/* A position still losing at the bottom of the window has no
+              worst case, only a worst case at a price. Saying "you risk
+              $68.98" of a covered call would be quoting the edge of the
+              sampling as if it were a floor. */}
+          {!invalid && risk > 0 && !floored && riskAt !== undefined && (
+            <small>and more below {usd(riskAt, 0)}</small>
+          )}
         </div>
         <div className="od-score-cell right">
           <span>You can win</span>

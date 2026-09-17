@@ -363,12 +363,14 @@ export default function Workspace() {
             feed={feed}
             tab={current as TradeTab}
             advanced={advanced}
+            openPreIpo={() => navigate('Pre-IPO', 'underwrite')}
           />
         ) : page === 'Pre-IPO' ? (
           <PreIpoView
             feed={feed}
             tab={current as PreIpoTab}
             advanced={advanced}
+            openTrade={() => navigate('Trade', 'underwrite')}
           />
         ) : (
           <LendingView desk={desk} feed={feed} tab={current as LendingTab} />
