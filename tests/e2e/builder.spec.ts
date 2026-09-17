@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
   errors.set(page, list);
   page.on('pageerror', (e) => list.push(e.message));
   await page.goto('/app');
-  await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.parcel')).toHaveAttribute('data-ready', 'true');
 });
 test.afterEach(({ page }) => {
   expect(errors.get(page)).toEqual([]);

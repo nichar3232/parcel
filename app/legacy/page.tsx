@@ -164,7 +164,7 @@ export default function Home() {
             ) : (
               <span className="as-of">
                 <Clock size={12} />
-                {day(current.date)} · daily close
+                {day(current.date)} — daily close
               </span>
             )}
           </div>
@@ -178,7 +178,7 @@ export default function Home() {
           <footer className="page-footer">
             <span>
               <span className="network-dot" />
-              Practice mode · no real-value trading
+              Practice mode — no real-value trading
             </span>
             <a href="/demo.html" target="_blank" rel="noreferrer">
               Watch the working demo <ArrowUpRight size={12} />

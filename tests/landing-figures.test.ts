@@ -9,11 +9,11 @@ import {
   SPOT,
   EXPIRY,
   dayLabel,
-} from '../lib/oddlot/landing';
-import { mark, expiries, VOLATILITY } from '../lib/oddlot/market';
-import { orderGreeks, strategyPnl, days } from '../lib/oddlot/math';
-import { termInterest } from '../lib/oddlot/funding';
-import type { OrderTerms } from '../lib/oddlot/types';
+} from '../lib/parcel/landing';
+import { mark, expiries, VOLATILITY } from '../lib/parcel/market';
+import { orderGreeks, strategyPnl, days } from '../lib/parcel/math';
+import { termInterest } from '../lib/parcel/funding';
+import type { OrderTerms } from '../lib/parcel/types';
 import { EXERCISE_WINDOW_DAYS } from '../lib/preipo/terms';
 
 /**
@@ -39,7 +39,7 @@ void test('every example states when it ends', () => {
   for (const e of EXAMPLES)
     assert.ok(
       e.rows.some(([, v]) =>
-        /^\d{2}\/\d{2}\/\d{4}$/.test(v.split(' · ').pop() as string),
+        /^\d{2}\/\d{2}\/\d{4}$/.test(v.split(' — ').pop() as string),
       ),
       `${e.id} does not show an expiry`,
     );

@@ -1,6 +1,6 @@
 [
   {
-    "text": "Oddlot lets you size equity options to your actual exposure. One share is a denomination, not a minimum lot. This is the working product: historical NVIDIA prices, model premiums, and disclosed test liquidity. Our vault executes on a private Solana validator.",
+    "text": "Parcel lets you size equity options to your actual exposure. One share is a denomination, not a minimum lot. This is the working product: historical NVIDIA prices, model premiums, and disclosed test liquidity. Our vault executes on a private Solana validator.",
     "duration": 16.306621,
     "start": 0.0000015419999999721767
   },

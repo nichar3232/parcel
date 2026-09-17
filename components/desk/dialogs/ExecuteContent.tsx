@@ -51,7 +51,7 @@ export function ExecuteContent({
                 : 'Solana local validator'}
           </strong>
           <p>
-            Real transactions · session-specific test wallets · historical
+            Real transactions — session-specific test wallets — historical
             replay oracle
           </p>
         </div>
@@ -76,14 +76,14 @@ export function ExecuteContent({
           <div className="detail-row">
             <span>Structure</span>
             <strong>
-              {terms.quantity} NVDA {terms.kind} · {money(terms.low, 0)} /{' '}
+              {terms.quantity} NVDA {terms.kind} — {money(terms.low, 0)} /{' '}
               {money(terms.high, 0)}
             </strong>
           </div>
           <div className="detail-row">
             <span>Precommitted reference</span>
             <strong>
-              {day(terms.expiry)} · {money(priceOn(terms.expiry))}
+              {day(terms.expiry)} — {money(priceOn(terms.expiry))}
             </strong>
           </div>
           <Button
@@ -130,7 +130,7 @@ export function ExecuteContent({
           <div className="detail-row">
             <span>Precommitted settlement</span>
             <strong>
-              {money(remote.price)} · {day(remote.terms.expiry)}
+              {money(remote.price)} — {day(remote.terms.expiry)}
             </strong>
           </div>
           <div className="detail-row">
@@ -160,7 +160,7 @@ export function ExecuteContent({
                   }
                   onClick={() => chainAction('accept')}
                 >
-                  Holder: accept · {money(remote.terms.premium)}
+                  Holder: accept — {money(remote.terms.premium)}
                 </Button>
               </>
             )}

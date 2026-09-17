@@ -6,12 +6,41 @@ import { tmpdir } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { createApp } from '../server/app';
 import { configFromEnv } from '../server/config';
-import { templateTerms } from '../lib/oddlot/templates';
-import type { Quote, VaultSnapshot } from '../lib/oddlot/types';
+import { templateTerms } from '../lib/parcel/templates';
+import type { Quote, VaultSnapshot } from '../lib/parcel/types';
+
+void test('Parcel chain configuration accepts renamed and legacy variables', () => {
+  const values = {
+    CHAIN_ENABLED: 'true',
+    PARCEL_CHAIN_ENABLED: 'true',
+    PARCEL_PROGRAM_ID: 'program',
+    PARCEL_CASH_MINT: 'cash',
+    PARCEL_STOCK_MINT: 'stock',
+  };
+  assert.deepEqual(configFromEnv(values).parcel, {
+    program: 'program',
+    cashMint: 'cash',
+    stockMint: 'stock',
+  });
+  assert.deepEqual(
+    configFromEnv({
+      CHAIN_ENABLED: 'true',
+      ODDLOT_CHAIN_ENABLED: 'true',
+      ODDLOT_PROGRAM_ID: 'program',
+      ODDLOT_CASH_MINT: 'cash',
+      ODDLOT_STOCK_MINT: 'stock',
+    }).parcel,
+    {
+      program: 'program',
+      cashMint: 'cash',
+      stockMint: 'stock',
+    },
+  );
+});
 
 async function fixture() {
-  const dir = await mkdtemp(`${tmpdir()}/oddlot-http-audit-`);
-  await writeFile(`${dir}/index.html`, '<h1>Oddlot</h1>');
+  const dir = await mkdtemp(`${tmpdir()}/parcel-http-audit-`);
+  await writeFile(`${dir}/index.html`, '<h1>Parcel</h1>');
   await writeFile(`${dir}/legacy.html`, '<h1>Legacy desk</h1>');
   const config = {
     ...configFromEnv({ CHAIN_ENABLED: 'false' }),
@@ -201,7 +230,7 @@ void test('vault HTTP: actual routes enforce ownership, CSRF, input limits, revi
       await (await fetch(`${f.base}/legacy`)).text(),
       '<h1>Legacy desk</h1>',
     );
-    assert.equal(await (await fetch(`${f.base}/`)).text(), '<h1>Oddlot</h1>');
+    assert.equal(await (await fetch(`${f.base}/`)).text(), '<h1>Parcel</h1>');
   } finally {
     await f.close();
   }
@@ -272,7 +301,7 @@ void test('vault HTTP: failed receipt persistence rolls back balances, positions
 });
 void test('static fallback never follows an index symlink outside the public root', async () => {
   const f = await fixture();
-  const secretDir = await mkdtemp(`${tmpdir()}/oddlot-outside-`);
+  const secretDir = await mkdtemp(`${tmpdir()}/parcel-outside-`);
   try {
     await writeFile(`${secretDir}/outside.html`, 'must not be served');
     await rm(`${f.dir}/index.html`);
@@ -288,7 +317,7 @@ void test('static fallback never follows an index symlink outside the public roo
   }
 });
 void test('migration: a real version-one SQLite database upgrades additively and reopens', async () => {
-  const dir = await mkdtemp(`${tmpdir()}/oddlot-migration-`);
+  const dir = await mkdtemp(`${tmpdir()}/parcel-migration-`);
   try {
     const db = new DatabaseSync(`${dir}/strata.sqlite`);
     db.exec(

@@ -126,7 +126,7 @@ export function PortfolioView({
             Enter the replay <ArrowRight size={16} />
           </Button>
           <div className="replay-feature-foot">
-            <Play size={13} /> JANUARY 2025 · NVDA
+            <Play size={13} /> JANUARY 2025 — NVDA
           </div>
         </div>
       </section>
@@ -134,12 +134,12 @@ export function PortfolioView({
         <Metric
           label="Cash available"
           value={money(book.holderCash)}
-          note="Demo USDC · holder wallet"
+          note="Demo USDC — holder wallet"
         />
         <Metric
           label="Contract collateral"
           value={money(totalLocked)}
-          note="Maker-funded · held in escrow"
+          note="Maker-funded — held in escrow"
         />
         <Metric
           label="Realized derivative PnL"
@@ -181,7 +181,7 @@ export function PortfolioView({
                     <div className="asset-icon">N</div>
                     <div>
                       <strong>NVIDIA</strong>
-                      <p>NVDA · test stock exposure</p>
+                      <p>NVDA — test stock exposure</p>
                     </div>
                   </div>
                 </td>
@@ -237,7 +237,7 @@ export function PortfolioView({
           <h2>
             Your protection <span className="count">{active.length}</span>
           </h2>
-          <span className="subtle">Fully reserved · cash settled</span>
+          <span className="subtle">Fully reserved — cash settled</span>
         </div>
         {active.length ? (
           active.map((p) => (
@@ -257,8 +257,8 @@ export function PortfolioView({
                     : 'capped upside'}
                 </strong>
                 <p>
-                  {money(p.terms.low, 0)}–{money(p.terms.high, 0)} ·{' '}
-                  {p.terms.quantity} shares · {day(p.terms.expiry)}
+                  {money(p.terms.low, 0)}–{money(p.terms.high, 0)} —{' '}
+                  {p.terms.quantity} shares — {day(p.terms.expiry)}
                 </p>
               </div>
               <Status status={p.status} />
@@ -293,7 +293,7 @@ export function PortfolioView({
                 {remote.terms.quantity} NVDA {remote.terms.kind} spread
               </strong>
               <p>
-                {money(remote.escrow)} test USDC in escrow · last read slot{' '}
+                {money(remote.escrow)} test USDC in escrow — last read slot{' '}
                 {remote.lastSlot}
               </p>
             </div>

@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:16.307
+Parcel lets you size equity options to your actual exposure. One share is a denomination, not a minimum lot. This is the working product: historical NVIDIA prices, model premiums, and disclosed test liquidity. Our vault executes on a private Solana validator.
+
+00:00:17.007 --> 00:00:28.213
+Start with cash and stock deposits. These move real SPL test tokens into program controlled escrow. Both sides of a contract must be funded, and pledged collateral cannot be spent twice.
+
+00:00:28.915 --> 00:00:44.724
+Underwrite exactly one third of a share. The covered call chart includes the stock: a sharp decline still loses money despite collecting premium. The final confirmation lists the strike, side, ratio, exact price, and remaining collateral before we execute.
+
+00:00:45.425 --> 00:01:00.763
+Smaller contracts do not erase exercise funding. This long call needs one hundred forty five dollars of strike cash plus its premium. Reducing the quantity to one tenth reduces both dollar amounts. Cash settled spreads provide a different, bounded alternative.
+
+00:01:01.464 --> 00:01:14.481
+Structures combine up to four explicit option legs. Here a cash settled call spread caps the payoff and its reserve. Cross collateral only offsets obligations sharing the same reference, expiration, and settlement type.
+
+00:01:15.181 --> 00:01:31.273
+The stock borrower actually sells the borrowed shares. It pays for a covered protective call and escrows the maximum repurchase cost plus interest. The test market reserves the backing stock. This demonstrates productive borrowing, but it does not claim an external lender or market maker.
+
+00:01:31.972 --> 00:01:44.418
+The risk view connects the contracts to available capital. It shows exactly which cash and stock are reserved. The program independently calculates the same obligations, so a mismatched backend result cannot commit.
+
+00:01:45.120 --> 00:01:59.931
+Advance to the stored expiry. Options settle together and the borrower repurchases the loaned stock. Activity records the confirmed Solana transaction and verified slot. After the last historical session, restart the replay without losing the audit receipts.

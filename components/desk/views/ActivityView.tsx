@@ -78,7 +78,7 @@ export function ActivityView({
                 <strong>{e.title}</strong>
                 <p>{e.detail}</p>
                 <span>
-                  {new Date(e.time).toLocaleTimeString()} · local simulation
+                  {new Date(e.time).toLocaleTimeString()} — local simulation
                 </span>
               </div>
               <ChevronRight size={16} />

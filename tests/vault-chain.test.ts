@@ -2,15 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../server/db/store';
-import { VaultService, type VaultPlan } from '../server/oddlot/service';
-import { VaultChainCoordinator } from '../server/oddlot/chain/coordinator';
+import { VaultService, type VaultPlan } from '../server/parcel/service';
+import { VaultChainCoordinator } from '../server/parcel/chain/coordinator';
 import type {
   PreparedVaultTransaction,
   VaultChainAdapter,
-} from '../server/oddlot/chain/adapter';
-import { initialVault } from '../server/oddlot/ledger';
-import type { VaultBook } from '../lib/oddlot/types';
-import { bookBytes } from '../server/oddlot/chain/codec';
+} from '../server/parcel/chain/adapter';
+import { initialVault } from '../server/parcel/ledger';
+import type { VaultBook } from '../lib/parcel/types';
+import { bookBytes } from '../server/parcel/chain/codec';
 class Chain implements VaultChainAdapter {
   book = initialVault();
   revision = 0;

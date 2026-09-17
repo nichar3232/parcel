@@ -1,0 +1,233 @@
+{
+  "recordedAt": "2026-09-15T11:40:03.185Z",
+  "mode": "localnet",
+  "revision": 7,
+  "chain": {
+    "ledger": "9it7WmpYCj7dXt7MyXp7x5Ub282e9PzPX6XAd6yFYF3u",
+    "slot": 148071,
+    "signature": "5jXRkfzxeMbb248HbGaZJkg9148vM44DBxDvX6FFWkTDzmWNGegRDUVhhkTYubpkrGF9P8wYpkcJa5JQeMn1yJw",
+    "network": "localnet",
+    "revision": 7
+  },
+  "book": {
+    "version": 2,
+    "date": "2025-02-07",
+    "margin": "cross",
+    "wallet": {
+      "USDC": 9500,
+      "NVDA": 23
+    },
+    "vault": {
+      "USDC": 499.349378,
+      "NVDA": 2
+    },
+    "counterparty": {
+      "USDC": 2000001.928621,
+      "NVDA": 10000
+    },
+    "market": {
+      "USDC": 1999998.722001,
+      "NVDA": 10000
+    },
+    "options": [
+      {
+        "id": "53ee3af4-5ada-43c3-be8d-780682213057",
+        "terms": {
+          "name": "Call spread",
+          "quantity": 0.25,
+          "expiry": "2025-02-07",
+          "reference": "stock",
+          "settlement": "cash",
+          "legs": [
+            {
+              "kind": "call",
+              "side": "buy",
+              "strike": 140,
+              "ratio": 1
+            },
+            {
+              "kind": "call",
+              "side": "sell",
+              "strike": 150,
+              "ratio": 1
+            }
+          ]
+        },
+        "premium": 1.043461,
+        "opened": "2025-01-24",
+        "status": "settled",
+        "cashFlow": 0,
+        "stockFlow": 0
+      },
+      {
+        "id": "5daae0f7-2339-42bf-a479-04a8b6395244",
+        "terms": {
+          "name": "Long call",
+          "quantity": 0.1,
+          "expiry": "2025-02-07",
+          "reference": "stock",
+          "settlement": "physical",
+          "legs": [
+            {
+              "kind": "call",
+              "side": "buy",
+              "strike": 145,
+              "ratio": 1
+            }
+          ]
+        },
+        "premium": 0.404494,
+        "opened": "2025-01-24",
+        "status": "settled",
+        "cashFlow": 0,
+        "stockFlow": 0
+      },
+      {
+        "id": "6e006ba3-127c-416e-8993-de66fbce4341",
+        "terms": {
+          "name": "Covered call",
+          "quantity": 0.333333,
+          "expiry": "2025-02-07",
+          "reference": "stock",
+          "settlement": "physical",
+          "legs": [
+            {
+              "kind": "call",
+              "side": "sell",
+              "strike": 150,
+              "ratio": 1
+            }
+          ]
+        },
+        "premium": -0.778187,
+        "opened": "2025-01-24",
+        "status": "settled",
+        "cashFlow": 0,
+        "stockFlow": 0
+      }
+    ],
+    "loans": [
+      {
+        "productive": {
+          "entry": 142.62,
+          "cap": 213.93,
+          "premium": 0.000001
+        },
+        "id": "dc35b8c2-4e4f-40d7-8ff3-c03c9eb669ec",
+        "quantity": 0.1,
+        "opened": "2025-01-24",
+        "expiry": "2025-02-07",
+        "collateral": 21.393,
+        "prepaidInterest": 0.019146,
+        "apr": 0.035,
+        "status": "closed",
+        "earned": 0.019146
+      }
+    ],
+    "shorts": [],
+    "events": [
+      {
+        "id": "5566d130-d94b-4d2c-a433-697fa04ecaca",
+        "date": "2025-02-07",
+        "timestamp": 1789472401780,
+        "title": "Market session advanced",
+        "detail": "2025-02-07 — NVDA $129.84 historical close",
+        "cash": 0,
+        "shares": 0
+      },
+      {
+        "id": "b19a59f5-3fd3-4b5e-a642-7308a82785fe",
+        "date": "2025-02-07",
+        "timestamp": 1789472401780,
+        "title": "Lent shares returned",
+        "detail": "0.1 NVDA returned; accrued interest credited",
+        "cash": 0.019146,
+        "shares": 0.1,
+        "reference": "dc35b8c2-4e4f-40d7-8ff3-c03c9eb669ec"
+      },
+      {
+        "id": "027cda21-4f96-416d-90bd-ff35fadb6ef6",
+        "date": "2025-02-07",
+        "timestamp": 1789472401780,
+        "title": "Expiry settled",
+        "detail": "3 contracts cleared together — 2025-02-07",
+        "cash": 0,
+        "shares": 0
+      },
+      {
+        "id": "9f07c32e-38c6-48e7-af69-f8fe3cd00509",
+        "date": "2025-01-24",
+        "timestamp": 1789472376557,
+        "title": "Stock loan funded",
+        "detail": "0.1 NVDA sold by borrower — 150% strike protection and full-term interest funded",
+        "cash": 0,
+        "shares": -0.1,
+        "reference": "dc35b8c2-4e4f-40d7-8ff3-c03c9eb669ec"
+      },
+      {
+        "id": "b8005928-e17b-4964-ac84-80c9436a5cd5",
+        "date": "2025-01-24",
+        "timestamp": 1789472361480,
+        "title": "Contract opened",
+        "detail": "Call spread — 0.25 share-equivalents — 2025-02-07",
+        "cash": -1.043461,
+        "shares": 0,
+        "reference": "53ee3af4-5ada-43c3-be8d-780682213057"
+      },
+      {
+        "id": "9de47f36-2b8f-40b0-86fb-b2340b31f2c7",
+        "date": "2025-01-24",
+        "timestamp": 1789472350440,
+        "title": "Contract opened",
+        "detail": "Long call — 0.1 share-equivalents — 2025-02-07",
+        "cash": -0.404494,
+        "shares": 0,
+        "reference": "5daae0f7-2339-42bf-a479-04a8b6395244"
+      },
+      {
+        "id": "01710180-e4bd-46e8-b968-a318d291c7a6",
+        "date": "2025-01-24",
+        "timestamp": 1789472331904,
+        "title": "Contract opened",
+        "detail": "Covered call — 0.333333 share-equivalents — 2025-02-07",
+        "cash": 0.778187,
+        "shares": 0,
+        "reference": "6e006ba3-127c-416e-8993-de66fbce4341"
+      },
+      {
+        "id": "d8788448-9d67-41ac-bb84-d6b5f588548e",
+        "date": "2025-01-24",
+        "timestamp": 1789472315451,
+        "title": "Vault deposit",
+        "detail": "2 NVDA deposited from test wallet",
+        "cash": 0,
+        "shares": 2
+      },
+      {
+        "id": "aabc610f-fcd4-464b-b767-9c3c7ec26940",
+        "date": "2025-01-24",
+        "timestamp": 1789472313674,
+        "title": "Vault deposit",
+        "detail": "500 USDC deposited from test wallet",
+        "cash": 500,
+        "shares": 0
+      }
+    ]
+  },
+  "risk": {
+    "cash": 0,
+    "shares": 0,
+    "grossCash": 0,
+    "grossShares": 0,
+    "freeCash": 499.349378,
+    "freeShares": 2,
+    "collateralValue": 0,
+    "availableValue": 759.029378,
+    "releasedValue": 0,
+    "utilization": 0,
+    "counterpartyCash": 0,
+    "counterpartyShares": 0,
+    "marketShares": 0,
+    "groups": []
+  }
+}

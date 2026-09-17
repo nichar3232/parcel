@@ -28,7 +28,7 @@ export function ChainContent({
                 : 'Solana verification'}
           </strong>
           <p>
-            Two test wallets · SPL settlement token · immutable replay sample
+            Two test wallets — SPL settlement token — immutable replay sample
           </p>
         </div>
         <span className="pill">{evidence?.network || 'Unavailable'}</span>
