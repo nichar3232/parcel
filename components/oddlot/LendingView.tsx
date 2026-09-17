@@ -203,7 +203,7 @@ function Markets({
 
   return (
     <>
-      <div className="od-grid-4">
+      <div className="od-grid-2">
         <Panel>
           <Stat
             label="Your supplies"
@@ -222,28 +222,9 @@ function Markets({
             }
           />
         </Panel>
-        <Panel>
-          <Stat
-            label="Available to borrow"
-            value={<Money value={position.available} />}
-            detail="At each reserve's loan-to-value"
-          />
-        </Panel>
-        <Panel>
-          <Stat
-            label="Total market size"
-            value={
-              <Money
-                value={rows.reduce(
-                  (t, r) => t + (r.mark?.supplied ?? 0) * r.price,
-                  0,
-                )}
-                decimals={0}
-              />
-            }
-            detail="Across every reserve"
-          />
-        </Panel>
+        {/* "Available to borrow" is the meter in the health card below,
+            and "total market size" is a number nobody on this screen can
+            do anything with. */}
       </div>
 
       <div className="od-work od-lend-work">
@@ -253,7 +234,6 @@ function Markets({
           <Panel>
             <PanelHead
               title="Reserves"
-              description="Each pool's rate follows its utilisation."
               action={
                 <Badge tone={feed.connected ? 'green' : 'neutral'}>
                   {feed.connected ? 'Live' : 'Simulated'}
@@ -272,13 +252,11 @@ function Markets({
                     <th>Asset</th>
                     <th className="num">Supply APY</th>
                     <th className="num">Borrow APY</th>
-                    <th className="num">Utilisation</th>
-                    <th className="num">LTV / liq.</th>
                     <th className="num">You hold</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(({ reserve: r, supply, borrow, utilisation }) => (
+                  {rows.map(({ reserve: r, supply, borrow }) => (
                     <tr key={r.symbol} title={r.note}>
                       <td>
                         <div className="od-asset-cell">
@@ -296,31 +274,20 @@ function Markets({
                       <td className="num">{pct(supply)}</td>
                       <td className="num">{pct(borrow)}</td>
                       <td className="num">
-                        <span className="od-util">
-                          <i
-                            aria-hidden
-                            style={{ width: `${utilisation * 100}%` }}
-                          />
-                          {(utilisation * 100).toFixed(0)}%
-                        </span>
-                      </td>
-                      <td className="num od-quiet">
-                        {(r.ltv * 100).toFixed(0)} /{' '}
-                        {(r.liquidation * 100).toFixed(0)}%
-                      </td>
-                      <td className="num">
-                        {held(r.symbol) ? qty(held(r.symbol)) : '—'}
+                        {/* Two decimals. The vault page is where a
+                            balance is read to the millionth; here it is
+                            a glance, and 10,283.996577 in a column of
+                            percentages is noise. */}
+                        {held(r.symbol)
+                          ? held(r.symbol).toLocaleString('en-US', {
+                              maximumFractionDigits: 2,
+                            })
+                          : '—'}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-            <div className="od-panel-foot">
-              <span>
-                Only NVDA lending, protected shorts and spot execute in this
-                build.
-              </span>
             </div>
           </Panel>
         </div>
@@ -398,11 +365,6 @@ function Borrow({
     };
   })();
 
-  const nvdaRates = rates(
-    feed.marks.NVDA?.utilisation ?? 0.5,
-    reserveOf('NVDA')!,
-  );
-
   const openReview = () =>
     setReview({
       action:
@@ -478,7 +440,9 @@ function Borrow({
   };
 
   return (
-    <div className="od-work od-lend-work">
+    <div className="od-borrow">
+      <HealthCard position={position} />
+
       <Panel className="od-ticket">
         <PanelHead
           title="Borrow and short"
@@ -586,18 +550,9 @@ function Borrow({
                 />
                 <Line label="Protective call" value={usd(protection)} />
                 <Line
-                  label="Maximum cash reserved"
-                  value={usd(q * k + interest)}
-                />
-                <Line
                   label="Maximum loss including protection"
                   value={usd(q * (k - s.market.price) + protection + interest)}
                   tone="down"
-                />
-                <Line
-                  label="Pool borrow APY"
-                  value={pct(nvdaRates.borrow)}
-                  tone="muted"
                 />
               </>
             ) : (
@@ -655,52 +610,10 @@ function Borrow({
         </div>
       </Panel>
 
-      <div className="od-insight">
-        <HealthCard position={position} />
-
-        <Panel>
-          <PanelHead
-            title="What you can post"
-            description="Each reserve's loan-to-value is what decides how much stock you can borrow against it."
-          />
-          <div className="od-table-wrap">
-            <table className="od-table">
-              <thead>
-                <tr>
-                  <th>Collateral</th>
-                  <th className="num">Max LTV</th>
-                  <th className="num">Liquidation at</th>
-                  <th className="num">Borrow APY</th>
-                  <th>Why</th>
-                </tr>
-              </thead>
-              <tbody>
-                {RESERVES.filter((r) => r.collateral).map((r) => {
-                  const u = feed.marks[r.symbol]?.utilisation ?? 0.5;
-                  return (
-                    <tr key={r.symbol}>
-                      <td>
-                        <div className="od-asset-cell">
-                          <AssetLogo symbol={r.symbol} size={28} />
-                          <b>{r.symbol}</b>
-                        </div>
-                      </td>
-                      <td className="num">{(r.ltv * 100).toFixed(0)}%</td>
-                      <td className="num">
-                        {(r.liquidation * 100).toFixed(0)}%
-                      </td>
-                      <td className="num od-down">{pct(rates(u, r).borrow)}</td>
-                      <td>
-                        <span className="od-why">{r.note}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
-      </div>
+      {/* A five-column reference table with a paragraph of prose in its
+          last cell used to sit to the right of the ticket. None of it
+          was a decision on this screen: the ticket prices the one asset
+          being borrowed. */}
 
       {review && (
         <Modal

@@ -18,7 +18,6 @@ import {
   type CoveredCallTerms,
 } from '@/lib/preipo/terms';
 import { AssetLogo } from './AssetLogo';
-import { Scoreboard } from './Scoreboard';
 import {
   Badge,
   Button,
@@ -485,25 +484,13 @@ function Underwrite({
                   onChange={(e) => setPremium(e.target.value)}
                 />
               </Field>
-              <Field
-                label="Total exercise payment (USDC)"
-                help="The contract stores totals. The strike per token is derived from them for display and is never the settlement figure."
-              >
+              <Field label="Total exercise payment (USDC)">
                 <input
                   value={exercise}
                   inputMode="decimal"
                   onChange={(e) => setExercise(e.target.value)}
                 />
               </Field>
-
-              <Scoreboard
-                risk={0}
-                reward={exercised}
-                capped
-                breakEven={[]}
-                premium={-keep}
-                invalid={!summary}
-              />
 
               <div className="od-lines">
                 <Line
@@ -518,14 +505,6 @@ function Underwrite({
                       : '—'
                   }
                   tone="muted"
-                />
-                <Line
-                  label="Tokens escrowed"
-                  value={
-                    summary
-                      ? `${summary.underlyingAmount} ${current.asset.symbol}`
-                      : '—'
-                  }
                 />
               </div>
 
@@ -561,13 +540,6 @@ function Underwrite({
                 ? `Two outcomes, both fixed the moment you sign.`
                 : 'Set the terms to price both outcomes.'
             }
-            action={
-              summary && (
-                <Badge tone="accent">
-                  Strike ${summary.derivedStrikePerToken}
-                </Badge>
-              )
-            }
           />
           {summary ? (
             <>
@@ -583,7 +555,7 @@ function Underwrite({
                     exercise payment.
                   </small>
                 </div>
-                <div className="od-outcome keep">
+                <div className="od-outcome">
                   <span>At or below ${summary.derivedStrikePerToken}</span>
                   <strong className="up">
                     <Money value={keep} />
@@ -610,15 +582,6 @@ function Underwrite({
               description="Enter a token quantity, a premium and an exercise payment to see both outcomes."
             />
           )}
-
-          {current.onchain &&
-            current.verdict.disclosures.map((d) => (
-              <div className="od-panel-body" key={d}>
-                <p className="od-note">
-                  <AlertTriangle size={13} /> {d}
-                </p>
-              </div>
-            ))}
 
           {current.onchain && (
             <div className="od-panel-foot">
@@ -705,6 +668,15 @@ function Underwrite({
           <p className="od-note">
             An offer with no funded buyer stays unfilled.
           </p>
+          {/* What the issuer can still do to this mint. These used to
+              sit under the chart on the page behind, which is where
+              three warning triangles stop being read. This is the last
+              screen before a signature, so it is where they belong. */}
+          {current.verdict.disclosures.map((d) => (
+            <p className="od-note" key={d}>
+              <AlertTriangle size={13} /> {d}
+            </p>
+          ))}
           <Button full disabled>
             Connect wallet to sign
           </Button>

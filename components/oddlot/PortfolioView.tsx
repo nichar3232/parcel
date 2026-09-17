@@ -132,17 +132,11 @@ export function PortfolioView({
             )}
           </div>
         </div>
-        <div className="od-summary-stats">
-          <Stat
-            label="Available to deploy"
-            value={<Money value={risk.availableValue} />}
-            detail="Unpledged cash and shares"
-          />
-          <Stat
-            label="Committed collateral"
-            value={<Money value={risk.collateralValue} />}
-            detail={`${(risk.utilization * 100).toFixed(1)}% of the vault`}
-          />
+        {/* Available and committed were printed here and then again,
+            with their proportions, in the donut immediately below. The
+            donut is the better of the two, so this keeps the one figure
+            it does not carry. */}
+        <div className="od-summary-stats one">
           <Stat
             label="Open contract P&L"
             value={<Money value={openPnl} sign />}

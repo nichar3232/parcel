@@ -6,7 +6,6 @@ import {
   ChevronDown,
   CircleHelp,
   Layers,
-  Plus,
   CalendarClock,
   Rocket,
   ShieldCheck,
@@ -17,7 +16,7 @@ import {
 import { Mark } from '@/components/brand/Mark';
 import { ThemeToggle } from '@/components/brand/Theme';
 import { useVault } from '@/hooks/oddlot/use-vault';
-import { useFlash, useMarks } from '@/hooks/oddlot/use-marks';
+import { useMarks } from '@/hooks/oddlot/use-marks';
 import { PortfolioView, type PortfolioTab } from './PortfolioView';
 import { TradeView, type TradeTab } from './TradeView';
 import { LendingView, type LendingTab } from './LendingView';
@@ -117,7 +116,9 @@ export default function Workspace() {
   }>({ page: 'Portfolio', tab: {}, welcome: false });
   const [advanced, setAdvanced] = useState(false);
   const [transfer, setTransfer] = useState<Transfer | null>(null);
-  const [modal, setModal] = useState<'market' | 'wallet' | 'about' | null>(null);
+  const [modal, setModal] = useState<'market' | 'wallet' | 'about' | null>(
+    null,
+  );
   const [nextDate, setNextDate] = useState('');
 
   useEffect(() => {
@@ -151,7 +152,6 @@ export default function Workspace() {
 
   const s = desk.state;
   const nvda = feed.marks.NVDA;
-  const flash = useFlash(nvda?.price ?? 0);
   const current = ui.tab[page] || TABS[page][0].id;
 
   const navigate = (next: Page, to?: string) => {
@@ -206,37 +206,12 @@ export default function Workspace() {
           ))}
         </nav>
 
+        {/* Three things used to live here that no page needed: a live
+            NVDA price the reader had not asked for, a Deposit button
+            that does what the wallet menu beside it already does, and a
+            date. The bar is now the wallet, the session and the
+            scheme. */}
         <div className="od-bar-right">
-          {nvda && (
-            <div
-              className="od-ticker"
-              title={
-                nvda.source === 'simulated'
-                  ? 'Simulated tick. No fresh observation from a venue.'
-                  : `Live from ${nvda.source}`
-              }
-            >
-              <i
-                className={`od-live ${nvda.source === 'simulated' ? 'stale' : 'beat'}`}
-              />
-              <em>NVDA</em>
-              <b data-flash={flash || undefined}>{usd(nvda.price)}</b>
-              <s className={nvda.change >= 0 ? 'up' : 'down'}>
-                {nvda.change >= 0 ? '+' : ''}
-                {(nvda.change * 100).toFixed(2)}%
-              </s>
-            </div>
-          )}
-
-          <button
-            className="od-bar-btn accent"
-            onClick={() => setTransfer({ asset: 'NVDA', direction: 'deposit' })}
-            disabled={!s}
-          >
-            <Plus size={15} />
-            <span className="wide">Deposit</span>
-          </button>
-
           <button
             className="od-bar-btn"
             aria-label="Wallet"
@@ -256,7 +231,7 @@ export default function Workspace() {
           >
             <CalendarClock size={15} />
             <span className="wide">
-              {s ? dateLabel(s.book.date) : 'Connecting'}
+              {s ? `Session ${dateLabel(s.book.date)}` : 'Connecting'}
             </span>
             <ChevronDown size={13} />
           </button>

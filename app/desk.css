@@ -798,6 +798,19 @@
 /* The ticket beside its chart. The ticket gets a fixed, comfortable
    measure and the chart takes the rest, so the chart never ends up
    narrower than the form next to it. */
+/* Borrow & short is one ticket and the health it changes, stacked. It
+   used to be a two-column split whose right-hand column held a
+   reference table; with that gone, a column layout leaves a screen of
+   empty canvas beside a form. */
+.od-borrow {
+  display: grid;
+  gap: 32px;
+  max-width: 760px;
+}
+.od-borrow .od-ticket {
+  max-width: 460px;
+}
+
 .od-work {
   display: grid;
   grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
@@ -1487,6 +1500,9 @@
 .od-summary-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.od-summary-stats.one {
+  grid-template-columns: minmax(0, 1fr);
 }
 .od-summary-stats .od-stat {
   padding: 4px 22px;
@@ -2225,10 +2241,17 @@
   font-size: 12px;
 }
 
+/* Two outcomes side by side, divided by a rule rather than drawn as
+   two boxes — one of which used to be filled green, which made a pair
+   of equally-certain outcomes look like a recommendation. */
 .od-outcomes {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 0 28px;
+}
+.od-outcomes > .od-outcome + .od-outcome {
+  padding-left: 28px;
+  border-left: 1px solid var(--pc-line-soft);
 }
 .od-outcome {
   display: flex;
@@ -2236,10 +2259,6 @@
   gap: 7px;
   padding: 14px 0 0;
   border-top: 1px solid var(--pc-line-soft);
-}
-.od-outcome.keep {
-  border-color: color-mix(in srgb, var(--pc-up) 32%, transparent);
-  background: var(--pc-up-wash);
 }
 .od-outcome > span {
   color: var(--pc-muted);
