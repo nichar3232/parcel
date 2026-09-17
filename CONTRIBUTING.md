@@ -1,4 +1,4 @@
-# Contributing to Oddlot
+# Contributing to Parcel
 
 Use Node from `.nvmrc` and `npm ci --ignore-scripts`. Start with [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 

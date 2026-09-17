@@ -11,7 +11,7 @@ import type { Quote, VaultSnapshot } from '../lib/oddlot/types';
 
 async function fixture() {
   const dir = await mkdtemp(`${tmpdir()}/oddlot-http-audit-`);
-  await writeFile(`${dir}/index.html`, '<h1>Oddlot</h1>');
+  await writeFile(`${dir}/index.html`, '<h1>Parcel</h1>');
   await writeFile(`${dir}/legacy.html`, '<h1>Legacy desk</h1>');
   const config = {
     ...configFromEnv({ CHAIN_ENABLED: 'false' }),
@@ -201,7 +201,7 @@ void test('vault HTTP: actual routes enforce ownership, CSRF, input limits, revi
       await (await fetch(`${f.base}/legacy`)).text(),
       '<h1>Legacy desk</h1>',
     );
-    assert.equal(await (await fetch(`${f.base}/`)).text(), '<h1>Oddlot</h1>');
+    assert.equal(await (await fetch(`${f.base}/`)).text(), '<h1>Parcel</h1>');
   } finally {
     await f.close();
   }

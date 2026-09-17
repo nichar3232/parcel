@@ -1,6 +1,6 @@
-# Oddlot architecture
+# Parcel architecture
 
-The new vault engine is specified in [PRODUCT.md](PRODUCT.md) and [DEVELOPMENT.md](DEVELOPMENT.md). It adds owner-scoped `vault_accounts` and `vault_quotes`, a settlement collateral engine with cross-contract rounding protection in `lib/oddlot`, and atomic actions in `server/oddlot`. The browser delegates all execution to that service. Custody is explicitly either persistent sandbox accounting or the current private-validator Oddlot protocol.
+The new vault engine is specified in [PRODUCT.md](PRODUCT.md) and [DEVELOPMENT.md](DEVELOPMENT.md). It adds owner-scoped `vault_accounts` and `vault_quotes`, a settlement collateral engine with cross-contract rounding protection in `lib/oddlot`, and atomic actions in `server/oddlot`. The browser delegates all execution to that service. Custody is explicitly either persistent sandbox accounting or the current private-validator Parcel protocol.
 
 The default Explore view is a presentation layer over the same engine. `lib/oddlot/explore.ts` builds validated fractional presets and model illustrations; `ExploreView` reuses `PayoffChart`, including underlying shares for protective puts and covered calls. Exploring does not mutate the vault. Opening a setup passes its complete terms to `OptionsView`, which requests the normal server-authoritative funded quote before confirmation. Displayed standalone exercise backing is not a portfolio collateral quote.
 
@@ -8,7 +8,7 @@ The default Explore view is a presentation layer over the same engine. `lib/oddl
 
 ```mermaid
 flowchart LR
-  View[Oddlot feature views] --> Controller[useVault controller]
+  View[Parcel feature views] --> Controller[useVault controller]
   Controller --> Transport[Shared same-origin HTTP client]
   Transport --> HTTP[Session and CSRF guarded vault routes]
   HTTP --> Service[VaultService: revisions, quotes, receipts]
@@ -90,11 +90,11 @@ Anchor verifies signer identity, mint/token-program ownership, vault authority, 
 
 The market authority is a trusted test oracle. Dataset/feed identity is stored, but this is not an external oracle proof. Market/offer accounts are retained, so rent is not reclaimed. Unsolicited token donations beyond the contracted reserve have no withdrawal path. There is no contractual permanent-outage refund, production corporate-action adjustment, margin netting or lending execution. These are explicit product/release boundaries.
 
-## Current Oddlot onchain mode
+## Current Parcel onchain mode
 
 The release adds `server/oddlot/chain/{codec,adapter,coordinator}.ts` and `programs/oddlot`. The program independently executes the current vault rules with SPL backing. The keyless sandbox remains explicit. `VaultService.plan` derives a candidate without committing it; `commit` records the result. The chain coordinator saves a plan and signed bytes before RPC sends, verifies confirmation and program state, then commits the index. The database permits one pending operation per owner. See [ODDLOT_CHAIN.md](ODDLOT_CHAIN.md) for configuration, signer trust, limits and recovery.
 
-The original architecture descriptions above remain specific to their named mode or to the legacy Strata program. Current Oddlot program evidence is in `docs/audit/2026-09-15-release`, not the original Strata proof directory.
+The original architecture descriptions above remain specific to their named mode or to the legacy Strata program. Current Parcel program evidence is in `docs/audit/2026-09-15-release`, not the original Strata proof directory.
 
 ## Product suite protocol (0.4)
 

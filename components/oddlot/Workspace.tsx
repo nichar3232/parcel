@@ -143,7 +143,7 @@ export default function Workspace() {
               How Parcel works
             </button>
             <a
-              href="https://github.com/nichar3232/oddlot"
+              href="https://github.com/nichar3232/parcel"
               target="_blank"
               rel="noreferrer"
             >

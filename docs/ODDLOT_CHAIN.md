@@ -1,6 +1,6 @@
-# Oddlot program execution
+# Parcel program execution
 
-`programs/oddlot` implements the current product. `programs/strata` remains the original spread escrow and is unchanged. The Oddlot build was deployed additively to the existing private validator without resetting its ledger or changing the running app.
+`programs/oddlot` implements the current product. `programs/strata` remains the original spread escrow and is unchanged. The Parcel build was deployed additively to the existing private validator without resetting its ledger or changing the running app.
 
 ## V2 compatibility
 
@@ -8,7 +8,7 @@ The product-suite program is `GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx` on t
 
 ## Operator configuration
 
-Set `ODDLOT_CHAIN_ENABLED=true`, `ODDLOT_PROGRAM_ID`, `ODDLOT_CASH_MINT`, and `ODDLOT_STOCK_MINT`, alongside the existing `CHAIN_ENABLED=true`, loopback RPC and exact `SOLANA_GENESIS_HASH` pin. Only private localnet is accepted for this release. Mainnet and devnet genesis hashes are refused. Leaving Oddlot chain mode unset starts the explicit sandbox; an enabled but unavailable chain never falls back to offchain execution.
+Set `ODDLOT_CHAIN_ENABLED=true`, `ODDLOT_PROGRAM_ID`, `ODDLOT_CASH_MINT`, and `ODDLOT_STOCK_MINT`, alongside the existing `CHAIN_ENABLED=true`, loopback RPC and exact `SOLANA_GENESIS_HASH` pin. Only private localnet is accepted for this release. Mainnet and devnet genesis hashes are refused. Leaving Parcel chain mode unset starts the explicit sandbox; an enabled but unavailable chain never falls back to offchain execution.
 
 The dedicated operator key stays at `STRATA_STATE_DIR/deployer.json` on the VPS. Both test mints have six decimals and that operator as mint authority. Session-specific owner and vault-account keys are derived using a domain-separated HMAC. These are service-held **test signers**, not user wallet authentication or self custody. Every program mutation requires both owner and operator signatures.
 

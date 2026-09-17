@@ -1,6 +1,6 @@
-# Oddlot project instructions
+# Parcel project instructions
 
-This repository contains Oddlot, a granular options and collateral-vault workspace, plus the retained Strata Solana desk at `/legacy`. The new vault has an explicit persistent sandbox mode and an optional Oddlot local-validator program with SPL test-token custody. Never describe sandbox results as onchain, or local-validator results as devnet/mainnet. Read `README.md`, `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT.md` before changing runtime boundaries.
+This repository contains Parcel, a granular options and collateral-vault workspace, plus the retained Strata Solana desk at `/legacy`. The new vault has an explicit persistent sandbox mode and an optional Parcel local-validator program with SPL test-token custody. Never describe sandbox results as onchain, or local-validator results as devnet/mainnet. Read `README.md`, `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT.md` before changing runtime boundaries.
 
 - Preserve same-origin frontend/API integration, server-authoritative accounting, session ownership and durable signed-transaction recovery.
 - Validate with `npm run check:repo`, `npm run check` and the relevant browser journeys. Never label simulated or local-validator evidence as devnet or mainnet.

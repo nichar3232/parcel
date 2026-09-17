@@ -64,7 +64,7 @@ export class OddlotAdapter implements VaultChainAdapter {
   readonly connection: Connection;
   readonly program: PublicKey;
   constructor(private config: Config) {
-    if (!config.oddlot) throw Error('Oddlot chain configuration is missing.');
+    if (!config.oddlot) throw Error('Parcel chain configuration is missing.');
     this.program = pk(config.oddlot.program);
     this.connection = new Connection(config.rpcUrl, {
       commitment: 'confirmed',
@@ -125,7 +125,7 @@ export class OddlotAdapter implements VaultChainAdapter {
         'EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
       ].includes(genesis)
     )
-      throw Error('Oddlot requires the pinned private local validator.');
+      throw Error('Parcel requires the pinned private local validator.');
     const [program, cash, stock] = await Promise.all([
       this.connection.getAccountInfo(this.program),
       getMint(this.connection, pk(this.config.oddlot!.cashMint)),
@@ -139,7 +139,7 @@ export class OddlotAdapter implements VaultChainAdapter {
       !cash.mintAuthority?.equals(pk(this.config.authority)) ||
       !stock.mintAuthority?.equals(pk(this.config.authority))
     )
-      throw Error('Oddlot program or test mints are not ready.');
+      throw Error('Parcel program or test mints are not ready.');
   }
   async prepare(
     session: string,
@@ -238,7 +238,7 @@ export class OddlotAdapter implements VaultChainAdapter {
     );
     if (simulated.value.err)
       throw Error(
-        `Oddlot program rejected the prepared action: ${JSON.stringify(simulated.value.err)} ${(simulated.value.logs || []).slice(-5).join(' ')}`,
+        `Parcel program rejected the prepared action: ${JSON.stringify(simulated.value.err)} ${(simulated.value.logs || []).slice(-5).join(' ')}`,
       );
     return {
       raw: tx.serialize().toString('base64'),

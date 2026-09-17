@@ -1,5 +1,5 @@
 {
-  "name": "oddlot",
+  "name": "parcel",
   "version": "0.4.0",
   "private": true,
   "engines": {
@@ -70,6 +70,6 @@
   "description": "Options by the share: collateral vaults, covered underwriting, structured positions and protected stock lending.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nichar3232/oddlot.git"
+    "url": "https://github.com/nichar3232/parcel.git"
   }
 }

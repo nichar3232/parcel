@@ -53,7 +53,7 @@ export function configFromEnv(
       network !== 'localnet')
   )
     throw Error(
-      'Oddlot chain mode requires its program, two mints, and an enabled pinned localnet.',
+      'Parcel chain mode requires its program, two mints, and an enabled pinned localnet.',
     );
   return {
     oddlot:

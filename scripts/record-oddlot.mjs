@@ -1,4 +1,4 @@
-/** Records the real same-origin Oddlot UI, API and configured local-validator execution. */
+/** Records the real same-origin Parcel UI, API and configured local-validator execution. */
 import { chromium, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -41,7 +41,7 @@ async function advance(date) {
 }
 const scenes = [
   [
-    'Oddlot lets you size equity options to your actual exposure. One share is a denomination, not a minimum lot. This is the working product: historical NVIDIA prices, model premiums, and disclosed test liquidity. Our vault executes on a private Solana validator.',
+    'Parcel lets you size equity options to your actual exposure. One share is a denomination, not a minimum lot. This is the working product: historical NVIDIA prices, model premiums, and disclosed test liquidity. Our vault executes on a private Solana validator.',
     async () => {
       await page.goto(`${base}/app`);
       await expect(page.locator('.oddlot')).toHaveAttribute(
@@ -126,7 +126,7 @@ const scenes = [
       });
       const result = await (await page.request.get('/api/vault')).json();
       if (result.mode !== 'localnet' || !result.chain?.signature)
-        throw Error('No confirmed Oddlot execution.');
+        throw Error('No confirmed Parcel execution.');
       await writeFile(
         'submission/oddlot-ui-evidence.json',
         JSON.stringify(

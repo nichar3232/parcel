@@ -17,7 +17,7 @@ import type { VaultAction, VaultSnapshot } from '../lib/oddlot/types';
 import assert from 'node:assert/strict';
 const config = configFromEnv();
 if (!config.oddlot || config.network !== 'localnet')
-  throw Error('Explicit Oddlot localnet configuration required.');
+  throw Error('Explicit Parcel localnet configuration required.');
 const adapter = new OddlotAdapter(config);
 if (process.argv.includes('--create-test-mints')) {
   const genesis = await adapter.connection.getGenesisHash();

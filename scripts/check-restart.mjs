@@ -100,8 +100,8 @@ const result = {
   checks: [
     'Same cookie resumes after systemd service restart',
     'Legacy portfolio and revision unchanged',
-    'Oddlot vault assets, collateral and revision unchanged',
-    'Oddlot deposit retry returns the original durable receipt',
+    'Parcel vault assets, collateral and revision unchanged',
+    'Parcel deposit retry returns the original durable receipt',
     'Same mutation key returns original durable receipt',
     'Database, pinned program, mint and Solana clock ready',
   ],

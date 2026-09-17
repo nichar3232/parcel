@@ -1,5 +1,5 @@
 [Unit]
-Description=Oddlot equity vaults, options desk and retained Solana API
+Description=Parcel equity vaults, options desk and retained Solana API
 After=network-online.target
 Wants=network-online.target
 [Service]

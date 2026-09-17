@@ -1,20 +1,20 @@
-# Oddlot
+# Parcel
 
 **Options, by the share.**
 
-[![CI](https://github.com/nichar3232/oddlot/actions/workflows/ci.yml/badge.svg)](https://github.com/nichar3232/oddlot/actions/workflows/ci.yml)
+[![CI](https://github.com/nichar3232/parcel/actions/workflows/ci.yml/badge.svg)](https://github.com/nichar3232/parcel/actions/workflows/ci.yml)
 
 A unified equity workspace for granular options, covered underwriting, stock lending, protected shorts and structured contracts. Size exposure in share-equivalents, including fractional quantities to six decimals; one share is a denomination, not a minimum lot. A contract must have a nonzero payable obligation.
 
-Oddlot is a working **private test-asset product**. The same-origin Node API supports a persistent keyless sandbox and **Oddlot program execution on a pinned private Solana validator**. In localnet mode, SPL test tokens back the vault and the program independently executes transfers, option deliveries, lending, protected shorts and cross collateral; SQLite indexes confirmed results. Both modes use funded test counterparties and historical prices. This is not a live brokerage or a source of external liquidity. The original Strata spread desk remains at `/legacy`.
+Parcel is a working **private test-asset product**. The same-origin Node API supports a persistent keyless sandbox and **Parcel program execution on a pinned private Solana validator**. In localnet mode, SPL test tokens back the vault and the program independently executes transfers, option deliveries, lending, protected shorts and cross collateral; SQLite indexes confirmed results. Both modes use funded test counterparties and historical prices. This is not a live brokerage or a source of external liquidity. The original Strata spread desk remains at `/legacy`.
 
-![Oddlot vault workspace](docs/audit/oddlot/overview.png)
+![Parcel vault workspace](docs/audit/oddlot/overview.png)
 
 ## Start
 
 ```sh
-git clone https://github.com/nichar3232/oddlot.git
-cd oddlot
+git clone https://github.com/nichar3232/parcel.git
+cd parcel
 npm ci --ignore-scripts
 npm run build
 npm run demo
@@ -63,7 +63,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-CI runs this flow on Linux from a clean checkout. Tests cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, capped shorts, dividends, browser recovery and mobile overflow. The release audit includes 65 application tests, 25 browser journeys, 6 native Rust tests, a 19-action confirmed Oddlot chain lifecycle and 9 rejected adversarial program transactions. Actual Solana program verification remains an explicit operator command. See the [findings and verification evidence](docs/audit/2026-09-15-release/REPORT.md).
+CI runs this flow on Linux from a clean checkout. Tests cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, capped shorts, dividends, browser recovery and mobile overflow. The release audit includes 65 application tests, 25 browser journeys, 6 native Rust tests, a 19-action confirmed Parcel chain lifecycle and 9 rejected adversarial program transactions. Actual Solana program verification remains an explicit operator command. See the [findings and verification evidence](docs/audit/2026-09-15-release/REPORT.md).
 
 ## Pricing and release boundaries
 
@@ -71,10 +71,10 @@ Hourly test-clock ticks carry the committed daily close forward; they are not hi
 
 Dividend contracts reference the issuer's declared $0.01 dividend for the March 12, 2025 record-date event, payable April 2. They do not transfer dividend ownership or model an xStock multiplier as a cash payment. See [product rules and sources](docs/PRODUCT.md).
 
-Sandbox rules are backend-enforced. Configured localnet vaults execute the matching Oddlot program with actual SPL escrow and server-held test signers. Production still requires wallet authentication and client signing, external liquidity, live pricing/oracle feeds, issuer/corporate-action handling and independent program review. Onchain mode limits each vault to 64 active positions for account and transaction compute bounds; sandbox mode supports 500. The original Solana evidence remains local-validator evidence; devnet funding is still an open gate. The prior Bellwether repository has been retired; its history is preserved here as this repository's root commit `ed73929`.
+Sandbox rules are backend-enforced. Configured localnet vaults execute the matching Parcel program with actual SPL escrow and server-held test signers. Production still requires wallet authentication and client signing, external liquidity, live pricing/oracle feeds, issuer/corporate-action handling and independent program review. Onchain mode limits each vault to 64 active positions for account and transaction compute bounds; sandbox mode supports 500. The original Solana evidence remains local-validator evidence; devnet funding is still an open gate. The prior Bellwether repository has been retired; its history is preserved here as this repository's root commit `ed73929`.
 
 The [original engineering audit](docs/audit/REPORT.md) records the legacy execution review and dependency findings. Two moderate entries remain in an unused upstream streaming parser; there are no critical/high findings in that retained audit. The original audited program artifacts and evidence are preserved. No private keys, runtime databases or real `.env` files belong in this repository.
 
 ## Review the current product
 
-The [product-suite verification](docs/audit/2026-09-15-product-suite/REPORT.md) covers this extension. The [Oddlot submission](submission/ENTRY.md), [demo script](submission/DEMO_SCRIPT.md), and [narrated video](submission/oddlot-demo.mp4) remain the prior 0.3 release materials; video/live-provider work is outside this product extension. Previous Bellwether/Strata materials are retained in `submission/legacy/` as historical evidence. A fresh keyless clone starts in sandbox mode. See [Oddlot localnet setup](docs/ODDLOT_CHAIN.md) to enable the new program; execution never silently falls back to SQLite.
+The [product-suite verification](docs/audit/2026-09-15-product-suite/REPORT.md) covers this extension. The [Parcel submission](submission/ENTRY.md), [demo script](submission/DEMO_SCRIPT.md), and [narrated video](submission/oddlot-demo.mp4) remain the prior 0.3 release materials; video/live-provider work is outside this product extension. Previous Bellwether/Strata materials are retained in `submission/legacy/` as historical evidence. A fresh keyless clone starts in sandbox mode. See [Parcel localnet setup](docs/ODDLOT_CHAIN.md) to enable the new program; execution never silently falls back to SQLite.

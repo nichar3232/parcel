@@ -1,4 +1,4 @@
-# Oddlot development and integration
+# Parcel development and integration
 
 ## One application, one origin
 
@@ -69,7 +69,7 @@ The route table and chain state machine are in [ARCHITECTURE.md](ARCHITECTURE.md
 - A static-only hosting deployment cannot run this backend. Keep UI and API together on the VPS, or provision an equivalent Node service with persistent storage.
 
 
-## Oddlot vault API
+## Parcel vault API
 
 After `GET /api/session`, `GET /api/vault` returns the vault book, its independent revision, risk summary and the stored market session. `POST /api/vault/quote` accepts `{revision, terms}` and returns a 30-second owner-bound quote. `POST /api/vault/actions` accepts `{revision, action}`. All POST routes require the same cookie, `X-CSRF-Token` and `Idempotency-Key`. The quote cannot be reused under another key, account or revised portfolio.
 
@@ -84,9 +84,9 @@ The browser saves a pending mutation's original body and key in session storage 
 
 The September 15 [follow-up audit](audit/2026-09-15-review/REPORT.md) covers real HTTP guards, injected transaction failure, disk reopen, legacy database migration, fractional cross-contract rounding, invalid form inputs, delayed quotes, account changes, and interrupted responses.
 
-## Current Oddlot program integration
+## Current Parcel program integration
 
-The keyless command still starts a sandbox. To execute the new vault program, configure the explicit Oddlot program/mint variables described in [ODDLOT_CHAIN.md](ODDLOT_CHAIN.md). In that mode, `/api/ready` checks the Oddlot program and test mints; `/api/vault` labels the mode `localnet` and includes the latest verified ledger, signature, slot and revision. `POST /api/vault/quote` also accepts `{revision, positionId}` for a reviewed option close. The final historical session offers `restart`; this restores test allocations only when all positions are flat and keeps revision and receipts.
+The keyless command still starts a sandbox. To execute the new vault program, configure the explicit Parcel program/mint variables described in [ODDLOT_CHAIN.md](ODDLOT_CHAIN.md). In that mode, `/api/ready` checks the Parcel program and test mints; `/api/vault` labels the mode `localnet` and includes the latest verified ledger, signature, slot and revision. `POST /api/vault/quote` also accepts `{revision, positionId}` for a reviewed option close. The final historical session offers `restart`; this restores test allocations only when all positions are flat and keeps revision and receipts.
 
 ## Product suite development
 

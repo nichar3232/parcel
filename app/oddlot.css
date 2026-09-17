@@ -1,4 +1,4 @@
-/* Oddlot's application surface is intentionally isolated from the retained desk. */
+/* Parcel's application surface is intentionally isolated from the retained desk. */
 .oddlot {
   --od-ink: #101212;
   --od-muted: #5c6569;

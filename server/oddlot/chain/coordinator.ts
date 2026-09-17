@@ -128,7 +128,7 @@ export class VaultChainCoordinator {
           // A known simulation rejection has no external effect; RPC availability
           // failures leave the original plan recoverable instead of inventing a retry.
           if (
-            message.startsWith('Oddlot program rejected') ||
+            message.startsWith('Parcel program rejected') ||
             message.startsWith('Onchain mode needs')
           ) {
             this.store.db

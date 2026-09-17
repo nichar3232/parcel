@@ -1,4 +1,4 @@
-# Oddlot product and collateral rules
+# Parcel product and collateral rules
 
 ## Contract granularity
 
@@ -33,15 +33,15 @@ The engine never gives scenario/correlation credit across issuers or outside pro
 
 A stock loan removes shares from the user's spendable vault. The borrower posts 150% of opening stock value plus the full term's 3.5% annualized test borrow interest. The borrower sells the shares to the funded test market and buys a covered protective call with strike 150% of entry. Market inventory backing that call is reserved. On recall or expiry, cash escrow pays the lesser of spot and cap to repurchase shares, principal returns to the lender, accrued interest is credited, and unused escrow returns to the borrower. This test protection permits capped repurchase on early recall; it is not a vanilla European call quote. This isolated test market does not claim external utilization or market lending rates.
 
-An ordinary short's loss is unbounded. Oddlot therefore offers protected shorts only: borrowed shares are sold to a separately funded test market, a share-backed protective call is purchased, and the strike repurchase amount plus full-term interest is locked. This specific protection is exercisable on early close as well as term expiry. If the price exceeds the cap, call delivery and stock repayment occur atomically. Otherwise the stock is repurchased from the market. The initial short proceeds remain collateral. The protective-call premium is nonrefundable when closing early; no model buyback value for that protection is credited.
+An ordinary short's loss is unbounded. Parcel therefore offers protected shorts only: borrowed shares are sold to a separately funded test market, a share-backed protective call is purchased, and the strike repurchase amount plus full-term interest is locked. This specific protection is exercisable on early close as well as term expiry. If the price exceeds the cap, call delivery and stock repayment occur atomically. Otherwise the stock is repurchased from the market. The initial short proceeds remain collateral. The protective-call premium is nonrefundable when closing early; no model buyback value for that protection is credited.
 
 ## Dividend reference
 
-The initial contract is a capped claim on a specified cash-dividend-per-share observation, not an ownership right in a company distribution. NVIDIA declared $0.01 per share, payable April 2, 2025 to holders of record March 12. Oddlot uses that record-date event as its explicit test settlement date. [Issuer announcement](https://investor.nvidia.com/news/press-release-details/2025/NVIDIA-Announces-Financial-Results-for-Fourth-Quarter-and-Fiscal-2025/).
+The initial contract is a capped claim on a specified cash-dividend-per-share observation, not an ownership right in a company distribution. NVIDIA declared $0.01 per share, payable April 2, 2025 to holders of record March 12. Parcel uses that record-date event as its explicit test settlement date. [Issuer announcement](https://investor.nvidia.com/news/press-release-details/2025/NVIDIA-Announces-Financial-Results-for-Fourth-Quarter-and-Fiscal-2025/).
 
 Dividends are already a derivatives reference in established markets; this product does not claim to invent dividend derivatives. [CME dividend futures and options](https://www.cmegroup.com/markets/equities/us-index/equity-index-dividend-futures.html).
 
-Issuer mechanics must remain separate. xStocks describes dividend reinvestment and a multiplier; on Solana the base token amount can remain constant while the multiplier changes its represented exposure. A share-equivalent contract must account for those terms before integrating a real issuer token. Oddlot's test shares do not claim that integration. [xStocks corporate-action documentation](https://docs.xstocks.fi/docs/dividends-and-stock-splits).
+Issuer mechanics must remain separate. xStocks describes dividend reinvestment and a multiplier; on Solana the base token amount can remain constant while the multiplier changes its represented exposure. A share-equivalent contract must account for those terms before integrating a real issuer token. Parcel's test shares do not claim that integration. [xStocks corporate-action documentation](https://docs.xstocks.fi/docs/dividends-and-stock-splits).
 
 ## Current release
 
