@@ -802,6 +802,19 @@
    used to be a two-column split whose right-hand column held a
    reference table; with that gone, a column layout leaves a screen of
    empty canvas beside a form. */
+/* The line that states the collateral mode, and the way to change it.
+   It replaces a whole tab. */
+.od-holdings-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--pc-line-soft);
+  color: var(--pc-muted);
+  font-size: 12.5px;
+}
+
 .od-borrow {
   display: grid;
   gap: 32px;

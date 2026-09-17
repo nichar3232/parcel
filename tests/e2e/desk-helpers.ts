@@ -52,14 +52,18 @@ export async function nav(page: Page, name: string) {
     case 'Vault':
     case 'Portfolio':
       await navTop(page, 'Portfolio');
-      return section(page, 'Overview');
+      return section(page, 'Holdings');
+    // Positions and Collateral are no longer tabs of their own: the
+    // open positions are on Holdings, and the collateral policy is a
+    // setting reached from the line that states it.
     case 'Positions':
       await navTop(page, 'Portfolio');
-      return section(page, 'Positions');
+      return section(page, 'Holdings');
     case 'Risk':
     case 'Collateral':
       await navTop(page, 'Portfolio');
-      return section(page, 'Collateral');
+      await section(page, 'Holdings');
+      return page.getByRole('button', { name: 'Change', exact: true }).click();
     case 'Activity':
       await navTop(page, 'Portfolio');
       return section(page, 'Activity');
@@ -70,13 +74,13 @@ export async function nav(page: Page, name: string) {
       return section(page, name);
     case 'Lending':
       await navTop(page, 'Lending');
-      return section(page, 'Borrow & short');
+      return section(page, 'Lend & borrow');
     case 'Lending markets':
       await navTop(page, 'Lending');
-      return section(page, 'Markets');
+      return section(page, 'Rates');
     case 'Lending positions':
-      await navTop(page, 'Lending');
-      return section(page, 'Positions');
+      await navTop(page, 'Portfolio');
+      return section(page, 'Holdings');
     case 'Pre-IPO':
       return navTop(page, 'Pre-IPO');
     default:
@@ -116,38 +120,13 @@ export async function execute(page: Page) {
   await expect(page.getByRole('dialog')).toHaveCount(0);
 }
 
-/**
- * Move the replay clock.
- *
- * The control used to be a bare date in the app bar of every page,
- * where nothing said what it was. It now lives on the one panel that is
- * about the replay window, so getting to it means going to Portfolio
- * first — which is what a reader does too. The caller is put back on
- * the destination it was on, because a helper that silently moves the
- * page is a helper that breaks the assertion after it.
- */
 export async function advance(page: Page, date: string) {
-  const was = await page
-    .getByRole('navigation', { name: 'Main navigation' })
-    .getByRole('button')
-    .filter({ has: page.locator('[aria-current="page"]') })
-    .or(
-      page
-        .getByRole('navigation', { name: 'Main navigation' })
-        .locator('[aria-current="page"]'),
-    )
-    .first()
-    .innerText();
-
-  await nav(page, 'Portfolio');
   await page.getByRole('button', { name: 'Market controls' }).click();
   await page.getByLabel('Advance to session').selectOption(date);
   await page
     .getByRole('button', { name: 'Advance & settle due positions' })
     .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-
-  if (was.trim() && was.trim() !== 'Portfolio') await navTop(page, was.trim());
 }
 
 /** The quote the backend actually priced, not what the form claims. */

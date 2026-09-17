@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
   ArrowUpRight,
+  CalendarClock,
   ChevronDown,
   CircleHelp,
   Layers,
@@ -53,10 +54,12 @@ type Page = (typeof NAV)[number]['name'];
  * tab it should render and nothing else.
  */
 const TABS = {
+  // "Positions" listed the same open contracts as the overview and
+  // "Collateral" the same reserves the assets table already columns.
+  // Collateral is still reachable — it is a real setting — from the line
+  // that states which mode is on.
   Portfolio: [
-    { id: 'overview', label: 'Overview' },
-    { id: 'positions', label: 'Positions' },
-    { id: 'collateral', label: 'Collateral' },
+    { id: 'overview', label: 'Holdings' },
     { id: 'activity', label: 'Activity' },
   ],
   Trade: [
@@ -68,10 +71,11 @@ const TABS = {
     { id: 'market', label: 'Market' },
     { id: 'underwrite', label: 'Underwrite' },
   ],
+  // "Positions" listed the loans and shorts that Portfolio → Holdings
+  // already lists. A position is a position wherever it was opened.
   Lending: [
-    { id: 'markets', label: 'Markets' },
-    { id: 'borrow', label: 'Borrow & short' },
-    { id: 'positions', label: 'Positions' },
+    { id: 'markets', label: 'Rates' },
+    { id: 'borrow', label: 'Lend & borrow' },
   ],
 } as const;
 
@@ -87,7 +91,7 @@ const TABS = {
  */
 const ENTRY: Record<string, { page: Page; tab?: string }> = {
   portfolio: { page: 'Portfolio' },
-  positions: { page: 'Portfolio', tab: 'positions' },
+  positions: { page: 'Portfolio' },
   options: { page: 'Trade', tab: 'trade' },
   trade: { page: 'Trade', tab: 'trade' },
   underwriting: { page: 'Trade', tab: 'underwrite' },
@@ -234,7 +238,18 @@ export default function Workspace() {
           onChange={setTab}
         />
         <div className="od-subbar-right">
-          {(page === 'Trade' || page === 'Pre-IPO') && (
+          <button
+            className="od-bar-btn"
+            aria-label="Market controls"
+            onClick={() => setModal('market')}
+            disabled={!s}
+          >
+            <CalendarClock size={15} />
+            <span className="wide">
+              {s ? `Session ${dateLabel(s.book.date)}` : 'Connecting'}
+            </span>
+          </button>
+          {page === 'Trade' && (
             <Segmented
               label="Detail level"
               size="sm"
@@ -310,7 +325,6 @@ export default function Workspace() {
             tab={current as PortfolioTab}
             navigate={navigate}
             onTransfer={setTransfer}
-            onMarketControls={() => setModal('market')}
           />
         ) : page === 'Trade' ? (
           /* Keyed on the section: the ticket's template, its legs and
@@ -331,7 +345,6 @@ export default function Workspace() {
           <PreIpoView
             feed={feed}
             tab={current as PreIpoTab}
-            advanced={advanced}
             openTrade={() => navigate('Trade', 'underwrite')}
           />
         ) : (

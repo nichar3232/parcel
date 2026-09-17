@@ -71,12 +71,10 @@ const company = (displayName: string) =>
 export function PreIpoView({
   feed,
   tab,
-  advanced,
   openTrade,
 }: {
   feed: MarkFeed;
   tab: PreIpoTab;
-  advanced: boolean;
   openTrade: () => void;
 }) {
   const [data, setData] = useState<AssetsPayload | null>(null);
@@ -152,7 +150,6 @@ export function PreIpoView({
       current={current}
       escrowable={escrowable}
       onSelect={setSelected}
-      advanced={advanced}
       openTrade={openTrade}
     />
   );
@@ -244,17 +241,10 @@ function Market({
     return t + (num(meta.markValuation) ?? num(meta.impliedValuation) ?? 0);
   }, 0);
 
-  // Every rejected asset here fails for the same reasons, so the page
-  // states them once for the group instead of eight times.
-  const shared = [
-    ...new Set(blocked.flatMap((a) => a.verdict.blockers.map((b) => b.code))),
-  ].filter((code) =>
-    blocked.every((a) => a.verdict.blockers.some((b) => b.code === code)),
-  );
 
   return (
     <>
-      <div className="od-grid-4">
+      <div className="od-grid-2">
         <Panel>
           <Stat
             label="Companies listed"
@@ -267,25 +257,6 @@ function Market({
             label="Combined valuation"
             value={compact(totalValuation)}
             detail="As published by the sponsors"
-          />
-        </Panel>
-        <Panel>
-          <Stat
-            label="Rejected by their mint"
-            value={String(blocked.length)}
-            detail={
-              shared.length
-                ? (BLOCKER_LABEL[shared[0]] || shared[0]).toLowerCase()
-                : 'Mixed reasons'
-            }
-            tone={blocked.length ? 'negative' : ''}
-          />
-        </Panel>
-        <Panel>
-          <Stat
-            label="Verified against"
-            value={data.network}
-            detail="Read from each mint account"
           />
         </Panel>
       </div>
@@ -333,15 +304,6 @@ function Market({
             </tbody>
           </table>
         </div>
-        <div className="od-panel-foot">
-          <span>
-            A token whose issuer can move it out of escrow cannot back a
-            contract, whatever it is worth.
-          </span>
-          <span>
-            Refreshed {new Date(data.refreshedAt).toLocaleTimeString()}
-          </span>
-        </div>
       </Panel>
     </>
   );
@@ -355,7 +317,6 @@ function Underwrite({
   current,
   escrowable,
   onSelect,
-  advanced,
   openTrade,
 }: {
   data: AssetsPayload;
@@ -363,7 +324,6 @@ function Underwrite({
   current: ResolvedAsset | null;
   escrowable: ResolvedAsset[];
   onSelect: (id: string) => void;
-  advanced: boolean;
   openTrade: () => void;
 }) {
   const [amount, setAmount] = useState('0.25');
@@ -599,37 +559,10 @@ function Underwrite({
           )}
         </Panel>
 
-        {advanced && (
-          <Panel>
-            <PanelHead
-              title="Issuer terms"
-              description="What the sponsor keeps the right to do, read from its own documentation."
-            />
-            <div className="od-panel-body">
-              <p className="od-note">{current.asset.issuerTerms.instrument}</p>
-              <h3 className="od-subhead">Rights the issuer retains</h3>
-              <ul className="od-bullets">
-                {current.asset.issuerTerms.issuerRights.map((r) => (
-                  <li key={r}>{r}</li>
-                ))}
-              </ul>
-              <h3 className="od-subhead">Restrictions</h3>
-              <ul className="od-bullets">
-                {current.asset.issuerTerms.restrictions.map((r) => (
-                  <li key={r}>{r}</li>
-                ))}
-              </ul>
-              <a
-                className="od-link"
-                href={current.asset.issuerTerms.reference}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Issuer documentation <ExternalLink size={13} />
-              </a>
-            </div>
-          </Panel>
-        )}
+        {/* "Advanced" on this page revealed exactly one panel of
+            issuer terms, which is not a mode, it is a panel. The rights
+            the issuer keeps are on the confirm step with the rest of
+            the disclosures, next to a link to its documentation. */}
       </div>
 
       {confirm && summary && (
@@ -677,6 +610,14 @@ function Underwrite({
               <AlertTriangle size={13} /> {d}
             </p>
           ))}
+          <a
+            className="od-link"
+            href={current.asset.issuerTerms.reference}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Issuer documentation <ExternalLink size={13} />
+          </a>
           <Button full disabled>
             Connect wallet to sign
           </Button>

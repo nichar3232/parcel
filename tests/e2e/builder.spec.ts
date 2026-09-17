@@ -73,10 +73,10 @@ test('the shell is four destinations, each with its own sections', async ({
 
   // Every destination names itself, and its sections belong to it.
   const sections: Record<string, string[]> = {
-    Portfolio: ['Overview', 'Positions', 'Collateral', 'Activity'],
+    Portfolio: ['Holdings', 'Activity'],
     Trade: ['Trade', 'Underwrite', 'Structures'],
     'Pre-IPO': ['Market', 'Underwrite'],
-    Lending: ['Markets', 'Borrow & short', 'Positions'],
+    Lending: ['Rates', 'Lend & borrow'],
   };
   for (const [name, tabs] of Object.entries(sections)) {
     await navTop(page, name);

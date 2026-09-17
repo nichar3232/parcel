@@ -3,7 +3,6 @@ import { useMemo, useState } from 'react';
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  CalendarClock,
   Download,
   Search,
   TrendingDown,
@@ -11,16 +10,18 @@ import {
 } from 'lucide-react';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { MarkFeed } from '@/hooks/oddlot/use-marks';
-import { marketRows } from '@/lib/oddlot/market';
 import { orderGreeks } from '@/lib/oddlot/math';
-import type { Asset } from '@/lib/oddlot/types';
+import { accruedInterest, shortCloseAmounts } from '@/lib/oddlot/funding';
+import type { Asset, VaultAction } from '@/lib/oddlot/types';
 import { AssetLogo, ASSETS } from './AssetLogo';
-import { BookPayoff, Donut, Legend, Meter, PriceHistory } from './charts';
+import { Meter } from './charts';
 import type { Transfer } from './TransferDialog';
 import {
   Badge,
   Button,
   Empty,
+  Line,
+  Modal,
   Money,
   Panel,
   PanelHead,
@@ -48,14 +49,12 @@ export function PortfolioView({
   tab,
   navigate,
   onTransfer,
-  onMarketControls,
 }: {
   desk: VaultController;
   feed: MarkFeed;
   tab: PortfolioTab;
   navigate: (page: 'Portfolio' | 'Trade' | 'Pre-IPO' | 'Lending', to?: string) => void;
   onTransfer: (t: Transfer) => void;
-  onMarketControls: () => void;
 }) {
   const s = desk.state!;
   const { book, risk, market } = s;
@@ -63,9 +62,6 @@ export function PortfolioView({
 
   const nav = book.vault.USDC + book.vault.NVDA * market.price;
   const active = book.options.filter((p) => p.status === 'active');
-  const loans = book.loans.filter((p) => p.status === 'active');
-  const shorts = book.shorts.filter((p) => p.status === 'active');
-  const lent = loans.reduce((t, p) => t + p.quantity, 0);
 
   /**
    * Mark every open contract to the model at the current session price.
@@ -93,27 +89,25 @@ export function PortfolioView({
   );
   const openPnl = marked.reduce((t, m) => t + m.pnl, 0);
 
-  if (tab === 'positions') return <Positions marked={marked} desk={desk} navigate={navigate} />;
   if (tab === 'collateral') return <Collateral desk={desk} />;
   if (tab === 'activity') return <Activity desk={desk} />;
 
-  const slices = [
-    { label: 'Available', value: risk.availableValue, color: 'var(--pc-cyan)' },
-    {
-      label: 'Reserved',
-      value: risk.collateralValue,
-      color: 'var(--pc-magenta)',
-    },
-    {
-      label: 'Out on loan',
-      value: lent * market.price,
-      color: 'var(--pc-warn)',
-    },
-  ];
-
+  /**
+   * Holdings: what you have, and what is open against it.
+   *
+   * This screen used to carry a donut of the same three figures printed
+   * above it, a price history of one ticker, and a payoff curve summing
+   * a book that is usually one contract long — three pictures that were
+   * there because the space was. What a reader comes here for is the
+   * balance and the list, so the screen is the balance and the list.
+   *
+   * "Positions" was a second tab showing the same open contracts, and
+   * "Collateral" a third showing what the reserved column already says.
+   * Positions is folded in below; the collateral policy is a setting,
+   * reached from the line that states it.
+   */
   return (
     <>
-      {/* The headline row. One figure is the answer; the rest support it. */}
       <div className="od-summary">
         <div className="od-summary-main">
           <span>Vault value</span>
@@ -135,10 +129,6 @@ export function PortfolioView({
             )}
           </div>
         </div>
-        {/* Available and committed were printed here and then again,
-            with their proportions, in the donut immediately below. The
-            donut is the better of the two, so this keeps the one figure
-            it does not carry. */}
         <div className="od-summary-stats one">
           <Stat
             label="Open contract P&L"
@@ -149,67 +139,8 @@ export function PortfolioView({
         </div>
       </div>
 
-      <div className="od-grid-2 od-overview-grid">
-        <Panel>
-          <PanelHead
-            title="Where your capital sits"
-            action={<Badge tone="accent">{active.length} open</Badge>}
-          />
-          <div className="od-panel-body od-allocation">
-            <Donut
-              slices={slices}
-              centre={`${(risk.utilization * 100).toFixed(0)}%`}
-              caption="committed"
-            />
-            <Legend
-              slices={[
-                { ...slices[0], note: usd(risk.availableValue) },
-                { ...slices[1], note: usd(risk.collateralValue) },
-                { ...slices[2], note: `${qty(lent)} NVDA` },
-              ]}
-            />
-          </div>
-          <div className="od-panel-foot">
-            <span>
-              Collateral mode{' '}
-              {book.margin === 'cross' ? 'cross' : 'isolated'}
-            </span>
-            <Button variant="quiet" size="sm" onClick={() => navigate('Portfolio', 'collateral')}>
-              Change
-            </Button>
-          </div>
-        </Panel>
-
-        <Panel>
-          <PanelHead
-            title="NVDA over the replay window"
-            description={`Stored closes. Session ${dateLabel(book.date)} at ${usd(market.price)}.`}
-            /* The replay clock used to be a bare date in the top bar of
-               every page, where nothing said what it was. This is the
-               one panel that is about the replay window, so the control
-               that moves it lives here. */
-            action={
-              <button
-                className="od-bar-btn"
-                aria-label="Market controls"
-                onClick={onMarketControls}
-              >
-                <CalendarClock size={14} />
-                <span>Change session</span>
-              </button>
-            }
-          />
-          <div className="od-panel-body">
-            <PriceHistory rows={marketRows} current={book.date} />
-          </div>
-        </Panel>
-      </div>
-
       <Panel>
-        <PanelHead
-          title="Your assets"
-          description="Spendable balances are separate from assets pledged to a contract."
-        />
+        <PanelHead title="Your assets" />
         <div className="od-table-wrap">
           <table className="od-table">
             <thead>
@@ -278,26 +209,18 @@ export function PortfolioView({
         </div>
       </Panel>
 
-      {(active.length > 0 || loans.length > 0 || shorts.length > 0) && (
-        <Panel>
-          <PanelHead
-            title="What your book does at expiry"
-            description="Every open contract plus the shares in your vault, summed across the price range."
-            action={
-              <Button variant="quiet" size="sm" onClick={() => navigate('Portfolio', 'positions')}>
-                See positions
-              </Button>
-            }
-          />
-          <div className="od-panel-body">
-            <BookPayoff
-              positions={active}
-              shares={book.vault.NVDA}
-              spot={market.price}
-            />
-          </div>
-        </Panel>
-      )}
+      <div className="od-holdings-foot">
+        <span>Collateral mode {book.margin === 'cross' ? 'cross' : 'isolated'}</span>
+        <Button
+          variant="quiet"
+          size="sm"
+          onClick={() => navigate('Portfolio', 'collateral')}
+        >
+          Change
+        </Button>
+      </div>
+
+      <Positions marked={marked} desk={desk} navigate={navigate} />
     </>
   );
 }
@@ -317,6 +240,25 @@ function Positions({
   const loans = s.book.loans.filter((p) => p.status === 'active');
   const shorts = s.book.shorts.filter((p) => p.status === 'active');
   const settled = s.book.options.filter((p) => p.status !== 'active');
+
+  /**
+   * Closing a loan or a short.
+   *
+   * These actions used to live on a Lending → Positions tab that listed
+   * the same two tables as this one. The tab is gone; the actions came
+   * with it, because a position you can see and cannot close is worse
+   * than one you cannot see.
+   */
+  const [review, setReview] = useState<{
+    action: VaultAction;
+    title: string;
+    label: string;
+    value: number;
+    details: [string, string][];
+  } | null>(null);
+  const confirm = async () => {
+    if (review && (await desk.act(review.action, s.revision))) setReview(null);
+  };
 
   if (!marked.length && !loans.length && !shorts.length && !settled.length)
     return (
@@ -408,6 +350,9 @@ function Positions({
                   <th>Term ends</th>
                   <th className="num">Collateral</th>
                   <th className="num">Interest prepaid</th>
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -419,6 +364,35 @@ function Positions({
                     <td>{expiryLabel(p.expiry)}</td>
                     <td className="num">{usd(p.collateral)}</td>
                     <td className="num">{usd(p.prepaidInterest, 4)}</td>
+                    <td>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={desk.busy}
+                        onClick={() =>
+                          setReview({
+                            action: { type: 'recall', id: p.id },
+                            title: 'Review stock recall',
+                            label: 'Interest you receive',
+                            value: accruedInterest(
+                              p.prepaidInterest,
+                              p.opened,
+                              p.expiry,
+                              s.book.date,
+                            ),
+                            details: [
+                              ['Shares returned', `${qty(p.quantity)} NVDA`],
+                              [
+                                'Unused borrower collateral',
+                                'Returned to the borrower after repurchase',
+                              ],
+                            ],
+                          })
+                        }
+                      >
+                        Recall shares
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -442,6 +416,9 @@ function Positions({
                   <th className="num">Protection</th>
                   <th>Term ends</th>
                   <th className="num">Open P&amp;L</th>
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -457,6 +434,36 @@ function Positions({
                       <td className={`num ${pnl >= 0 ? 'od-up' : 'od-down'}`}>
                         {pnl > 0 ? '+' : ''}
                         {usd(pnl)}
+                      </td>
+                      <td>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={desk.busy}
+                          onClick={() => {
+                            const close = shortCloseAmounts(
+                              p,
+                              s.market.price,
+                              s.book.date,
+                            );
+                            setReview({
+                              action: { type: 'close-short', id: p.id },
+                              title: 'Review short close',
+                              label: 'You pay to cover and repay',
+                              value: close.total,
+                              details: [
+                                ['Repurchase cost', usd(close.repurchase, 6)],
+                                ['Accrued borrow cost', usd(close.interest, 6)],
+                                [
+                                  'Total P&L including paid protection',
+                                  usd(close.pnl, 6),
+                                ],
+                              ],
+                            });
+                          }}
+                        >
+                          Cover &amp; repay
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -504,6 +511,29 @@ function Positions({
             </table>
           </div>
         </Panel>
+      )}
+
+      {review && (
+        <Modal
+          title={review.title}
+          description="Every balance and reserve moves together, or nothing does."
+          onClose={() => setReview(null)}
+        >
+          <div className="od-lines">
+            <Line label={review.label} value={usd(review.value, 6)} />
+            {review.details.map(([label, value]) => (
+              <Line key={label} label={label} value={value} />
+            ))}
+          </div>
+          <Button
+            size="lg"
+            full
+            disabled={desk.busy}
+            onClick={() => void confirm()}
+          >
+            {desk.busy ? 'Confirming…' : 'Confirm transaction'}
+          </Button>
+        </Modal>
       )}
     </>
   );
