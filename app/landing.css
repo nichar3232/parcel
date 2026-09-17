@@ -54,8 +54,11 @@
   border-radius: 4px;
 }
 
-/* Everything above the fades. */
-.lp > *:not(.pc-aurora) {
+/* Lift the content off the fades. Only the elements that do not
+   already position themselves: the nav is sticky, and giving it a
+   position here would silently replace that. */
+.lp > .lp-main,
+.lp > .lp-foot {
   position: relative;
   z-index: 1;
 }

@@ -1,4 +1,4 @@
-import { INSTRUMENTS, PRIVATE_SEEDS, type Instrument, type Kind } from './feeds';
+import { INSTRUMENTS, type Instrument, type Kind } from './feeds';
 import {
   CoinbaseSource,
   PythSource,
@@ -46,6 +46,10 @@ export interface Mark {
   observedAt: number | null;
   /** Mock-token supply the maker has minted against this instrument. */
   supply: number;
+  /** The lending pool standing behind this instrument. */
+  supplied: number;
+  borrowed: number;
+  utilisation: number;
 }
 
 export interface Print {
@@ -70,6 +74,8 @@ interface State extends Instrument {
   realBid: number | null;
   realAsk: number | null;
   supply: number;
+  supplied: number;
+  borrowed: number;
   minted: number;
   burned: number;
 }
@@ -103,27 +109,63 @@ export class MarkEngine {
       realSource: null,
       realBid: null,
       realAsk: null,
-      supply: Math.round(price * 40),
+      // Depth is a dollar figure, so units come from dividing by the
+      // mark. Seeding units directly meant a pool's size scaled with
+      // the price of its asset, and the desk reported a five-trillion
+      // dollar bitcoin market.
+      supply: i.depth / 12 / price,
+      // Deep enough that one desk's borrow does not move the curve, and
+      // starting near the utilisation these markets actually run at
+      // rather than at zero.
+      supplied: i.depth / price,
+      borrowed: (i.depth / price) * (0.42 + Math.random() * 0.24),
       minted: 0,
       burned: 0,
     });
     for (const i of INSTRUMENTS) this.state.set(i.symbol, seed(i, i.seed));
-    // The sponsor tokens are instruments too; they simply have no feed.
-    for (const [symbol, price] of Object.entries(PRIVATE_SEEDS))
+    this.seed = seed;
+  }
+
+  private seed: (i: Instrument, price: number) => State;
+
+  /**
+   * Track an instrument the engine did not know about at boot, pegged
+   * to a price someone else published.
+   *
+   * The sponsor tokens are the case this exists for. Their symbols and
+   * their marks come from the providers at request time, so hardcoding
+   * a guessed symbol here produced a mock token that pegged to nothing
+   * — the pre-IPO screen looked up T-OPENAI and the registry called it
+   * T-OpenAI. The route that reads the providers registers them
+   * instead, and re-pegs each one whenever the provider's mark moves
+   * more than a per-cent, so the walk stays anchored to a real number
+   * without snapping on every poll.
+   */
+  ensure(symbol: string, anchor: number, vol = 0.9, spreadBps = 45) {
+    if (!Number.isFinite(anchor) || anchor <= 0) return;
+    const existing = this.state.get(symbol);
+    if (!existing) {
       this.state.set(
         symbol,
-        seed(
+        this.seed(
           {
             symbol,
-            name: symbol.replace(/^T-/, ''),
+            name: symbol,
             kind: 'private',
-            vol: 0.9,
-            seed: price,
-            spreadBps: 45,
+            vol,
+            seed: anchor,
+            spreadBps,
+            depth: 2_500_000,
           },
-          price,
+          anchor,
         ),
       );
+      return;
+    }
+    if (Math.abs(existing.price - anchor) / anchor > 0.01) {
+      existing.price = anchor;
+      if (!existing.openIsReal) existing.open = anchor;
+    }
   }
 
   /**
@@ -253,18 +295,28 @@ export class MarkEngine {
       const half = (s.price * s.spreadBps) / 10_000;
       const price = side === 'buy' ? s.price + half : s.price - half;
       // Sizes are lognormal-ish: many small clips, the occasional block.
-      const size =
-        Math.round(
-          Math.exp(Math.random() * 3.4) * (s.price > 1000 ? 0.01 : 1) * 1e4,
-        ) / 1e4;
+      // Clip sizes are a dollar notional turned into units, so a print
+      // in bitcoin and a print in USDC are comparable trades rather
+      // than comparable unit counts.
+      const notional = 400 * Math.exp(Math.random() * 3.4);
+      const size = Math.round((notional / s.price) * 1e4) / 1e4;
       const effect = side === 'buy' ? 'mint' : 'burn';
       if (effect === 'mint') {
         s.supply += size;
         s.minted += size;
+        s.supplied += size;
       } else {
         s.supply = Math.max(0, s.supply - size);
         s.burned += size;
+        s.supplied = Math.max(size, s.supplied - size);
       }
+      // Borrowing wanders on its own clock, bounded well short of the
+      // pool: a market at 100% utilisation cannot be withdrawn from,
+      // and a rate curve pinned to its own ceiling shows nothing.
+      s.borrowed = Math.min(
+        s.supplied * 0.94,
+        Math.max(s.supplied * 0.08, s.borrowed * (1 + gaussian() * 0.002)),
+      );
       this.tape.unshift({
         id: ++this.seq,
         symbol: s.symbol,
@@ -305,6 +357,9 @@ export class MarkEngine {
       source: fresh ? ((s.realSource as MarkSource) ?? 'simulated') : 'simulated',
       observedAt: s.lastReal,
       supply: round(s.supply),
+      supplied: round(s.supplied),
+      borrowed: round(s.borrowed),
+      utilisation: s.supplied > 0 ? s.borrowed / s.supplied : 0,
     };
   }
 

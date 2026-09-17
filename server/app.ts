@@ -159,11 +159,8 @@ export function createApp(
           'SESSION_REQUIRED',
           'Load a session before using the desk.',
         );
-      if (url.pathname === '/api/preipo/assets' && method === 'GET')
-        return json(
-          res,
-          200,
-          await loadAssets({
+      if (url.pathname === '/api/preipo/assets' && method === 'GET') {
+        const assets = await loadAssets({
             verifyRpcUrl:
               process.env.PREIPO_VERIFY_RPC_URL ||
               'https://api.mainnet-beta.solana.com',
@@ -173,8 +170,16 @@ export function createApp(
               | 'localnet',
             programId: process.env.PREIPO_PROGRAM_ID || null,
             usdcMint: process.env.PREIPO_USDC_MINT || null,
-          }),
-        );
+        });
+        // Peg a mock token to each sponsor's published mark. Nobody
+        // publishes a live feed for a private company, so the engine
+        // walks these between provider refreshes and re-anchors when
+        // the provider moves.
+        for (const a of assets.assets)
+          if (a.quote?.markPriceUsd)
+            marks.ensure(a.asset.symbol, a.quote.markPriceUsd);
+        return json(res, 200, assets);
+      }
       if (url.pathname === '/api/vault' && method === 'GET')
         return json(
           res,

@@ -173,7 +173,7 @@ export function Segmented<T extends string>({
   size?: 'sm' | 'md';
 }) {
   return (
-    <div className={`od-segmented ${size}`} role="group" aria-label={label}>
+    <fieldset className={`od-segmented ${size}`} aria-label={label}>
       {options.map((o) => (
         <button
           key={o.id}
@@ -185,7 +185,7 @@ export function Segmented<T extends string>({
           {o.label}
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 }
 

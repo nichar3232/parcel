@@ -58,8 +58,10 @@ export function PayoffChart({
     const strikes = terms.curve
       ? [terms.curve.lower, terms.curve.upper]
       : terms.legs.map((l) => l.strike);
-    const lo = Math.min(spot * 0.65, Math.min(...strikes) * 0.85);
-    const hi = Math.max(spot * 1.35, Math.max(...strikes) * 1.15);
+    const low = Math.min(...strikes),
+      high = Math.max(...strikes);
+    const lo = Math.min(spot * 0.65, low * 0.85);
+    const hi = Math.max(spot * 1.35, high * 1.15);
     const rows = Array.from({ length: SAMPLES }, (_, i) => {
       const price = lo + ((hi - lo) * i) / (SAMPLES - 1);
       return {

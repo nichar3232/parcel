@@ -49,7 +49,14 @@
   outline-offset: 2px;
   border-radius: 6px;
 }
-.pc-desk > *:not(.pc-aurora) {
+/* Lift the content off the fades.
+   Only the two elements that are otherwise unpositioned. The bar, the
+   subbar, the toast and the walkthrough all position themselves, and
+   giving them a position here replaced it — the subbar's `top` stopped
+   meaning "stick here" and started meaning "shift down 60px", which
+   dropped it underneath the page content. */
+.pc-desk > .od-main,
+.pc-desk > .od-foot {
   position: relative;
   z-index: 1;
 }
@@ -1341,5 +1348,1179 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
+  }
+}
+
+/* ==================================================================
+   Portfolio
+   ================================================================== */
+
+/* One figure is the answer and the rest support it, so the answer gets
+   its own column rather than being the first of four equal tiles. */
+.od-summary {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 2fr);
+  gap: 1px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-lg);
+  background: var(--pc-line-soft);
+  overflow: hidden;
+}
+.od-summary-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px 22px;
+  background:
+    radial-gradient(
+      120% 120% at 0% 0%,
+      var(--pc-cyan-wash) 0%,
+      transparent 62%
+    ),
+    var(--pc-surface);
+}
+.od-summary-main > span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.od-summary-main > strong {
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+.od-summary-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 4px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.od-summary-sub span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.od-summary-sub .up {
+  color: var(--pc-up);
+}
+.od-summary-sub .down {
+  color: var(--pc-down);
+}
+.od-summary-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--pc-line-soft);
+}
+.od-summary-stats .od-stat {
+  padding: 20px 22px;
+  background: var(--pc-surface);
+}
+
+.od-overview-grid {
+  align-items: stretch;
+}
+.od-overview-grid > .od-panel {
+  min-width: 0;
+}
+
+.od-allocation {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+}
+.od-donut {
+  position: relative;
+  width: 140px;
+  height: 140px;
+}
+.od-donut svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.od-donut-centre {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+.od-donut-centre strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.od-donut-centre small {
+  color: var(--pc-muted);
+  font-size: 11px;
+}
+.od-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.od-legend li {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.od-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.od-legend span {
+  color: var(--pc-body);
+  font-size: 13px;
+}
+.od-legend b {
+  font-family: var(--pc-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-history,
+.od-book-payoff,
+.od-outcome-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.od-history-now line {
+  stroke: var(--pc-magenta);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+.od-history-now circle {
+  fill: var(--pc-magenta);
+  stroke: var(--pc-surface);
+  stroke-width: 2;
+}
+.od-history-now text {
+  fill: var(--pc-magenta);
+  font-family: var(--pc-mono);
+  font-size: 11px;
+}
+.od-outcome-hold {
+  fill: none;
+  stroke: var(--pc-faint);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+
+.od-asset-cell {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+.od-asset-cell b {
+  display: block;
+  font-weight: 600;
+}
+.od-asset-cell small {
+  display: block;
+  margin-top: 1px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 11px;
+}
+.od-row-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+.od-row-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--pc-line);
+  border-radius: 7px;
+  background: none;
+  color: var(--pc-body);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    color 0.14s,
+    border-color 0.14s;
+}
+.od-row-actions button:hover {
+  color: var(--pc-cyan);
+  border-color: var(--pc-cyan-edge);
+}
+.od-muted {
+  color: var(--pc-muted);
+}
+.od-up {
+  color: var(--pc-up);
+}
+.od-down {
+  color: var(--pc-down);
+}
+
+.od-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.od-meter-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.od-meter-top span {
+  color: var(--pc-body);
+  font-size: 13px;
+}
+.od-meter-top b {
+  font-family: var(--pc-mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.od-meter-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--pc-raised);
+  overflow: hidden;
+}
+.od-meter-track i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.od-policy {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r);
+  background: var(--pc-surface-2);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.od-policy:hover:not(:disabled) {
+  border-color: var(--pc-faint);
+}
+.od-policy.selected {
+  border-color: var(--pc-cyan-edge);
+  background: var(--pc-cyan-wash);
+}
+.od-radio {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 1.5px solid var(--pc-faint);
+  border-radius: 50%;
+}
+.od-policy.selected .od-radio {
+  border-color: var(--pc-cyan);
+  box-shadow: inset 0 0 0 3.5px var(--pc-cyan);
+}
+.od-policy h3 {
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pc-text);
+}
+.od-policy p {
+  color: var(--pc-body);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.od-reconcile {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.od-reconcile b {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 13.5px;
+}
+
+.od-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.od-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-surface-2);
+  color: var(--pc-muted);
+}
+.pc-desk .od-search input {
+  width: 150px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 12.5px;
+}
+.pc-desk .od-search input:focus {
+  background: none;
+}
+
+/* ==================================================================
+   Trade
+   ================================================================== */
+
+/* Basic opens on the question, so the question gets card-sized targets
+   rather than two more entries in a segmented control. */
+.od-intents {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.od-intent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-lg);
+  background: var(--pc-surface);
+  text-align: left;
+  color: var(--pc-text);
+  cursor: pointer;
+  transition:
+    border-color 0.16s,
+    background 0.16s,
+    transform 0.16s;
+}
+.od-intent:hover {
+  border-color: var(--pc-faint);
+  transform: translateY(-1px);
+}
+.od-intent svg {
+  color: var(--pc-muted);
+}
+.od-intent.selected {
+  border-color: var(--pc-cyan-edge);
+  background:
+    radial-gradient(
+      120% 120% at 100% 0%,
+      var(--pc-cyan-wash) 0%,
+      transparent 60%
+    ),
+    var(--pc-surface);
+}
+.od-intent.selected svg {
+  color: var(--pc-cyan);
+}
+.od-intent strong {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.od-intent p {
+  color: var(--pc-body);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.od-templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+}
+.od-template {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 15px 16px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r);
+  background: var(--pc-surface);
+  text-align: left;
+  color: var(--pc-text);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.od-template:hover {
+  border-color: var(--pc-faint);
+}
+.od-template.selected {
+  border-color: var(--pc-cyan-edge);
+  background: var(--pc-cyan-wash);
+}
+.od-template span {
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.od-template h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.od-template p {
+  color: var(--pc-body);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.od-row-end {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.od-ticket {
+  position: sticky;
+  top: calc(var(--dk-bar) + var(--dk-sub) + 14px);
+}
+.od-insight {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.od-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.od-control-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.od-control-top label {
+  color: var(--pc-body);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.od-control-top span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.od-control small {
+  color: var(--pc-muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.od-size-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.8fr) minmax(0, 1.2fr);
+  gap: 8px;
+}
+.od-chips {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-surface-2);
+}
+.od-chips button,
+.od-quick button {
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    color 0.14s,
+    background 0.14s;
+}
+.od-chips button:hover,
+.od-quick button:hover {
+  color: var(--pc-text);
+  background: var(--pc-raised);
+}
+.od-chips button.on {
+  background: var(--pc-cyan-wash);
+  color: var(--pc-cyan);
+}
+.od-quick {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.od-quick button {
+  height: 32px;
+  border: 1px solid var(--pc-line);
+  background: var(--pc-surface-2);
+}
+
+/* The scoreboard. The two numbers a reader actually wants, at the size
+   those numbers deserve. */
+.od-score {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r);
+  background: var(--pc-surface-2);
+}
+.od-score-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.od-score-cell.right {
+  text-align: right;
+}
+.od-score-cell span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.od-score-cell strong {
+  font-size: 21px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.od-score-cell strong.up {
+  color: var(--pc-up);
+}
+.od-score-cell strong.down {
+  color: var(--pc-down);
+}
+.od-score-bars {
+  display: flex;
+  gap: 3px;
+  height: 8px;
+}
+.od-score-bars i {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+.od-score-bars i.down {
+  background: var(--pc-down);
+}
+.od-score-bars i.up {
+  background: var(--pc-up);
+}
+/* An uncapped payoff fades out at the end rather than stopping, because
+   the bar is not measuring anything past that point. */
+.od-score-bars i.up.open {
+  background: linear-gradient(
+    90deg,
+    var(--pc-up) 0%,
+    color-mix(in srgb, var(--pc-up) 20%, transparent) 100%
+  );
+}
+.od-score-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--pc-muted);
+  font-size: 11.5px;
+}
+.od-score-foot b {
+  color: var(--pc-body);
+  font-family: var(--pc-mono);
+  font-variant-numeric: tabular-nums;
+}
+.od-score-ratio {
+  margin-left: auto;
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+}
+
+.od-lines {
+  display: flex;
+  flex-direction: column;
+}
+
+.od-greeks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1px;
+  border-top: 1px solid var(--pc-line-soft);
+  background: var(--pc-line-soft);
+}
+.od-greeks .od-stat {
+  background: var(--pc-surface);
+}
+.od-greeks .od-stat strong {
+  font-size: 16px;
+}
+
+.od-legs-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.od-leg,
+.od-basic-leg {
+  display: grid;
+  gap: 8px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-surface-2);
+}
+.od-leg {
+  grid-template-columns: 22px repeat(3, minmax(0, 1fr)) auto;
+}
+.od-basic-leg {
+  grid-template-columns: 22px minmax(0, 1fr) minmax(88px, 0.8fr);
+}
+.od-leg-side {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  font-family: var(--pc-mono);
+  font-size: 13px;
+}
+.od-leg-side.buy {
+  background: var(--pc-up-wash);
+  color: var(--pc-up);
+}
+.od-leg-side.sell {
+  background: var(--pc-down-wash);
+  color: var(--pc-down);
+}
+.od-basic-leg strong {
+  font-size: 13.5px;
+}
+
+.od-chain-cue {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 16px;
+  border: 1px dashed var(--pc-line);
+  border-radius: var(--pc-r);
+  background: none;
+  color: var(--pc-muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.od-chain-cue:hover {
+  color: var(--pc-cyan);
+  border-color: var(--pc-cyan-edge);
+}
+
+/* ---------- the surface ---------- */
+
+.od-surface {
+  padding: 8px 18px 18px;
+}
+.od-surface svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: grab;
+  touch-action: pan-y;
+}
+.od-surface svg:active {
+  cursor: grabbing;
+}
+.od-surface-cell {
+  stroke: color-mix(in srgb, var(--pc-void) 45%, transparent);
+  stroke-width: 0.4;
+}
+.od-surface-edge {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+.od-surface-edge.today {
+  stroke: var(--pc-magenta);
+  stroke-dasharray: 5 4;
+}
+.od-surface-edge.expiry {
+  stroke: var(--pc-cyan);
+}
+.od-surface-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-top: 6px;
+  color: var(--pc-muted);
+  font-size: 11.5px;
+}
+.od-surface-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.od-surface-key i {
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+}
+.od-surface-key i.today {
+  background: var(--pc-magenta);
+}
+.od-surface-key i.expiry {
+  background: var(--pc-cyan);
+}
+.od-surface-range {
+  font-family: var(--pc-mono);
+}
+.od-surface-hint {
+  margin-left: auto;
+}
+
+/* ==================================================================
+   Pre-IPO
+   ================================================================== */
+
+.od-market-row {
+  cursor: pointer;
+}
+.od-market-row.selected td {
+  background: var(--pc-cyan-wash);
+}
+.od-util {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  width: 100%;
+}
+.od-util i {
+  display: block;
+  height: 5px;
+  min-width: 2px;
+  max-width: 54px;
+  border-radius: 3px;
+  background: var(--pc-cyan);
+}
+.od-util span {
+  width: 34px;
+  font-family: var(--pc-mono);
+  font-size: 12px;
+}
+
+.od-outcomes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.od-outcome {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r);
+  background: var(--pc-surface-2);
+}
+.od-outcome.keep {
+  border-color: color-mix(in srgb, var(--pc-up) 32%, transparent);
+  background: var(--pc-up-wash);
+}
+.od-outcome > span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-outcome strong {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.od-outcome strong.up {
+  color: var(--pc-up);
+}
+.od-outcome small {
+  color: var(--pc-body);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.od-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.od-reasons li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-surface-2);
+}
+.od-reasons svg {
+  margin-top: 2px;
+  color: var(--pc-down);
+}
+.od-reasons b {
+  display: block;
+  font-size: 13px;
+}
+.od-reasons small {
+  display: block;
+  margin-top: 3px;
+  color: var(--pc-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.od-subhead {
+  margin-top: 4px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.od-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--pc-body);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* ---------- the tape ---------- */
+
+.od-tape {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 18px 16px;
+}
+.od-print {
+  display: grid;
+  grid-template-columns: 22px 78px 44px minmax(0, 1fr) minmax(0, 1fr) 48px 62px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--pc-line-soft);
+  font-family: var(--pc-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  animation: pc-rise 0.25s ease both;
+}
+.od-print:last-child {
+  border-bottom: 0;
+}
+.od-print b {
+  font-weight: 500;
+}
+.od-print-size,
+.od-print-price {
+  text-align: right;
+}
+.od-print-effect {
+  color: var(--pc-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.od-print time {
+  color: var(--pc-faint);
+  text-align: right;
+}
+
+/* ==================================================================
+   Lending
+   ================================================================== */
+
+.od-lend-work {
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+}
+.od-health.safe {
+  border-color: color-mix(in srgb, var(--pc-up) 30%, transparent);
+}
+.od-health.watch {
+  border-color: color-mix(in srgb, var(--pc-warn) 34%, transparent);
+}
+.od-health.risk {
+  border-color: color-mix(in srgb, var(--pc-down) 36%, transparent);
+}
+.od-health-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.od-health-top span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.od-health-top strong {
+  font-size: 32px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+.od-health.safe .od-health-top strong {
+  color: var(--pc-up);
+}
+.od-health.watch .od-health-top strong {
+  color: var(--pc-warn);
+}
+.od-health.risk .od-health-top strong {
+  color: var(--pc-down);
+}
+
+.od-projection {
+  display: flex;
+  gap: 24px;
+  padding: 12px 14px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-surface-2);
+}
+.od-projection span {
+  display: block;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-projection b {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.od-projection.safe b {
+  color: var(--pc-up);
+}
+.od-projection.watch b {
+  color: var(--pc-warn);
+}
+.od-projection.risk b {
+  color: var(--pc-down);
+}
+.od-why {
+  max-width: 34ch;
+  color: var(--pc-muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+  text-align: left !important;
+}
+
+/* ==================================================================
+   Dialogs and the walkthrough
+   ================================================================== */
+
+.od-transfer-asset {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r);
+  background: var(--pc-surface-2);
+}
+.od-transfer-asset b {
+  display: block;
+  font-size: 14px;
+}
+.od-transfer-asset small {
+  display: block;
+  margin-top: 2px;
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-modal-actions {
+  display: flex;
+  gap: 8px;
+}
+.od-modal-actions > * {
+  flex: 1;
+}
+
+.od-welcome-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--pc-void) 76%, transparent);
+  backdrop-filter: blur(8px);
+}
+.od-welcome {
+  width: min(520px, 100%);
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-xl);
+  background: var(--pc-surface);
+  box-shadow: var(--pc-shadow);
+  overflow: hidden;
+  animation: pc-rise 0.3s ease both;
+}
+.od-welcome-art {
+  display: block;
+  width: 100%;
+  /* Fixed height, so the drawing scales to fit rather than stretching
+     to the dialog's width and taking its 9px labels to twenty. */
+  height: 168px;
+  padding: 22px 26px 4px;
+  background:
+    radial-gradient(
+      110% 120% at 80% 0%,
+      var(--pc-cyan-wash) 0%,
+      transparent 62%
+    ),
+    var(--pc-surface-2);
+}
+.od-welcome-cap {
+  fill: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-welcome-body {
+  padding: 22px 26px 6px;
+}
+.od-welcome-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.od-welcome h2 {
+  margin-bottom: 8px;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.od-welcome p {
+  color: var(--pc-body);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.od-welcome-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 26px 22px;
+}
+.od-welcome-pips {
+  display: flex;
+  gap: 6px;
+}
+.od-welcome-pips button {
+  width: 22px;
+  height: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--pc-line);
+  cursor: pointer;
+  transition: background 0.16s;
+}
+.od-welcome-pips button.on {
+  background: var(--pc-cyan);
+}
+.od-welcome-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ==================================================================
+   Narrow, for the views
+   ================================================================== */
+
+@media (max-width: 1180px) {
+  .od-ticket {
+    position: static;
+  }
+  .od-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .od-lend-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 720px) {
+  .od-intents,
+  .od-outcomes,
+  .od-allocation,
+  .od-summary-stats,
+  .od-size-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .od-print {
+    grid-template-columns: 22px 1fr 40px 1fr 56px;
+  }
+  .od-print-effect,
+  .od-print time {
+    display: none;
   }
 }

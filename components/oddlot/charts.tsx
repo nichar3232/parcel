@@ -1,0 +1,403 @@
+'use client';
+import { useMemo } from 'react';
+import { strategyPnl } from '@/lib/oddlot/math';
+import type { OptionPosition } from '@/lib/oddlot/types';
+import { usd } from './shared';
+
+/**
+ * The desk's small charts.
+ *
+ * Everything here is computed from state the client already holds —
+ * the stored price history, the risk summary, the open positions. None
+ * of it is illustrative. A chart on a trading screen that is not a
+ * picture of real numbers is worse than no chart, because the reader
+ * cannot tell which kind they are looking at.
+ */
+
+const path = (points: [number, number][]) =>
+  points.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`).join(
+    ' ',
+  );
+
+/* ---------------------------------------------------------------- */
+
+/** A bare line, for a table cell or a card corner. */
+export function Sparkline({
+  values,
+  width = 120,
+  height = 34,
+}: {
+  values: number[];
+  width?: number;
+  height?: number;
+}) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values),
+    max = Math.max(...values),
+    span = max - min || 1;
+  const points = values.map(
+    (v, i) =>
+      [
+        (i / (values.length - 1)) * width,
+        height - 2 - ((v - min) / span) * (height - 4),
+      ] as [number, number],
+  );
+  const up = values.at(-1)! >= values[0];
+  return (
+    <svg
+      className={`od-spark ${up ? 'up' : 'down'}`}
+      viewBox={`0 0 ${width} ${height}`}
+      aria-hidden
+    >
+      <path className="line" d={path(points)} />
+    </svg>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+
+const P = { w: 760, h: 244, x0: 62, x1: 748, y0: 26, y1: 198, axisY: 226 };
+
+/**
+ * The underlying's stored price history.
+ *
+ * The desk replays a fixed window of NVDA closes, and until now nothing
+ * in the product ever showed it — the reader was asked to price a
+ * contract against a single number with no idea where that number sat
+ * in its own range.
+ */
+export function PriceHistory({
+  rows,
+  current,
+}: {
+  rows: { date: string; close: number }[];
+  current: string;
+}) {
+  const plot = useMemo(() => {
+    const closes = rows.map((r) => r.close);
+    const min = Math.min(...closes),
+      max = Math.max(...closes);
+    // A 6% cushion, so the extremes are not welded to the frame edge.
+    const pad = (max - min) * 0.06 || 1;
+    const lo = min - pad,
+      hi = max + pad;
+    const x = (i: number) =>
+      P.x0 + (i / Math.max(1, rows.length - 1)) * (P.x1 - P.x0);
+    const y = (v: number) => P.y0 + ((hi - v) / (hi - lo)) * (P.y1 - P.y0);
+    const points = rows.map((r, i) => [x(i), y(r.close)] as [number, number]);
+    const at = rows.findIndex((r) => r.date >= current.slice(0, 10));
+    return {
+      line: path(points),
+      area: `${path(points)} L${P.x1},${P.y1} L${P.x0},${P.y1} Z`,
+      grid: [0, 0.5, 1].map((n) => ({
+        y: P.y0 + n * (P.y1 - P.y0),
+        label: usd(hi - (hi - lo) * n, 0),
+      })),
+      ticks: [0, rows.length - 1].map((i) => ({
+        x: x(i),
+        label: rows[i].date.slice(5).replace('-', '/'),
+      })),
+      marker: at >= 0 ? { x: x(at), y: y(rows[at].close), row: rows[at] } : null,
+      up: closes.at(-1)! >= closes[0],
+    };
+  }, [rows, current]);
+
+  return (
+    <svg
+      className="od-history"
+      viewBox={`0 0 ${P.w} ${P.h}`}
+      aria-label="Stored NVDA closes for the replay window"
+    >
+      <defs>
+        <linearGradient id="odHist" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor="var(--pc-cyan)" stopOpacity=".24" />
+          <stop offset="1" stopColor="var(--pc-cyan)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <g className="od-chart-grid">
+        {plot.grid.map((g) => (
+          <g key={g.label}>
+            <line x1={P.x0} x2={P.x1} y1={g.y} y2={g.y} />
+            <text x={P.x0 - 10} y={g.y + 4} textAnchor="end">
+              {g.label}
+            </text>
+          </g>
+        ))}
+      </g>
+      <path d={plot.area} fill="url(#odHist)" />
+      <path d={plot.line} className="od-chart-line" />
+      {plot.marker && (
+        <g className="od-history-now">
+          <line
+            x1={plot.marker.x}
+            x2={plot.marker.x}
+            y1={P.y0}
+            y2={P.y1}
+          />
+          <circle cx={plot.marker.x} cy={plot.marker.y} r="4.5" />
+          {/* Pushed clear of the value column on the left; at the very
+              start of the window the two labels sit on the same pixels. */}
+          <text
+            x={Math.max(plot.marker.x, P.x0 + 26)}
+            y={P.y0 - 4}
+            textAnchor={plot.marker.x > P.w * 0.7 ? 'end' : 'middle'}
+          >
+            {usd(plot.marker.row.close)}
+          </text>
+        </g>
+      )}
+      <g className="od-chart-ticks">
+        {plot.ticks.map((t, i) => (
+          <text
+            key={t.label}
+            x={t.x}
+            y={P.axisY}
+            textAnchor={i === 0 ? 'start' : 'end'}
+          >
+            {t.label}
+          </text>
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+
+export interface Slice {
+  label: string;
+  value: number;
+  color: string;
+}
+
+/**
+ * Allocation, as a ring.
+ *
+ * Drawn from arcs rather than a conic-gradient so the segments can
+ * carry a gap between them; two adjacent conic stops meet on a hard
+ * edge that reads as one continuous band.
+ */
+export function Donut({
+  slices,
+  centre,
+  caption,
+}: {
+  slices: Slice[];
+  centre: string;
+  caption: string;
+}) {
+  const total = slices.reduce((t, s) => t + Math.max(0, s.value), 0);
+  const R = 52,
+    C = 2 * Math.PI * R;
+  let offset = 0;
+  return (
+    <div className="od-donut">
+      <svg viewBox="0 0 140 140" aria-hidden>
+        <circle
+          cx="70"
+          cy="70"
+          r={R}
+          fill="none"
+          stroke="var(--pc-raised)"
+          strokeWidth="15"
+        />
+        {total > 0 &&
+          slices.map((s) => {
+            const share = Math.max(0, s.value) / total;
+            const dash = `${Math.max(0, share * C - 2)} ${C}`;
+            const node = (
+              <circle
+                key={s.label}
+                cx="70"
+                cy="70"
+                r={R}
+                fill="none"
+                stroke={s.color}
+                strokeWidth="15"
+                strokeLinecap="round"
+                strokeDasharray={dash}
+                strokeDashoffset={-offset * C}
+                transform="rotate(-90 70 70)"
+              />
+            );
+            offset += share;
+            return node;
+          })}
+      </svg>
+      <div className="od-donut-centre">
+        <strong>{centre}</strong>
+        <small>{caption}</small>
+      </div>
+    </div>
+  );
+}
+
+/** The legend that goes with it, also usable on its own. */
+export function Legend({ slices }: { slices: (Slice & { note: string })[] }) {
+  return (
+    <ul className="od-legend">
+      {slices.map((s) => (
+        <li key={s.label}>
+          <i style={{ background: s.color }} />
+          <span>{s.label}</span>
+          <b>{s.note}</b>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+
+const B = { w: 760, h: 230, x0: 62, x1: 748, y0: 16, y1: 186, axisY: 212 };
+
+/**
+ * What the whole book does at expiry.
+ *
+ * Every open contract plus the shares in the vault, summed at each
+ * price. A reader with four positions cannot hold their combined shape
+ * in their head, and this is the one number that actually answers
+ * "what happens if it gaps".
+ */
+export function BookPayoff({
+  positions,
+  shares,
+  spot,
+}: {
+  positions: OptionPosition[];
+  shares: number;
+  spot: number;
+}) {
+  const plot = useMemo(() => {
+    const strikes = positions.flatMap((p) =>
+      p.terms.curve
+        ? [p.terms.curve.lower, p.terms.curve.upper]
+        : p.terms.legs.map((l) => l.strike),
+    );
+    const lo = Math.min(spot * 0.7, ...strikes.map((k) => k * 0.85));
+    const hi = Math.max(spot * 1.3, ...strikes.map((k) => k * 1.15));
+    const rows = Array.from({ length: 121 }, (_, i) => {
+      const price = lo + ((hi - lo) * i) / 120;
+      const pnl =
+        positions.reduce(
+          (t, p) => t + strategyPnl(p.terms, price, spot, p.premium, 0),
+          0,
+        ) +
+        shares * (price - spot);
+      return { price, pnl };
+    });
+    const min = Math.min(-1e-9, ...rows.map((r) => r.pnl));
+    const max = Math.max(1e-9, ...rows.map((r) => r.pnl));
+    const span = max - min;
+    const x = (v: number) => B.x0 + ((v - lo) / (hi - lo)) * (B.x1 - B.x0);
+    const y = (v: number) => B.y0 + ((max - v) / span) * (B.y1 - B.y0);
+    return {
+      line: path(rows.map((r) => [x(r.price), y(r.pnl)] as [number, number])),
+      zeroY: y(0),
+      x,
+      spot,
+      grid: [0, 0.5, 1].map((n) => ({
+        y: B.y0 + n * (B.y1 - B.y0),
+        label: usd(max - span * n, span < 10 ? 2 : 0),
+      })),
+      ticks: [lo, (lo + hi) / 2, hi].map((p) => ({
+        x: x(p),
+        label: usd(p, 0),
+      })),
+      atSpot: rows.reduce((best, r) =>
+        Math.abs(r.price - spot) < Math.abs(best.price - spot) ? r : best,
+      ),
+    };
+  }, [positions, shares, spot]);
+
+  return (
+    <svg
+      className="od-book-payoff"
+      viewBox={`0 0 ${B.w} ${B.h}`}
+      aria-label="Combined profit and loss of every open position at expiry"
+    >
+      <defs>
+        <linearGradient id="odBookUp" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor="var(--pc-up)" stopOpacity=".24" />
+          <stop offset="1" stopColor="var(--pc-up)" stopOpacity="0" />
+        </linearGradient>
+        <clipPath id="odBookClip">
+          <rect
+            x={B.x0}
+            y={B.y0}
+            width={B.x1 - B.x0}
+            height={Math.max(0, plot.zeroY - B.y0)}
+          />
+        </clipPath>
+      </defs>
+      <g className="od-chart-grid">
+        {plot.grid.map((g) => (
+          <g key={g.label}>
+            <line x1={B.x0} x2={B.x1} y1={g.y} y2={g.y} />
+            <text x={B.x0 - 10} y={g.y + 4} textAnchor="end">
+              {g.label}
+            </text>
+          </g>
+        ))}
+      </g>
+      <path
+        d={`${plot.line} L${B.x1},${plot.zeroY} L${B.x0},${plot.zeroY} Z`}
+        fill="url(#odBookUp)"
+        clipPath="url(#odBookClip)"
+      />
+      <line
+        className="od-chart-zero"
+        x1={B.x0}
+        x2={B.x1}
+        y1={plot.zeroY}
+        y2={plot.zeroY}
+      />
+      <path d={plot.line} className="od-chart-line" />
+      <g className="od-chart-spot">
+        <line x1={plot.x(spot)} x2={plot.x(spot)} y1={B.y0} y2={B.y1} />
+      </g>
+      <g className="od-chart-ticks">
+        {plot.ticks.map((t, i) => (
+          <text
+            key={t.label + i}
+            x={t.x}
+            y={B.axisY}
+            textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
+          >
+            {t.label}
+          </text>
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+
+/** A labelled horizontal bar, for anything measured against a total. */
+export function Meter({
+  label,
+  value,
+  of,
+  note,
+  color = 'var(--pc-cyan)',
+}: {
+  label: string;
+  value: number;
+  of: number;
+  note?: string;
+  color?: string;
+}) {
+  const share = of > 0 ? Math.min(1, Math.max(0, value / of)) : 0;
+  return (
+    <div className="od-meter">
+      <div className="od-meter-top">
+        <span>{label}</span>
+        <b>{note ?? usd(value)}</b>
+      </div>
+      <div className="od-meter-track">
+        <i style={{ width: `${share * 100}%`, background: color }} />
+      </div>
+    </div>
+  );
+}

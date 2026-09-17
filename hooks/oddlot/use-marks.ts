@@ -26,7 +26,12 @@ export interface Mark {
   vol: number;
   source: MarkSource;
   observedAt: number | null;
+  /** Mock-token supply the maker has minted against this instrument. */
   supply: number;
+  /** The lending pool the rate curve is derived from. */
+  supplied: number;
+  borrowed: number;
+  utilisation: number;
 }
 
 export interface Print {
@@ -66,46 +71,64 @@ const POLL_MS = 2000;
 
 export function useMarks(): MarkFeed {
   const [feed, setFeed] = useState<MarkFeed>(EMPTY);
-  const alive = useRef(true);
 
   useEffect(() => {
-    alive.current = true;
+    let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let loaded = false;
 
-    const run = async () => {
-      if (!document.hidden)
-        try {
-          const res = await fetch('/api/marks', { cache: 'no-store' });
-          if (res.ok && alive.current) {
-            const body = (await res.json()) as {
-              asOf: number;
-              connected: boolean;
-              marks: Mark[];
-              tape: Print[];
-              minted: number;
-              burned: number;
-            };
-            setFeed({
-              asOf: body.asOf,
-              connected: body.connected,
-              marks: Object.fromEntries(body.marks.map((m) => [m.symbol, m])),
-              list: body.marks,
-              tape: body.tape,
-              minted: body.minted,
-              burned: body.burned,
-              ready: true,
-            });
-          }
-        } catch {
-          /* a missed poll is a missed frame, not an error state */
-        }
-      if (alive.current) timer = setTimeout(run, POLL_MS);
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/marks', { cache: 'no-store' });
+        if (!res.ok || !alive) return;
+        const body = (await res.json()) as {
+          asOf: number;
+          connected: boolean;
+          marks: Mark[];
+          tape: Print[];
+          minted: number;
+          burned: number;
+        };
+        if (!alive) return;
+        loaded = true;
+        setFeed({
+          asOf: body.asOf,
+          connected: body.connected,
+          marks: Object.fromEntries(body.marks.map((m) => [m.symbol, m])),
+          list: body.marks,
+          tape: body.tape,
+          minted: body.minted,
+          burned: body.burned,
+          ready: true,
+        });
+      } catch {
+        /* a missed poll is a missed frame, not an error state */
+      }
     };
 
-    void run();
-    return () => {
-      alive.current = false;
+    /**
+     * Polling pauses while the tab is hidden, but the first read always
+     * happens. A desk restored into a background tab used to render
+     * with no marks at all and stay that way until it was clicked,
+     * because the very first poll was skipped along with the rest.
+     */
+    const tick = async () => {
+      if (!document.hidden || !loaded) await poll();
+      if (alive) timer = setTimeout(() => void tick(), POLL_MS);
+    };
+
+    const wake = () => {
+      if (document.hidden) return;
       if (timer) clearTimeout(timer);
+      void tick();
+    };
+
+    void tick();
+    document.addEventListener('visibilitychange', wake);
+    return () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', wake);
     };
   }, []);
 

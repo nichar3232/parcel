@@ -30,6 +30,8 @@ export interface Instrument {
   seed: number;
   /** Half-spread a maker quotes around the mark, in basis points. */
   spreadBps: number;
+  /** Money-market depth, in dollars. Units are derived from the mark. */
+  depth: number;
 }
 
 export const INSTRUMENTS: Instrument[] = [
@@ -41,6 +43,7 @@ export const INSTRUMENTS: Instrument[] = [
     vol: 0.45,
     seed: 142.62,
     spreadBps: 6,
+    depth: 24_000_000,
   },
   {
     symbol: 'SOL',
@@ -51,6 +54,7 @@ export const INSTRUMENTS: Instrument[] = [
     vol: 0.82,
     seed: 168,
     spreadBps: 8,
+    depth: 70_000_000,
   },
   {
     symbol: 'BTC',
@@ -61,6 +65,7 @@ export const INSTRUMENTS: Instrument[] = [
     vol: 0.5,
     seed: 68000,
     spreadBps: 4,
+    depth: 180_000_000,
   },
   {
     symbol: 'ETH',
@@ -71,6 +76,7 @@ export const INSTRUMENTS: Instrument[] = [
     vol: 0.6,
     seed: 3400,
     spreadBps: 5,
+    depth: 120_000_000,
   },
   {
     symbol: 'USDC',
@@ -81,19 +87,8 @@ export const INSTRUMENTS: Instrument[] = [
     vol: 0.01,
     seed: 1,
     spreadBps: 1,
+    depth: 260_000_000,
   },
 ];
-
-/** The sponsor tokens. No public feed exists, so all of these walk. */
-export const PRIVATE_SEEDS: Record<string, number> = {
-  'T-OPENAI': 812.79,
-  'T-SPACEX': 423,
-  'T-KALSHI': 413.8,
-  'T-ANTHROPIC': 1006.99,
-  'T-ANDURIL': 149.71,
-  'T-NEURALINK': 318.36,
-  'T-FIGUREAI': 177.81,
-  'T-POLYMARKET': 144.95,
-};
 
 export const bySymbol = new Map(INSTRUMENTS.map((i) => [i.symbol, i]));
