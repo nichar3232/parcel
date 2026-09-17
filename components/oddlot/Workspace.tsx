@@ -6,7 +6,6 @@ import {
   ChevronDown,
   CircleHelp,
   Layers,
-  CalendarClock,
   Rocket,
   ShieldCheck,
   SlidersHorizontal,
@@ -223,19 +222,6 @@ export default function Workspace() {
             <ChevronDown size={13} />
           </button>
 
-          <button
-            className="od-bar-btn"
-            aria-label="Market controls"
-            onClick={() => setModal('market')}
-            disabled={!s}
-          >
-            <CalendarClock size={15} />
-            <span className="wide">
-              {s ? `Session ${dateLabel(s.book.date)}` : 'Connecting'}
-            </span>
-            <ChevronDown size={13} />
-          </button>
-
           <ThemeToggle />
         </div>
       </header>
@@ -324,6 +310,7 @@ export default function Workspace() {
             tab={current as PortfolioTab}
             navigate={navigate}
             onTransfer={setTransfer}
+            onMarketControls={() => setModal('market')}
           />
         ) : page === 'Trade' ? (
           /* Keyed on the section: the ticket's template, its legs and

@@ -116,13 +116,38 @@ export async function execute(page: Page) {
   await expect(page.getByRole('dialog')).toHaveCount(0);
 }
 
+/**
+ * Move the replay clock.
+ *
+ * The control used to be a bare date in the app bar of every page,
+ * where nothing said what it was. It now lives on the one panel that is
+ * about the replay window, so getting to it means going to Portfolio
+ * first — which is what a reader does too. The caller is put back on
+ * the destination it was on, because a helper that silently moves the
+ * page is a helper that breaks the assertion after it.
+ */
 export async function advance(page: Page, date: string) {
+  const was = await page
+    .getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('button')
+    .filter({ has: page.locator('[aria-current="page"]') })
+    .or(
+      page
+        .getByRole('navigation', { name: 'Main navigation' })
+        .locator('[aria-current="page"]'),
+    )
+    .first()
+    .innerText();
+
+  await nav(page, 'Portfolio');
   await page.getByRole('button', { name: 'Market controls' }).click();
   await page.getByLabel('Advance to session').selectOption(date);
   await page
     .getByRole('button', { name: 'Advance & settle due positions' })
     .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  if (was.trim() && was.trim() !== 'Portfolio') await navTop(page, was.trim());
 }
 
 /** The quote the backend actually priced, not what the form claims. */

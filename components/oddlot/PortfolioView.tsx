@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  CalendarClock,
   Download,
   Search,
   TrendingDown,
@@ -47,12 +48,14 @@ export function PortfolioView({
   tab,
   navigate,
   onTransfer,
+  onMarketControls,
 }: {
   desk: VaultController;
   feed: MarkFeed;
   tab: PortfolioTab;
   navigate: (page: 'Portfolio' | 'Trade' | 'Pre-IPO' | 'Lending', to?: string) => void;
   onTransfer: (t: Transfer) => void;
+  onMarketControls: () => void;
 }) {
   const s = desk.state!;
   const { book, risk, market } = s;
@@ -181,12 +184,19 @@ export function PortfolioView({
           <PanelHead
             title="NVDA over the replay window"
             description={`Stored closes. Session ${dateLabel(book.date)} at ${usd(market.price)}.`}
+            /* The replay clock used to be a bare date in the top bar of
+               every page, where nothing said what it was. This is the
+               one panel that is about the replay window, so the control
+               that moves it lives here. */
             action={
-              live && (
-                <Badge tone={live.source === 'simulated' ? 'neutral' : 'green'}>
-                  Live {usd(live.price)}
-                </Badge>
-              )
+              <button
+                className="od-bar-btn"
+                aria-label="Market controls"
+                onClick={onMarketControls}
+              >
+                <CalendarClock size={14} />
+                <span>Change session</span>
+              </button>
             }
           />
           <div className="od-panel-body">
