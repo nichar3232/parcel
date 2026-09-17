@@ -76,8 +76,7 @@ function PayoffPreview({
 }
 
 function Preview({ preview }: { preview: Preview }) {
-  if (preview.kind === 'payoff')
-    return <PayoffPreview preview={preview} />;
+  if (preview.kind === 'payoff') return <PayoffPreview preview={preview} />;
   if (preview.kind === 'outcomes')
     return (
       <div className="lp-outcomes">
@@ -104,12 +103,20 @@ function Preview({ preview }: { preview: Preview }) {
 }
 
 /**
- * One product at a time.
+ * One product at a time, laid out as a spread rather than a split.
  *
  * Five cards side by side made the reader compare things they had not
- * read yet. A tab picks one, and the panel gives it the room to show
- * what it actually does: the shape it makes, the two ways it can end,
- * or how its collateral divides.
+ * read yet. A tab picks one, and the panel gives it the room to say
+ * what it does, what it costs, how it is held together, and what shape
+ * it makes.
+ *
+ * The composition is deliberately uneven. Two equal columns give every
+ * element the same weight, which means the reader has to work out the
+ * order themselves — so the lede and the plot share the top on a 6/6,
+ * the one figure worth reading first is set large under the lede with
+ * the terms beside it, and the three mechanics run the full width in a
+ * staircase of uneven columns. Nothing below the lede starts on the
+ * same line as anything else.
  *
  * The tabs answer the nav's #options / #lending links through the hash,
  * which is why they carry those ids.
@@ -144,27 +151,43 @@ export function Showcase({ products }: { products: Product[] }) {
         ))}
       </div>
 
-      <div className="lp-panel" role="tabpanel">
-        <div className="lp-panel-copy">
+      <div className="lp-panel" role="tabpanel" key={product.id}>
+        <div className="lp-panel-lede">
           <h3>{product.title}</h3>
           <p>{product.body}</p>
-          <dl className="lp-example">
-            {product.rows.map(([k, v]) => (
-              <div key={k}>
-                <dt>{k}</dt>
-                <dd>{v}</dd>
-              </div>
-            ))}
-          </dl>
-          <Link className="lp-inline-link" href={`/app?at=${product.id}`}>
-            Open in the desk <span aria-hidden>&rarr;</span>
-          </Link>
         </div>
 
         <figure className="lp-preview">
           <Preview preview={product.preview} />
           <figcaption>{product.preview.caption}</figcaption>
         </figure>
+
+        <div className="lp-panel-pull">
+          <b>{product.pull.value}</b>
+          <span>{product.pull.label}</span>
+          <Link className="lp-inline-link" href={`/app?at=${product.id}`}>
+            Open in the desk <span aria-hidden>&rarr;</span>
+          </Link>
+        </div>
+
+        <dl className="lp-example">
+          {product.rows.map(([k, v]) => (
+            <div key={k}>
+              <dt>{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+
+        <ol className="lp-mechanics">
+          {product.mechanics.map((m, i) => (
+            <li key={m.title}>
+              <b>{String(i + 1).padStart(2, '0')}</b>
+              <strong>{m.title}</strong>
+              <p>{m.detail}</p>
+            </li>
+          ))}
+        </ol>
       </div>
     </div>
   );

@@ -30,6 +30,7 @@ import {
   closeShort,
   emit,
   initialVault,
+  seedVault,
   openLoan,
   openShort,
   premium,
@@ -55,7 +56,7 @@ export class VaultService {
   private read(session: Session) {
     this.store.db
       .prepare('INSERT OR IGNORE INTO vault_accounts VALUES(?,0,?,?)')
-      .run(session.id, JSON.stringify(initialVault()), this.clock());
+      .run(session.id, JSON.stringify(seedVault()), this.clock());
     const row = this.store.db
       .prepare('SELECT revision,book FROM vault_accounts WHERE owner=?')
       .get(session.id) as { revision: number; book: string };

@@ -130,7 +130,9 @@ function HealthCard({ position }: { position: Position }) {
                 : '∞'}
             </strong>
           </div>
-          <Badge tone={tone === 'safe' ? 'green' : tone === 'watch' ? 'warn' : 'red'}>
+          <Badge
+            tone={tone === 'safe' ? 'green' : tone === 'watch' ? 'warn' : 'red'}
+          >
             {tone === 'safe'
               ? 'Healthy'
               : tone === 'watch'
@@ -168,9 +170,7 @@ function HealthCard({ position }: { position: Position }) {
         </div>
         <p className="od-note">
           <Info size={13} />
-          Liquidation begins below 1.00. Every reserve carries its own
-          threshold, so the factor moves with what you hold, not only with how
-          much you owe.
+          Liquidation begins below 1.00.
         </p>
       </div>
     </Panel>
@@ -192,8 +192,7 @@ function Markets({
   const rows = RESERVES.map((r) => {
     const mark = feed.marks[r.symbol];
     const u = mark?.utilisation ?? 0.5;
-    const price =
-      mark?.price ?? (r.symbol === 'NVDA' ? s.market.price : 1);
+    const price = mark?.price ?? (r.symbol === 'NVDA' ? s.market.price : 1);
     return { reserve: r, mark, price, ...rates(u, r) };
   });
 
@@ -256,7 +255,7 @@ function Markets({
           <Panel>
             <PanelHead
               title="Reserves"
-              description="Rates come from each pool's utilisation, on the same two-slope curve the major money markets use."
+              description="Each pool's rate follows its utilisation."
               action={
                 <Badge tone={feed.connected ? 'green' : 'neutral'}>
                   {feed.connected ? 'Live' : 'Simulated'}
@@ -266,32 +265,38 @@ function Markets({
             <div className="od-table-wrap">
               <table className="od-table">
                 <thead>
+                  {/* Six columns, not eight. Price belongs to the
+                      ticker, not to a rates table, and LTV and its
+                      liquidation threshold are one risk parameter read
+                      together — splitting them bought two headings and
+                      no information. */}
                   <tr>
                     <th>Asset</th>
-                    <th className="num">Price</th>
                     <th className="num">Supply APY</th>
                     <th className="num">Borrow APY</th>
                     <th className="num">Utilisation</th>
-                    <th className="num">Max LTV</th>
-                    <th className="num">Liquidation</th>
+                    <th className="num">LTV / liq.</th>
                     <th className="num">You hold</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(({ reserve: r, price, supply, borrow, utilisation }) => (
+                  {rows.map(({ reserve: r, supply, borrow, utilisation }) => (
                     <tr key={r.symbol} title={r.note}>
                       <td>
                         <div className="od-asset-cell">
-                          <AssetLogo symbol={r.symbol} size={30} />
+                          <AssetLogo symbol={r.symbol} size={26} />
                           <div>
                             <b>{r.symbol}</b>
                             <small>{r.name}</small>
                           </div>
                         </div>
                       </td>
-                      <td className="num">{usd(price, price < 10 ? 4 : 2)}</td>
-                      <td className="num od-up">{pct(supply)}</td>
-                      <td className="num od-down">{pct(borrow)}</td>
+                      {/* Plain, not green and red. Lime and rose mean
+                          gain and loss everywhere else in the product;
+                          spending them on "supply" and "borrow" makes
+                          two neutral rates look like a result. */}
+                      <td className="num">{pct(supply)}</td>
+                      <td className="num">{pct(borrow)}</td>
                       <td className="num">
                         <span className="od-util">
                           <i
@@ -301,8 +306,10 @@ function Markets({
                           {(utilisation * 100).toFixed(0)}%
                         </span>
                       </td>
-                      <td className="num">{(r.ltv * 100).toFixed(0)}%</td>
-                      <td className="num">{(r.liquidation * 100).toFixed(0)}%</td>
+                      <td className="num od-quiet">
+                        {(r.ltv * 100).toFixed(0)} /{' '}
+                        {(r.liquidation * 100).toFixed(0)}%
+                      </td>
                       <td className="num">
                         {held(r.symbol) ? qty(held(r.symbol)) : '—'}
                       </td>
@@ -313,9 +320,8 @@ function Markets({
             </div>
             <div className="od-panel-foot">
               <span>
-                Cash supplied here is routed to the deepest Solana money
-                markets. Only NVDA lending, protected shorts and spot are
-                executed by this build.
+                Only NVDA lending, protected shorts and spot execute in this
+                build.
               </span>
             </div>
           </Panel>
@@ -325,7 +331,7 @@ function Markets({
       <Tape
         feed={feed}
         title="Pool activity"
-        description="The maker minting and burning against every reserve, which is what moves utilisation and therefore the rates above."
+        description="What moves utilisation, and therefore the rates above."
         symbols={RESERVES.map((r) => r.symbol)}
       />
     </>
@@ -377,7 +383,9 @@ function Borrow({
     valid = false;
   }
 
-  const interest = valid ? termInterest(q, s.market.price, s.book.date, end) : 0;
+  const interest = valid
+    ? termInterest(q, s.market.price, s.book.date, end)
+    : 0;
   const protection =
     valid && mode === 'short'
       ? protectionPremium(q, s.market.price, k, s.book.date, end)
@@ -428,7 +436,10 @@ function Borrow({
       details:
         mode === 'stock'
           ? [
-              ['Direction', side === 'buy' ? 'Buy owned stock' : 'Sell owned stock'],
+              [
+                'Direction',
+                side === 'buy' ? 'Buy owned stock' : 'Sell owned stock',
+              ],
               ['Settlement', 'Immediate stock and USDC exchange'],
             ]
           : [
@@ -684,7 +695,9 @@ function Borrow({
                         </div>
                       </td>
                       <td className="num">{(r.ltv * 100).toFixed(0)}%</td>
-                      <td className="num">{(r.liquidation * 100).toFixed(0)}%</td>
+                      <td className="num">
+                        {(r.liquidation * 100).toFixed(0)}%
+                      </td>
                       <td className="num od-down">{pct(rates(u, r).borrow)}</td>
                       <td>
                         <span className="od-why">{r.note}</span>
@@ -757,7 +770,11 @@ function Positions({ desk }: { desk: VaultController }) {
         <PanelHead
           title="Stock on loan"
           description="Principal stays an owned receivable; the borrower's cash and prepaid interest are held against it."
-          action={<Badge tone={loans.length ? 'accent' : 'neutral'}>{loans.length}</Badge>}
+          action={
+            <Badge tone={loans.length ? 'accent' : 'neutral'}>
+              {loans.length}
+            </Badge>
+          }
         />
         {loans.length ? (
           <div className="od-table-wrap">
@@ -834,7 +851,11 @@ function Positions({ desk }: { desk: VaultController }) {
         <PanelHead
           title="Protected shorts"
           description="Each short pairs the borrow with a call that caps the repurchase cost."
-          action={<Badge tone={shorts.length ? 'accent' : 'neutral'}>{shorts.length}</Badge>}
+          action={
+            <Badge tone={shorts.length ? 'accent' : 'neutral'}>
+              {shorts.length}
+            </Badge>
+          }
         />
         {shorts.length ? (
           <div className="od-table-wrap">
@@ -853,7 +874,11 @@ function Positions({ desk }: { desk: VaultController }) {
               </thead>
               <tbody>
                 {shorts.map((p) => {
-                  const close = shortCloseAmounts(p, s.market.price, s.book.date);
+                  const close = shortCloseAmounts(
+                    p,
+                    s.market.price,
+                    s.book.date,
+                  );
                   return (
                     <tr key={p.id}>
                       <td className="num">{qty(p.quantity)}</td>

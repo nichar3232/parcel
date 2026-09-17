@@ -6,6 +6,7 @@
  * drift from the product. Nothing on the landing page is a literal.
  */
 import { mark, expiries, VOLATILITY } from './market';
+import { registry } from '../preipo/registry';
 import { orderGreeks, strategyPnl, days } from './math';
 import { termInterest } from './funding';
 import { EXERCISE_WINDOW_DAYS } from '../preipo/terms';
@@ -420,6 +421,15 @@ const LOAN_INTEREST = termInterest(LOAN_QTY, SPOT, OPEN_DATE, EXPIRY);
 /** Pre-IPO covered call, priced by the same totals the contract stores. */
 const PREIPO = { tokens: 0.25, premium: 6.5, exercise: 225 };
 
+/* How many of the listed mints the escrow policy refuses. PreStocks
+   configures a permanent delegate, which lets the issuer move tokens
+   out of an escrow account, so none of its line can back a contract.
+   Counted off the registry so the figure cannot drift from it. */
+const PREIPO_LISTED = registry.length;
+const PREIPO_BLOCKED = registry.filter(
+  (a) => a.provider === 'prestocks',
+).length;
+
 /**
  * A covered call written in the opening session expires one exercise
  * window later, so the tile can name the date like every other product
@@ -451,12 +461,32 @@ export type Preview =
 const COVERED_PAYOFF = payoff(COVERED, premiumOf(COVERED), COVERED.quantity);
 const SPREAD_PAYOFF = payoff(SPREAD, SPREAD_PREMIUM);
 
+/**
+ * One figure per product, pulled out of the table and set large.
+ *
+ * A reader skimming five tiles reads one number from each, so the tile
+ * picks which one rather than leaving it to whichever row happens to
+ * be first.
+ */
+export interface Pull {
+  value: string;
+  label: string;
+}
+
+/** How the thing is actually held together, in three facts. */
+export interface Mechanic {
+  title: string;
+  detail: string;
+}
+
 export const EXAMPLES: {
   id: string;
   kicker: string;
   title: string;
   body: string;
+  pull: Pull;
   rows: string[][];
+  mechanics: Mechanic[];
   preview: Preview;
 }[] = [
   {
@@ -464,6 +494,26 @@ export const EXAMPLES: {
     kicker: 'Options',
     title: 'Buy a contract the size of your position.',
     body: 'A listed contract needs a hundred shares. Size to one, or to a quarter of one.',
+    pull: {
+      value: usd(CALL_PREMIUM),
+      label: `is the entire downside of one share-equivalent of the $${HERO_CALL.legs[0].strike} call.`,
+    },
+    mechanics: [
+      {
+        title: 'What you post',
+        detail:
+          'The premium, and nothing else. A physically settled buy prefunds the exercise cash on top of it, so exercise can never fail for want of money.',
+      },
+      {
+        title: 'How it settles',
+        detail:
+          'Cash or physical delivery, chosen on the ticket and written into the contract. Both return to the vault the premium came out of.',
+      },
+      {
+        title: 'What it is priced on',
+        detail: `Black-Scholes at ${VOLATILITY * 100}% vol against the stored ${HERO.openLabel} close, which is the model the desk quotes on rather than a number for the page.`,
+      },
+    ],
     rows: [
       ['Buy 1× NVDA $145 call', dayLabel(EXPIRY)],
       ['Premium', usd(CALL_PREMIUM)],
@@ -481,6 +531,27 @@ export const EXAMPLES: {
     kicker: 'Underwriting',
     title: 'Write the other side, fully collateralized.',
     body: 'Deposit a share, write a call against it. The reserve is visible before you sign.',
+    pull: {
+      value: usd(COVERED_PREMIUM),
+      label: 'received for reserving a quarter of one share until expiry.',
+    },
+    mechanics: [
+      {
+        title: 'Nothing is written naked',
+        detail:
+          'The shares move to reserve as part of signing the quote. A contract that cannot be covered is refused at the ticket, not at expiry.',
+      },
+      {
+        title: 'Reserved means reserved',
+        detail:
+          'Reserved shares leave the spendable balance and cannot back a second contract, be lent, or be withdrawn while the call is open.',
+      },
+      {
+        title: 'Either ending is funded',
+        detail:
+          'Above the strike the reserved shares deliver. At or below it they come back, and the premium was yours from the start.',
+      },
+    ],
     rows: [
       ['Sell ¼× NVDA $150 call', dayLabel(EXPIRY)],
       ['Premium received', usd(COVERED_PREMIUM)],
@@ -498,6 +569,27 @@ export const EXAMPLES: {
     kicker: 'Structures',
     title: 'Spreads, collars and capped curves.',
     body: 'Up to four legs under one collateral rule. Offsets release capital only when settlement allows.',
+    pull: {
+      value: usd(SPREAD_PREMIUM),
+      label: 'is the most a call spread can lose, and it is known at signing.',
+    },
+    mechanics: [
+      {
+        title: 'Four legs, one contract',
+        detail:
+          'Legs are priced, collateralized and settled together. They cannot be closed apart, because half a spread is a different position.',
+      },
+      {
+        title: 'Offsets you can actually take',
+        detail:
+          'A long leg releases the short leg’s collateral only where settlement can net them. Where it cannot, the capital stays posted.',
+      },
+      {
+        title: 'The ceiling is quoted',
+        detail:
+          'The written leg caps the payoff. That cap is on the ticket before you sign rather than discovered on the expiry statement.',
+      },
+    ],
     rows: [
       ['¼× $145/$160 call spread', dayLabel(EXPIRY)],
       ['Premium, and the most you can lose', usd(SPREAD_PREMIUM)],
@@ -514,6 +606,28 @@ export const EXAMPLES: {
     kicker: 'Pre-IPO',
     title: 'Covered calls on sponsor tokens.',
     body: 'Every mint is read on chain first. A token the issuer can move out of escrow cannot back a contract.',
+    pull: {
+      value: `${PREIPO_BLOCKED} of ${PREIPO_LISTED}`,
+      label:
+        'listed mints are refused, because their issuer can move tokens out of an escrow account.',
+    },
+    mechanics: [
+      {
+        title: 'The mint is read, not trusted',
+        detail:
+          'Freeze authority, permanent delegate, transfer hooks and fees are read from the chain and checked against what the registry claims.',
+      },
+      {
+        title: 'Escrow the issuer cannot reach',
+        detail:
+          'Tokens move to a program escrow for the term. A mint whose issuer retains a way in is listed with its reason and cannot be written against.',
+      },
+      {
+        title: 'Tokens, never shares',
+        detail:
+          'Exercise delivers the token. Quantities are denominated in tokens throughout, and holding one confers no shareholder rights.',
+      },
+    ],
     rows: [
       ['Escrow 0.25 T-OpenAI', dayLabel(PREIPO_EXPIRY)],
       [
@@ -544,6 +658,26 @@ export const EXAMPLES: {
     kicker: 'Lending',
     title: 'Lend stock against funded collateral.',
     body: 'The borrower posts cash and the full term’s interest up front. Pledged protection cannot be reused.',
+    pull: {
+      value: usd(LOAN_COLLATERAL),
+      label: `is posted in cash before a single share moves, against ${usd(SPOT)} of stock.`,
+    },
+    mechanics: [
+      {
+        title: 'Overcollateralized, in the vault',
+        detail: `150% of the reference close, in cash, sitting in the vault before the loan opens — not a credit line and not a promise.`,
+      },
+      {
+        title: 'Interest is prepaid',
+        detail:
+          'The whole term is paid at open. There is no accrual to chase, nothing to margin-call, and no way for the loan to quietly go underwater.',
+      },
+      {
+        title: 'Pledged protection stays pledged',
+        detail:
+          'A put pledged against a loan cannot be sold, closed or reused as collateral anywhere else while the loan is open.',
+      },
+    ],
     rows: [
       [`Lend ${LOAN_QTY} NVDA`, dayLabel(EXPIRY)],
       ['Borrower posts', usd(LOAN_COLLATERAL)],

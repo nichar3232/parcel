@@ -560,26 +560,79 @@
   opacity: 1;
 }
 
+/* A twelve-column measure the panel places on by hand. The elements
+   are placed rather than flowed because the point of the layout is
+   that they do not line up: see the note on the component. */
 .lp-panel {
   display: grid;
-  grid-template-columns: minmax(0, 0.84fr) minmax(0, 1.16fr);
-  align-items: center;
-  gap: clamp(28px, 4vw, 56px);
-  padding-top: clamp(24px, 3vw, 36px);
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: start;
+  column-gap: clamp(20px, 2.6vw, 40px);
+  row-gap: clamp(32px, 4vh, 56px);
+  padding-top: clamp(28px, 3.4vw, 44px);
 }
-.lp-panel-copy h3 {
-  margin-bottom: 10px;
-  font-size: 24px;
+
+.lp-panel-lede {
+  grid-column: 1 / 7;
+}
+.lp-panel-lede h3 {
+  margin-bottom: 12px;
+  font-size: clamp(24px, 2.4vw, 31px);
   font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.16;
+  letter-spacing: -0.028em;
+  line-height: 1.12;
+  text-wrap: balance;
 }
-.lp-panel-copy > p {
+.lp-panel-lede > p {
+  max-width: 40ch;
+  color: var(--pc-body);
+  font-size: 15px;
+}
+
+.lp .lp-preview {
+  grid-column: 7 / 13;
+  grid-row: 1;
+}
+
+/* The one figure worth reading first. This is the rationed use magenta
+   exists for — the duotone marks the number the eye should land on,
+   and nothing else on the panel competes for it. */
+.lp-panel-pull {
+  grid-column: 1 / 6;
+}
+/* fit-content, so the duotone runs the width of the number rather than
+   the width of the column — a five-character figure in a 400px box
+   samples only the cyan end of the ramp and reads as a flat colour. */
+.lp-panel-pull b {
+  display: block;
+  width: fit-content;
+  margin-bottom: 14px;
+  background: var(--pc-duo);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: clamp(40px, 4.6vw, 62px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.lp-panel-pull span {
+  display: block;
+  max-width: 30ch;
   color: var(--pc-body);
   font-size: 14.5px;
+  line-height: 1.5;
 }
+
+/* Beside the pulled figure, not under it: the two are the same fact at
+   two magnifications, and a row of dead canvas between them reads as a
+   loading state rather than as air. */
 .lp-example {
-  margin: 24px 0 0;
+  grid-column: 7 / 13;
+  grid-row: 2;
+  align-self: start;
+  margin: 0;
   border-top: 1px solid var(--pc-line-soft);
 }
 .lp-example > div {
@@ -601,6 +654,9 @@
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+}
+.lp-panel-pull .lp-inline-link {
+  margin-top: 26px;
 }
 .lp-inline-link {
   display: inline-flex;
@@ -624,8 +680,56 @@
   justify-content: center;
   gap: 14px;
   padding: 20px 22px;
-  border-radius: var(--pc-r-lg);
+  border-radius: var(--pc-r-xl);
   background: var(--pc-plot);
+}
+
+/* ---------- the mechanics band ---------- */
+
+/* Three columns that are not the same width and do not start on the
+   same line. The staircase is what stops the band reading as a row of
+   feature tiles: the rules step down with the numbering, so the eye
+   is given an order instead of three equal claims. */
+.lp-mechanics {
+  grid-column: 1 / 13;
+  display: grid;
+  grid-template-columns: 1.24fr 1fr 0.94fr;
+  gap: clamp(20px, 2.6vw, 40px);
+  align-items: start;
+  margin-top: clamp(8px, 2vh, 24px);
+}
+.lp-mechanics li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 6px 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.lp-mechanics li:nth-child(2) {
+  margin-top: 28px;
+}
+.lp-mechanics li:nth-child(3) {
+  margin-top: 56px;
+}
+.lp-mechanics b {
+  grid-row: 1 / span 2;
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+}
+.lp-mechanics strong {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.lp-mechanics p {
+  color: var(--pc-body);
+  font-size: 13.5px;
+  line-height: 1.55;
 }
 .lp-preview figcaption {
   color: var(--pc-muted);
@@ -951,9 +1055,29 @@
 /* ---------- narrow ---------- */
 
 @media (max-width: 1080px) {
-  .lp-hero,
+  .lp-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* One spine. Every placed element gives up its column and takes the
+     order it is written in, which is already the reading order. */
   .lp-panel {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .lp-panel-lede,
+  .lp .lp-preview,
+  .lp-panel-pull,
+  .lp-example,
+  .lp-mechanics {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .lp-mechanics {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .lp-mechanics li:nth-child(2),
+  .lp-mechanics li:nth-child(3) {
+    margin-top: 20px;
   }
   .lp-how-grid {
     grid-template-columns: minmax(0, 1fr);

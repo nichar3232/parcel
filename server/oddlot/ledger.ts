@@ -1,8 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { units } from '../../lib/engine';
-import { DIVIDEND, DIVIDEND_DATE, mark } from '../../lib/oddlot/market';
+import {
+  DIVIDEND,
+  DIVIDEND_DATE,
+  expiries,
+  mark,
+} from '../../lib/oddlot/market';
 import {
   add,
+  days,
   deliveries,
   mul,
   orderGreeks,
@@ -39,6 +45,43 @@ export function initialVault(): VaultBook {
     events: [],
   };
 }
+/**
+ * The same vault with a position in it, for demonstrating the desk.
+ *
+ * Built by running the deposits, the loan and the short through the
+ * ordinary ledger functions rather than by writing rows into `loans`
+ * and `shorts`. That matters: a hand-written row looks identical until
+ * someone presses Recall, at which point the balances it was never
+ * part of refuse to move. Seeded this way the health factor, the
+ * reserved share count, the activity feed and both close buttons all
+ * agree with each other, because they are reading a book that actually
+ * did the trades.
+ *
+ * Off unless PARCEL_DEMO is set, so the test suite keeps the empty
+ * vault every one of its assertions is written against.
+ */
+export function demoVault(): VaultBook {
+  const book = initialVault();
+  const expiry = expiries(book.date).find(
+    (d) => days(book.date, d) >= 14,
+  ) as string;
+
+  transfer(book.wallet, book.vault, 'USDC', 10_000);
+  transfer(book.wallet, book.vault, 'NVDA', 25);
+
+  // Four shares out on loan and two sold short against a $160 cap:
+  // enough for both tables to have rows and for the health factor to
+  // be a number rather than an infinity.
+  openLoan(book, 4, expiry);
+  openShort(book, 2, 160, expiry);
+  return book;
+}
+
+/** The book a new session starts on. */
+export function seedVault(): VaultBook {
+  return process.env.PARCEL_DEMO ? demoVault() : initialVault();
+}
+
 export function transfer(
   from: Balances,
   to: Balances,

@@ -839,6 +839,11 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
+/* A cell that has to be there but is not what the column is read for,
+   such as a risk parameter beside a rate. */
+.od-quiet {
+  color: var(--pc-muted);
+}
 .od-money small {
   font-size: 0.66em;
   opacity: 0.68;
