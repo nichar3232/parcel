@@ -8,42 +8,61 @@ test('the landing page shows the products and routes into the desk', async ({
   await page.goto('/');
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
-    'Options sized to what you own',
+    'Every options structure',
   );
   // the product nav lists the products, and only the products
   await expect(
     page.getByRole('navigation', { name: 'Products' }).getByRole('link'),
   ).toHaveCount(5);
-  // About is a page-level link, so it sits with the other ones
-  await expect(page.locator('.lp-nav-right').getByText('About')).toBeVisible();
-  // the preview card is a priced position, with a term, not a mock-up
-  for (const k of ['Size', 'Max loss', 'Break-even', 'Expiry'])
-    await expect(page.locator('.lp-stats')).toContainText(k);
-  // no stat label may wrap: a two-line label pushes its value off the
-  // baseline the other three sit on
-  const stats = await page.locator('.lp-stats > div').evaluateAll((ds) =>
-    ds.map((d) => {
-      const label = d.querySelector('span') as HTMLElement;
-      const line = parseFloat(getComputedStyle(label).lineHeight) || 16;
-      return {
-        lines: Math.round(label.getBoundingClientRect().height / line),
-        valueTop: Math.round(
-          (d.querySelector('strong') as HTMLElement).getBoundingClientRect()
-            .top,
-        ),
-      };
-    }),
-  );
+
+  // The viewer quotes a priced position, with a term, not a mock-up.
+  const viewer = page.locator('.lp-viewer');
+  for (const k of ['Size', 'Max loss', 'Max gain', 'Break-even'])
+    await expect(viewer.locator('.lp-viewer-stats')).toContainText(k);
+  await expect(viewer.locator('.lp-viewer-contract')).toContainText('$');
+
+  // No stat label may wrap: a two-line label pushes its value off the
+  // baseline the other three sit on.
+  const stats = await viewer
+    .locator('.lp-viewer-stats > div')
+    .evaluateAll((ds) =>
+      ds.map((d) => {
+        const label = d.querySelector('dt') as HTMLElement;
+        const line = parseFloat(getComputedStyle(label).lineHeight) || 16;
+        return {
+          lines: Math.round(label.getBoundingClientRect().height / line),
+          valueTop: Math.round(
+            (d.querySelector('dd') as HTMLElement).getBoundingClientRect().top,
+          ),
+        };
+      }),
+    );
   for (const s of stats) expect(s.lines).toBe(1);
   expect(new Set(stats.map((s) => s.valueTop)).size).toBe(1);
-  await expect(page.locator('.lp-stats')).toContainText(/\$\d+\.\d{2}/);
-  await expect(page.locator('.lp-stats')).toContainText(/\d{2}\/\d{2}\/\d{4}/);
-  // the payoff is drawn from the engine, with the strike marked on it
-  await expect(page.locator('.lp-card .lp-strike')).toHaveCount(1);
-  await expect(page.locator('.lp-card h2 small')).toContainText('expires');
-  // a long call's payoff rises to the right and is not capped
-  const ys = await page
-    .locator('.lp-card .lp-line')
+
+  // The gridlines, the strikes and the price axis are all drawn from
+  // one frame, so every label sits inside the plot it describes.
+  const frame = await viewer.locator('svg').evaluate((svg) => {
+    const box = (svg as SVGSVGElement).viewBox.baseVal;
+    const xs = [...svg.querySelectorAll('.lp-grid-band line')].map((l) => ({
+      x1: Number(l.getAttribute('x1')),
+      x2: Number(l.getAttribute('x2')),
+    }));
+    const ticks = [...svg.querySelectorAll('.lp-ticks text')].map((t) =>
+      Number(t.getAttribute('x')),
+    );
+    return { width: box.width, xs, ticks };
+  });
+  expect(frame.xs.length).toBeGreaterThan(0);
+  for (const tick of frame.ticks) {
+    expect(tick).toBeGreaterThanOrEqual(frame.xs[0].x1);
+    expect(tick).toBeLessThanOrEqual(frame.xs[0].x2);
+  }
+
+  // The first structure is a long call: it rises to the right and is
+  // not capped, which is why it opens the page.
+  const ys = await viewer
+    .locator('.lp-curve')
     .evaluate((el) =>
       [
         ...(el as SVGPathElement)
@@ -52,6 +71,17 @@ test('the landing page shows the products and routes into the desk', async ({
       ].map((m) => Number(m[1])),
     );
   expect(ys.at(-1)!).toBeLessThan(ys[0]);
+  await expect(viewer.locator('.lp-viewer-stats')).toContainText('∞');
+
+  // Picking another structure changes the shape and the figures.
+  const first = await viewer.locator('h2').textContent();
+  await viewer.locator('.lp-viewer-pips button').nth(3).click();
+  await expect(viewer.locator('h2')).not.toHaveText(first!);
+
+  // The status rail states what the desk is actually running on.
+  await expect(page.locator('.lp-rail > div')).toHaveCount(4);
+  await expect(page.locator('.lp-rail')).toContainText(/\$\d+\.\d{2}/);
+
   // one product at a time: five tabs, exactly one open panel
   const tabs = ['Options', 'Underwriting', 'Structures', 'Pre-IPO', 'Lending'];
   await expect(page.getByRole('tab')).toHaveCount(tabs.length);
@@ -73,6 +103,7 @@ test('the landing page shows the products and routes into the desk', async ({
   }
   await page.getByRole('tab', { name: 'Pre-IPO', exact: true }).click();
   await expect(page.locator('.lp-panel')).toContainText('231.50 USDC');
+
   // no in-page link points at an anchor that does not exist
   expect(
     await page.evaluate(() =>
@@ -81,17 +112,25 @@ test('the landing page shows the products and routes into the desk', async ({
         .filter((h) => h !== '#' && !document.querySelector(h)),
     ),
   ).toEqual([]);
+
+  // The interpunct is the product's most reliable tell that a line was
+  // written to look finished rather than to be read.
+  expect(await page.evaluate(() => document.body.innerText)).not.toContain('·');
+
   // a product link in the nav opens that product
   await page.goto('/#structures');
   await expect(
     page.getByRole('tab', { name: 'Structures', exact: true }),
   ).toHaveAttribute('aria-selected', 'true');
 
-  await page.getByRole('link', { name: /Launch app/ }).click();
+  await page
+    .locator('.lp-hero-actions')
+    .getByRole('link', { name: /Open the desk/ })
+    .click();
   await expect(page).toHaveURL(/\/app$/);
-  await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.pc-desk')).toHaveAttribute('data-ready', 'true');
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
-    'A little stock',
+    'Portfolio',
   );
   expect(errors).toEqual([]);
 });

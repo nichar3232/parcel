@@ -7,6 +7,7 @@ import {
   CircleHelp,
   Layers,
   Plus,
+  CalendarClock,
   Rocket,
   ShieldCheck,
   SlidersHorizontal,
@@ -238,6 +239,7 @@ export default function Workspace() {
 
           <button
             className="od-bar-btn"
+            aria-label="Wallet"
             onClick={() => setModal('wallet')}
             disabled={!s}
           >
@@ -248,9 +250,11 @@ export default function Workspace() {
 
           <button
             className="od-bar-btn"
+            aria-label="Market controls"
             onClick={() => setModal('market')}
             disabled={!s}
           >
+            <CalendarClock size={15} />
             <span className="wide">
               {s ? dateLabel(s.book.date) : 'Connecting'}
             </span>
@@ -285,7 +289,11 @@ export default function Workspace() {
               ]}
             />
           )}
-          <button className="od-bar-btn" onClick={() => setModal('about')}>
+          <button
+            className="od-bar-btn"
+            aria-label="How Parcel works"
+            onClick={() => setModal('about')}
+          >
             <CircleHelp size={15} />
             <span className="wide">How it works</span>
           </button>
@@ -293,6 +301,15 @@ export default function Workspace() {
       </div>
 
       <main id="workspace" className="od-main" tabIndex={-1}>
+        {/* Every screen needs one. The views are built out of panels
+            with their own headings, so the page's own name is carried
+            here rather than repeated as a banner nobody reads twice. */}
+        <h1 className="sr-only">
+          {page}
+          {current === TABS[page][0].id
+            ? ''
+            : ` — ${TABS[page].find((t) => t.id === current)?.label ?? ''}`}
+        </h1>
         {desk.error && (
           <div role="alert" className="od-alert">
             <div>
@@ -334,7 +351,14 @@ export default function Workspace() {
             onTransfer={setTransfer}
           />
         ) : page === 'Trade' ? (
+          /* Keyed on the section: the ticket's template, its legs and
+             its size are chosen from the section at mount, and Trade,
+             Underwrite and Structures are different contracts rather
+             than different views of one. Without the key, switching
+             section left a long call sitting under the Structures
+             heading. */
           <TradeView
+            key={current}
             desk={desk}
             feed={feed}
             tab={current as TradeTab}

@@ -111,16 +111,21 @@ export function TransferDialog({
         )}
       </div>
 
+      {/* A warning, not a gate. What counts as available depends on
+          collateral rules the backend owns, so it stays the authority on
+          whether a withdrawal is allowed — the client says what it
+          expects and lets the answer come back from the ledger. */}
       {over && (
         <p className="od-error" role="alert">
-          That is more than the {qty(free)} {asset} available.
+          That is more than the {qty(free)} {asset} this desk shows as
+          available. The vault will check it again.
         </p>
       )}
 
       <Button
         size="lg"
         full
-        disabled={desk.busy || !Number.isFinite(value) || value <= 0 || over}
+        disabled={desk.busy || !Number.isFinite(value) || value <= 0}
         onClick={() => void submit()}
       >
         {desk.busy ? 'Confirming…' : `Confirm ${direction}`}

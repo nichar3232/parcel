@@ -435,15 +435,26 @@
 
 /* ---------- segmented and tabs ---------- */
 
+/* min-inline-size, because the UA stylesheet gives a <fieldset>
+   `min-inline-size: min-content`, which outranks max-width and kept a
+   five-option control at its full width on a phone. */
 .od-segmented {
   display: inline-flex;
+  min-inline-size: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
   gap: 2px;
   padding: 3px;
   border: 1px solid var(--pc-line);
   border-radius: var(--pc-r-sm);
   background: var(--pc-surface);
 }
+.od-segmented::-webkit-scrollbar {
+  display: none;
+}
 .od-segmented button {
+  flex: none;
   height: 30px;
   padding: 0 14px;
   border: 0;
@@ -924,8 +935,22 @@
 
 /* ---------- tables ---------- */
 
+/* A flex child's min-width is auto, so a table wider than the panel
+   refused to scroll inside its own wrapper and widened the page
+   instead. Every direct child of a panel gets the same treatment.
+
+   `position: relative` because a scroller is not a containing block:
+   the `sr-only` label in the actions column is absolutely positioned,
+   so without this it escaped the scroller, landed at its static
+   position seven hundred pixels into the page, and widened the
+   document by exactly the width of a table nobody could see. */
 .od-table-wrap {
+  position: relative;
+  min-width: 0;
   overflow-x: auto;
+}
+.od-panel > * {
+  min-width: 0;
 }
 .od-table {
   width: 100%;
@@ -1333,8 +1358,21 @@
   .od-bar {
     height: auto;
     flex-wrap: wrap;
-    padding-bottom: 8px;
+    padding: 0 12px 8px;
     gap: 10px;
+  }
+  /* The bar's right cluster is five controls wide. At this width the
+     wallet's balance is the one that can go: it is on the screen behind
+     the button anyway, and losing it keeps the live mark. */
+  .od-bar-right {
+    gap: 6px;
+  }
+  .od-bar-btn > b {
+    display: none;
+  }
+  .od-ticker {
+    gap: 7px;
+    padding: 0 9px;
   }
   .od-subbar {
     position: static;
@@ -2644,4 +2682,209 @@
 }
 .od-quote-clock.dead span {
   color: var(--pc-down);
+}
+
+/* ==================================================================
+   The builder's remaining controls
+
+   The chain, the sizing calculator and the curve editor kept their
+   markup through the rebuild, so their hooks are named here rather
+   than renamed across three files for no gain.
+   ================================================================== */
+
+.od-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+/* The old note class, kept so the three retained components do not have
+   to be edited to say the same thing a second way. */
+.od-form-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: var(--pc-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.od-form-note svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* ---------- sizing ---------- */
+
+.od-sizing {
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-surface-2);
+}
+.od-sizing > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  color: var(--pc-body);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+.od-sizing > summary::-webkit-details-marker {
+  display: none;
+}
+.od-sizing > summary::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border: 4px solid transparent;
+  border-left-color: var(--pc-muted);
+  transition: transform 0.16s;
+}
+.od-sizing[open] > summary::before {
+  transform: rotate(90deg) translateX(-1px);
+}
+.od-sizing > summary:hover {
+  color: var(--pc-text);
+}
+.od-sizing > *:not(summary) {
+  margin: 0 14px 12px;
+}
+.od-sizing > output {
+  display: block;
+  padding: 10px 12px;
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-raised);
+  color: var(--pc-body);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.od-curve-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---------- the options chain ---------- */
+
+.od-chain .od-panel-head b {
+  font-family: var(--pc-mono);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.od-chain-controls {
+  padding: 16px 18px 0;
+}
+.od-chain-note {
+  padding: 0 18px;
+}
+.od-chain .od-error {
+  margin: 0 18px;
+}
+.od-chain-desktop {
+  margin-top: 14px;
+}
+/* Strike down the middle, calls to its left, puts to its right: the
+   layout every chain uses, because it is the only one where a reader
+   can compare the two sides without moving their eyes twice. */
+.od-chain-table th:nth-child(3),
+.od-chain-table td:nth-child(3) {
+  text-align: center;
+  background: var(--pc-surface-2);
+}
+.od-chain-table td:nth-child(3) b {
+  font-family: var(--pc-mono);
+  font-size: 14px;
+}
+.od-chain-table th:last-child,
+.od-chain-table td:last-child {
+  text-align: left;
+}
+.od-chain-table td small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+.od-chain-table tr.od-atm td {
+  background: var(--pc-cyan-wash);
+}
+.od-chain-table tr.od-atm td:nth-child(3) {
+  background: color-mix(in srgb, var(--pc-cyan) 18%, transparent);
+}
+.od-chain-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
+}
+.od-chain-actions .od-button {
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 10px;
+  font-family: var(--pc-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.od-chain-mobile {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px 18px;
+}
+.od-chain-card {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-surface-2);
+}
+.od-chain-card.od-atm {
+  border-color: var(--pc-cyan-edge);
+  background: var(--pc-cyan-wash);
+}
+.od-chain-strike strong {
+  display: block;
+  font-family: var(--pc-mono);
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+.od-chain-strike span {
+  color: var(--pc-muted);
+  font-size: 11px;
+  text-transform: capitalize;
+}
+.od-chain-card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.od-chain-card-actions .od-button {
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  font-family: var(--pc-mono);
+  font-size: 11.5px;
+}
+.od-chain-card-actions small {
+  display: block;
+  margin-top: 4px;
+  color: var(--pc-muted);
+  font-size: 10.5px;
+}
+
+/* Below this the five-column chain cannot be read without scrolling it
+   sideways, which is worse than reading one side at a time. */
+@media (max-width: 900px) {
+  .od-chain-desktop {
+    display: none;
+  }
+  .od-chain-mobile {
+    display: flex;
+  }
 }

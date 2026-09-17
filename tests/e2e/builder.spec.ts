@@ -1,47 +1,25 @@
 import { test, expect, type Page } from '@playwright/test';
+import { advanced, nav, navTop, openDesk, quoteFor } from './desk-helpers';
 
 const errors = new WeakMap<Page, string[]>();
 test.beforeEach(async ({ page }) => {
   const list: string[] = [];
   errors.set(page, list);
   page.on('pageerror', (e) => list.push(e.message));
-  await page.goto('/app');
-  await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await openDesk(page);
 });
 test.afterEach(({ page }) => {
   expect(errors.get(page)).toEqual([]);
 });
 
-const nav = (page: Page, name: string) =>
-  page
-    .getByRole('navigation', { name: 'Main navigation' })
-    .getByRole('button', { name, exact: true })
-    .click();
-
-/** Underwrite and Structures are modes inside Trade, not destinations. */
-const tradeMode = async (page: Page, mode: string) => {
-  await nav(page, 'Trade');
-  await page
-    .getByRole('group', { name: 'Trading mode' })
-    .getByRole('button', { name: mode, exact: true })
-    .click();
-};
-
-/** The quote the backend actually priced, not what the form claims. */
-function quoteFor(page: Page) {
-  return page.waitForResponse(
-    (r) =>
-      r.url().endsWith('/api/vault/quote') && r.request().method() === 'POST',
-  );
-}
-
 test('the vault opens the workspace and carries the full ledger', async ({
   page,
 }) => {
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
-    'A little stock',
+    'Portfolio',
   );
-  // the ledger moved here from its own tab; its search and export came with it
+  // The ledger is its own section now; its search and export came with it.
+  await nav(page, 'Activity');
   await expect(page.getByLabel('Search activity')).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Export ledger' }),
@@ -49,7 +27,7 @@ test('the vault opens the workspace and carries the full ledger', async ({
 });
 
 test('sizing is not capped at a single share', async ({ page }) => {
-  await tradeMode(page, 'Structures');
+  await nav(page, 'Structures');
   await page.getByLabel('Contract quantity').fill('8');
   const response = quoteFor(page);
   await page.getByRole('button', { name: 'Review funded quote' }).click();
@@ -69,7 +47,7 @@ for (const [view, template, kind, side] of [
   test(`${view} reaches a funded quote for a fractional ${template}`, async ({
     page,
   }) => {
-    await tradeMode(page, view);
+    await nav(page, view);
     await page.getByLabel('Contract quantity').fill('0.25');
     const response = quoteFor(page);
     await page.getByRole('button', { name: 'Review funded quote' }).click();
@@ -85,25 +63,43 @@ for (const [view, template, kind, side] of [
     expect(snapshot.revision).toBe(0);
   });
 
-test('the menu is four items and the folded views still work', async ({
+test('the shell is four destinations, each with its own sections', async ({
   page,
 }) => {
   const items = page
     .getByRole('navigation', { name: 'Main navigation' })
     .getByRole('button');
   await expect(items).toHaveText(['Portfolio', 'Trade', 'Pre-IPO', 'Lending']);
-  for (const name of ['Trade', 'Pre-IPO', 'Lending', 'Portfolio']) {
-    await nav(page, name);
-    await expect(page.locator('h1')).toBeVisible();
+
+  // Every destination names itself, and its sections belong to it.
+  const sections: Record<string, string[]> = {
+    Portfolio: ['Overview', 'Positions', 'Collateral', 'Activity'],
+    Trade: ['Trade', 'Underwrite', 'Structures'],
+    'Pre-IPO': ['Market', 'Underwrite'],
+    Lending: ['Markets', 'Borrow & short', 'Positions'],
+  };
+  for (const [name, tabs] of Object.entries(sections)) {
+    await navTop(page, name);
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(name);
+    await expect(page.getByRole('tab')).toHaveText(tabs);
   }
-  // Underwrite and Structures still exist, as modes inside Trade.
+
+  // Underwrite and Structures are sections of Trade, and each opens the
+  // ticket beside its chart.
   for (const mode of ['Trade', 'Underwrite', 'Structures']) {
-    await tradeMode(page, mode);
-    await expect(page.locator('.od-builder-grid')).toBeVisible();
+    await nav(page, mode);
+    await expect(page.locator('.od-work')).toBeVisible();
   }
-  // Risk is a section of Portfolio rather than its own page.
-  await nav(page, 'Portfolio');
-  await expect(page.locator('.od-section-break')).toContainText(
-    'What your collateral covers',
-  );
+
+  // Basic asks the question; Advanced opens the machinery.
+  await nav(page, 'Trade');
+  await expect(page.locator('.od-intents .od-intent')).toHaveCount(2);
+  await expect(page.locator('.od-leg')).toHaveCount(0);
+  await advanced(page);
+  await expect(page.locator('.od-leg')).toHaveCount(1);
+  await expect(page.locator('.od-surface svg')).toBeVisible();
+
+  // Collateral is a section of Portfolio rather than its own page.
+  await nav(page, 'Risk');
+  await expect(page.getByText('Collateral policy')).toBeVisible();
 });

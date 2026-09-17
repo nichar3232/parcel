@@ -722,7 +722,7 @@ function Activity({ desk }: { desk: VaultController }) {
             </label>
             <Button variant="secondary" size="sm" onClick={download}>
               <Download size={14} />
-              Export
+              Export ledger
             </Button>
           </div>
         }

@@ -82,7 +82,7 @@ export function OptionsChain({
   };
   return (
     <Panel className="od-chain">
-      <div className="od-panel-heading">
+      <div className="od-panel-head">
         <div>
           <h2>NVDA options chain</h2>
           <p>Choose a strike. Review funding before you trade.</p>
