@@ -3,7 +3,9 @@ export interface PendingMutation {
   key: string;
   input: string;
 }
-const storageKey = (csrf: string) => `oddlot-pending-${csrf.slice(0, 16)}`;
+const storageKey = (csrf: string) => `parcel-pending-${csrf.slice(0, 16)}`;
+const legacyStorageKey = (csrf: string) =>
+  `oddlot-pending-${csrf.slice(0, 16)}`;
 // Only the original intent/key is stored, never the session cookie or CSRF token.
 // A different session gets a different recovery slot and cannot replay this intent.
 export function savePending(request: PendingMutation) {
@@ -13,7 +15,9 @@ export function savePending(request: PendingMutation) {
   );
 }
 export function loadPending(csrf: string): PendingMutation | null {
-  const raw = sessionStorage.getItem(storageKey(csrf));
+  const raw =
+    sessionStorage.getItem(storageKey(csrf)) ||
+    sessionStorage.getItem(legacyStorageKey(csrf));
   if (!raw) return null;
   const value = JSON.parse(raw) as { key?: unknown; input?: unknown };
   if (
@@ -28,4 +32,5 @@ export function loadPending(csrf: string): PendingMutation | null {
 }
 export function clearPending(csrf: string) {
   sessionStorage.removeItem(storageKey(csrf));
+  sessionStorage.removeItem(legacyStorageKey(csrf));
 }

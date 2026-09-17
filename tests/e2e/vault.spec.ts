@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   errors.set(page, list);
   page.on('pageerror', (e) => list.push(e.message));
   await page.goto('/app');
-  await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.parcel')).toHaveAttribute('data-ready', 'true');
   await nav(page, 'Portfolio');
 });
 test.afterEach(({ page }) => {
@@ -121,7 +121,7 @@ test('vault deposits, fractional covered underwriting, blocked withdrawal and ex
   await page.getByRole('button', { name: 'Close dialog' }).click();
   await advance(page, '2025-01-27');
   await page.reload();
-  await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.parcel')).toHaveAttribute('data-ready', 'true');
   await nav(page, 'Vault');
   await expect(page.getByText('Expiry settled', { exact: true })).toBeVisible();
   await expect(
@@ -152,7 +152,7 @@ test('structured orders release only valid collateral offsets; risk view stays s
     page.locator('.od-stat').filter({ hasText: 'Released by valid offsets' }),
   ).toContainText('$0.00');
   await page.reload();
-  await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.parcel')).toHaveAttribute('data-ready', 'true');
   await nav(page, 'Risk');
   await expect(
     page.getByRole('button', {
@@ -238,7 +238,7 @@ test('every workspace view fits desktop and mobile, with accessible forms and no
         )
         .toBe(true);
       await page.screenshot({
-        path: `test-results/audit/oddlot/${name.toLowerCase()}-${width}.png`,
+        path: `test-results/audit/parcel/${name.toLowerCase()}-${width}.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -269,7 +269,7 @@ test('a dropped mutation response retries once with the same receipt, not anothe
   await nav(page, 'Vault');
   await expect(page.getByText('Vault deposit', { exact: true })).toHaveCount(1);
   await page.reload();
-  await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.parcel')).toHaveAttribute('data-ready', 'true');
   await nav(page, 'Vault');
   await expect(page.locator('.od-capital-card')).toContainText('$100.00');
 });
@@ -279,7 +279,7 @@ test('a second tab cannot overwrite the first tab’s vault revision', async ({
 }) => {
   const second = await context.newPage();
   await second.goto('/app');
-  await expect(second.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await expect(second.locator('.parcel')).toHaveAttribute('data-ready', 'true');
   await nav(second, 'Vault');
   await second
     .getByRole('button', { name: 'Deposit USDC', exact: true })
@@ -303,7 +303,7 @@ test('backend outage shows a recovery action and reconnect resumes the saved vau
   await expect(page.getByRole('button', { name: 'Reconnect' })).toBeVisible();
   await page.unroute('**/api/vault');
   await page.getByRole('button', { name: 'Reconnect' }).click();
-  await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.parcel')).toHaveAttribute('data-ready', 'true');
   await nav(page, 'Vault');
   await expect(page.locator('.od-capital-card')).toContainText('$100.00');
 });
@@ -320,7 +320,7 @@ test('invalid precision and out-of-range strikes never crash the payoff view', a
     await expect(
       page.getByRole('heading', { name: 'Choose valid terms' }),
     ).toBeVisible();
-    await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+    await expect(page.locator('.parcel')).toHaveAttribute('data-ready', 'true');
   }
   await page.screenshot({
     path: 'test-results/audit/2026-09-15-review/invalid-terms.png',
@@ -491,7 +491,7 @@ test('a delayed response from an old session cannot replace the new session vaul
     .poll(() =>
       page.evaluate(
         (token) =>
-          sessionStorage.getItem(`oddlot-pending-${token.slice(0, 16)}`),
+          sessionStorage.getItem(`parcel-pending-${token.slice(0, 16)}`),
         csrf,
       ),
     )
@@ -514,7 +514,7 @@ test('a refreshed vault invalidates a reviewed stock trade without silently chan
   await expect(page.getByRole('dialog')).toContainText('$142.62');
   const second = await context.newPage();
   await second.goto('/app');
-  await expect(second.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await expect(second.locator('.parcel')).toHaveAttribute('data-ready', 'true');
   await nav(second, 'Vault');
   await advance(second, '2025-01-27');
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));

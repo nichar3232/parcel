@@ -9,17 +9,17 @@ import {
   totals,
   closeOrder,
   validateLedger,
-} from '../server/oddlot/ledger';
-import { optionsChain, sizeOrder } from '../server/oddlot/catalog';
-import { templateTerms } from '../lib/oddlot/templates';
-import { cashPayoff, orderGreeks, add, signedUnits } from '../lib/oddlot/math';
-import { curveCash, curveCap } from '../lib/oddlot/curves';
-import { deliveryBounds } from '../lib/oddlot/envelope';
-import { parseOrderTerms } from '../lib/oddlot/validation';
-import { risk } from '../lib/oddlot/risk';
-import { mark, clockRows, shortExpiries } from '../lib/oddlot/market';
-import { termInterest, accruedInterest } from '../lib/oddlot/funding';
-import type { OrderTerms, OptionPosition } from '../lib/oddlot/types';
+} from '../server/parcel/ledger';
+import { optionsChain, sizeOrder } from '../server/parcel/catalog';
+import { templateTerms } from '../lib/parcel/templates';
+import { cashPayoff, orderGreeks, add, signedUnits } from '../lib/parcel/math';
+import { curveCash, curveCap } from '../lib/parcel/curves';
+import { deliveryBounds } from '../lib/parcel/envelope';
+import { parseOrderTerms } from '../lib/parcel/validation';
+import { risk } from '../lib/parcel/risk';
+import { mark, clockRows, shortExpiries } from '../lib/parcel/market';
+import { termInterest, accruedInterest } from '../lib/parcel/funding';
+import type { OrderTerms, OptionPosition } from '../lib/parcel/types';
 const position = (terms: OrderTerms): OptionPosition => ({
   id: randomUUID(),
   terms,

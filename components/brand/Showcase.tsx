@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import type { EXAMPLES, Preview } from '@/lib/oddlot/landing';
+import type { EXAMPLES, Preview } from '@/lib/parcel/landing';
 
 type Product = (typeof EXAMPLES)[number];
 

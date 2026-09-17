@@ -1,4 +1,4 @@
-# Oddlot private VPS operations
+# Parcel private VPS operations
 
 Read `~/Brain/Infra/vps.md` and run `~/bin/vps free` before adding capacity. This tenant already runs on `trading-01`. Resolve its address with `~/bin/vps ip --ts`; never hardcode the address. The existing firewall makes port 3025 tailnet-only. Solana RPC binds loopback 8899. No Mac process is needed after deployment.
 
@@ -85,12 +85,12 @@ Public program and authority constants are in `programs/strata/src/lib.rs` and b
 
 The current authority has not been funded on devnet; prior faucet requests were rate-limited. Devnet is not claimed complete. Once **test SOL** is available, deploy to devnet using the dedicated program key, bootstrap a six-decimal test mint with the verifier, pin the official devnet genesis, and repeat all chain tests before switching the service. Never use real funds or relabel local-validator evidence as devnet evidence.
 
-## Oddlot cutover
+## Parcel cutover
 
-Oddlot replaces the UI at `/` and retains the previous desk at `/legacy`. Keep the established `stocklana-web` and `stocklana-validator` service names, state directory and ledger. The extra SQLite migration adds vault tables without changing old positions. The new vault runs as backend test accounting and uses separate balances from original onchain contracts. App rollback preserves all database tables. Do not reset the validator or reinterpret backend vault balances as onchain token accounts.
+Parcel replaces the UI at `/` and retains the previous desk at `/legacy`. Keep the established `stocklana-web` and `stocklana-validator` service names, state directory and ledger. The extra SQLite migration adds vault tables without changing old positions. The new vault runs as backend test accounting and uses separate balances from original onchain contracts. App rollback preserves all database tables. Do not reset the validator or reinterpret backend vault balances as onchain token accounts.
 
-## Oddlot release review (not promoted)
+## Parcel release review (not promoted)
 
-The current release review is under `/var/lib/stocklana/oddlot-review` on `trading-01`. It uses a new program deployed additively to the existing private validator. The declared program ID and its test-mint configuration are recorded in `docs/ODDLOT_CHAIN.md` and the release evidence. Its private deployment key and temporary review environment stay on the box. The ordinary `stocklana-web` app and existing database have not been switched to this branch.
+The current release review is under `/var/lib/stocklana/parcel-review` on `trading-01`. It uses a new program deployed additively to the existing private validator. The declared program ID and its test-mint configuration are recorded in `docs/PARCEL_CHAIN.md` and the release evidence. Its private deployment key and temporary review environment stay on the box. The ordinary `stocklana-web` app and existing database have not been switched to this branch.
 
 The review backend runs only for a bounded recording/check session on loopback port 3028, reached through a temporary SSH forward. It is not a new always-on tenant. Promoting this release requires the normal authorized deployment, backups and environment update; keep the existing service names and validator ledger. Future persistent operation still belongs in the existing `stocklana-web` systemd unit with `Restart=always`.

@@ -14,7 +14,7 @@ export interface Config {
   chainEnabled: boolean;
   expirySeconds: number;
   secureCookie: boolean;
-  oddlot?: { program: string; cashMint: string; stockMint: string };
+  parcel?: { program: string; cashMint: string; stockMint: string };
 }
 export function configFromEnv(
   env: Record<string, string | undefined> = process.env,
@@ -44,24 +44,29 @@ export function configFromEnv(
   const port = Number(env.PORT || 3025);
   if (!Number.isInteger(port) || port < 0 || port > 65535)
     throw new ApiError(500, 'CONFIG', 'Invalid port.');
+  const parcelChainEnabled =
+    env.PARCEL_CHAIN_ENABLED ?? env.ODDLOT_CHAIN_ENABLED;
+  const parcelProgram = env.PARCEL_PROGRAM_ID ?? env.ODDLOT_PROGRAM_ID;
+  const parcelCashMint = env.PARCEL_CASH_MINT ?? env.ODDLOT_CASH_MINT;
+  const parcelStockMint = env.PARCEL_STOCK_MINT ?? env.ODDLOT_STOCK_MINT;
   if (
-    env.ODDLOT_CHAIN_ENABLED === 'true' &&
-    (!env.ODDLOT_PROGRAM_ID ||
-      !env.ODDLOT_CASH_MINT ||
-      !env.ODDLOT_STOCK_MINT ||
+    parcelChainEnabled === 'true' &&
+    (!parcelProgram ||
+      !parcelCashMint ||
+      !parcelStockMint ||
       env.CHAIN_ENABLED === 'false' ||
       network !== 'localnet')
   )
     throw Error(
-      'Oddlot chain mode requires its program, two mints, and an enabled pinned localnet.',
+      'Parcel chain mode requires its program, two mints, and an enabled pinned localnet.',
     );
   return {
-    oddlot:
-      env.ODDLOT_CHAIN_ENABLED === 'true'
+    parcel:
+      parcelChainEnabled === 'true'
         ? {
-            program: env.ODDLOT_PROGRAM_ID!,
-            cashMint: env.ODDLOT_CASH_MINT!,
-            stockMint: env.ODDLOT_STOCK_MINT!,
+            program: parcelProgram!,
+            cashMint: parcelCashMint!,
+            stockMint: parcelStockMint!,
           }
         : undefined,
     port,

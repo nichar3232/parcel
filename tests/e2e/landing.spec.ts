@@ -14,8 +14,10 @@ test('the landing page shows the products and routes into the desk', async ({
   await expect(
     page.getByRole('navigation', { name: 'Products' }).getByRole('link'),
   ).toHaveCount(5);
-  // About is a page-level link, so it sits with the other ones
-  await expect(page.locator('.lp-nav-right').getByText('About')).toBeVisible();
+  // Methodology is a page-level link, so it sits with the other ones.
+  await expect(
+    page.locator('.lp-nav-right').getByText('Methodology'),
+  ).toBeVisible();
   // the preview card is a priced position, with a term, not a mock-up
   for (const k of ['Size', 'Max loss', 'Break-even', 'Expiry'])
     await expect(page.locator('.lp-stats')).toContainText(k);
@@ -40,7 +42,7 @@ test('the landing page shows the products and routes into the desk', async ({
   await expect(page.locator('.lp-stats')).toContainText(/\d{2}\/\d{2}\/\d{4}/);
   // the payoff is drawn from the engine, with the strike marked on it
   await expect(page.locator('.lp-card .lp-strike')).toHaveCount(1);
-  await expect(page.locator('.lp-card h2 small')).toContainText('expires');
+  await expect(page.locator('.lp-card-title-row p')).toContainText('expires');
   // a long call's payoff rises to the right and is not capped
   const ys = await page
     .locator('.lp-card .lp-line')
@@ -52,6 +54,9 @@ test('the landing page shows the products and routes into the desk', async ({
       ].map((m) => Number(m[1])),
     );
   expect(ys.at(-1)!).toBeLessThan(ys[0]);
+  await page.getByRole('button', { name: '0.25×', exact: true }).click();
+  await expect(page.locator('.lp-stats')).toContainText('0.25 shares');
+  await expect(page.locator('.lp-stats')).toContainText('$1.01');
   // one product at a time: five tabs, exactly one open panel
   const tabs = ['Options', 'Underwriting', 'Structures', 'Pre-IPO', 'Lending'];
   await expect(page.getByRole('tab')).toHaveCount(tabs.length);
@@ -87,9 +92,9 @@ test('the landing page shows the products and routes into the desk', async ({
     page.getByRole('tab', { name: 'Structures', exact: true }),
   ).toHaveAttribute('aria-selected', 'true');
 
-  await page.getByRole('link', { name: /Launch app/ }).click();
+  await page.getByRole('link', { name: /Enter sandbox/ }).click();
   await expect(page).toHaveURL(/\/app$/);
-  await expect(page.locator('.oddlot')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.parcel')).toHaveAttribute('data-ready', 'true');
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
     'A little stock',
   );

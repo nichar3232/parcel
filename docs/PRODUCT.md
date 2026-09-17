@@ -1,4 +1,4 @@
-# Oddlot product and collateral rules
+# Parcel product and collateral rules
 
 ## Contract granularity
 
@@ -12,7 +12,7 @@ The current vault is a persistent test-asset ledger, with separate funding walle
 
 Every action is owner-filtered and runs inside one SQLite transaction. Before commit, the engine recomputes collateral and compares the total USDC and NVDA base units with the pre-action totals. Loan collateral/interest escrow is included in the USDC total. A failure rolls back balances, positions, quote consumption and receipts together. All mutations require CSRF, an idempotency key and the reviewed revision.
 
-Keyless sandbox custody is backend accounting. Configured localnet vaults use the new `programs/oddlot` program and real SPL test-token escrow. The program computes every transition and collateral reserve; it rejects a result that differs from the backend plan. Signed bytes are saved before sending, and SQLite commits the indexed book only after signature confirmation and an account-state comparison. The older `/legacy` spread program remains separate and unchanged.
+Keyless sandbox custody is backend accounting. Configured localnet vaults use the new `programs/parcel` program and real SPL test-token escrow. The program computes every transition and collateral reserve; it rejects a result that differs from the backend plan. Signed bytes are saved before sending, and SQLite commits the indexed book only after signature confirmation and an account-state comparison. The older `/legacy` spread program remains separate and unchanged.
 
 ## Physical and cash settlement
 
@@ -33,15 +33,15 @@ The engine never gives scenario/correlation credit across issuers or outside pro
 
 A stock loan removes shares from the user's spendable vault. The borrower posts 150% of opening stock value plus the full term's 3.5% annualized test borrow interest. The borrower sells the shares to the funded test market and buys a covered protective call with strike 150% of entry. Market inventory backing that call is reserved. On recall or expiry, cash escrow pays the lesser of spot and cap to repurchase shares, principal returns to the lender, accrued interest is credited, and unused escrow returns to the borrower. This test protection permits capped repurchase on early recall; it is not a vanilla European call quote. This isolated test market does not claim external utilization or market lending rates.
 
-An ordinary short's loss is unbounded. Oddlot therefore offers protected shorts only: borrowed shares are sold to a separately funded test market, a share-backed protective call is purchased, and the strike repurchase amount plus full-term interest is locked. This specific protection is exercisable on early close as well as term expiry. If the price exceeds the cap, call delivery and stock repayment occur atomically. Otherwise the stock is repurchased from the market. The initial short proceeds remain collateral. The protective-call premium is nonrefundable when closing early; no model buyback value for that protection is credited.
+An ordinary short's loss is unbounded. Parcel therefore offers protected shorts only: borrowed shares are sold to a separately funded test market, a share-backed protective call is purchased, and the strike repurchase amount plus full-term interest is locked. This specific protection is exercisable on early close as well as term expiry. If the price exceeds the cap, call delivery and stock repayment occur atomically. Otherwise the stock is repurchased from the market. The initial short proceeds remain collateral. The protective-call premium is nonrefundable when closing early; no model buyback value for that protection is credited.
 
 ## Dividend reference
 
-The initial contract is a capped claim on a specified cash-dividend-per-share observation, not an ownership right in a company distribution. NVIDIA declared $0.01 per share, payable April 2, 2025 to holders of record March 12. Oddlot uses that record-date event as its explicit test settlement date. [Issuer announcement](https://investor.nvidia.com/news/press-release-details/2025/NVIDIA-Announces-Financial-Results-for-Fourth-Quarter-and-Fiscal-2025/).
+The initial contract is a capped claim on a specified cash-dividend-per-share observation, not an ownership right in a company distribution. NVIDIA declared $0.01 per share, payable April 2, 2025 to holders of record March 12. Parcel uses that record-date event as its explicit test settlement date. [Issuer announcement](https://investor.nvidia.com/news/press-release-details/2025/NVIDIA-Announces-Financial-Results-for-Fourth-Quarter-and-Fiscal-2025/).
 
 Dividends are already a derivatives reference in established markets; this product does not claim to invent dividend derivatives. [CME dividend futures and options](https://www.cmegroup.com/markets/equities/us-index/equity-index-dividend-futures.html).
 
-Issuer mechanics must remain separate. xStocks describes dividend reinvestment and a multiplier; on Solana the base token amount can remain constant while the multiplier changes its represented exposure. A share-equivalent contract must account for those terms before integrating a real issuer token. Oddlot's test shares do not claim that integration. [xStocks corporate-action documentation](https://docs.xstocks.fi/docs/dividends-and-stock-splits).
+Issuer mechanics must remain separate. xStocks describes dividend reinvestment and a multiplier; on Solana the base token amount can remain constant while the multiplier changes its represented exposure. A share-equivalent contract must account for those terms before integrating a real issuer token. Parcel's test shares do not claim that integration. [xStocks corporate-action documentation](https://docs.xstocks.fi/docs/dividends-and-stock-splits).
 
 ## Current release
 
@@ -67,7 +67,7 @@ Exposure sizing sets share-equivalents directly. Premium-budget sizing binary-se
 
 ## Hourly test clock
 
-The original daily dates retain their observation indices. Twenty-three hourly ticks are appended for each daily observation except the final window endpoint. Each tick carries that day's committed historical close forward; these are explicitly test-clock observations, not recorded intraday prices or future-close interpolation. Pricing, interest and settlement use actual elapsed hours. Expiry eligibility and all clearing order use chronological time, never the appended observation index. Jumping several days still settles each contract at its own exact expiry observation. The TypeScript table and compiled Rust prices/hours are regression-checked together; regenerate with `npm run generate:oddlot-market` and format the Rust source.
+The original daily dates retain their observation indices. Twenty-three hourly ticks are appended for each daily observation except the final window endpoint. Each tick carries that day's committed historical close forward; these are explicitly test-clock observations, not recorded intraday prices or future-close interpolation. Pricing, interest and settlement use actual elapsed hours. Expiry eligibility and all clearing order use chronological time, never the appended observation index. Jumping several days still settles each contract at its own exact expiry observation. The TypeScript table and compiled Rust prices/hours are regression-checked together; regenerate with `npm run generate:parcel-market` and format the Rust source.
 
 ## Capped quadratic and exponential contracts
 

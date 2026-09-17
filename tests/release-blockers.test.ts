@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../server/db/store';
-import { VaultService } from '../server/oddlot/service';
-import { templateTerms } from '../lib/oddlot/templates';
-import { risk } from '../lib/oddlot/risk';
-import { initialVault } from '../server/oddlot/ledger';
-import { parseOrderTerms } from '../lib/oddlot/validation';
-import { strategyPnl } from '../lib/oddlot/math';
+import { VaultService } from '../server/parcel/service';
+import { templateTerms } from '../lib/parcel/templates';
+import { risk } from '../lib/parcel/risk';
+import { initialVault } from '../server/parcel/ledger';
+import { parseOrderTerms } from '../lib/parcel/validation';
+import { strategyPnl } from '../lib/parcel/math';
 void test('quote: an unfunded physical call still reports all exercise collateral', () => {
   const store = new Store(':memory:');
   try {
@@ -184,9 +184,9 @@ void test('500-position risk calculation remains bounded after replacing quadrat
 
 void test('productive lending sells the borrowed stock, reserves protection, and repurchases principal', async () => {
   const { openLoan, closeLoan, totals, validateLedger, transfer } =
-    await import('../server/oddlot/ledger');
-  const { mul, add } = await import('../lib/oddlot/math');
-  const { mark } = await import('../lib/oddlot/market');
+    await import('../server/parcel/ledger');
+  const { mul, add } = await import('../lib/parcel/math');
+  const { mark } = await import('../lib/parcel/market');
   const b = initialVault();
   transfer(b.wallet, b.vault, 'NVDA', 0.333333);
   const original = totals(b),
@@ -227,8 +227,8 @@ void test('productive lending sells the borrowed stock, reserves protection, and
   validateLedger(b, original);
 });
 void test('market shares pledged to loan protection cannot be sold again', async () => {
-  const { openLoan, transfer } = await import('../server/oddlot/ledger');
-  const { assertCollateral } = await import('../lib/oddlot/risk');
+  const { openLoan, transfer } = await import('../server/parcel/ledger');
+  const { assertCollateral } = await import('../lib/parcel/risk');
   const b = initialVault();
   transfer(b.wallet, b.vault, 'NVDA', 1);
   openLoan(b, 1, '2025-02-07');
@@ -242,9 +242,9 @@ void test('market shares pledged to loan protection cannot be sold again', async
 void test('the program commits exactly the same historical dates and prices as the backend', async () => {
   const { readFileSync } = await import('node:fs');
   const { clockRows: marketRows, DIVIDEND_DATE } =
-    await import('../lib/oddlot/market');
+    await import('../lib/parcel/market');
   const source = readFileSync(
-    new URL('../programs/oddlot/src/market.rs', import.meta.url),
+    new URL('../programs/parcel/src/market.rs', import.meta.url),
     'utf8',
   );
   const values = (name: string) =>

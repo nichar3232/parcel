@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { Mark } from '@/components/brand/Mark';
+import { PositionPreview } from '@/components/brand/PositionPreview';
 import { Showcase } from '@/components/brand/Showcase';
 import { ThemeToggle } from '@/components/brand/Theme';
-import { EXAMPLES, HERO } from '@/lib/oddlot/landing';
+import { EXAMPLES, HERO } from '@/lib/parcel/landing';
 import './landing.css';
 
 /** The nav opens each product in the desk; the tabs below preview it. */
@@ -51,131 +52,87 @@ export default function Landing() {
         </nav>
         <div className="lp-nav-right">
           <a className="lp-nav-about" href="#how">
-            About
+            Methodology
           </a>
+          <span className="lp-nav-status">
+            <i aria-hidden /> Sandbox
+          </span>
           <ThemeToggle />
           <Link className="lp-cta" href="/app">
-            Open the desk
+            Enter the desk
           </Link>
         </div>
       </header>
 
       <section className="lp-hero">
         <div className="lp-hero-copy">
-          <span className="lp-kicker">Solana · Historical replay</span>
+          <span className="lp-kicker">Parcel / sandbox workspace</span>
           <h1>
             Options sized to <em>what you own</em>
           </h1>
           <p>
-            A listed contract needs a hundred shares. Parcel writes the same
-            structures against a fraction of one: spreads, collars, covered
-            calls, protective puts. Fully collateralized in USDC and settled
-            against your vault.
+            A listed contract is built for a hundred shares. Parcel lets you
+            model the same structures at share-equivalent precision, with
+            collateral, downside and settlement obligations visible before you
+            act.
           </p>
           <div className="lp-hero-cta">
             <div className="lp-hero-actions">
               <Link className="lp-btn lp-btn-primary" href="/app">
-                Launch app <span aria-hidden>&rarr;</span>
+                Enter sandbox <span aria-hidden>&rarr;</span>
               </Link>
               <a className="lp-btn" href="#products">
-                Explore the products
+                Explore products
               </a>
             </div>
             <ul className="lp-meta">
               <li>Fractional sizing</li>
-              <li>USDC collateral</li>
-              <li>Settled on Solana</li>
+              <li>Explicit collateral</li>
+              <li>Historical NVDA replay</li>
             </ul>
           </div>
         </div>
 
-        <figure className="lp-card">
-          <figcaption>
-            <span className="lp-card-kicker">Position preview</span>
-          </figcaption>
-          <h2>
-            {HERO.title}
-            <small>
-              {HERO.contract} · expires {HERO.expiryLabel}
-            </small>
-          </h2>
-          <div className="lp-chart">
-            <svg viewBox="0 0 760 240">
-              <title>
-                {`Payoff at expiry for ${HERO.title}, ${HERO.strikes.map((k) => `$${k}`).join(' / ')}`}
-              </title>
-              <defs>
-                <linearGradient id="lpFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="0"
-                    stopColor="var(--accent)"
-                    stopOpacity=".34"
-                  />
-                  <stop offset="1" stopColor="var(--accent)" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {HERO.strikeX.map((x, i) => (
-                <line
-                  key={HERO.strikes[i]}
-                  x1={x}
-                  x2={x}
-                  y1="24"
-                  y2="208"
-                  className="lp-strike"
-                />
-              ))}
-              <path d={HERO.area} fill="url(#lpFill)" />
-              <line
-                x1="40"
-                x2="720"
-                y1={HERO.zeroY}
-                y2={HERO.zeroY}
-                className="lp-grid"
-              />
-              <path d={HERO.line} className="lp-line" />
-              {HERO.strikeX.map((x, i) => (
-                <text
-                  key={HERO.strikes[i]}
-                  x={x}
-                  y="222"
-                  className="lp-strike-label"
-                  textAnchor="middle"
-                >
-                  ${HERO.strikes[i]}
-                </text>
-              ))}
-            </svg>
-            <div className="lp-axis">
-              {HERO.axis.map((a) => (
-                <span key={a}>{a}</span>
-              ))}
-            </div>
-          </div>
-          <div className="lp-stats">
-            {HERO.stats.map((s) => (
-              <div key={s.k}>
-                <span>{s.k}</span>
-                <strong>{s.v}</strong>
-              </div>
-            ))}
-          </div>
-        </figure>
+        <PositionPreview />
 
         <a className="lp-scroll" href="#products" aria-label="See the products">
-          <span>See what it does</span>
+          <span>Explore the desk</span>
           <i aria-hidden />
         </a>
+      </section>
+
+      <section className="lp-foundations" aria-label="Parcel operating principles">
+        <div className="lp-foundations-inner">
+          <p>
+            <span>Designed for position-level decisions.</span> Every model
+            indication is tied to the same historical inputs and collateral
+            rules used by the desk.
+          </p>
+          <dl>
+            <div>
+              <dt>01</dt>
+              <dd>Server-authoritative ledger</dd>
+            </div>
+            <div>
+              <dt>02</dt>
+              <dd>Quoted before confirmation</dd>
+            </div>
+            <div>
+              <dt>03</dt>
+              <dd>Recoverable actions</dd>
+            </div>
+          </dl>
+        </div>
       </section>
 
       <section className="lp-section" id="products">
         <div className="lp-section-inner lp-products">
           <div className="lp-section-head">
-            <span className="lp-kicker">What the desk does</span>
-            <h2>Five products, one collateral rule.</h2>
+            <span className="lp-kicker">Product surfaces</span>
+            <h2>Five ways to express a view. One accounting standard.</h2>
             <p>
-              Every figure below is priced by the desk from the stored NVDA
-              close of {HERO.spotLabel} on {HERO.openLabel}, not written by
-              hand.
+              The examples are modelled from the stored NVDA close of{' '}
+              {HERO.spotLabel} on {HERO.openLabel}. They are not live quotes.
             </p>
           </div>
           <Showcase products={EXAMPLES} />
@@ -186,7 +143,7 @@ export default function Landing() {
         <div className="lp-section-inner lp-how-inner">
           <div className="lp-section-copy">
             <span className="lp-kicker">How it works</span>
-            <h2>The same four steps, whichever one you use.</h2>
+            <h2>A disciplined workflow for every position.</h2>
             <p>
               All five products run on one vault and one collateral rule. Every
               position is fully funded from assets you already hold, and nothing
@@ -209,20 +166,20 @@ export default function Landing() {
 
       <section className="lp-section lp-close">
         <div className="lp-section-inner lp-close-inner">
-          <h2>Open the desk.</h2>
-          <p>
-            A historical NVDA replay, a funded sandbox vault, and the full
-            contract workflow.
-          </p>
+            <h2>Make the position explicit.</h2>
+            <p>
+            Explore the historical sandbox, inspect the full contract
+            workflow, then review a fresh quote before any action.
+            </p>
           <Link className="lp-btn lp-btn-primary" href="/app">
-            Launch the desk <span aria-hidden>&rarr;</span>
+            Enter the desk <span aria-hidden>&rarr;</span>
           </Link>
         </div>
       </section>
 
       <footer className="lp-foot">
-        <span>Parcel · Precision for every position.</span>
-        <span>Historical replay · NVDA, Jan–Mar 2025</span>
+        <span>Parcel / Position infrastructure for the individual share.</span>
+        <span>Sandbox model · Historical NVDA replay</span>
       </footer>
     </div>
   );

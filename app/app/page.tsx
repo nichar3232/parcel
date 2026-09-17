@@ -1,1 +1,1 @@
-export { default } from '@/components/oddlot/Workspace';
+export { default } from '@/components/parcel/Workspace';
