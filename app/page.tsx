@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Mark } from '@/components/brand/Mark';
 import { Showcase } from '@/components/brand/Showcase';
+import { StructureHero } from '@/components/brand/StructureHero';
 import { ThemeToggle } from '@/components/brand/Theme';
 import { EXAMPLES, HERO } from '@/lib/oddlot/landing';
 import './landing.css';
@@ -15,7 +16,21 @@ const PRODUCTS = [
 ];
 
 /**
- * The spine every product above shares. Written to hold for all five,
+ * The desk's own state, printed as a status rail.
+ *
+ * Four figures the product actually runs on, in the order a trader
+ * would read them. It replaces the row of adjectives that used to sit
+ * here, which said nothing a reader could check.
+ */
+const RAIL = [
+  ['Reference', `NVDA ${HERO.spotLabel}`],
+  ['Session', HERO.openLabel],
+  ['Model vol', '45%'],
+  ['Minimum size', '0.000001 share'],
+];
+
+/**
+ * The spine every product shares. Written to hold for all five,
  * not for the options flow alone.
  */
 const STEPS = [
@@ -29,18 +44,24 @@ const STEPS = [
     'Share-equivalents, a premium budget, a dollar sensitivity, or a share count.',
   ],
   [
-    'Review the exact figures, then settle',
-    'Premium, collateral and worst case before you sign; settlement returns to the same vault.',
+    'Review, then settle',
+    'Premium, collateral and worst case before you sign. Settlement returns to the same vault.',
   ],
 ];
 
 export default function Landing() {
   return (
     <div className="lp">
+      <div className="pc-aurora" aria-hidden>
+        <i />
+        <i />
+        <i />
+      </div>
+
       <header className="lp-nav">
         <Link className="lp-mark" href="/">
-          <Mark size={22} />
-          PARCEL
+          <Mark size={24} />
+          <b>PARCEL</b>
         </Link>
         <nav aria-label="Products">
           {PRODUCTS.map((p) => (
@@ -51,7 +72,7 @@ export default function Landing() {
         </nav>
         <div className="lp-nav-right">
           <a className="lp-nav-about" href="#how">
-            About
+            How it works
           </a>
           <ThemeToggle />
           <Link className="lp-cta" href="/app">
@@ -60,118 +81,47 @@ export default function Landing() {
         </div>
       </header>
 
-      <section className="lp-hero">
-        <div className="lp-hero-copy">
-          <span className="lp-kicker">Solana · Historical replay</span>
-          <h1>
-            Options sized to <em>what you own</em>
-          </h1>
-          <p>
-            A listed contract needs a hundred shares. Parcel writes the same
-            structures against a fraction of one: spreads, collars, covered
-            calls, protective puts. Fully collateralized in USDC and settled
-            against your vault.
-          </p>
-          <div className="lp-hero-cta">
+      <main className="lp-main">
+        <section className="lp-hero">
+          <div className="lp-hero-copy">
+            <span className="lp-kicker">Options, by the share</span>
+            <h1>
+              Every options structure,
+              <em> sized to one share</em>
+            </h1>
+            <p>
+              A listed contract needs a hundred shares. Parcel writes the same
+              spreads, collars, covered calls and protective puts against a
+              fraction of one, fully collateralized in USDC and settled back
+              into your own vault.
+            </p>
             <div className="lp-hero-actions">
               <Link className="lp-btn lp-btn-primary" href="/app">
-                Launch app <span aria-hidden>&rarr;</span>
+                Open the desk
+                <span aria-hidden>&rarr;</span>
               </Link>
-              <a className="lp-btn" href="#products">
-                Explore the products
+              <a className="lp-btn lp-btn-quiet" href="#products">
+                See the five products
               </a>
             </div>
-            <ul className="lp-meta">
-              <li>Fractional sizing</li>
-              <li>USDC collateral</li>
-              <li>Settled on Solana</li>
-            </ul>
           </div>
+
+          <StructureHero />
+        </section>
+
+        <div className="lp-rail">
+          {RAIL.map(([k, v]) => (
+            <div key={k}>
+              <span>{k}</span>
+              <b>{v}</b>
+            </div>
+          ))}
         </div>
 
-        <figure className="lp-card">
-          <figcaption>
-            <span className="lp-card-kicker">Position preview</span>
-          </figcaption>
-          <h2>
-            {HERO.title}
-            <small>
-              {HERO.contract} · expires {HERO.expiryLabel}
-            </small>
-          </h2>
-          <div className="lp-chart">
-            <svg viewBox="0 0 760 240">
-              <title>
-                {`Payoff at expiry for ${HERO.title}, ${HERO.strikes.map((k) => `$${k}`).join(' / ')}`}
-              </title>
-              <defs>
-                <linearGradient id="lpFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="0"
-                    stopColor="var(--accent)"
-                    stopOpacity=".34"
-                  />
-                  <stop offset="1" stopColor="var(--accent)" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {HERO.strikeX.map((x, i) => (
-                <line
-                  key={HERO.strikes[i]}
-                  x1={x}
-                  x2={x}
-                  y1="24"
-                  y2="208"
-                  className="lp-strike"
-                />
-              ))}
-              <path d={HERO.area} fill="url(#lpFill)" />
-              <line
-                x1="40"
-                x2="720"
-                y1={HERO.zeroY}
-                y2={HERO.zeroY}
-                className="lp-grid"
-              />
-              <path d={HERO.line} className="lp-line" />
-              {HERO.strikeX.map((x, i) => (
-                <text
-                  key={HERO.strikes[i]}
-                  x={x}
-                  y="222"
-                  className="lp-strike-label"
-                  textAnchor="middle"
-                >
-                  ${HERO.strikes[i]}
-                </text>
-              ))}
-            </svg>
-            <div className="lp-axis">
-              {HERO.axis.map((a) => (
-                <span key={a}>{a}</span>
-              ))}
-            </div>
-          </div>
-          <div className="lp-stats">
-            {HERO.stats.map((s) => (
-              <div key={s.k}>
-                <span>{s.k}</span>
-                <strong>{s.v}</strong>
-              </div>
-            ))}
-          </div>
-        </figure>
-
-        <a className="lp-scroll" href="#products" aria-label="See the products">
-          <span>See what it does</span>
-          <i aria-hidden />
-        </a>
-      </section>
-
-      <section className="lp-section" id="products">
-        <div className="lp-section-inner lp-products">
+        <section className="lp-section" id="products">
           <div className="lp-section-head">
-            <span className="lp-kicker">What the desk does</span>
-            <h2>Five products, one collateral rule.</h2>
+            <span className="lp-kicker">The products</span>
+            <h2>Five ways to use one vault</h2>
             <p>
               Every figure below is priced by the desk from the stored NVDA
               close of {HERO.spotLabel} on {HERO.openLabel}, not written by
@@ -179,50 +129,60 @@ export default function Landing() {
             </p>
           </div>
           <Showcase products={EXAMPLES} />
-        </div>
-      </section>
+        </section>
 
-      <section className="lp-section lp-how" id="how">
-        <div className="lp-section-inner lp-how-inner">
-          <div className="lp-section-copy">
+        <section className="lp-section lp-how" id="how">
+          <div className="lp-section-head">
             <span className="lp-kicker">How it works</span>
-            <h2>The same four steps, whichever one you use.</h2>
+            <h2>The same four steps, whichever one you use</h2>
             <p>
               All five products run on one vault and one collateral rule. Every
-              position is fully funded from assets you already hold, and nothing
-              is borrowed on your behalf.
+              position is funded from assets you already hold, and nothing is
+              borrowed on your behalf.
             </p>
           </div>
           <ol className="lp-steps">
             {STEPS.map(([title, detail], i) => (
               <li key={title}>
                 <b>{String(i + 1).padStart(2, '0')}</b>
-                <div>
-                  <strong>{title}</strong>
-                  <span>{detail}</span>
-                </div>
+                <strong>{title}</strong>
+                <span>{detail}</span>
               </li>
             ))}
           </ol>
-        </div>
-      </section>
+        </section>
 
-      <section className="lp-section lp-close">
-        <div className="lp-section-inner lp-close-inner">
-          <h2>Open the desk.</h2>
-          <p>
-            A historical NVDA replay, a funded sandbox vault, and the full
-            contract workflow.
-          </p>
+        <section className="lp-close">
+          <div>
+            <h2>Open the desk</h2>
+            <p>
+              A funded vault, live model pricing and the full contract workflow.
+              Nothing to install and no wallet to connect.
+            </p>
+          </div>
           <Link className="lp-btn lp-btn-primary" href="/app">
-            Launch the desk <span aria-hidden>&rarr;</span>
+            Launch Parcel
+            <span aria-hidden>&rarr;</span>
           </Link>
-        </div>
-      </section>
+        </section>
+      </main>
 
       <footer className="lp-foot">
-        <span>Parcel · Precision for every position.</span>
-        <span>Historical replay · NVDA, Jan–Mar 2025</span>
+        <Link className="lp-mark" href="/">
+          <Mark size={20} />
+          <b>PARCEL</b>
+        </Link>
+        <nav aria-label="Footer">
+          <Link href="/app">Desk</Link>
+          <a href="#products">Products</a>
+          <a
+            href="https://github.com/nichar3232/parcel"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Repository
+          </a>
+        </nav>
       </footer>
     </div>
   );

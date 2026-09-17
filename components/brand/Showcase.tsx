@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { PLOT } from '@/lib/oddlot/landing';
 import type { EXAMPLES, Preview } from '@/lib/oddlot/landing';
 
 type Product = (typeof EXAMPLES)[number];
@@ -12,38 +13,68 @@ function PayoffPreview({
 }) {
   const p = preview.payoff;
   return (
-    <svg viewBox="0 0 760 240" className="lp-preview-chart">
-      <title>Payoff at expiry</title>
+    <svg
+      viewBox={`0 0 ${PLOT.w} ${PLOT.h}`}
+      className="lp-preview-chart"
+      role="img"
+      aria-label="Payoff at expiry"
+    >
       <defs>
         <linearGradient id="lpShowFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="var(--accent)" stopOpacity=".3" />
-          <stop offset="1" stopColor="var(--accent)" stopOpacity="0" />
+          <stop offset="0" stopColor="var(--pc-cyan)" stopOpacity=".26" />
+          <stop offset="1" stopColor="var(--pc-cyan)" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="lpShowStroke" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="var(--pc-cyan)" />
+          <stop offset="1" stopColor="var(--pc-magenta)" />
         </linearGradient>
       </defs>
-      {p.strikes.map((k) => (
-        <line
-          key={k.value}
-          x1={k.x}
-          x2={k.x}
-          y1="24"
-          y2="208"
-          className="lp-strike"
-        />
-      ))}
+
+      <g className="lp-grid-band">
+        {p.grid.map((g) => (
+          <g key={g.label + g.y}>
+            <line x1={PLOT.x0} x2={PLOT.x1} y1={g.y} y2={g.y} />
+            <text x={PLOT.x0 - 12} y={g.y + 3.5} textAnchor="end">
+              {g.label}
+            </text>
+          </g>
+        ))}
+      </g>
+
+      <g className="lp-strikes">
+        {p.strikes.map((k, i) => (
+          <g key={`${k.value}-${i}`}>
+            <line x1={k.x} x2={k.x} y1={PLOT.y0} y2={PLOT.y1} />
+            <text x={k.x} y={PLOT.y0 - 10} textAnchor="middle">
+              ${k.value}
+            </text>
+          </g>
+        ))}
+      </g>
+
       <path d={p.area} fill="url(#lpShowFill)" />
-      <line x1="40" x2="720" y1={p.zeroY} y2={p.zeroY} className="lp-grid" />
-      <path d={p.line} className="lp-line" />
-      {p.strikes.map((k) => (
-        <text
-          key={k.value}
-          x={k.x}
-          y="224"
-          className="lp-strike-label"
-          textAnchor="middle"
-        >
-          ${k.value}
-        </text>
-      ))}
+      <line
+        x1={PLOT.x0}
+        x2={PLOT.x1}
+        y1={p.zeroY}
+        y2={p.zeroY}
+        className="lp-zero"
+      />
+      <path d={p.line} className="lp-curve" stroke="url(#lpShowStroke)" />
+
+      <g className="lp-ticks">
+        {p.ticks.map((t, i) => (
+          <text
+            key={t.label}
+            x={t.x}
+            y={PLOT.axisY}
+            textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
+            data-mid={i === 1 || undefined}
+          >
+            {t.label}
+          </text>
+        ))}
+      </g>
     </svg>
   );
 }
@@ -51,14 +82,7 @@ function PayoffPreview({
 function Preview({ preview }: { preview: Preview }) {
   if (preview.kind === 'payoff')
     return (
-      <>
-        <PayoffPreview preview={preview} />
-        <div className="lp-axis">
-          {preview.payoff.axis.map((a) => (
-            <span key={a}>{a}</span>
-          ))}
-        </div>
-      </>
+      <PayoffPreview preview={preview} />
     );
   if (preview.kind === 'outcomes')
     return (

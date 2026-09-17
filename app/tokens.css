@@ -1,0 +1,326 @@
+/* ------------------------------------------------------------------
+   Parcel design tokens.
+
+   One palette, two schemes, imported by both the landing page and the
+   desk so a colour can only be defined once. Every surface, rule and
+   chart stroke in the product resolves through a token here; a literal
+   hex anywhere else is a bug, because the light scheme is nothing but
+   a second set of values for these same names.
+
+   The scheme is void-first. Cyan is the working accent — it carries
+   primary actions, focus, selection and the live-price pulse. Magenta
+   is deliberately rationed: gradient fades, the second half of a
+   duotone, and the one figure on a panel that has to be read before
+   the others. Using it as a second button colour is what makes this
+   palette read as generic crypto, so it never is one.
+
+   P&L never uses either. Gain is lime, loss is rose, and they are the
+   only two colours that carry meaning without a label.
+   ------------------------------------------------------------------ */
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* canvas → raised, in six steps. Each is ~4% lighter than the last,
+     which is the smallest step that still separates stacked panels
+     on a cheap display. */
+  --pc-void: #050507;
+  --pc-bg: #08080d;
+  --pc-surface: #0e0e14;
+  --pc-surface-2: #13131c;
+  --pc-raised: #1a1a25;
+  --pc-hover: #20202d;
+
+  /* rules. -line is a visible division, -soft is a hairline that reads
+     as a shadow rather than a border. */
+  --pc-line: #23232f;
+  --pc-line-soft: #16161f;
+
+  /* type, in four weights of attention */
+  --pc-text: #fafafa;
+  --pc-body: #a5a5b6;
+  --pc-muted: #6d6d80;
+  --pc-faint: #43435a;
+
+  /* brand */
+  --pc-cyan: #22d3ee;
+  --pc-cyan-soft: #67e8f9;
+  --pc-cyan-deep: #0e7490;
+  --pc-cyan-ink: #03161b;
+  --pc-cyan-wash: rgba(34, 211, 238, 0.12);
+  --pc-cyan-edge: rgba(34, 211, 238, 0.32);
+
+  --pc-magenta: #e879f9;
+  --pc-magenta-deep: #a21caf;
+  --pc-magenta-wash: rgba(232, 121, 249, 0.12);
+
+  /* P&L and state */
+  --pc-up: #a3e635;
+  --pc-up-wash: rgba(163, 230, 53, 0.13);
+  --pc-down: #fb7185;
+  --pc-down-wash: rgba(251, 113, 133, 0.13);
+  --pc-warn: #fbbf24;
+  --pc-warn-wash: rgba(251, 191, 36, 0.13);
+
+  /* the one gradient the product uses, and its faded tail */
+  --pc-duo: linear-gradient(115deg, var(--pc-cyan) 0%, var(--pc-magenta) 100%);
+  --pc-duo-soft: linear-gradient(
+    115deg,
+    rgba(34, 211, 238, 0.16) 0%,
+    rgba(232, 121, 249, 0.16) 100%
+  );
+
+  /* elevation. Dark surfaces get a rim-light rather than a drop shadow;
+     a black shadow on a black canvas is invisible. */
+  --pc-rim: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  --pc-shadow: 0 18px 48px -24px rgba(0, 0, 0, 0.9);
+  --pc-glow: 0 0 0 1px var(--pc-cyan-edge), 0 8px 32px -12px rgba(34, 211, 238, 0.4);
+
+  /* geometry */
+  --pc-r-sm: 8px;
+  --pc-r: 12px;
+  --pc-r-lg: 18px;
+  --pc-r-xl: 26px;
+
+  /* type stacks. Tabular figures everywhere a number can change under
+     the reader, so columns cannot shiver. */
+  --pc-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --pc-mono: var(--font-geist-mono), ui-monospace, 'SF Mono', monospace;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --pc-void: #f4f4f7;
+  --pc-bg: #f8f8fb;
+  --pc-surface: #ffffff;
+  --pc-surface-2: #fbfbfe;
+  --pc-raised: #f2f2f7;
+  --pc-hover: #eaeaf2;
+
+  --pc-line: #e2e2ec;
+  --pc-line-soft: #eeeef4;
+
+  --pc-text: #0b0b12;
+  --pc-body: #4a4a5c;
+  --pc-muted: #71718a;
+  --pc-faint: #a3a3b8;
+
+  /* The neons are darkened for a white ground; #22d3ee on white is
+     3.0:1 and fails as text or as a hairline. */
+  --pc-cyan: #0891b2;
+  --pc-cyan-soft: #06b6d4;
+  --pc-cyan-deep: #164e63;
+  --pc-cyan-ink: #ffffff;
+  --pc-cyan-wash: rgba(8, 145, 178, 0.1);
+  --pc-cyan-edge: rgba(8, 145, 178, 0.28);
+
+  --pc-magenta: #c026d3;
+  --pc-magenta-deep: #86198f;
+  --pc-magenta-wash: rgba(192, 38, 211, 0.09);
+
+  --pc-up: #4d7c0f;
+  --pc-up-wash: rgba(77, 124, 15, 0.1);
+  --pc-down: #e11d48;
+  --pc-down-wash: rgba(225, 29, 72, 0.09);
+  --pc-warn: #b45309;
+  --pc-warn-wash: rgba(180, 83, 9, 0.1);
+
+  --pc-duo: linear-gradient(115deg, var(--pc-cyan) 0%, var(--pc-magenta) 100%);
+  --pc-duo-soft: linear-gradient(
+    115deg,
+    rgba(8, 145, 178, 0.12) 0%,
+    rgba(192, 38, 211, 0.1) 100%
+  );
+
+  --pc-rim: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --pc-shadow: 0 16px 40px -28px rgba(11, 11, 18, 0.34);
+  --pc-glow: 0 0 0 1px var(--pc-cyan-edge), 0 8px 28px -14px rgba(8, 145, 178, 0.34);
+}
+
+/* ------------------------------------------------------------------
+   Motion.
+
+   The fades drift rather than pulse. A 30-second period is slow enough
+   that the movement is only noticed on a second look, which is the
+   difference between atmosphere and a screensaver.
+   ------------------------------------------------------------------ */
+
+@keyframes pc-drift-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(6%, -4%, 0) scale(1.18);
+  }
+}
+@keyframes pc-drift-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.1);
+  }
+  50% {
+    transform: translate3d(-7%, 5%, 0) scale(0.92);
+  }
+}
+@keyframes pc-sweep {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+@keyframes pc-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 var(--pc-cyan-edge);
+  }
+  50% {
+    opacity: 0.55;
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+@keyframes pc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pc-draw {
+  from {
+    stroke-dashoffset: var(--pc-len, 2000);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes pc-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* ------------------------------------------------------------------
+   The ambient fade layer.
+
+   Two drifting radial fields, cyan low-left and magenta high-right,
+   over the void. It is a background element rather than a body
+   gradient so it can sit behind content at a fixed position without
+   scrolling, and so a page can drop it by not rendering it.
+   ------------------------------------------------------------------ */
+
+.pc-aurora {
+  position: fixed;
+  inset: -20% -10%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  contain: strict;
+}
+.pc-aurora i {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  filter: blur(90px);
+  will-change: transform;
+}
+.pc-aurora i:nth-child(1) {
+  top: -14%;
+  right: 2%;
+  width: 46vw;
+  height: 46vw;
+  background: radial-gradient(
+    circle,
+    rgba(34, 211, 238, 0.3) 0%,
+    rgba(34, 211, 238, 0) 68%
+  );
+  animation: pc-drift-a 34s ease-in-out infinite;
+}
+.pc-aurora i:nth-child(2) {
+  top: 28%;
+  left: -8%;
+  width: 40vw;
+  height: 40vw;
+  background: radial-gradient(
+    circle,
+    rgba(232, 121, 249, 0.2) 0%,
+    rgba(232, 121, 249, 0) 66%
+  );
+  animation: pc-drift-b 44s ease-in-out infinite;
+}
+.pc-aurora i:nth-child(3) {
+  bottom: -18%;
+  left: 34%;
+  width: 52vw;
+  height: 34vw;
+  background: radial-gradient(
+    ellipse,
+    rgba(34, 211, 238, 0.14) 0%,
+    rgba(34, 211, 238, 0) 70%
+  );
+  animation: pc-drift-b 52s ease-in-out infinite reverse;
+}
+[data-theme='light'] .pc-aurora i:nth-child(1) {
+  background: radial-gradient(
+    circle,
+    rgba(8, 145, 178, 0.18) 0%,
+    rgba(8, 145, 178, 0) 68%
+  );
+}
+[data-theme='light'] .pc-aurora i:nth-child(2) {
+  background: radial-gradient(
+    circle,
+    rgba(192, 38, 211, 0.13) 0%,
+    rgba(192, 38, 211, 0) 66%
+  );
+}
+[data-theme='light'] .pc-aurora i:nth-child(3) {
+  background: radial-gradient(
+    ellipse,
+    rgba(8, 145, 178, 0.1) 0%,
+    rgba(8, 145, 178, 0) 70%
+  );
+}
+
+/* A one-pixel rule that fades out at both ends, for section breaks
+   that should not look like a table border. */
+.pc-rule {
+  height: 1px;
+  border: 0;
+  margin: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--pc-line) 22%,
+    var(--pc-line) 78%,
+    transparent
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pc-aurora i,
+  [class*='pc-'] {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .pc-aurora i {
+    animation: none !important;
+  }
+}
+
+/* The legacy desk's globals.css paints <body> in its own warm dark. The
+   two Parcel surfaces claim the page canvas back so overscroll, and the
+   light scheme, do not reveal it. Scoped with :has so /legacy keeps the
+   palette it was audited in. */
+body:has(.lp),
+body:has(.pc-desk) {
+  background: var(--pc-void);
+}

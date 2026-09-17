@@ -47,14 +47,15 @@ const premiumOf = (t: OrderTerms) =>
 /* ---------- the hero preview: one share-equivalent call ---------- */
 
 /**
- * The hero shows a plain long call, not a spread.
+ * The hero opens on a plain long call, not a spread.
  *
  * A spread's upside is capped by the leg you sell, so its payoff goes
  * flat and stays flat however far the stock runs. That is the right
  * shape for the structures tile, where the cap is the point, and the
- * wrong shape for the front page: the thing this product does is let
- * you buy one share-equivalent of a contract that would otherwise cost
- * a hundred shares, and that contract's upside does not stop.
+ * wrong shape for the first frame of the front page: the thing this
+ * product does is let you buy one share-equivalent of a contract that
+ * would otherwise cost a hundred shares, and that contract's upside
+ * does not stop.
  */
 export const HERO_CALL = terms({
   name: 'NVDA call',
@@ -68,14 +69,43 @@ const CALL_PREMIUM = premiumOf(HERO_CALL);
 const LOW = Math.round(SPOT * 0.65),
   HIGH = Math.round(SPOT * 1.35);
 
+/**
+ * The frame every payoff on the landing page is drawn in.
+ *
+ * Exported because the components draw the gridlines, the zero rule and
+ * the axis labels themselves, and a chart whose axis is half a
+ * viewBox-unit off its own plot is the single most visible way for a
+ * chart to look wrong. One set of numbers, read by everything.
+ */
+export const PLOT = {
+  w: 760,
+  h: 250,
+  /** left edge of the plot: wide enough for a five-character dollar label */
+  x0: 74,
+  x1: 724,
+  /* y0 leaves a band above the plot for the strike labels */
+  y0: 44,
+  y1: 200,
+  /** baseline the price labels sit on */
+  axisY: 226,
+} as const;
+
 export interface Payoff {
   line: string;
   area: string;
   zeroY: number;
+  /** The same samples the path is built from, for the morph. */
+  points: [number, number][];
   strikes: { value: number; x: number }[];
   axis: string[];
+  /** Price labels with the x they belong over, so they cannot drift. */
+  ticks: { label: string; x: number }[];
+  /** Evenly spaced P&L gridlines across the drawn range. */
+  grid: { y: number; label: string }[];
   best: number;
   worst: number;
+  /** Where the payoff crosses zero, in viewBox x. */
+  crossings: { value: number; x: number }[];
 }
 
 /**
@@ -83,6 +113,11 @@ export interface Payoff {
  *
  * Every product that has a shape gets one from here, so the previews
  * are the same arithmetic the desk runs rather than drawings of it.
+ *
+ * The point array comes back alongside the path because the hero
+ * interpolates between two structures frame by frame, and it can only
+ * do that on numbers. Every payoff here is sampled on the same 81
+ * prices, so any two of them interpolate point-for-point.
  */
 export function payoff(terms: OrderTerms, premium: number, stock = 0): Payoff {
   const samples = Array.from({ length: 81 }, (_, i) => {
@@ -91,22 +126,60 @@ export function payoff(terms: OrderTerms, premium: number, stock = 0): Payoff {
   });
   const min = Math.min(...samples.map((s) => s.pnl));
   const max = Math.max(...samples.map((s) => s.pnl));
-  const x = (price: number) => 40 + ((price - LOW) / (HIGH - LOW)) * 680;
-  const y = (pnl: number) => 32 + ((max - pnl) / (max - min || 1)) * 168;
-  const line = samples
-    .map(
-      (s, i) =>
-        `${i ? 'L' : 'M'}${x(s.price).toFixed(1)},${y(s.pnl).toFixed(1)}`,
-    )
-    .join(' ');
+  const span = max - min || 1;
+  const x = (price: number) =>
+    PLOT.x0 + ((price - LOW) / (HIGH - LOW)) * (PLOT.x1 - PLOT.x0);
+  const y = (pnl: number) =>
+    PLOT.y0 + ((max - pnl) / span) * (PLOT.y1 - PLOT.y0);
+  const points = samples.map(
+    (s) => [Number(x(s.price).toFixed(1)), Number(y(s.pnl).toFixed(1))] as [
+      number,
+      number,
+    ],
+  );
+  const line = points.map(([px, py], i) => `${i ? 'L' : 'M'}${px},${py}`).join(
+    ' ',
+  );
+
+  // Break-even is where the sampled payoff changes sign. Interpolating
+  // between the two samples either side puts the label on the real
+  // crossing rather than on whichever sample happened to be nearest.
+  const crossings: { value: number; x: number }[] = [];
+  for (let i = 1; i < samples.length; i++) {
+    const a = samples[i - 1],
+      b = samples[i];
+    if (a.pnl === 0 || (a.pnl < 0) === (b.pnl < 0)) continue;
+    const t = -a.pnl / (b.pnl - a.pnl);
+    const price = a.price + (b.price - a.price) * t;
+    crossings.push({ value: price, x: x(price) });
+  }
+
+  // Four bands across whatever the payoff actually spans, so the
+  // labels are round enough to read at a glance but always describe
+  // this shape rather than a scale borrowed from another one. Cents
+  // only when the whole range is smaller than a dollar.
+  const decimals = span < 1 ? 2 : span < 12 ? 1 : 0;
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((n) => ({
+    y: PLOT.y0 + n * (PLOT.y1 - PLOT.y0),
+    label: usd(max - span * n, decimals),
+  }));
+
   return {
     line,
+    points,
     area: `${line} L${x(HIGH).toFixed(1)},${y(0).toFixed(1)} L${x(LOW).toFixed(1)},${y(0).toFixed(1)} Z`,
     zeroY: y(0),
     strikes: terms.legs.map((l) => ({ value: l.strike, x: x(l.strike) })),
     axis: [usd(LOW, 0), usd(SPOT), usd(HIGH, 0)],
+    ticks: [
+      { label: usd(LOW, 0), x: x(LOW) },
+      { label: usd(SPOT), x: x(SPOT) },
+      { label: usd(HIGH, 0), x: x(HIGH) },
+    ],
+    grid,
     best: max,
     worst: min,
+    crossings,
   };
 }
 
@@ -141,6 +214,179 @@ export const HERO = {
   ],
   breakEven: usd(BREAK_EVEN),
 };
+
+/* ---------- the structures the hero cycles through ---------- */
+
+/**
+ * One shape per idea, priced by the engine.
+ *
+ * The hero morphs between these, so the set is chosen for how
+ * differently the lines read rather than for coverage: a line that
+ * only goes up, one that goes up and stops, one that is flat in the
+ * middle and falls at both ends, one that is a V. Six is roughly the
+ * point where a returning visitor has seen them all without waiting.
+ */
+export interface Structure {
+  id: string;
+  /** The desk view this opens, for the card's own link. */
+  at: string;
+  name: string;
+  tag: string;
+  contract: string;
+  blurb: string;
+  payoff: Payoff;
+  stats: { k: string; v: string }[];
+}
+
+const CAP = '∞';
+
+/**
+ * The figures under every shape, in the same four slots, so the row
+ * does not reflow as the hero cycles. An uncapped payoff says so
+ * rather than quoting a number from the edge of the sampled window,
+ * which is an artefact of where the window stops.
+ */
+function structureStats(
+  p: Payoff,
+  { uncapped = false, quantity = 1 }: { uncapped?: boolean; quantity?: number },
+) {
+  return [
+    { k: 'Size', v: `${quantity} share${quantity === 1 ? '' : 's'}` },
+    { k: 'Max loss', v: p.worst >= 0 ? 'None' : usd(-p.worst) },
+    { k: 'Max gain', v: uncapped ? CAP : usd(p.best) },
+    {
+      k: 'Break-even',
+      v: p.crossings.length
+        ? p.crossings.map((c) => usd(c.value)).join('  /  ')
+        : 'Any price',
+    },
+  ];
+}
+
+function structure(
+  id: string,
+  at: string,
+  name: string,
+  tag: string,
+  contract: string,
+  blurb: string,
+  order: OrderTerms,
+  opts: { stock?: number; uncapped?: boolean } = {},
+): Structure {
+  const p = premiumOf(order);
+  const shape = payoff(order, p, opts.stock || 0);
+  return {
+    id,
+    at,
+    name,
+    tag,
+    contract,
+    blurb,
+    payoff: shape,
+    stats: structureStats(shape, {
+      uncapped: opts.uncapped,
+      quantity: order.quantity,
+    }),
+  };
+}
+
+export const STRUCTURES: Structure[] = [
+  structure(
+    'long-call',
+    'options',
+    'Long call',
+    'Upside',
+    '1× $145 call',
+    'Risks the premium and nothing else. Above the strike it keeps paying, with no ceiling to quote.',
+    HERO_CALL,
+    { uncapped: true },
+  ),
+  structure(
+    'covered-call',
+    'underwriting',
+    'Covered call',
+    'Income',
+    'Own 1 share, sell the $150 call',
+    'The premium is yours whatever happens. It cushions the fall and caps the climb at the strike.',
+    terms({
+      name: 'NVDA covered call',
+      quantity: 1,
+      settlement: 'physical',
+      legs: [{ kind: 'call', side: 'sell', strike: 150, ratio: 1 }],
+    }),
+    { stock: 1 },
+  ),
+  structure(
+    'call-spread',
+    'structures',
+    'Call spread',
+    'Defined upside',
+    'Buy the $145 call, sell the $160',
+    'Both ends are known before you sign: a fixed cost against a fixed ceiling.',
+    terms({
+      name: 'NVDA call spread',
+      quantity: 1,
+      legs: [
+        { kind: 'call', side: 'buy', strike: 145, ratio: 1 },
+        { kind: 'call', side: 'sell', strike: 160, ratio: 1 },
+      ],
+    }),
+  ),
+  structure(
+    'collar',
+    'structures',
+    'Stock collar',
+    'Protected',
+    'Own 1 share, buy the $130 put, sell the $150 call',
+    'The put sets a floor under the share and the call pays for it. The position cannot leave the band.',
+    terms({
+      name: 'NVDA collar',
+      quantity: 1,
+      settlement: 'physical',
+      legs: [
+        { kind: 'put', side: 'buy', strike: 130, ratio: 1 },
+        { kind: 'call', side: 'sell', strike: 150, ratio: 1 },
+      ],
+    }),
+    { stock: 1 },
+  ),
+  structure(
+    'straddle',
+    'structures',
+    'Long straddle',
+    'Volatility',
+    'Buy the $145 call and the $145 put',
+    'Pays for a move in either direction. The only losing outcome is the stock sitting still.',
+    terms({
+      name: 'NVDA straddle',
+      quantity: 1,
+      settlement: 'physical',
+      legs: [
+        { kind: 'call', side: 'buy', strike: 145, ratio: 1 },
+        { kind: 'put', side: 'buy', strike: 145, ratio: 1 },
+      ],
+    }),
+    { uncapped: true },
+  ),
+  structure(
+    'condor',
+    'structures',
+    'Iron condor',
+    'Range',
+    'Underwrite $135 to $150, capped at $125 and $160',
+    'Collects premium while the stock stays in the band, with both tails bought back explicitly.',
+    terms({
+      name: 'NVDA iron condor',
+      quantity: 1,
+      legs: [
+        { kind: 'put', side: 'buy', strike: 125, ratio: 1 },
+        { kind: 'put', side: 'sell', strike: 135, ratio: 1 },
+        { kind: 'call', side: 'sell', strike: 150, ratio: 1 },
+        { kind: 'call', side: 'buy', strike: 160, ratio: 1 },
+      ],
+    }),
+  ),
+];
 
 /* ---------- one worked example per product ---------- */
 
@@ -298,11 +544,11 @@ export const EXAMPLES: {
     title: 'Lend stock against funded collateral.',
     body: 'The borrower posts cash and the full term’s interest up front. Pledged protection cannot be reused.',
     rows: [
-      ['Lend', `${LOAN_QTY} NVDA · ${dayLabel(EXPIRY)}`],
+      [`Lend ${LOAN_QTY} NVDA`, dayLabel(EXPIRY)],
       ['Borrower posts', usd(LOAN_COLLATERAL)],
       [
         'Interest prepaid',
-        `${usd(LOAN_INTEREST, 4)} · ${(LOAN_RATE * 100).toFixed(2)}% APR`,
+        `${usd(LOAN_INTEREST, 4)} at ${(LOAN_RATE * 100).toFixed(2)}% APR`,
       ],
     ],
     preview: {

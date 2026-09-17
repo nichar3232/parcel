@@ -2,56 +2,113 @@
  * The Parcel mark.
  *
  * A round lot is a block of four. A parcel is the piece you take out of
- * it: three squares hold the block, the fourth is pulled clear on the
- * diagonal and carries the accent. The slight rotation is inherited
- * from the previous mark, which keeps the two feeling related.
+ * it — so the mark is that block with one cell lifted clear on the
+ * diagonal, leaving a dotted socket where it sat. The three that stay
+ * are currentColor at falling opacity, which gives the block a light
+ * direction and makes it read as depth rather than as four flat
+ * squares. The piece that left is the only thing in the mark carrying
+ * the duotone, because it is the only thing the product is about.
  *
- * The block takes currentColor so it flips with the theme; on a dark
- * bar a literal ink square is invisible. currentColor always resolves,
- * unlike a custom property, so the worst case is a black square on
- * white rather than nothing at all — which is what happened when this
- * file read --ink and --accent from an ancestor.
+ * currentColor, not a custom property, for the block: it always
+ * resolves, so the worst case on an unstyled ancestor is a legible
+ * mark in the wrong colour rather than nothing at all.
  *
  * Plain markup with no hooks, so the server-rendered landing page and
- * the client desk share one file.
+ * the client desk can share one file. The gradient ids are fixed
+ * rather than generated for the same reason; two marks on one page
+ * define the same gradient twice, which is harmless.
  */
 export const BRAND = {
-  pale: '#bfe9d5',
-  accent: '#5ed3a0',
+  cyan: '#22d3ee',
+  magenta: '#e879f9',
 } as const;
 
-export function Mark({ size = 21 }: { size?: number }) {
+export function Mark({ size = 22 }: { size?: number }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 26 26"
+      viewBox="0 0 32 32"
       fill="none"
       aria-hidden="true"
       focusable="false"
       className="pc-mark"
     >
-      <g transform="rotate(-9 13 13)">
-        <rect x="1" y="1" width="9" height="9" rx="1.7" fill="currentColor" />
-        <rect x="11.6" y="1" width="9" height="9" rx="1.7" fill={BRAND.pale} />
+      <defs>
+        <linearGradient id="pcParcel" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={BRAND.cyan} />
+          <stop offset="1" stopColor={BRAND.magenta} />
+        </linearGradient>
+      </defs>
+      <g transform="rotate(-12 16 16)">
+        {/* the block that stays */}
+        <rect x="3" y="3" width="10" height="10" rx="2.6" fill="currentColor" />
         <rect
-          x="1"
-          y="11.6"
-          width="9"
-          height="9"
-          rx="1.7"
+          x="14.5"
+          y="3"
+          width="10"
+          height="10"
+          rx="2.6"
           fill="currentColor"
+          opacity=".48"
         />
-        {/* The parcel: one cell, lifted off the block on the diagonal. */}
         <rect
-          x="16.4"
-          y="16.4"
-          width="8.2"
-          height="8.2"
-          rx="1.6"
-          fill={BRAND.accent}
+          x="3"
+          y="14.5"
+          width="10"
+          height="10"
+          rx="2.6"
+          fill="currentColor"
+          opacity=".72"
+        />
+        {/* the socket it came out of */}
+        <rect
+          x="14.5"
+          y="14.5"
+          width="10"
+          height="10"
+          rx="2.6"
+          fill="none"
+          stroke="currentColor"
+          strokeOpacity=".3"
+          strokeWidth="1.1"
+          strokeDasharray="2 2.4"
+        />
+        {/* the parcel */}
+        <rect
+          x="19"
+          y="19"
+          width="10.6"
+          height="10.6"
+          rx="2.8"
+          fill="url(#pcParcel)"
+        />
+        <rect
+          x="19.55"
+          y="19.55"
+          width="9.5"
+          height="9.5"
+          rx="2.3"
+          fill="none"
+          stroke="#fff"
+          strokeOpacity=".26"
+          strokeWidth="1"
         />
       </g>
     </svg>
+  );
+}
+
+/**
+ * The wordmark as one unit. Every place that shows the logo wants the
+ * same lockup, and three of them were building it by hand with a
+ * different gap each time.
+ */
+export function Wordmark({ size = 22 }: { size?: number }) {
+  return (
+    <>
+      <Mark size={size} />
+      <b className="pc-wordmark">PARCEL</b>
+    </>
   );
 }
