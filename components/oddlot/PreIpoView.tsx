@@ -28,7 +28,6 @@ import {
   Money,
   Panel,
   PanelHead,
-  Stat,
   compact,
   usd,
 } from './shared';
@@ -236,31 +235,13 @@ function Market({
   selected: string;
   onSelect: (id: string) => void;
 }) {
-  const totalValuation = data.assets.reduce((t, a) => {
-    const meta = a.quote?.meta || {};
-    return t + (num(meta.markValuation) ?? num(meta.impliedValuation) ?? 0);
-  }, 0);
 
 
   return (
     <>
-      <div className="od-grid-2">
-        <Panel>
-          <Stat
-            label="Companies listed"
-            value={String(data.assets.length)}
-            detail={`${escrowable.length} escrowable`}
-          />
-        </Panel>
-        <Panel>
-          <Stat
-            label="Combined valuation"
-            value={compact(totalValuation)}
-            detail="As published by the sponsors"
-          />
-        </Panel>
-      </div>
-
+      {/* The table counts its own rows, and every one of them prints a
+          valuation and whether it is escrowable. A rail summing the
+          column directly beneath it is the same fact, twice. */}
       {data.warnings.map((w) => (
         <Panel key={w} tone="warn">
           <div className="od-panel-body od-note">
