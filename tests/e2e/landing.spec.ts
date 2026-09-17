@@ -5,7 +5,22 @@ test('the landing page shows the products and routes into the desk', async ({
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
+
+  const [hero, copy, card] = await Promise.all([
+    page.locator('.lp-hero').boundingBox(),
+    page.locator('.lp-hero-copy').boundingBox(),
+    page.locator('.lp-card').boundingBox(),
+  ]);
+  expect(hero).not.toBeNull();
+  expect(copy).not.toBeNull();
+  expect(card).not.toBeNull();
+  expect(card!.x).toBeGreaterThan(copy!.x + copy!.width);
+  expect(card!.x + card!.width).toBeLessThanOrEqual(hero!.x + hero!.width + 1);
+  expect(
+    Math.abs(card!.y + card!.height / 2 - (copy!.y + copy!.height / 2)),
+  ).toBeLessThan(88);
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
     'Options sized to what you own',
@@ -107,6 +122,17 @@ test('the landing page fits a phone without horizontal scroll', async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  const [card, sizeControl] = await Promise.all([
+    page.locator('.lp-card').boundingBox(),
+    page.locator('.lp-size-control').boundingBox(),
+  ]);
+  expect(card).not.toBeNull();
+  expect(sizeControl).not.toBeNull();
+  expect(card!.x).toBeGreaterThanOrEqual(0);
+  expect(card!.x + card!.width).toBeLessThanOrEqual(390);
+  expect(sizeControl!.x + sizeControl!.width).toBeLessThanOrEqual(
+    card!.x + card!.width,
+  );
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

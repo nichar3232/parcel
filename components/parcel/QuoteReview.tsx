@@ -31,7 +31,7 @@ export function QuoteReview({
   return (
     <Modal
       title={closing ? 'Review your close quote' : 'Review your funded quote'}
-      description={`${quote.terms.name} · ${qty(quote.terms.quantity)} shares · ${dateLabel(quote.terms.expiry)}`}
+      description={`${quote.terms.name} — ${qty(quote.terms.quantity)} shares — ${dateLabel(quote.terms.expiry)}`}
       onClose={onClose}
     >
       <div className="od-quote-premium">
@@ -46,7 +46,7 @@ export function QuoteReview({
                 ? 'sell to close'
                 : 'buy to close'
               : quote.terms.curve.side}{' '}
-            · {quote.terms.curve.shape} · {quote.terms.curve.direction}
+            — {quote.terms.curve.shape} — {quote.terms.curve.direction}
           </b>
           <p>
             Range {usd(quote.terms.curve.lower, 6)} to{' '}
@@ -94,7 +94,7 @@ export function QuoteReview({
       <div className="od-review-line">
         <span>Reference / settlement</span>
         <b>
-          {quote.terms.reference} · {quote.terms.settlement}
+          {quote.terms.reference} — {quote.terms.settlement}
         </b>
       </div>
       <div className="od-review-line">

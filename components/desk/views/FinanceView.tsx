@@ -87,7 +87,7 @@ export function FinanceView({
             </div>
             <div className="detail-row">
               <span>Derivative margin offset</span>
-              <strong>None · gross reservations</strong>
+              <strong>None — gross reservations</strong>
             </div>
             <a
               className="external-button"

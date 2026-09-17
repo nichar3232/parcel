@@ -55,7 +55,7 @@ export function PositionDialog({
             : 'Your protection contract'}
         </DialogTitle>
         <DialogDescription>
-          Local simulation · {position?.id} · terms fixed after maker funding.
+          Local simulation — {position?.id} — terms fixed after maker funding.
         </DialogDescription>
         {position && (
           <>
@@ -72,7 +72,7 @@ export function PositionDialog({
                 </h2>
                 <p>
                   {money(position.terms.low, 0)}–{money(position.terms.high, 0)}{' '}
-                  · {position.terms.quantity} shares
+                  — {position.terms.quantity} shares
                 </p>
               </div>
               <Status status={position.status} />
@@ -98,11 +98,11 @@ export function PositionDialog({
             </div>
             <div className="detail-row">
               <span>Contracted settlement</span>
-              <strong>{day(position.terms.expiry)} · stored daily close</strong>
+              <strong>{day(position.terms.expiry)} — stored daily close</strong>
             </div>
             <div className="detail-row">
               <span>Feed / policy</span>
-              <strong>NVDA USD · historical replay v1</strong>
+              <strong>NVDA USD — historical replay v1</strong>
             </div>
             <div className="detail-row">
               <span>Escrow remaining</span>
@@ -120,7 +120,7 @@ export function PositionDialog({
                 <div className="quote-timer">
                   <Clock size={14} />
                   {Math.max(0, Math.ceil((position.deadline - now) / 1000))}s
-                  remaining · no partial fills
+                  remaining — no partial fills
                 </div>
                 <Button
                   className="primary full"
@@ -138,7 +138,7 @@ export function PositionDialog({
                       );
                   }}
                 >
-                  Accept & fund · {money(position.terms.premium)}
+                  Accept & fund — {money(position.terms.premium)}
                 </Button>
               </>
             )}
@@ -201,7 +201,7 @@ export function PositionDialog({
                   >
                     {position.buyerClaimed
                       ? 'Holder claimed'
-                      : `Claim as holder · ${money(position.buyerPayout)}`}
+                      : `Claim as holder — ${money(position.buyerPayout)}`}
                   </Button>
                   <Button
                     variant="outline"
@@ -217,7 +217,7 @@ export function PositionDialog({
                   >
                     {position.makerClaimed
                       ? 'Maker claimed'
-                      : `Claim as maker · ${money(position.reserve - position.buyerPayout)}`}
+                      : `Claim as maker — ${money(position.reserve - position.buyerPayout)}`}
                   </Button>
                 </div>
               </>

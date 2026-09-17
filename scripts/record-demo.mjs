@@ -97,7 +97,7 @@ try {
         .getByRole('button', { name: 'Request a funded quote' })
         .click();
       await page
-        .getByRole('button', { name: 'Fund offer · $2,000.00' })
+        .getByRole('button', { name: 'Fund offer — $2,000.00' })
         .click();
       await page.getByRole('button', { name: 'Review as holder' }).click();
     },
@@ -132,13 +132,13 @@ try {
     'The holder claims two thousand dollars. The maker claims the remainder. Both claims close the contract, and the portfolio reconciles every unit.',
     async () => {
       await page
-        .getByRole('button', { name: 'Claim as holder · $2,000.00' })
+        .getByRole('button', { name: 'Claim as holder — $2,000.00' })
         .click();
       await expect(
         page.getByRole('button', { name: 'Holder claimed' }),
       ).toBeDisabled();
       await page
-        .getByRole('button', { name: 'Claim as maker · $0.00' })
+        .getByRole('button', { name: 'Claim as maker — $0.00' })
         .click();
       await expect(page.getByRole('dialog').locator('.status')).toHaveText(
         'Closed',

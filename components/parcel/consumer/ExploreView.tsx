@@ -173,7 +173,7 @@ export function ExploreView({
               )}
               <div className="oc-continue">
                 <div>
-                  <span className="oc-kicker">03 · WHEN THE NUMBERS CLICK</span>
+                  <span className="oc-kicker">03 — WHEN THE NUMBERS CLICK</span>
                   <p>Carry this exact size and strategy into review.</p>
                 </div>
                 <Button
@@ -216,14 +216,14 @@ export function ExploreView({
             </div>
             <strong>{usd(nav)}</strong>
             <p>
-              {usd(state.risk.availableValue)} available ·{' '}
+              {usd(state.risk.availableValue)} available —{' '}
               {usd(state.risk.collateralValue)} reserved
             </p>
             <button onClick={() => navigate('Vault')}>
               View assets & funding <ArrowRight size={15} />
             </button>
             <small>
-              Actual saved balances ·{' '}
+              Actual saved balances —{' '}
               {state.mode === 'localnet'
                 ? 'local-validator test assets'
                 : 'sandbox test assets'}

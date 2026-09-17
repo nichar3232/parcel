@@ -20,7 +20,7 @@ async function fund(page: Page) {
   await expect(
     page.getByRole('heading', { name: 'Maker workspace' }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Fund offer · $2,000.00' }).click();
+  await page.getByRole('button', { name: 'Fund offer — $2,000.00' }).click();
   await page.getByRole('button', { name: 'Review as holder' }).click();
 }
 test('complete historical lifecycle through the real backend, reload and both claims', async ({
@@ -36,12 +36,12 @@ test('complete historical lifecycle through the real backend, reload and both cl
     .click();
   await expect(page.getByRole('dialog')).toContainText('Settled at $118.42');
   await page
-    .getByRole('button', { name: 'Claim as holder · $2,000.00' })
+    .getByRole('button', { name: 'Claim as holder — $2,000.00' })
     .click();
   await expect(
     page.getByRole('button', { name: 'Holder claimed' }),
   ).toBeDisabled();
-  await page.getByRole('button', { name: 'Claim as maker · $0.00' }).click();
+  await page.getByRole('button', { name: 'Claim as maker — $0.00' }).click();
   await expect(page.getByRole('dialog')).toContainText('Closed');
   await page.keyboard.press('Escape');
   await page.reload();

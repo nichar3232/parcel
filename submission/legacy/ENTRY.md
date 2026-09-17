@@ -1,4 +1,4 @@
-# Bellwether · Strata
+# Bellwether — Strata
 
 ## One sentence
 

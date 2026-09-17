@@ -49,7 +49,7 @@ export function optionsChain(book: VaultBook, end: unknown, quantity: unknown) {
     quantity: q,
     spot,
     rows,
-    pricing: 'Model RFQ · funded test counterparty · zero model spread',
+    pricing: 'Model RFQ — funded test counterparty — zero model spread',
   };
 }
 export function sizeOrder(

@@ -47,7 +47,7 @@ export function MakerView({
         <Metric
           label="Available quote capital"
           value={money(book.makerCash)}
-          note="Demo USDC · unencumbered"
+          note="Demo USDC — unencumbered"
         />
         <Metric
           label="Committed collateral"
@@ -59,7 +59,7 @@ export function MakerView({
           value={String(
             book.positions.filter((p) => p.status === 'requested').length,
           )}
-          note="Manual pricing · full fills only"
+          note="Manual pricing — full fills only"
         />
       </section>
       <section className="panel">
@@ -85,8 +85,8 @@ export function MakerView({
                     NVDA {p.terms.kind === 'put' ? 'put spread' : 'call spread'}
                   </strong>
                   <p>
-                    {money(p.terms.low, 0)} / {money(p.terms.high, 0)} ·{' '}
-                    {p.terms.quantity} shares · {day(p.terms.expiry)}
+                    {money(p.terms.low, 0)} / {money(p.terms.high, 0)} —{' '}
+                    {p.terms.quantity} shares — {day(p.terms.expiry)}
                   </p>
                 </div>
                 <Status status={p.status} />
@@ -144,7 +144,7 @@ export function MakerView({
                     }}
                   >
                     <Lock size={14} />
-                    Fund offer · {money(p.reserve)}
+                    Fund offer — {money(p.reserve)}
                   </Button>
                 </div>
               ) : p.status === 'funded' ? (

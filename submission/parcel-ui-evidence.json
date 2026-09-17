@@ -131,7 +131,7 @@
         "date": "2025-02-07",
         "timestamp": 1789472401780,
         "title": "Market session advanced",
-        "detail": "2025-02-07 · NVDA $129.84 historical close",
+        "detail": "2025-02-07 — NVDA $129.84 historical close",
         "cash": 0,
         "shares": 0
       },
@@ -150,7 +150,7 @@
         "date": "2025-02-07",
         "timestamp": 1789472401780,
         "title": "Expiry settled",
-        "detail": "3 contracts cleared together · 2025-02-07",
+        "detail": "3 contracts cleared together — 2025-02-07",
         "cash": 0,
         "shares": 0
       },
@@ -159,7 +159,7 @@
         "date": "2025-01-24",
         "timestamp": 1789472376557,
         "title": "Stock loan funded",
-        "detail": "0.1 NVDA sold by borrower · 150% strike protection and full-term interest funded",
+        "detail": "0.1 NVDA sold by borrower — 150% strike protection and full-term interest funded",
         "cash": 0,
         "shares": -0.1,
         "reference": "dc35b8c2-4e4f-40d7-8ff3-c03c9eb669ec"
@@ -169,7 +169,7 @@
         "date": "2025-01-24",
         "timestamp": 1789472361480,
         "title": "Contract opened",
-        "detail": "Call spread · 0.25 share-equivalents · 2025-02-07",
+        "detail": "Call spread — 0.25 share-equivalents — 2025-02-07",
         "cash": -1.043461,
         "shares": 0,
         "reference": "53ee3af4-5ada-43c3-be8d-780682213057"
@@ -179,7 +179,7 @@
         "date": "2025-01-24",
         "timestamp": 1789472350440,
         "title": "Contract opened",
-        "detail": "Long call · 0.1 share-equivalents · 2025-02-07",
+        "detail": "Long call — 0.1 share-equivalents — 2025-02-07",
         "cash": -0.404494,
         "shares": 0,
         "reference": "5daae0f7-2339-42bf-a479-04a8b6395244"
@@ -189,7 +189,7 @@
         "date": "2025-01-24",
         "timestamp": 1789472331904,
         "title": "Contract opened",
-        "detail": "Covered call · 0.333333 share-equivalents · 2025-02-07",
+        "detail": "Covered call — 0.333333 share-equivalents — 2025-02-07",
         "cash": 0.778187,
         "shares": 0,
         "reference": "6e006ba3-127c-416e-8993-de66fbce4341"

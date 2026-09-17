@@ -31,7 +31,7 @@ export function PositionPreview() {
           <span className="lp-card-symbol">NVDA</span>
           <h2 id="position-preview-title">{HERO.title}</h2>
           <p>
-            {HERO.contract} · expires {HERO.expiryLabel}
+            {HERO.contract} — expires {HERO.expiryLabel}
           </p>
         </div>
         <div className="lp-card-reference">

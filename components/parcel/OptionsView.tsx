@@ -461,8 +461,8 @@ export function OptionsView({
                     : state.book.date.includes('T')
                       ? 'Daily close carried forward'
                       : 'Stored historical close'}{' '}
-                  · Model {effective.reference === 'dividend' ? '80' : '45'}%
-                  vol · Ref{' '}
+                  — Model {effective.reference === 'dividend' ? '80' : '45'}%
+                  vol — Ref{' '}
                   {usd(
                     effective.reference === 'dividend'
                       ? state.market.dividend

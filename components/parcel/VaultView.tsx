@@ -167,8 +167,8 @@ export function VaultView({
                         <b>{asset === 'NVDA' ? 'NVIDIA' : 'USD Coin'}</b>
                         <small>
                           {asset === 'NVDA'
-                            ? 'NVDA · share-equivalents'
-                            : 'USDC · settlement asset'}
+                            ? 'NVDA — share-equivalents'
+                            : 'USDC — settlement asset'}
                         </small>
                       </div>
                     </div>

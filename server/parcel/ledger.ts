@@ -117,7 +117,7 @@ export function addOrder(
   emit(
     book,
     'Contract opened',
-    `${terms.name} · ${terms.quantity} share-equivalent${terms.quantity === 1 ? '' : 's'} · ${terms.expiry}`,
+    `${terms.name} — ${terms.quantity} share-equivalent${terms.quantity === 1 ? '' : 's'} — ${terms.expiry}`,
     -cost,
     0,
     id,
@@ -173,7 +173,7 @@ export function setMarketDate(book: VaultBook, date: string) {
     emit(
       book,
       'Expiry settled',
-      `${positions.length} contract${positions.length === 1 ? '' : 's'} cleared together · ${expiry}`,
+      `${positions.length} contract${positions.length === 1 ? '' : 's'} cleared together — ${expiry}`,
       cash,
       shares,
     );
@@ -189,7 +189,7 @@ export function setMarketDate(book: VaultBook, date: string) {
   emit(
     book,
     'Market session advanced',
-    `${date} · NVDA $${mark(date).toFixed(2)} historical close`,
+    `${date} — NVDA $${mark(date).toFixed(2)} historical close`,
   );
   assertCollateral(book);
 }
@@ -238,7 +238,7 @@ export function openLoan(book: VaultBook, quantity: number, expiry: string) {
   emit(
     book,
     'Stock loan funded',
-    `${quantity} NVDA sold by borrower · 150% strike protection and full-term interest funded`,
+    `${quantity} NVDA sold by borrower — 150% strike protection and full-term interest funded`,
     0,
     -quantity,
     p.id,
@@ -318,7 +318,7 @@ export function openShort(
   emit(
     book,
     'Protected short opened',
-    `${quantity} NVDA sold · ${cap} protective call · maximum repayment funded`,
+    `${quantity} NVDA sold — ${cap} protective call — maximum repayment funded`,
     add(mul(quantity, entry), -cost),
     0,
     p.id,
@@ -342,7 +342,7 @@ export function closeShort(book: VaultBook, p: ShortPosition, at = book.date) {
   emit(
     book,
     'Protected short closed',
-    `${p.quantity} NVDA borrow repaid · protective call retired`,
+    `${p.quantity} NVDA borrow repaid — protective call retired`,
     -add(cost, interest),
     0,
     p.id,

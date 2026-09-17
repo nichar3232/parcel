@@ -145,7 +145,7 @@ export function BuildView({
                 .filter((r) => r.date > scenario.entry)
                 .map((r) => (
                   <option value={r.date} key={r.date}>
-                    {day(r.date)} · daily close replay
+                    {day(r.date)} — daily close replay
                   </option>
                 ))}
             </select>
@@ -206,7 +206,7 @@ export function BuildView({
               <Metric
                 label="Maximum derivative loss"
                 value={valid ? '—' : money(terms.premium)}
-                note="Premium · zero demo fees"
+                note="Premium — zero demo fees"
               />
               <Metric
                 label="Maximum derivative gain"
@@ -249,7 +249,7 @@ export function BuildView({
             </div>
             <div className="detail-row">
               <span>Settlement policy</span>
-              <strong>Historical daily close · v1</strong>
+              <strong>Historical daily close — v1</strong>
             </div>
             <div className="detail-row">
               <span>Source</span>

@@ -86,7 +86,7 @@ export function ReplayView({
         <section className="panel">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">NVDA · HISTORICAL DAILY CLOSE</span>
+              <span className="eyebrow">NVDA — HISTORICAL DAILY CLOSE</span>
               <h2>{scenario.name}</h2>
             </div>
             <span className="pill">{day(current.date)}</span>

@@ -118,8 +118,8 @@ export function ContractLegEditor({
               update({ settlement: e.target.value as OrderTerms['settlement'] })
             }
           >
-            <option value="cash">Cash · bounded payoff required</option>
-            <option value="physical">Physical · shares and strike cash</option>
+            <option value="cash">Cash — bounded payoff required</option>
+            <option value="physical">Physical — shares and strike cash</option>
           </select>
         </Field>
       )}

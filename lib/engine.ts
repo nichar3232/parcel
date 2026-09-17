@@ -168,7 +168,7 @@ export function transition(old: Book, a: Action): Book {
     });
     emit(
       'Quote requested',
-      `${a.terms.quantity} NVDA ${a.terms.kind} spread · awaiting demo maker`,
+      `${a.terms.quantity} NVDA ${a.terms.kind} spread — awaiting demo maker`,
     );
     return b;
   }
@@ -203,7 +203,7 @@ export function transition(old: Book, a: Action): Book {
     p.status = 'active';
     emit(
       'Protection activated',
-      `${money(p.terms.premium)} premium paid · zero fees · full reserve locked`,
+      `${money(p.terms.premium)} premium paid — zero fees — full reserve locked`,
     );
   }
   if (a.type === 'cancel' || a.type === 'expire') {
@@ -241,7 +241,7 @@ export function transition(old: Book, a: Action): Book {
       p.status = 'settled';
       emit(
         'Settlement fixed',
-        `${money(a.price)} reference · ${money(p.buyerPayout)} holder entitlement`,
+        `${money(a.price)} reference — ${money(p.buyerPayout)} holder entitlement`,
       );
     }
   }

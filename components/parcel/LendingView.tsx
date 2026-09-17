@@ -103,7 +103,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
               ['Stock sale proceeds', usd(mul(q, s.market.price), 6)],
               [
                 'Protective call',
-                `Buy ${qty(q)} NVDA call · strike ${usd(mode === 'lend' ? round(s.market.price * 1.5) : k, 6)} · ratio 1×`,
+                `Buy ${qty(q)} NVDA call — strike ${usd(mode === 'lend' ? round(s.market.price * 1.5) : k, 6)} — ratio 1×`,
               ],
               [
                 'Protection premium paid by ' +
@@ -209,8 +209,8 @@ export function LendingView({ desk }: { desk: VaultController }) {
                   value={side}
                   onChange={(e) => setSide(e.target.value as 'buy' | 'sell')}
                 >
-                  <option value="buy">Buy · fully cash funded</option>
-                  <option value="sell">Sell · owned shares only</option>
+                  <option value="buy">Buy — fully cash funded</option>
+                  <option value="sell">Sell — owned shares only</option>
                 </select>
               </Field>
             ) : (
@@ -328,7 +328,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
                           <b>{qty(p.quantity)} NVDA</b>
                           {p.productive && (
                             <small>
-                              Sold at {usd(p.productive.entry)} · protected at{' '}
+                              Sold at {usd(p.productive.entry)} — protected at{' '}
                               {usd(p.productive.cap)}
                             </small>
                           )}
@@ -463,7 +463,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
                                   ],
                                   [
                                     'Protective call retired',
-                                    `Strike ${usd(p.cap, 6)} · expiry ${p.expiry}`,
+                                    `Strike ${usd(p.cap, 6)} — expiry ${p.expiry}`,
                                   ],
                                 ],
                               })
@@ -489,7 +489,7 @@ export function LendingView({ desk }: { desk: VaultController }) {
       {review && (
         <Modal
           title={review.title}
-          description={`${qty(review.quantity)} NVDA · ${usd(review.price)} stored reference`}
+          description={`${qty(review.quantity)} NVDA — ${usd(review.price)} stored reference`}
           onClose={() => setReview(null)}
         >
           <div className="od-review-line">

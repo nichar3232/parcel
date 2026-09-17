@@ -35,7 +35,7 @@ export function SizingControl({
       if (request !== latest.current) return;
       onApply(r.terms);
       setMessage(
-        `${qty(r.terms.quantity)} share-equivalents · ${usd(r.premium, 6)} premium · ${usd(r.cashFunding, 6)} standalone cash funding + ${qty(r.shares)} shares. Estimated P&L per +1¢: ${usd(r.centSensitivity, 6)}.${r.limited ? ' Maximum size reached.' : ''}`,
+        `${qty(r.terms.quantity)} share-equivalents — ${usd(r.premium, 6)} premium — ${usd(r.cashFunding, 6)} standalone cash funding + ${qty(r.shares)} shares. Estimated P&L per +1¢: ${usd(r.centSensitivity, 6)}.${r.limited ? ' Maximum size reached.' : ''}`,
       );
     } catch (e) {
       if (request === latest.current) setMessage((e as Error).message);
@@ -55,7 +55,7 @@ export function SizingControl({
               setMessage('');
             }}
           >
-            <option value="premium">Premium budget · USDC</option>
+            <option value="premium">Premium budget — USDC</option>
             <option value="sensitivity">
               Dollar P&L per 1¢ reference move
             </option>

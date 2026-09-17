@@ -24,5 +24,5 @@ export const expiryLabel = (iso: string) => {
     hour12: false,
     timeZone: 'UTC',
   });
-  return `${day} · ${time} UTC`;
+  return `${day} — ${time} UTC`;
 };

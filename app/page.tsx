@@ -179,7 +179,7 @@ export default function Landing() {
 
       <footer className="lp-foot">
         <span>Parcel / Position infrastructure for the individual share.</span>
-        <span>Sandbox model · Historical NVDA replay</span>
+        <span>Sandbox model — Historical NVDA replay</span>
       </footer>
     </div>
   );

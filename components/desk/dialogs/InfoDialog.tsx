@@ -36,7 +36,7 @@ export function InfoDialog(desk: Desk) {
         </DialogTitle>
         <DialogDescription>
           {modal === 'chain' || modal === 'execute'
-            ? 'Program-enforced test-token escrow · no real-value assets.'
+            ? 'Program-enforced test-token escrow — no real-value assets.'
             : 'An equity desk built around clear terms and visible collateral.'}
         </DialogDescription>
         {modal === 'execute' && <ExecuteContent {...desk} />}

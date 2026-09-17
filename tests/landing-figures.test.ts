@@ -39,7 +39,7 @@ void test('every example states when it ends', () => {
   for (const e of EXAMPLES)
     assert.ok(
       e.rows.some(([, v]) =>
-        /^\d{2}\/\d{2}\/\d{4}$/.test(v.split(' · ').pop() as string),
+        /^\d{2}\/\d{2}\/\d{4}$/.test(v.split(' — ').pop() as string),
       ),
       `${e.id} does not show an expiry`,
     );

@@ -41,9 +41,9 @@ export function CurveEditor({
               patch({ shape: e.target.value as 'quadratic' | 'exponential' })
             }
           >
-            <option value="quadratic">Quadratic · x²</option>
+            <option value="quadratic">Quadratic — x²</option>
             <option value="exponential">
-              Exponential · normalized exp(4x)
+              Exponential — normalized exp(4x)
             </option>
           </select>
         </Field>

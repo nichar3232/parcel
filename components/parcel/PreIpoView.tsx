@@ -203,7 +203,7 @@ export function PreIpoView() {
             </strong>
             <span className="od-preipo-provider">
               {a.asset.issuerTerms.issuer}
-              {sector ? ` · ${sector}` : ''}
+              {sector ? ` — ${sector}` : ''}
             </span>
           </span>
         </span>
@@ -216,7 +216,7 @@ export function PreIpoView() {
           </b>
           <span>
             {valuation ? `${big(valuation)} valuation` : ''}
-            {valuation && holders ? ' · ' : ''}
+            {valuation && holders ? ' — ' : ''}
             {holders ? `${holders.toLocaleString('en-US')} holders` : ''}
           </span>
         </span>
@@ -255,7 +255,7 @@ export function PreIpoView() {
         <div className="od-panel-heading">
           <h2>Verified on chain</h2>
           <Badge tone="neutral">
-            {escrowable.length} escrowable · {blocked.length} rejected
+            {escrowable.length} escrowable — {blocked.length} rejected
           </Badge>
         </div>
         <div className="od-panel-body">
@@ -383,7 +383,7 @@ export function PreIpoView() {
                 <div className="od-outcomes">
                   <div className="od-outcome">
                     <span className="od-outcome-when">
-                      Above ${summary.derivedStrikePerToken} · buyer exercises
+                      Above ${summary.derivedStrikePerToken} — buyer exercises
                     </span>
                     <strong>{summary.sellerReceivesIfExercised} USDC</strong>
                     <small>
@@ -394,7 +394,7 @@ export function PreIpoView() {
                   </div>
                   <div className="od-outcome keep">
                     <span className="od-outcome-when">
-                      At or below ${summary.derivedStrikePerToken} · it expires
+                      At or below ${summary.derivedStrikePerToken} — it expires
                     </span>
                     <strong>{summary.sellerKeepsIfUnexercised} USDC</strong>
                     <small>
@@ -460,7 +460,7 @@ export function PreIpoView() {
                       {current.asset.mint.slice(0, 6)}…
                       {current.asset.mint.slice(-6)}
                     </a>{' '}
-                    · {current.onchain.decimals} decimals ·{' '}
+                    — {current.onchain.decimals} decimals —{' '}
                     {current.onchain.network}
                   </span>
                 </div>

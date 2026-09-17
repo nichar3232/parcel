@@ -311,11 +311,11 @@ export const EXAMPLES: {
     title: 'Lend stock against funded collateral.',
     body: 'The borrower posts cash and the full term’s interest up front. Pledged protection cannot be reused.',
     rows: [
-      ['Lend', `${LOAN_QTY} NVDA · ${dayLabel(EXPIRY)}`],
+      ['Lend', `${LOAN_QTY} NVDA — ${dayLabel(EXPIRY)}`],
       ['Borrower posts', usd(LOAN_COLLATERAL)],
       [
         'Interest prepaid',
-        `${usd(LOAN_INTEREST, 4)} · ${(LOAN_RATE * 100).toFixed(2)}% APR`,
+        `${usd(LOAN_INTEREST, 4)} — ${(LOAN_RATE * 100).toFixed(2)}% APR`,
       ],
     ],
     preview: {

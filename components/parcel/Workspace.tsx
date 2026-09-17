@@ -165,7 +165,7 @@ export default function Workspace() {
           >
             <i />
             <span>
-              {s ? `${dateLabel(s.book.date)} · Historical` : 'Connecting'}
+              {s ? `${dateLabel(s.book.date)} — Historical` : 'Connecting'}
             </span>
             <ChevronDown size={13} />
           </button>
@@ -237,11 +237,11 @@ export default function Workspace() {
           )}
         </main>
         <footer className="od-footer">
-          <span>Parcel · Precision for every position.</span>
+          <span>Parcel — Precision for every position.</span>
           <span>
             {s?.mode === 'localnet'
               ? 'Solana local validator'
-              : 'Historical replay · NVDA, Jan–Mar 2025'}
+              : 'Historical replay — NVDA, Jan–Mar 2025'}
           </span>
         </footer>
       </div>
@@ -266,7 +266,7 @@ export default function Workspace() {
           <div className="od-review-line">
             <span>Current session</span>
             <b>
-              {s.book.date} · {usd(s.market.price)}
+              {s.book.date} — {usd(s.market.price)}
             </b>
           </div>
           {!!future.length && (
