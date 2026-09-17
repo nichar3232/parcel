@@ -1,4 +1,102 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+type LandingLayout = {
+  headingLines: number;
+  editorialOffset: number;
+  foundationAfterScroll: number;
+  rails: number[];
+  scrollAfterContent: number;
+  horizontalOverflow: number;
+};
+
+async function loadLandingWithTheme(page: Page, theme: 'light' | 'dark') {
+  await page.goto('/');
+  await page.evaluate((activeTheme) => {
+    localStorage.setItem('theme', activeTheme);
+    document.documentElement.dataset.theme = activeTheme;
+  }, theme);
+  await page.reload();
+  await expect(page.locator('.lp')).toBeVisible();
+}
+
+async function measureLandingLayout(page: Page): Promise<LandingLayout> {
+  return page.evaluate(() => {
+    const getBox = (selector: string) => {
+      const element = document.querySelector(selector);
+      if (!element) throw new Error(`Missing ${selector}`);
+      const bounds = element.getBoundingClientRect();
+      return {
+        bottom: bounds.bottom,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+      };
+    };
+
+    const navMark = getBox('.lp-nav .lp-mark');
+    const heroCopy = getBox('.lp-hero-copy');
+    const heroCard = getBox('.lp-card');
+    const scrollCue = getBox('.lp-scroll');
+    const foundationsCopy = getBox('.lp-foundations p');
+    const productsHead = getBox('.lp-section-head');
+    const workflowCopy = getBox('.lp-how .lp-section-copy');
+    const closingHeading = getBox('.lp-close h2');
+    const footerLead = getBox('.lp-foot > span:first-child');
+    const productsHeading = getBox('.lp-section-head h2');
+    const productsAnnotation = getBox('.lp-section-head p');
+    const foundations = getBox('.lp-foundations');
+    const headingElement = document.querySelector('.lp-section-head h2');
+    if (!headingElement) throw new Error('Missing product heading');
+
+    const lineHeight = parseFloat(getComputedStyle(headingElement).lineHeight);
+    return {
+      headingLines: Math.round(productsHeading.height / lineHeight),
+      editorialOffset: productsAnnotation.y - productsHeading.y,
+      foundationAfterScroll: foundations.y - scrollCue.bottom,
+      rails: [
+        navMark.x,
+        heroCopy.x,
+        foundationsCopy.x,
+        productsHead.x,
+        workflowCopy.x,
+        closingHeading.x,
+        footerLead.x,
+      ],
+      scrollAfterContent:
+        scrollCue.y - Math.max(heroCopy.bottom, heroCard.bottom),
+      horizontalOverflow: document.documentElement.scrollWidth - innerWidth,
+    };
+  });
+}
+
+test('the landing uses one desktop rail and a disciplined vertical rhythm', async ({
+  page,
+}) => {
+  const viewports = [
+    { width: 1440, height: 900 },
+    { width: 1920, height: 1080 },
+  ];
+  const themes = ['light', 'dark'] as const;
+
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    for (const theme of themes) {
+      await loadLandingWithTheme(page, theme);
+      const layout = await measureLandingLayout(page);
+
+      expect(
+        Math.max(...layout.rails) - Math.min(...layout.rails),
+      ).toBeLessThanOrEqual(1);
+      expect(layout.scrollAfterContent).toBeGreaterThanOrEqual(0);
+      expect(layout.scrollAfterContent).toBeLessThanOrEqual(64);
+      expect(layout.foundationAfterScroll).toBeGreaterThanOrEqual(0);
+      expect(layout.foundationAfterScroll).toBeLessThanOrEqual(64);
+      expect(Math.abs(layout.editorialOffset)).toBeLessThanOrEqual(1);
+      expect(layout.headingLines).toBeLessThanOrEqual(2);
+      expect(layout.horizontalOverflow).toBe(0);
+    }
+  }
+});
 
 test('the landing page shows the products and routes into the desk', async ({
   page,
@@ -116,26 +214,61 @@ test('the landing page shows the products and routes into the desk', async ({
   expect(errors).toEqual([]);
 });
 
-test('the landing page fits a phone without horizontal scroll', async ({
+test('the landing stays contained at responsive widths in both themes', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  const [card, sizeControl] = await Promise.all([
-    page.locator('.lp-card').boundingBox(),
-    page.locator('.lp-size-control').boundingBox(),
-  ]);
-  expect(card).not.toBeNull();
-  expect(sizeControl).not.toBeNull();
-  expect(card!.x).toBeGreaterThanOrEqual(0);
-  expect(card!.x + card!.width).toBeLessThanOrEqual(390);
-  expect(sizeControl!.x + sizeControl!.width).toBeLessThanOrEqual(
-    card!.x + card!.width,
-  );
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
+  const viewports = [
+    { width: 1024, height: 900 },
+    { width: 390, height: 844 },
+  ];
+  const themes = ['light', 'dark'] as const;
+  const selectors = [
+    '.lp-nav',
+    '.lp-hero-copy',
+    '.lp-card',
+    '.lp-size-control',
+    '.lp-foundations-inner',
+    '.lp-section-head',
+    '.lp-tabs',
+    '.lp-panel',
+    '.lp-how-inner',
+    '.lp-close-inner',
+    '.lp-foot',
+  ];
+
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    for (const theme of themes) {
+      await loadLandingWithTheme(page, theme);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      const layout = await page.evaluate((targetSelectors) => {
+        const bounds = targetSelectors.map((selector) => {
+          const element = document.querySelector(selector);
+          if (!element) throw new Error(`Missing ${selector}`);
+          const rectangle = element.getBoundingClientRect();
+          return { left: rectangle.left, right: rectangle.right };
+        });
+        const card = document
+          .querySelector('.lp-card')
+          ?.getBoundingClientRect();
+        const sizeControl = document
+          .querySelector('.lp-size-control')
+          ?.getBoundingClientRect();
+        if (!card || !sizeControl) throw new Error('Missing position controls');
+        return {
+          bounds,
+          cardRight: card.right,
+          horizontalOverflow: document.documentElement.scrollWidth - innerWidth,
+          sizeControlRight: sizeControl.right,
+        };
+      }, selectors);
+
+      for (const bounds of layout.bounds) {
+        expect(bounds.left).toBeGreaterThanOrEqual(0);
+        expect(bounds.right).toBeLessThanOrEqual(viewport.width);
+      }
+      expect(layout.sizeControlRight).toBeLessThanOrEqual(layout.cardRight);
+      expect(layout.horizontalOverflow).toBe(0);
+    }
+  }
 });

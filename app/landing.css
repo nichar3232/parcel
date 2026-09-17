@@ -921,6 +921,11 @@
    workspace: dense where there is information, quiet where there is not.
    ------------------------------------------------------------------ */
 .lp {
+  --content-width: 1480px;
+  --page-gutter: 28px;
+  --shell-width: calc(
+    var(--content-width) + var(--page-gutter) + var(--page-gutter)
+  );
   --ink: #11231a;
   --body: #50645a;
   --muted: #788a80;
@@ -933,7 +938,11 @@
   --accent-bright: #72e5a9;
   --accent-ink: #0d7247;
   background:
-    radial-gradient(76% 48% at 92% -4%, rgba(71, 185, 124, 0.15), transparent 70%),
+    radial-gradient(
+      76% 48% at 92% -4%,
+      rgba(71, 185, 124, 0.15),
+      transparent 70%
+    ),
     linear-gradient(180deg, #f8faf8 0%, var(--bg) 100%);
   isolation: isolate;
 }
@@ -954,7 +963,7 @@
 .lp-nav {
   height: 72px;
   gap: 30px;
-  padding: 0 max(28px, calc((100vw - 1480px) / 2));
+  padding: 0 max(var(--page-gutter), calc((100vw - var(--content-width)) / 2));
   border-bottom: 1px solid color-mix(in srgb, var(--line), transparent 24%);
   background: color-mix(in srgb, var(--bg), transparent 13%);
   box-shadow: none;
@@ -1018,7 +1027,9 @@
   padding: 9px 15px;
   font-size: 12px;
   font-weight: 640;
-  transition: transform 160ms ease, background 160ms ease;
+  transition:
+    transform 160ms ease,
+    background 160ms ease;
 }
 .lp a.lp-cta:hover {
   border-color: var(--accent-ink);
@@ -1028,10 +1039,11 @@
 
 .lp-hero {
   grid-template-columns: minmax(0, 0.89fr) minmax(520px, 1.11fr);
-  gap: clamp(48px, 7vw, 122px);
-  max-width: 1480px;
+  column-gap: clamp(48px, 7vw, 122px);
+  row-gap: 32px;
+  max-width: var(--shell-width);
   min-height: 0;
-  padding: clamp(72px, 9vw, 142px) max(28px, calc((100vw - 1480px) / 2)) 82px;
+  padding: clamp(84px, 7vw, 112px) var(--page-gutter) 48px;
 }
 .lp-kicker {
   position: relative;
@@ -1079,7 +1091,10 @@
   padding: 13px 18px;
   font-size: 13px;
   font-weight: 630;
-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
 }
 .lp a.lp-btn:hover {
   border-color: var(--ink);
@@ -1226,7 +1241,10 @@
   font-family: var(--mono);
   font-size: 10px;
   font-weight: 600;
-  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
 }
 .lp-size-control button:hover {
   color: var(--ink);
@@ -1254,7 +1272,9 @@
 .lp-line {
   stroke: var(--accent);
   stroke-width: 3;
-  filter: drop-shadow(0 3px 5px color-mix(in srgb, var(--accent), transparent 67%));
+  filter: drop-shadow(
+    0 3px 5px color-mix(in srgb, var(--accent), transparent 67%)
+  );
 }
 .lp-axis {
   padding: 7px 0 0;
@@ -1306,7 +1326,7 @@
   font-variant-numeric: tabular-nums;
 }
 .lp-scroll {
-  margin-top: 30px;
+  margin-top: 0;
   font-size: 9px;
   color: var(--body);
 }
@@ -1320,9 +1340,9 @@
   display: grid;
   grid-template-columns: minmax(0, 0.94fr) minmax(480px, 1.06fr);
   gap: 64px;
-  max-width: 1480px;
+  max-width: var(--shell-width);
   margin: 0 auto;
-  padding: 34px max(28px, calc((100vw - 1480px) / 2));
+  padding: 34px var(--page-gutter);
 }
 .lp-foundations p {
   max-width: 49ch;
@@ -1358,15 +1378,15 @@
 }
 
 .lp-section-inner {
-  max-width: 1480px;
-  padding: 108px max(28px, calc((100vw - 1480px) / 2));
+  max-width: var(--shell-width);
+  padding: 84px var(--page-gutter);
 }
 .lp-section-head {
   display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(280px, 0.55fr);
-  column-gap: 80px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.62fr);
+  column-gap: clamp(48px, 6vw, 96px);
   max-width: none;
-  margin-bottom: 42px;
+  margin-bottom: 28px;
 }
 .lp-section-head .lp-kicker,
 .lp-section-head h2 {
@@ -1374,9 +1394,9 @@
 }
 .lp-section-head h2,
 .lp-section-copy h2 {
-  max-width: 18ch;
+  max-width: 22ch;
   margin-top: 0;
-  font-size: clamp(34px, 3.2vw, 50px);
+  font-size: clamp(34px, 3vw, 48px);
   line-height: 1.03;
   letter-spacing: -0.055em;
   font-weight: 610;
@@ -1384,9 +1404,9 @@
 .lp-section-head p {
   grid-column: 2;
   grid-row: 1 / span 2;
-  align-self: end;
-  margin: 0;
-  padding-bottom: 3px;
+  align-self: start;
+  margin: 40px 0 0;
+  padding: 0;
   font-family: var(--mono);
   font-size: 11px;
   line-height: 1.7;
@@ -1482,7 +1502,11 @@
   border: 1px solid var(--line);
   border-radius: 9px;
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--accent), transparent 95%), transparent 36%),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent), transparent 95%),
+      transparent 36%
+    ),
     var(--panel-raised);
 }
 .lp-preview figcaption {
@@ -1537,8 +1561,8 @@
 }
 .lp-close-inner {
   justify-items: start;
-  max-width: 1480px;
-  padding: 104px max(28px, calc((100vw - 1480px) / 2));
+  max-width: var(--shell-width);
+  padding: 88px var(--page-gutter);
   text-align: left;
 }
 .lp-close h2 {
@@ -1555,8 +1579,8 @@
   line-height: 1.7;
 }
 .lp-foot {
-  max-width: 1480px;
-  padding: 22px max(28px, calc((100vw - 1480px) / 2)) 32px;
+  max-width: var(--shell-width);
+  padding: 22px var(--page-gutter) 32px;
   border-top: 1px solid var(--line);
   font-family: var(--mono);
   font-size: 10px;
@@ -1576,7 +1600,11 @@
   --accent-bright: #9aefbd;
   --accent-ink: #81e3ab;
   background:
-    radial-gradient(72% 45% at 91% -4%, rgba(51, 166, 103, 0.18), transparent 70%),
+    radial-gradient(
+      72% 45% at 91% -4%,
+      rgba(51, 166, 103, 0.18),
+      transparent 70%
+    ),
     linear-gradient(180deg, #09130e 0%, var(--bg) 100%);
 }
 :root[data-theme='dark'] .lp::before {
@@ -1619,7 +1647,7 @@
     grid-template-columns: 1fr;
   }
   .lp-hero {
-    gap: 54px;
+    row-gap: 40px;
   }
   .lp-section-head p {
     grid-column: 1;
