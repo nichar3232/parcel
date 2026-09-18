@@ -421,7 +421,8 @@ function Positions({
                   <div className="od-pos-what">
                     <b>{p.terms.name}</b>
                     <small>
-                      {qty(p.terms.quantity)} × {expiryLabel(p.terms.expiry)}
+                      {qty(p.terms.quantity)} × {p.terms.symbol} ·{' '}
+                      {expiryLabel(p.terms.expiry)}
                     </small>
                   </div>
                   <div className="od-pos-num">
