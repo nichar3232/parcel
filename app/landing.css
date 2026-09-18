@@ -272,12 +272,21 @@
 
 /* ---------- hero ---------- */
 
+/* The two columns are the same height. The copy used to float in the
+   middle of the taller viewer, so its kicker started below the
+   viewer's title and its buttons stopped above the viewer's pips —
+   two blocks that were nearly, but not quite, the same size. The copy
+   now runs the viewer's full height, with the buttons on its floor. */
 .lp-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.06fr);
-  align-items: center;
+  align-items: stretch;
   gap: clamp(40px, 5vw, 72px);
   padding: clamp(56px, 9vh, 108px) 0 clamp(40px, 6vh, 72px);
+}
+.lp-hero-copy {
+  display: flex;
+  flex-direction: column;
 }
 .lp-hero-copy h1 {
   margin-bottom: 22px;
@@ -286,7 +295,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 32px;
+  margin-top: auto;
+  padding-top: 32px;
 }
 
 /* ---------- the payoff viewer ---------- */
