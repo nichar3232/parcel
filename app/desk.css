@@ -2051,9 +2051,93 @@
 }
 .od-outcome-hold {
   fill: none;
-  stroke: var(--pc-faint);
+  stroke: var(--pc-muted);
   stroke-width: 1.5;
-  stroke-dasharray: 4 4;
+  stroke-dasharray: 5 5;
+}
+
+/* The pre-IPO outcome chart. It borrows the trade desk's payoff field
+   and head, and adds the two bands between its lines, a mark label on
+   the axis and a legend that says what each mark means in words. */
+.od-outcome-plot {
+  margin-top: 10px;
+}
+.od-outcome-plot .od-payoff-read small {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--pc-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--pc-muted);
+}
+.od-outcome-plot .od-payoff-read small.up {
+  color: var(--pc-up);
+}
+.od-outcome-plot .od-payoff-read small.down {
+  color: var(--pc-down);
+}
+.od-outcome-cushion {
+  fill: var(--pc-up);
+  opacity: 0.24;
+}
+.od-outcome-given {
+  fill: var(--pc-down);
+  opacity: 0.18;
+}
+.od-outcome-chart .od-chart-ticks text.mark {
+  fill: var(--pc-magenta);
+}
+.od-outcome-cursor line {
+  stroke: var(--pc-body);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.od-outcome-cursor circle {
+  fill: var(--pc-cyan);
+  stroke: var(--pc-surface);
+  stroke-width: 2.5;
+}
+.od-outcome-cursor circle.hold {
+  fill: var(--pc-surface);
+  stroke: var(--pc-muted);
+  stroke-width: 1.5;
+}
+.od-outcome-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin: 0;
+  padding: 4px 0 0;
+  list-style: none;
+  color: var(--pc-body);
+  font-size: 12.5px;
+}
+.od-outcome-legend li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.od-outcome-legend i {
+  display: block;
+  width: 18px;
+  height: 0;
+  border-top: 2.5px solid var(--pc-cyan);
+  border-radius: 2px;
+}
+.od-outcome-legend i.dash {
+  border-top: 1.5px dashed var(--pc-muted);
+}
+.od-outcome-legend i.cushion,
+.od-outcome-legend i.given {
+  height: 10px;
+  border: 0;
+  border-radius: 2px;
+}
+.od-outcome-legend i.cushion {
+  background: color-mix(in srgb, var(--pc-up) 28%, transparent);
+}
+.od-outcome-legend i.given {
+  background: color-mix(in srgb, var(--pc-down) 22%, transparent);
 }
 
 .od-asset-cell {

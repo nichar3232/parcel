@@ -262,11 +262,6 @@
 .lp-section {
   padding: clamp(80px, 11vh, 132px) 0 0;
 }
-/* The first section after the hero starts a screen down: on launch the
-   page shows the hero and the rail, and nothing of what follows. */
-#products {
-  padding-top: clamp(200px, 32vh, 360px);
-}
 .lp-section-head {
   max-width: 56ch;
   margin-bottom: 44px;
@@ -569,20 +564,26 @@
   opacity: 1;
 }
 
-/* A twelve-column measure the panel places on by hand. The elements
-   are placed rather than flowed because the point of the layout is
-   that they do not line up: see the note on the component. */
+/* Words on the left, evidence on the right, mechanics across the
+   bottom. Both columns start on the same line and each flows top to
+   bottom, so nothing is left hanging over a hole. */
 .lp-panel {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   align-items: start;
-  column-gap: clamp(20px, 2.6vw, 40px);
-  row-gap: clamp(32px, 4vh, 56px);
+  column-gap: clamp(32px, 4.5vw, 72px);
+  row-gap: clamp(44px, 6vh, 72px);
   padding-top: clamp(28px, 3.4vw, 44px);
 }
-
-.lp-panel-lede {
-  grid-column: 1 / 7;
+.lp-panel-copy {
+  display: grid;
+  gap: clamp(36px, 4.5vh, 56px);
+  min-width: 0;
+}
+.lp-panel-figure {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
 }
 .lp-panel-lede h3 {
   margin-bottom: 12px;
@@ -598,17 +599,9 @@
   font-size: 15px;
 }
 
-.lp .lp-preview {
-  grid-column: 7 / 13;
-  grid-row: 1;
-}
-
 /* The one figure worth reading first. This is the rationed use magenta
    exists for — the duotone marks the number the eye should land on,
    and nothing else on the panel competes for it. */
-.lp-panel-pull {
-  grid-column: 1 / 6;
-}
 /* fit-content, so the duotone runs the width of the number rather than
    the width of the column — a five-character figure in a 400px box
    samples only the cyan end of the ramp and reads as a flat colour. */
@@ -634,13 +627,8 @@
   line-height: 1.5;
 }
 
-/* Beside the pulled figure, not under it: the two are the same fact at
-   two magnifications, and a row of dead canvas between them reads as a
-   loading state rather than as air. */
+/* Under the plot: the two are the same fact at two magnifications. */
 .lp-example {
-  grid-column: 7 / 13;
-  grid-row: 2;
-  align-self: start;
   margin: 0;
   border-top: 1px solid var(--pc-line-soft);
 }
@@ -695,17 +683,15 @@
 
 /* ---------- the mechanics band ---------- */
 
-/* Three columns that are not the same width and do not start on the
-   same line. The staircase is what stops the band reading as a row of
-   feature tiles: the rules step down with the numbering, so the eye
-   is given an order instead of three equal claims. */
+/* Three columns, one rule across the top. The numbering gives the
+   order; a staircase of offset rules used to try to as well, and read
+   as three blocks that had failed to line up. */
 .lp-mechanics {
-  grid-column: 1 / 13;
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 1.24fr 1fr 0.94fr;
-  gap: clamp(20px, 2.6vw, 40px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(24px, 3vw, 48px);
   align-items: start;
-  margin-top: clamp(8px, 2vh, 24px);
 }
 .lp-mechanics li {
   display: grid;
@@ -714,12 +700,6 @@
   gap: 6px 12px;
   padding-top: 20px;
   border-top: 1px solid var(--pc-line-soft);
-}
-.lp-mechanics li:nth-child(2) {
-  margin-top: 28px;
-}
-.lp-mechanics li:nth-child(3) {
-  margin-top: 56px;
 }
 .lp-mechanics b {
   grid-row: 1 / span 2;
@@ -1072,21 +1052,9 @@
   .lp-panel {
     grid-template-columns: minmax(0, 1fr);
   }
-  .lp-panel-lede,
-  .lp .lp-preview,
-  .lp-panel-pull,
-  .lp-example,
-  .lp-mechanics {
-    grid-column: 1;
-    grid-row: auto;
-  }
   .lp-mechanics {
     grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
-  .lp-mechanics li:nth-child(2),
-  .lp-mechanics li:nth-child(3) {
-    margin-top: 20px;
+    gap: 20px;
   }
   .lp-how-grid {
     grid-template-columns: minmax(0, 1fr);

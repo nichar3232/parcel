@@ -49,13 +49,13 @@ function Preview({ preview }: { preview: Preview }) {
  * what it does, what it costs, how it is held together, and what shape
  * it makes.
  *
- * The composition is deliberately uneven. Two equal columns give every
- * element the same weight, which means the reader has to work out the
- * order themselves — so the lede and the plot share the top on a 6/6,
- * the one figure worth reading first is set large under the lede with
- * the terms beside it, and the three mechanics run the full width in a
- * staircase of uneven columns. Nothing below the lede starts on the
- * same line as anything else.
+ * Two columns. The words on the left: what it does, then the one
+ * figure worth reading first. The evidence on the right: the shape it
+ * makes, then the worked example. The three mechanics run the full
+ * width beneath. An earlier version scattered these across a
+ * twelve-column grid so that nothing lined up with anything, which
+ * read as a layout that had broken rather than one that had been
+ * chosen.
  *
  * The tabs answer the nav's #options / #lending links through the hash,
  * which is why they carry those ids.
@@ -91,32 +91,36 @@ export function Showcase({ products }: { products: Product[] }) {
       </div>
 
       <div className="lp-panel" role="tabpanel" key={product.id}>
-        <div className="lp-panel-lede">
-          <h3>{product.title}</h3>
-          <p>{product.body}</p>
+        <div className="lp-panel-copy">
+          <div className="lp-panel-lede">
+            <h3>{product.title}</h3>
+            <p>{product.body}</p>
+          </div>
+
+          <div className="lp-panel-pull">
+            <b>{product.pull.value}</b>
+            <span>{product.pull.label}</span>
+            <Link className="lp-inline-link" href={`/app?at=${product.id}`}>
+              Open in the desk <span aria-hidden>&rarr;</span>
+            </Link>
+          </div>
         </div>
 
-        <figure className="lp-preview">
-          <Preview preview={product.preview} />
-          <figcaption>{product.preview.caption}</figcaption>
-        </figure>
+        <div className="lp-panel-figure">
+          <figure className="lp-preview">
+            <Preview preview={product.preview} />
+            <figcaption>{product.preview.caption}</figcaption>
+          </figure>
 
-        <div className="lp-panel-pull">
-          <b>{product.pull.value}</b>
-          <span>{product.pull.label}</span>
-          <Link className="lp-inline-link" href={`/app?at=${product.id}`}>
-            Open in the desk <span aria-hidden>&rarr;</span>
-          </Link>
+          <dl className="lp-example">
+            {product.rows.map(([k, v]) => (
+              <div key={k}>
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
-
-        <dl className="lp-example">
-          {product.rows.map(([k, v]) => (
-            <div key={k}>
-              <dt>{k}</dt>
-              <dd>{v}</dd>
-            </div>
-          ))}
-        </dl>
 
         <ol className="lp-mechanics">
           {product.mechanics.map((m, i) => (

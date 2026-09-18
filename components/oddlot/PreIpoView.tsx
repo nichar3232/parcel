@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -499,6 +499,7 @@ function Underwrite({
                   strike={Number(summary.derivedStrikePerToken)}
                   premium={keep}
                   spot={spot ?? Number(summary.derivedStrikePerToken)}
+                  symbol={current.asset.symbol}
                 />
               </div>
             </>
@@ -595,96 +596,226 @@ function Underwrite({
 
 /* ---------------------------------------------------------------- */
 
-const O = { w: 760, h: 220, x0: 62, x1: 748, y0: 18, y1: 176, axisY: 202 };
+/* The frame the trade desk's payoff chart draws in, so the two charts
+   read as one instrument rather than two drawings. */
+const O = {
+  w: 880,
+  h: 272,
+  x0: 68,
+  x1: 858,
+  /** the band above the plot, where the strike label lives */
+  y0: 34,
+  y1: 228,
+  axisY: 254,
+} as const;
+const SAMPLES = 121;
+
+const path = (points: [number, number][]) =>
+  points
+    .map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`)
+    .join(' ');
 
 /**
- * The seller's payoff on a pre-IPO covered call.
+ * What the escrowed tokens are worth at expiry, with and without the call.
  *
- * The screen described two outcomes in prose and never drew the line
- * between them, which is the part that shows what is actually being
- * sold: everything above the strike.
+ * Two lines: holding the tokens, and holding them with the call written
+ * against them. Below the strike the second sits above the first by
+ * exactly the premium; above it the first keeps climbing and the second
+ * goes flat. The band between them is the whole trade — the premium
+ * kept on one side, the upside given up on the other — and it is
+ * filled so the reader sees the trade before reading a number.
+ *
+ * The old drawing had neither fill nor legend, and its strike and mark
+ * rules were the same grey dashes, so a reader could not tell which
+ * line was which or what the gap between them cost. A pointer over the
+ * plot now moves the readout, so "what if it ends at $X" is answered by
+ * pointing at $X.
  */
 function OutcomeChart({
   tokens,
   strike,
   premium,
   spot,
+  symbol,
 }: {
   tokens: number;
   strike: number;
   premium: number;
   spot: number;
+  symbol: string;
 }) {
-  const lo = Math.min(spot, strike) * 0.55,
-    hi = Math.max(spot, strike) * 1.55;
-  const rows = Array.from({ length: 101 }, (_, i) => {
-    const price = lo + ((hi - lo) * i) / 100;
-    // Tokens held plus premium, capped at the strike.
-    const value = tokens * Math.min(price, strike) + premium;
-    return { price, value };
-  });
-  const hold = rows.map((r) => ({ price: r.price, value: tokens * r.price }));
+  const uid = useId().replaceAll(':', '');
+  const svg = useRef<SVGSVGElement>(null);
+  const [at, setAt] = useState<number | null>(null);
 
-  const min = 0;
-  const max = Math.max(...hold.map((h) => h.value), 1e-9);
-  const x = (v: number) => O.x0 + ((v - lo) / (hi - lo)) * (O.x1 - O.x0);
-  const y = (v: number) =>
-    O.y0 + ((max - v) / (max - min || 1)) * (O.y1 - O.y0);
-  const line = (pts: { price: number; value: number }[]) =>
-    pts
-      .map(
-        (p, i) =>
-          `${i ? 'L' : 'M'}${x(p.price).toFixed(1)},${y(p.value).toFixed(1)}`,
-      )
-      .join(' ');
+  const hold = (p: number) => tokens * p;
+  const written = (p: number) => tokens * Math.min(p, strike) + premium;
+
+  const plot = useMemo(() => {
+    const hold = (p: number) => tokens * p;
+    const written = (p: number) => tokens * Math.min(p, strike) + premium;
+    const lo = Math.min(spot, strike) * 0.55,
+      hi = Math.max(spot, strike) * 1.55;
+    // The top of the axis is the top of the hold line rounded up to a
+    // step a reader can count in, so the gridlines read $100, $200
+    // rather than $87, $174.
+    const top = Math.max(hold(hi), written(hi), 1e-9);
+    const mag = 10 ** Math.floor(Math.log10(top / 4));
+    const step =
+      [1, 2, 2.5, 5, 10].map((m) => m * mag).find((v) => v >= top / 4) ??
+      mag * 10;
+    const max = Math.ceil(top / step) * step;
+    const x = (p: number) => O.x0 + ((p - lo) / (hi - lo)) * (O.x1 - O.x0);
+    const y = (v: number) => O.y0 + ((max - v) / max) * (O.y1 - O.y0);
+    const prices = Array.from(
+      { length: SAMPLES },
+      (_, i) => lo + ((hi - lo) * i) / (SAMPLES - 1),
+    );
+    const pt = (p: number, v: number) => [x(p), y(v)] as [number, number];
+
+    // The band between the lines, cut at the strike: to its left the
+    // written line is on top by the premium, to its right the hold
+    // line runs away above it.
+    const k = Math.min(hi, Math.max(lo, strike));
+    const left = [...prices.filter((p) => p < k), k];
+    const right = [k, ...prices.filter((p) => p > k)];
+    const band = (ps: number[]) =>
+      `${path([
+        ...ps.map((p) => pt(p, written(p))),
+        ...ps.reverse().map((p) => pt(p, hold(p))),
+      ])} Z`;
+
+    return {
+      lo,
+      hi,
+      x,
+      y,
+      holdLine: path(prices.map((p) => pt(p, hold(p)))),
+      writtenLine: path(prices.map((p) => pt(p, written(p)))),
+      cushion: band(left),
+      given: band(right),
+      grid: [0, 0.25, 0.5, 0.75, 1].map((n) => ({
+        y: O.y0 + n * (O.y1 - O.y0),
+        label: usd(max - max * n, 0),
+      })),
+    };
+  }, [tokens, strike, premium, spot]);
+
+  const price = at ?? spot;
+  const withCall = written(price);
+  const holding = hold(price);
+  const diff = withCall - holding;
+  const cx = plot.x(price);
+
+  /** Map a pointer anywhere over the plot onto a price. */
+  const scrub = (clientX: number) => {
+    const box = svg.current?.getBoundingClientRect();
+    if (!box) return;
+    const vx = ((clientX - box.left) / box.width) * O.w;
+    const t = (Math.min(O.x1, Math.max(O.x0, vx)) - O.x0) / (O.x1 - O.x0);
+    setAt(plot.lo + t * (plot.hi - plot.lo));
+  };
 
   return (
-    <svg
-      className="od-outcome-chart"
-      viewBox={`0 0 ${O.w} ${O.h}`}
-      aria-label="Value of the escrowed tokens against the covered call, at expiry"
-    >
-      <g className="od-chart-grid">
-        {[0, 0.5, 1].map((n) => (
-          <g key={n}>
-            <line
-              x1={O.x0}
-              x2={O.x1}
-              y1={O.y0 + n * (O.y1 - O.y0)}
-              y2={O.y0 + n * (O.y1 - O.y0)}
-            />
-            <text
-              x={O.x0 - 10}
-              y={O.y0 + n * (O.y1 - O.y0) + 4}
-              textAnchor="end"
-            >
-              {usd(max - (max - min) * n, 0)}
-            </text>
-          </g>
-        ))}
-      </g>
-      <path d={line(hold)} className="od-outcome-hold" />
-      <path d={line(rows)} className="od-chart-line" />
-      <g className="od-chart-strikes">
-        <line x1={x(strike)} x2={x(strike)} y1={O.y0} y2={O.y1} />
-        <text x={x(strike)} y={O.y0 - 4} textAnchor="middle">
-          strike {usd(strike, 0)}
-        </text>
-      </g>
-      <g className="od-chart-spot">
-        <line x1={x(spot)} x2={x(spot)} y1={O.y0} y2={O.y1} />
-      </g>
-      <g className="od-chart-ticks">
-        <text x={O.x0} y={O.axisY} textAnchor="start">
-          {usd(lo, 0)}
-        </text>
-        <text x={x(spot)} y={O.axisY} textAnchor="middle">
-          mark {usd(spot, 0)}
-        </text>
-        <text x={O.x1} y={O.axisY} textAnchor="end">
-          {usd(hi, 0)}
-        </text>
-      </g>
-    </svg>
+    <div className="od-payoff od-outcome-plot">
+      <div className="od-payoff-head">
+        <div>
+          <span>Value at expiry</span>
+          <b>
+            {tokens} {symbol} with the call written
+          </b>
+        </div>
+        <div className="od-payoff-read">
+          <span>
+            {at == null ? 'At the mark, ' : 'If it ends at '}
+            {usd(price)}
+          </span>
+          <b>{usd(withCall)}</b>
+          <small className={diff >= 0 ? 'up' : 'down'}>
+            {diff >= 0 ? '+' : '−'}
+            {usd(Math.abs(diff))} against holding
+          </small>
+        </div>
+      </div>
+
+      <svg
+        ref={svg}
+        className="od-payoff-svg od-outcome-chart"
+        viewBox={`0 0 ${O.w} ${O.h}`}
+        aria-label="Value of the escrowed tokens at expiry, with and without the covered call"
+        onPointerMove={(e) => e.buttons !== 2 && scrub(e.clientX)}
+        onPointerDown={(e) => scrub(e.clientX)}
+        onPointerLeave={() => setAt(null)}
+      >
+        <g className="od-chart-grid">
+          {plot.grid.map((g) => (
+            <g key={g.label + g.y}>
+              <line x1={O.x0} x2={O.x1} y1={g.y} y2={g.y} />
+              <text x={O.x0 - 12} y={g.y + 4} textAnchor="end">
+                {g.label}
+              </text>
+            </g>
+          ))}
+        </g>
+
+        <path d={plot.cushion} className="od-outcome-cushion" />
+        <path d={plot.given} className="od-outcome-given" />
+
+        <g className="od-chart-strikes">
+          <line x1={plot.x(strike)} x2={plot.x(strike)} y1={O.y0} y2={O.y1} />
+          <text x={plot.x(strike)} y={O.y0 - 12} textAnchor="middle">
+            Strike {usd(strike, 0)}
+          </text>
+        </g>
+        <g className="od-chart-spot">
+          <line x1={plot.x(spot)} x2={plot.x(spot)} y1={O.y0} y2={O.y1} />
+        </g>
+
+        <path d={plot.holdLine} className="od-outcome-hold" />
+        <path d={plot.writtenLine} className="od-chart-line" />
+
+        <g className="od-outcome-cursor" data-uid={uid}>
+          <line x1={cx} x2={cx} y1={O.y0} y2={O.y1} />
+          <circle cx={cx} cy={plot.y(holding)} r="4.5" className="hold" />
+          <circle cx={cx} cy={plot.y(withCall)} r="5.5" />
+        </g>
+
+        <g className="od-chart-ticks">
+          <text x={O.x0} y={O.axisY} textAnchor="start">
+            {usd(plot.lo, 0)}
+          </text>
+          <text
+            x={plot.x(spot)}
+            y={O.axisY}
+            textAnchor="middle"
+            className="mark"
+          >
+            Mark {usd(spot, 0)}
+          </text>
+          <text x={O.x1} y={O.axisY} textAnchor="end">
+            {usd(plot.hi, 0)}
+          </text>
+        </g>
+      </svg>
+
+      <ul className="od-outcome-legend">
+        <li>
+          <i className="line" />
+          With the call written
+        </li>
+        <li>
+          <i className="dash" />
+          Holding the tokens
+        </li>
+        <li>
+          <i className="cushion" />
+          Premium kept
+        </li>
+        <li>
+          <i className="given" />
+          Upside given up
+        </li>
+      </ul>
+    </div>
   );
 }
