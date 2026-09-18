@@ -106,12 +106,12 @@ export function Showcase({ products }: { products: Product[] }) {
           </div>
         </div>
 
-        <div className="lp-panel-figure">
-          <figure className="lp-preview">
-            <Preview preview={product.preview} />
-            <figcaption>{product.preview.caption}</figcaption>
-          </figure>
-
+        {/* The shape and the terms that made it are one figure: the
+            rows sit inside the plot's field under a hairline, rather
+            than as a second block floating beneath it. */}
+        <figure className="lp-preview">
+          <Preview preview={product.preview} />
+          <figcaption>{product.preview.caption}</figcaption>
           <dl className="lp-example">
             {product.rows.map(([k, v]) => (
               <div key={k}>
@@ -120,7 +120,7 @@ export function Showcase({ products }: { products: Product[] }) {
               </div>
             ))}
           </dl>
-        </div>
+        </figure>
 
         <ol className="lp-mechanics">
           {product.mechanics.map((m, i) => (

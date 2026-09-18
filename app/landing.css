@@ -590,11 +590,6 @@
   gap: clamp(36px, 4.5vh, 56px);
   min-width: 0;
 }
-.lp-panel-figure {
-  display: grid;
-  gap: 22px;
-  min-width: 0;
-}
 .lp-panel-lede h3 {
   margin-bottom: 12px;
   font-size: clamp(24px, 2.4vw, 31px);
@@ -637,10 +632,11 @@
   line-height: 1.5;
 }
 
-/* Under the plot: the two are the same fact at two magnifications. */
+/* Inside the plot's field, under the caption: the shape and the terms
+   that made it are the same fact at two magnifications. */
 .lp-example {
-  margin: 0;
-  border-top: 1px solid var(--pc-line-soft);
+  margin: 6px 0 0;
+  border-top: 1px solid var(--pc-line);
 }
 .lp-example > div {
   display: flex;
@@ -649,6 +645,10 @@
   gap: 18px;
   padding: 11px 0;
   border-bottom: 1px solid var(--pc-line-soft);
+}
+.lp-example > div:last-child {
+  padding-bottom: 2px;
+  border-bottom: 0;
 }
 .lp-example dt {
   color: var(--pc-body);
@@ -684,9 +684,9 @@
 .lp-preview {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 14px;
-  padding: 20px 22px;
+  min-width: 0;
+  padding: 20px 22px 18px;
   border-radius: var(--pc-r-xl);
   background: var(--pc-plot);
 }
