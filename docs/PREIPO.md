@@ -1,9 +1,15 @@
 # Pre-IPO covered calls: Tessera and PreStocks
 
 Fractional, physically settled covered calls written against sponsor-issued
-pre-IPO tokens. Quantities are **tokens**, never company shares, and nothing
-in this feature uses the sandbox vault ledger: that ledger is accounting, not
-on-chain custody, and the two are deliberately kept apart.
+pre-IPO tokens. Quantities are **tokens**, never company shares.
+
+Writing runs through the vault. The mint policy below decides which tokens
+can be written on at all; a token that passes is written the way every other
+product is: the server quotes the premium against the session mark, reserves
+the tokens, and settles the contract at expiry on the token's committed
+replay close (`data/replay`, one path per verified token). The result is
+sandbox or local-validator accounting, never sponsor-token custody: no
+sponsor token moves on chain, and the desk says so on the ticket.
 
 ## Status, stated plainly
 
@@ -13,8 +19,9 @@ on-chain custody, and the two are deliberately kept apart.
 | Curated asset registry with issuer terms | Working |
 | On-chain mint verification and extension policy | Working against mainnet, read-only |
 | Integer terms math and derived strike | Working, unit tested |
+| Writing, reserving and settling through the vault (sandbox / localnet) | Working, unit and browser tested |
 | `preipo_covered_call` Anchor program | **Written but never compiled or deployed** |
-| Wallet signing, offers, accept/exercise/expire | **Not implemented** |
+| Wallet signing and on-chain offers, accept/exercise/expire | **Not implemented** |
 
 The program is source-only. There is no Rust, Anchor or Solana toolchain on
 this machine (`cargo`, `anchor`, `solana` all absent), so it has not been
@@ -127,7 +134,14 @@ PREIPO_USDC_MINT=
 
 `GET /api/preipo/assets` returns the registry joined with chain facts and
 provider prices, plus `executionEnabled`, which is false unless both a program
-id and a USDC mint are configured.
+id and a USDC mint are configured. It gates on-chain execution only; the
+vault path needs no keys and is what the ticket uses.
+
+The ticket itself calls the vault routes: `POST /api/vault/quote` with a
+one-leg physically settled sell call on the token's symbol, then
+`POST /api/vault/actions` with `{type: 'execute', quoteId}`. The contract
+then appears in the portfolio, is reserved against the token balance, and is
+settled by the same expiry clearing as every other contract.
 
 ## Demo script
 
@@ -140,18 +154,18 @@ id and a USDC mint are configured.
 3. **Select Tessera T-OpenAI.** Escrowable. The panel shows the verified token
    program, 9 decimals, the network, and discloses the 0.20% transfer fee and
    the issuer's freeze authority.
-4. **Write a call:** 0.25 tokens, 6.50 USDC total premium, 225.00 USDC total
-   exercise payment. The derived strike reads $900 per token — derived from
-   the totals, not stored.
-5. **Open the confirmation.** Exact mint, token quantity, both totals, the
-   derived strike, the network. It states that the seller keeps the premium
-   and all downside while capping upside, and that the buyer's maximum loss is
-   the whole premium.
+4. **Write a call:** 0.25 tokens at a $900 strike, a week out. The ticket
+   says the tokens are not in the vault yet and offers the deposit; fund it,
+   and the premium line reads the engine's model price.
+5. **Review and confirm.** The server's funded quote: what you receive, the
+   tokens reserved, what is left free. Confirm, and the contract is in the
+   portfolio. Advance the session past expiry from Market controls to watch
+   it settle on the token's committed close.
 6. **Select PreStocks ANTHROPIC.** Not escrowable, with every blocker named
    from the mint account itself. This is the honest half of the demo: the
    integration reads the real mint and refuses what it cannot secure.
-7. **State the limits:** the program is unbuilt, signing is disabled, no
-   sponsor tokens move.
+7. **State the limits:** this is vault accounting on a replay path. The
+   program is unbuilt, there is no wallet signing, and no sponsor token moves.
 
 ## Remaining blockers
 
@@ -162,8 +176,9 @@ id and a USDC mint are configured.
 3. **Wallet signing is not implemented.** The design calls for real wallet
    signatures; the existing chain service uses server-derived HMAC session
    keys, which must not be reused here.
-4. **Offer persistence and reconciliation are not implemented.** Chain state
-   must be authoritative with the database as an index.
+4. **On-chain offer persistence and reconciliation are not implemented.**
+   The vault path is sandbox accounting; for the program, chain state must be
+   authoritative with the database as an index.
 5. **Local test mints for lifecycle tests are not yet created.** Automated
    lifecycle tests must run against local mints and must never be presented as
    sponsor-token integration.

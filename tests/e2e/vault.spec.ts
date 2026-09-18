@@ -751,3 +751,27 @@ test('a delayed sizing response cannot overwrite a contract edited while sizing'
   );
   await expect(page.locator('.od-sizing output')).toHaveCount(0);
 });
+
+test('a cash loan against pledged stock draws and repays through the real API', async ({
+  page,
+}) => {
+  await deposit(page, 'NVDA', '2');
+  // Borrow is the section's first choice, so arriving is enough.
+  await nav(page, 'Lending');
+  await expect(page.getByText('Borrow against stock')).toBeVisible();
+  await page.getByLabel('Borrow amount').fill('40');
+  await page.getByRole('button', { name: 'Review cash loan' }).click();
+  await expect(page.getByRole('dialog')).toContainText('You receive now');
+  await page.getByRole('button', { name: 'Confirm transaction' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await nav(page, 'Lending positions');
+  await expect(page.getByRole('button', { name: 'Repay' })).toBeVisible();
+  await page.getByRole('button', { name: 'Repay' }).click();
+  await expect(page.getByRole('dialog')).toContainText('You pay to repay');
+  await page.getByRole('button', { name: 'Confirm transaction' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Repay' })).toHaveCount(0);
+  await expect(
+    page.getByText('Nothing borrowed against your stock.'),
+  ).toBeVisible();
+});

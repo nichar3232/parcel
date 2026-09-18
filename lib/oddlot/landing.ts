@@ -648,8 +648,8 @@ export const EXAMPLES: {
   {
     id: 'lending',
     kicker: 'Lending',
-    title: 'Lend stock against funded collateral.',
-    body: 'The borrower posts cash and the full term’s interest up front. Pledged protection cannot be reused.',
+    title: 'Lend stock, or borrow against it.',
+    body: 'Lend your tokenized stock, or borrow against it at a variable or fixed rate. The borrower posts cash and the full term’s interest up front. Pledged protection cannot be reused.',
     pull: {
       value: usd(LOAN_COLLATERAL),
       label: `is posted in cash before a single share moves, against ${usd(SPOT)} of stock.`,

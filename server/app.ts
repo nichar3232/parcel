@@ -25,17 +25,24 @@ export function createApp(
 ) {
   const store =
     options.store || new Store(path.join(config.stateDir, 'strata.sqlite'));
-  const vault = new VaultService(store, Date.now, config.oddlot ? 64 : 500);
+  // Live marks are display and indicative pricing only; the vault's own
+  // accounting stays on the stored session clock so settlement remains
+  // deterministic. The engine never blocks a request: it ticks on its
+  // own and every route just reads the latest snapshot. The one thing
+  // the vault takes from it is a pool's utilisation when a cash loan
+  // is priced, and the rate that produces is stored on the loan.
+  const marks = new MarkEngine();
+  marks.start();
+  const vault = new VaultService(
+    store,
+    Date.now,
+    config.oddlot ? 64 : 500,
+    (symbol) => marks.mark(symbol)?.utilisation ?? null,
+  );
   const oddlotAdapter = config.oddlot ? new OddlotAdapter(config) : undefined;
   const vaultChain = config.oddlot
     ? new VaultChainCoordinator(store, vault, oddlotAdapter!)
     : undefined;
-  // Live marks are display and indicative pricing only; the vault's own
-  // accounting stays on the stored session clock so settlement remains
-  // deterministic. The engine never blocks a request: it ticks on its
-  // own and every route just reads the latest snapshot.
-  const marks = new MarkEngine();
-  marks.start();
   const portfolio = new PortfolioService(store),
     chain = new ChainService(
       store,

@@ -6,10 +6,17 @@ import type { MarkFeed } from '@/hooks/oddlot/use-marks';
 import type { VaultAction } from '@/lib/oddlot/types';
 import { amount } from '@/lib/oddlot/validation';
 import { add, mul, round } from '@/lib/oddlot/math';
-import { termInterest, protectionPremium } from '@/lib/oddlot/funding';
 import {
+  borrowDebt,
+  borrowInterest,
+  termInterest,
+  protectionPremium,
+} from '@/lib/oddlot/funding';
+import {
+  borrowLimit,
   health,
   liquidationPrice,
+  pledgeLiquidationPrice,
   rates,
   reserveOf,
   type Holding,
@@ -24,6 +31,7 @@ import {
   Modal,
   Panel,
   PanelHead,
+  Segmented,
   Stat,
   expiryLabel,
   qty,
@@ -31,8 +39,8 @@ import {
 } from './shared';
 
 export type LendingTab = 'borrow';
-type Mode = 'short' | 'lend' | 'stock';
-const MODES: Mode[] = ['short', 'lend', 'stock'];
+type Mode = 'borrow' | 'short' | 'lend' | 'stock';
+const MODES: Mode[] = ['borrow', 'short', 'lend', 'stock'];
 
 export function LendingView({
   desk,
@@ -43,7 +51,7 @@ export function LendingView({
 }: {
   desk: VaultController;
   feed: MarkFeed;
-  /** Short, lend or spot — chosen in the rail. */
+  /** Borrow, short, lend or spot — chosen in the rail. */
   mode: string;
   /** The underlying being lent, shorted or bought. */
   symbol: string;
@@ -80,6 +88,15 @@ export function LendingView({
       amount,
       price: priceOf(of),
     }));
+    // Cash loans are dollar debt against the same collateral. Their
+    // pledges are already in the vault list above, so the one health
+    // factor covers shorts and loans together.
+    for (const p of s.book.borrows.filter((p) => p.status === 'active'))
+      debt.push({
+        symbol: 'USDC',
+        amount: borrowDebt(p, s.book.date).total,
+        price: 1,
+      });
     const h = health(collateral, debt);
     const weighted = collateral.reduce((t, c) => {
       const r = reserveOf(c.symbol);
@@ -104,7 +121,7 @@ export function LendingView({
       desk={desk}
       feed={feed}
       position={position}
-      mode={MODES.includes(mode as Mode) ? (mode as Mode) : 'short'}
+      mode={MODES.includes(mode as Mode) ? (mode as Mode) : 'borrow'}
       symbol={symbol}
       onSymbol={onSymbol}
     />
@@ -162,10 +179,19 @@ function Borrow({
   const defaultExpiry =
     future.find((d) => d >= fortnight) || future.at(-1) || s.book.date;
 
+  const reserve = reserveOf(symbol);
   const [quantity, setQuantity] = useState('1');
   const [cap, setCap] = useState(String(Math.ceil(price * 1.12)));
   const [expiry, setExpiry] = useState(defaultExpiry);
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
+  // A cash loan: half of what one share can carry, so the first read
+  // shows a loan with room in it rather than one at the edge.
+  const [amount_, setAmount] = useState(
+    String(
+      Math.max(1, Math.floor(reserve ? borrowLimit(1, price, reserve) / 2 : 1)),
+    ),
+  );
+  const [rateKind, setRateKind] = useState<'variable' | 'fixed'>('variable');
   const [review, setReview] = useState<{
     action: VaultAction;
     revision: number;
@@ -178,13 +204,20 @@ function Borrow({
   const end = expiry > s.book.date ? expiry : defaultExpiry;
   const q = Number(quantity);
   const k = Number(cap);
+  const b = Number(amount_);
+  const limit = reserve ? borrowLimit(q || 0, price, reserve) : 0;
+  const termed = mode !== 'stock' && !(mode === 'borrow' && rateKind === 'variable');
 
-  let valid = mode === 'stock' || future.length > 0;
+  let valid = !termed || future.length > 0;
   try {
     amount(q);
     if (mode === 'short') {
       amount(k, 0.000001, Math.min(10000, price * 2));
       if (k <= price) valid = false;
+    }
+    if (mode === 'borrow') {
+      amount(b, 0.000001, 1000000);
+      if (!reserve || b > limit) valid = false;
     }
   } catch {
     valid = false;
@@ -211,6 +244,32 @@ function Borrow({
     };
   })();
 
+  /**
+   * The cash loan, as the ledger will price it.
+   *
+   * The rate is the pool's, off the same curve the panel below draws,
+   * read from the live feed; the server reads the same feed when the
+   * loan opens, so the two agree to within a poll. A fixed loan's
+   * interest is known now; a variable one's is whatever the sessions
+   * bring, so it is shown as the first day's run.
+   */
+  const apr = reserve
+    ? rates(feed.marks[symbol]?.utilisation ?? 0, reserve).borrow
+    : 0;
+  const loan = (() => {
+    if (mode !== 'borrow' || !valid || !reserve) return null;
+    const termCost =
+      rateKind === 'fixed' ? borrowInterest(b, apr, s.book.date, end) : 0;
+    const owed = position.owed + b;
+    return {
+      termCost,
+      ltv: q > 0 ? b / (q * price) : 0,
+      factor: owed > 0 ? position.weighted / owed : Infinity,
+      liquidation: pledgeLiquidationPrice(b + termCost, q, reserve),
+    };
+  })();
+  const aprLabel = `${(apr * 100).toFixed(2)}% APR`;
+
   const openReview = () =>
     setReview({
       action:
@@ -218,22 +277,64 @@ function Borrow({
           ? { type: 'lend', quantity: q, expiry: end, symbol }
           : mode === 'short'
             ? { type: 'short', quantity: q, cap: k, expiry: end, symbol }
-            : { type: 'stock', side, quantity: q, symbol },
+            : mode === 'borrow'
+              ? {
+                  type: 'borrow',
+                  pledged: q,
+                  amount: b,
+                  rate: rateKind,
+                  ...(rateKind === 'fixed' ? { expiry: end } : {}),
+                  symbol,
+                }
+              : { type: 'stock', side, quantity: q, symbol },
       revision: s.revision,
       title:
         mode === 'lend'
           ? 'Fund this stock loan?'
           : mode === 'short'
             ? 'Open this protected short?'
-            : 'Confirm stock exchange',
+            : mode === 'borrow'
+              ? 'Draw this cash loan?'
+              : 'Confirm stock exchange',
       label:
         mode === 'lend'
           ? 'Borrower posts cash'
           : mode === 'short'
             ? 'Maximum cash reserved'
-            : 'Total consideration',
+            : mode === 'borrow'
+              ? 'You receive now'
+              : 'Total consideration',
       details:
-        mode === 'stock'
+        mode === 'borrow'
+          ? [
+              ['Pledged', `${qty(q)} ${symbol}, reserved until repaid`],
+              [
+                'Rate',
+                rateKind === 'fixed'
+                  ? `${aprLabel}, locked until ${expiryLabel(end)}`
+                  : `${aprLabel} today, repriced each session off the ${symbol} pool`,
+              ],
+              rateKind === 'fixed'
+                ? ['Interest over the term', usd(loan?.termCost ?? 0, 6)]
+                : ['Interest', 'Accrues each session; repay whenever you like'],
+              [
+                'Loan-to-value',
+                `${((loan?.ltv ?? 0) * 100).toFixed(0)}% drawn of ${Math.round((reserve?.ltv ?? 0) * 100)}% allowed`,
+              ],
+              [
+                'Pledge sold if',
+                loan?.liquidation != null
+                  ? `${symbol} closes below ${usd(loan.liquidation)}`
+                  : '—',
+              ],
+              [
+                'At term end',
+                rateKind === 'fixed'
+                  ? 'Repaid from vault cash, or from the pledge if the cash is not there'
+                  : 'No term. Repay from the portfolio when you choose',
+              ],
+            ]
+          : mode === 'stock'
           ? [
               [
                 'Direction',
@@ -277,7 +378,9 @@ function Borrow({
           ? add(mul(q, round(price * 1.5)), interest)
           : mode === 'short'
             ? add(mul(q, k), interest)
-            : mul(q, price),
+            : mode === 'borrow'
+              ? b
+              : mul(q, price),
     });
 
   const confirm = async () => {
@@ -294,7 +397,6 @@ function Borrow({
    * it is the reserve's own two-slope model, which is what actually
    * prices every loan on this screen.
    */
-  const reserve = reserveOf(symbol);
   const pool = feed.marks[symbol];
   const utilisation = pool?.utilisation ?? 0;
   const here = reserve
@@ -312,7 +414,46 @@ function Borrow({
      that explain it. Anything that needed a sentence to read is on the
      review, where the reader has asked for it. */
   const read =
-    mode === 'short'
+    mode === 'borrow'
+      ? {
+          eyebrow: 'Borrow against stock',
+          label: 'You receive now',
+          value: usd(b || 0),
+          tone: 'up' as const,
+          caption:
+            rateKind === 'fixed'
+              ? `Locked at ${aprLabel} until ${expiryLabel(end)}. ${qty(q)} ${symbol} stays in your vault, pledged.`
+              : `${aprLabel} today, repriced each session as the ${symbol} pool moves. ${qty(q)} ${symbol} stays in your vault, pledged.`,
+          figures: [
+            {
+              label: rateKind === 'fixed' ? 'Interest over term' : 'Rate',
+              value:
+                rateKind === 'fixed'
+                  ? usd(loan?.termCost ?? 0, 4)
+                  : `${(apr * 100).toFixed(2)}%`,
+              detail:
+                rateKind === 'fixed'
+                  ? aprLabel
+                  : `${usd(borrowInterest(b || 0, apr, s.book.date, new Date(Date.parse(s.book.date) + 86_400_000).toISOString().slice(0, 10)), 4)} a day`,
+            },
+            {
+              label: 'Loan-to-value',
+              value: `${((loan?.ltv ?? 0) * 100).toFixed(0)}%`,
+              detail: reserve
+                ? `Up to ${usd(limit)} at ${Math.round(reserve.ltv * 100)}%`
+                : undefined,
+            },
+            {
+              label: 'Pledge sold at',
+              value:
+                loan?.liquidation != null ? usd(loan.liquidation) : '—',
+              detail: loan
+                ? `Health ${Number.isFinite(loan.factor) ? loan.factor.toFixed(2) : '∞'}`
+                : undefined,
+            },
+          ],
+        }
+      : mode === 'short'
       ? {
           eyebrow: 'Protected short',
           label: 'Most this can cost you',
@@ -389,6 +530,19 @@ function Borrow({
               against you liquidates the position.
             </p>
           )}
+          {mode === 'borrow' && reserve && b > limit && (
+            <p className="od-error" role="alert">
+              <TriangleAlert size={13} /> {symbol} lends up to{' '}
+              {Math.round(reserve.ltv * 100)}% of its value. Pledge more shares
+              or draw at most {usd(limit)}.
+            </p>
+          )}
+          {loan && loan.factor < 1.25 && (
+            <p className="od-error" role="alert">
+              <TriangleAlert size={13} /> That leaves very little room. A move
+              against you sells the pledge.
+            </p>
+          )}
         </section>
 
         {reserve && (
@@ -443,7 +597,7 @@ function Borrow({
             </select>
           </Field>
           <Field
-            label="Shares"
+            label={mode === 'borrow' ? 'Shares pledged' : 'Shares'}
             hint={`Available ${qty(s.risk.freeShares[symbol] ?? 0)} ${symbol}`}
           >
             <input
@@ -456,6 +610,44 @@ function Borrow({
             />
           </Field>
 
+          {mode === 'borrow' && (
+            <>
+              <Field
+                label="Borrow"
+                hint={reserve ? `Up to ${usd(limit)} USDC` : undefined}
+              >
+                <input
+                  aria-label="Borrow amount"
+                  type="number"
+                  min="0.000001"
+                  max={limit || undefined}
+                  step="any"
+                  value={amount_}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+              </Field>
+              <Field label="Rate">
+                <Segmented
+                  label="Rate"
+                  value={rateKind}
+                  onChange={setRateKind}
+                  options={[
+                    {
+                      id: 'variable',
+                      label: 'Variable',
+                      hint: 'Repriced each session off the pool',
+                    },
+                    {
+                      id: 'fixed',
+                      label: 'Fixed',
+                      hint: 'Locked for the term',
+                    },
+                  ]}
+                />
+              </Field>
+            </>
+          )}
+
           {mode === 'stock' ? (
             <Field label="Direction">
               <select
@@ -466,7 +658,7 @@ function Borrow({
                 <option value="sell">Sell, owned shares only</option>
               </select>
             </Field>
-          ) : (
+          ) : !termed ? null : (
             <Field label="Term ends">
               <select value={end} onChange={(e) => setExpiry(e.target.value)}>
                 {future.map((d) => (
@@ -505,7 +697,9 @@ function Borrow({
               ? 'stock loan'
               : mode === 'short'
                 ? 'protected short'
-                : 'stock trade'}
+                : mode === 'borrow'
+                  ? 'cash loan'
+                  : 'stock trade'}
             <ArrowRight size={16} />
           </Button>
         </div>

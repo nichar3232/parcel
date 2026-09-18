@@ -64,6 +64,35 @@ export interface ShortPosition {
   status: 'active' | 'closed';
   pnl?: number;
 }
+/**
+ * Cash drawn from the pool against stock left in the vault.
+ *
+ * The pledge stays where it is and is reserved, the way shares under a
+ * covered call are. Interest is a claim on the vault rather than an
+ * escrow: it is settled when the loan is, so nothing is taken out of
+ * spendable cash while the loan runs.
+ */
+export interface BorrowPosition {
+  id: string;
+  /** The stock pledged against the loan. */
+  symbol: string;
+  pledged: number;
+  /** USDC drawn from the pool. */
+  principal: number;
+  rate: 'variable' | 'fixed';
+  /** APR in force. Fixed: locked at open. Variable: the pool's rate as of the last session. */
+  apr: number;
+  opened: string;
+  /** A fixed loan ends here and repays itself; a variable loan runs until repaid. */
+  expiry?: string;
+  /** Interest owed through `accruedTo`, in USDC. */
+  accrued: number;
+  accruedTo: string;
+  status: 'active' | 'closed';
+  /** Interest paid over the loan's life, set at close. */
+  paid?: number;
+  closedBy?: 'repaid' | 'expired' | 'liquidated';
+}
 export interface LedgerEvent {
   id: string;
   date: string;
@@ -87,6 +116,7 @@ export interface VaultBook {
   options: OptionPosition[];
   loans: LendingPosition[];
   shorts: ShortPosition[];
+  borrows: BorrowPosition[];
   events: LedgerEvent[];
 }
 export interface CollateralGroup {
@@ -202,6 +232,18 @@ export type VaultAction =
       symbol?: string;
     }
   | { type: 'close-short'; id: string }
+  | {
+      type: 'borrow';
+      /** Shares pledged. */
+      pledged: number;
+      /** USDC drawn. */
+      amount: number;
+      rate: 'variable' | 'fixed';
+      /** Required for a fixed rate: the session the loan repays itself on. */
+      expiry?: string;
+      symbol?: string;
+    }
+  | { type: 'repay'; id: string }
   | { type: 'advance'; date: string }
   | { type: 'restart' };
 

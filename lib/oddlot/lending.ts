@@ -219,3 +219,36 @@ export function liquidationPrice(
   const headroom = weightedCollateral - otherDebt;
   return headroom > 0 ? headroom / shortedUnits : 0;
 }
+
+/**
+ * Where the ledger reads the curve when no pool is watching.
+ *
+ * The live engine seeds its pools between 42% and 66% out, so a loan
+ * priced without it lands in the same band rather than at zero, where
+ * every asset borrows for nothing.
+ */
+export const RESTING_UTILISATION = 0.5;
+
+/** The pool's borrow APR for an asset, off its own curve, to a millionth. */
+export function borrowRate(symbol: string, utilisation: number | null) {
+  const r = reserveOf(symbol);
+  if (!r) throw Error('Choose a supported underlying.');
+  return Math.round(rates(utilisation ?? RESTING_UTILISATION, r).borrow * 1e6) / 1e6;
+}
+
+/** The most that can be drawn against a pledge, at the asset's loan-to-value. */
+export function borrowLimit(pledged: number, price: number, r: Reserve) {
+  return Math.floor(pledged * price * r.ltv * 1e6) / 1e6;
+}
+
+/**
+ * The price at which a cash loan's pledge stops covering it.
+ *
+ * Solving pledged × price × liquidation threshold = debt for price.
+ * The debt is cash, so unlike a short it does not move with the stock;
+ * only the cover does, and this is the level it runs out at.
+ */
+export function pledgeLiquidationPrice(debt: number, pledged: number, r: Reserve) {
+  if (pledged <= 0 || debt <= 0) return null;
+  return debt / (pledged * r.liquidation);
+}

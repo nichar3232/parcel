@@ -2930,6 +2930,30 @@
   text-transform: uppercase;
 }
 
+/* The ticket's two interruptions: the tokens are not in the vault yet,
+   and the contract has just been written. Neither is a box; the first
+   carries the one button that resolves it, the second a link out. */
+.od-deposit-cue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.od-deposit-cue p {
+  margin: 0;
+}
+.od-written {
+  display: block;
+  color: var(--pc-up);
+}
+.od-written button.od-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
 .od-chain-cue {
   display: inline-flex;
   align-items: center;

@@ -161,6 +161,7 @@ void test('a version 2 book migrates to NVDA and gains the new symbols', () => {
     ],
     loans: [],
     shorts: [],
+    borrows: [],
     events: [
       {
         id: 'e',

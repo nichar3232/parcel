@@ -40,11 +40,11 @@ test('the landing page shows the products and routes into the desk', async ({
   for (const s of stats) expect(s.lines).toBe(1);
   expect(new Set(stats.map((s) => s.valueTop)).size).toBe(1);
 
-  // The gridlines, the strikes and the price axis are all drawn from
+  // The zero rule, the strikes and the price axis are all drawn from
   // one frame, so every label sits inside the plot it describes.
   const frame = await viewer.locator('svg').evaluate((svg) => {
     const box = (svg as SVGSVGElement).viewBox.baseVal;
-    const xs = [...svg.querySelectorAll('.lp-grid-band line')].map((l) => ({
+    const xs = [...svg.querySelectorAll('.lp-zero')].map((l) => ({
       x1: Number(l.getAttribute('x1')),
       x2: Number(l.getAttribute('x2')),
     }));
@@ -61,8 +61,10 @@ test('the landing page shows the products and routes into the desk', async ({
 
   // The first structure is a long call: it rises to the right and is
   // not capped, which is why it opens the page.
+  // The line is drawn twice, clipped above and below zero; either
+  // half carries the whole path.
   const ys = await viewer
-    .locator('.lp-curve')
+    .locator('.lp-curve.up')
     .evaluate((el) =>
       [
         ...(el as SVGPathElement)

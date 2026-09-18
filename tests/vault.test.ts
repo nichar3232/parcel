@@ -8,10 +8,14 @@ import {
   add,
   cashPayoff,
   deliveries,
+  mul,
   optionGreeks,
   orderGreeks,
 } from '../lib/oddlot/math';
 import { units } from '../lib/engine';
+import { borrowDebt, borrowInterest } from '../lib/oddlot/funding';
+import { borrowRate } from '../lib/oddlot/lending';
+import { mark } from '../lib/oddlot/market';
 import { marginGroups } from '../lib/oddlot/risk';
 import { templateTerms, templates } from '../lib/oddlot/templates';
 import type { OrderTerms, VaultAction } from '../lib/oddlot/types';
@@ -373,6 +377,130 @@ void test('vault: short above cap exercises reserved stock and stays within maxi
     a.act({ type: 'close-short', id: p.id });
     assert.ok(-a.state.book.shorts[0].pnl! <= maxLoss + 0.00001);
     assert.equal(a.state.risk.counterpartyShares.NVDA, 0);
+    validateLedger(a.state.book, totals(initialVault()));
+  } finally {
+    a.store.close();
+  }
+});
+void test('vault: cash borrowed against pledged stock is capped at loan-to-value, reserves the pledge and repays with interest', () => {
+  const a = setup();
+  try {
+    a.deposit('NVDA', 2);
+    // NVDA lends 60% of its value; one share at $142.62 carries $85.57.
+    assert.throws(
+      () =>
+        a.act({
+          type: 'borrow',
+          pledged: 1,
+          amount: 86,
+          rate: 'variable',
+        }),
+      /lends up to 60%/,
+    );
+    a.act({ type: 'borrow', pledged: 1, amount: 50, rate: 'variable' });
+    const p = a.state.book.borrows[0];
+    assert.equal(p.rate, 'variable');
+    assert.equal(p.apr, borrowRate('NVDA', null));
+    assert.equal(a.state.book.vault.USDC, 50);
+    assert.equal(a.state.risk.shares.NVDA, 1);
+    assert.equal(a.state.risk.freeShares.NVDA, 1);
+    assert.throws(
+      () =>
+        a.act({
+          type: 'transfer',
+          asset: 'NVDA',
+          direction: 'withdraw',
+          amount: 2,
+        }),
+      /available NVDA/,
+    );
+    // The borrowed cash itself is free to leave: that is what a loan is for.
+    a.act({ type: 'transfer', asset: 'USDC', direction: 'withdraw', amount: 50 });
+    a.act({ type: 'advance', date: '2025-01-27' });
+    // Repaying needs the principal and the interest in the vault.
+    assert.throws(() => a.act({ type: 'repay', id: p.id }), /Insufficient USDC/);
+    a.deposit('USDC', 51);
+    const owed = borrowDebt(a.state.book.borrows[0], '2025-01-27');
+    assert.ok(owed.interest > 0);
+    assert.equal(owed.total, add(50, owed.interest));
+    a.act({ type: 'repay', id: p.id });
+    const closed = a.state.book.borrows[0];
+    assert.equal(closed.status, 'closed');
+    assert.equal(closed.closedBy, 'repaid');
+    assert.equal(closed.paid, owed.interest);
+    assert.equal(a.state.book.vault.USDC, add(51, -owed.total));
+    assert.equal(a.state.book.vault.NVDA, 2);
+    assert.equal(a.state.risk.shares.NVDA, 0);
+    assert.throws(() => a.act({ type: 'repay', id: p.id }), /not found/);
+    validateLedger(a.state.book, totals(initialVault()));
+  } finally {
+    a.store.close();
+  }
+});
+void test('vault: a fixed-rate loan locks its rate, settles at its term and sells the pledge when the cash is gone', () => {
+  const a = setup();
+  try {
+    a.deposit('NVDA', 1);
+    assert.throws(
+      () => a.act({ type: 'borrow', pledged: 1, amount: 40, rate: 'fixed' }),
+      /future session/,
+    );
+    a.act({
+      type: 'borrow',
+      pledged: 1,
+      amount: 40,
+      rate: 'fixed',
+      expiry: '2025-01-31',
+    });
+    const p = a.state.book.borrows[0];
+    assert.equal(p.expiry, '2025-01-31');
+    const term = borrowInterest(40, p.apr, '2025-01-24', '2025-01-31');
+    // Spend the loan, then let the term run out with nothing to repay it from.
+    a.act({ type: 'transfer', asset: 'USDC', direction: 'withdraw', amount: 40 });
+    a.act({ type: 'advance', date: '2025-01-27' });
+    assert.equal(a.state.book.borrows[0].apr, p.apr);
+    a.act({ type: 'advance', date: '2025-01-31' });
+    const closed = a.state.book.borrows[0];
+    assert.equal(closed.status, 'closed');
+    assert.equal(closed.closedBy, 'expired');
+    assert.equal(closed.paid, term);
+    // The pledge was sold at the term's close and the debt taken from it;
+    // the rest is the vault's.
+    assert.equal(a.state.book.vault.NVDA, 0);
+    assert.equal(
+      a.state.book.vault.USDC,
+      add(mul(1, mark('NVDA', '2025-01-31')), -add(40, term)),
+    );
+    assert.equal(a.state.risk.shares.NVDA, 0);
+    validateLedger(a.state.book, totals(initialVault()));
+  } finally {
+    a.store.close();
+  }
+});
+void test('vault: a loan whose pledge stops covering it is sold up at the liquidation threshold', () => {
+  const a = setup();
+  try {
+    a.deposit('NVDA', 1);
+    // Drawn to the limit at $142.62; the 27 January close is $118.42,
+    // which at NVDA's 68% threshold covers $80.53 and not $85.
+    a.act({ type: 'borrow', pledged: 1, amount: 85, rate: 'variable' });
+    const p = a.state.book.borrows[0];
+    a.act({ type: 'advance', date: '2025-01-27' });
+    const closed = a.state.book.borrows[0];
+    assert.equal(closed.id, p.id);
+    assert.equal(closed.status, 'closed');
+    assert.equal(closed.closedBy, 'liquidated');
+    const debt = add(85, closed.paid!),
+      bonus = mul(debt, 0.09);
+    assert.equal(a.state.book.vault.NVDA, 0);
+    assert.equal(
+      a.state.book.vault.USDC,
+      add(add(85, mark('NVDA', '2025-01-27')), -add(debt, bonus)),
+    );
+    assert.ok(a.state.book.vault.USDC > 0);
+    assert.ok(
+      a.state.book.events.some((e) => e.title === 'Cash loan liquidated'),
+    );
     validateLedger(a.state.book, totals(initialVault()));
   } finally {
     a.store.close();

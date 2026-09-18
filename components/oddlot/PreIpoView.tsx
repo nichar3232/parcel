@@ -13,29 +13,30 @@ import {
   usePreIpoAssets,
   type AssetsPayload,
 } from '@/hooks/oddlot/use-preipo';
+import type { VaultController } from '@/hooks/oddlot/use-vault';
+import { selectableExpiries } from '@/lib/oddlot/market';
+import { days, orderGreeks } from '@/lib/oddlot/math';
+import type { OrderTerms, Quote } from '@/lib/oddlot/types';
+import { parseOrderTerms } from '@/lib/oddlot/validation';
 import type { ResolvedAsset } from '@/lib/preipo/types';
-import {
-  ACCEPTANCE_WINDOW_SECONDS,
-  EXERCISE_WINDOW_SECONDS,
-  parseUnits,
-  summarise,
-  validateTerms,
-  type CoveredCallTerms,
-} from '@/lib/preipo/terms';
+import { EXERCISE_WINDOW_DAYS } from '@/lib/preipo/terms';
 import { AssetLogo } from './AssetLogo';
+import { QuoteReview } from './QuoteReview';
 import {
   Badge,
   Button,
   Empty,
   Field,
   Line,
-  Modal,
   Money,
   Panel,
   PanelHead,
   compact,
+  expiryLabel,
+  qty,
   usd,
 } from './shared';
+import type { Transfer } from './TransferDialog';
 
 export type PreIpoTab = 'market' | 'underwrite';
 
@@ -60,17 +61,24 @@ const BLOCKER_LABEL: Record<string, string> = {
 
 /** The company, without the provider's naming attached to it. */
 export function PreIpoView({
+  desk,
   feed,
   tab,
   openTrade,
   openUnderwrite,
+  openPortfolio,
+  onTransfer,
   pick,
 }: {
+  desk: VaultController;
   feed: MarkFeed;
   tab: PreIpoTab;
   openTrade: () => void;
   /** Take the reader to the ticket for whatever they just picked. */
   openUnderwrite: () => void;
+  /** Where a written contract can be seen with the rest of the book. */
+  openPortfolio: () => void;
+  onTransfer: (transfer: Transfer) => void;
   /** An asset chosen elsewhere, such as the portfolio's market strip. */
   pick?: string;
 }) {
@@ -129,12 +137,18 @@ export function PreIpoView({
       }}
     />
   ) : (
+    /* Keyed on the company: a new token is a new ticket, with its own
+       default strike and a fresh quote. */
     <Underwrite
+      key={selected}
       data={data}
       feed={feed}
       current={current}
       onSelect={setSelected}
       openTrade={openTrade}
+      openPortfolio={openPortfolio}
+      desk={desk}
+      onTransfer={onTransfer}
     />
   );
 }
@@ -276,50 +290,144 @@ function Market({
 
 /* ---------------------------------------------------------------- */
 
+/** A round strike a little above the mark, on a grid the mark suggests. */
+function defaultStrike(price: number) {
+  const step = price >= 500 ? 25 : price >= 100 ? 5 : price >= 20 ? 1 : 0.5;
+  return Math.ceil((price * 1.1) / step) * step;
+}
+
+/**
+ * The covered-call ticket, written through the vault.
+ *
+ * Until now this screen priced a contract in the browser and ended at
+ * a disabled "connect wallet" button: the vault's engine had learned
+ * every sponsor token, but this ticket never asked it for anything.
+ * It now runs the same road as every other product — the server
+ * quotes the premium against the session mark, reserves the tokens,
+ * and settles the contract at expiry on the token's committed close —
+ * so a written call shows up in the portfolio with the rest of the
+ * book. The mint policy still gates it: a token whose issuer can reach
+ * into an escrow is not written on, and the reasons are listed here.
+ *
+ * The premium is the engine's, not the seller's ask. The old ticket
+ * let the reader type a premium, which is an offer no one had funded;
+ * the vault's counterparty pays the model price, as it does for a
+ * covered call on NVDA.
+ */
 function Underwrite({
   data,
   feed,
   current,
   onSelect,
   openTrade,
+  openPortfolio,
+  desk,
+  onTransfer,
 }: {
   data: AssetsPayload;
   feed: MarkFeed;
   current: ResolvedAsset | null;
   onSelect: (id: string) => void;
   openTrade: () => void;
+  openPortfolio: () => void;
+  desk: VaultController;
+  onTransfer: (transfer: Transfer) => void;
 }) {
+  const state = desk.state!;
+  const session = state.book.date;
+  const symbol = current?.asset.symbol ?? '';
+  const under = state.market.underlyings.find((u) => u.symbol === symbol);
+  const live = current ? feed.marks[symbol]?.price : undefined;
+
+  // Daily sessions only: a covered call written for a week is not
+  // written for an hourly test tick.
+  const future = selectableExpiries(session).filter((d) => !d.includes('T'));
+  const defaultExpiry =
+    future.find((d) => days(session, d) >= EXERCISE_WINDOW_DAYS) ||
+    future[0] ||
+    '';
+
   const [amount, setAmount] = useState('0.25');
-  const [premium, setPremium] = useState('6.50');
-  const [exercise, setExercise] = useState('225.00');
-  const [confirm, setConfirm] = useState(false);
-  // Pinned once so re-renders cannot shift the deadlines under the user.
-  const [openedAt] = useState(() => Math.floor(Date.now() / 1000));
+  const [strikeInput, setStrikeInput] = useState(() =>
+    under ? String(defaultStrike(under.price)) : '',
+  );
+  const [expiry, setExpiry] = useState(defaultExpiry);
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [requesting, setRequesting] = useState(false);
+  const [error, setError] = useState('');
+  const [written, setWritten] = useState('');
+  // A quote answers the draft it was asked for; a draft that has moved
+  // on since discards the answer rather than reviewing it.
+  const revision = useRef(0);
 
-  const mark = current ? feed.marks[current.asset.symbol] : undefined;
-  const spot = mark?.price ?? current?.quote?.markPriceUsd ?? null;
+  const tokens = Number(amount) || 0;
+  const strike = Number(strikeInput) || 0;
 
-  const decimals =
-    current?.onchain?.decimals ?? current?.asset.expectedDecimals ?? 9;
-
-  const { summary, termsError } = useMemo(() => {
-    if (!current) return { summary: null, termsError: '' };
+  const { terms, termsError } = useMemo(() => {
+    if (!current || !under) return { terms: null, termsError: '' };
     try {
-      const terms: CoveredCallTerms = validateTerms({
-        underlyingMint: current.asset.mint,
-        usdcMint: data.usdcMint || 'USDC-NOT-CONFIGURED',
-        underlyingAmount: parseUnits(amount, decimals),
-        totalExercisePayment: parseUnits(exercise, 6),
-        totalPremium: parseUnits(premium, 6),
-        acceptanceDeadline: openedAt + ACCEPTANCE_WINDOW_SECONDS,
-        exerciseExpiry: openedAt + EXERCISE_WINDOW_SECONDS,
-        designatedBuyer: null,
-      });
-      return { summary: summarise(terms, decimals), termsError: '' };
+      const draft: OrderTerms = {
+        symbol,
+        name: `${company(current.asset.displayName)} covered call`,
+        quantity: tokens,
+        expiry,
+        settlement: 'physical',
+        reference: 'stock',
+        legs: [{ kind: 'call', side: 'sell', strike, ratio: 1 }],
+      };
+      return { terms: parseOrderTerms(draft, session), termsError: '' };
     } catch (e) {
-      return { summary: null, termsError: (e as Error).message };
+      return { terms: null, termsError: (e as Error).message };
     }
-  }, [current, data.usdcMint, amount, exercise, premium, openedAt, decimals]);
+  }, [current, under, symbol, tokens, strike, expiry, session]);
+
+  // What the desk would pay for it, so the picture moves as the reader
+  // types; the funded quote replaces it the moment one exists.
+  const modelPremium =
+    terms && under
+      ? Math.abs(
+          orderGreeks(terms, under.price, session, under.volatility).price,
+        )
+      : 0;
+  const premium = quote ? Math.abs(quote.premium) : modelPremium;
+
+  const held = state.book.vault[symbol] ?? 0;
+  const free = state.risk.freeShares[symbol] ?? 0;
+  const inWallet = state.book.wallet[symbol] ?? 0;
+  const short = terms ? Math.max(0, terms.quantity - free) : 0;
+
+  const update = (set: (v: string) => void) => (v: string) => {
+    revision.current++;
+    set(v);
+    setQuote(null);
+    setError('');
+    setWritten('');
+  };
+
+  const request = async () => {
+    if (!terms) return;
+    const at = revision.current;
+    setRequesting(true);
+    setError('');
+    try {
+      const result = await desk.quote(terms);
+      if (revision.current === at) setQuote(result);
+    } catch (e) {
+      if (revision.current === at) setError((e as Error).message);
+    } finally {
+      setRequesting(false);
+    }
+  };
+
+  const execute = async () => {
+    if (!quote || !terms) return;
+    if (await desk.act({ type: 'execute', quoteId: quote.id })) {
+      setQuote(null);
+      setWritten(
+        `${qty(terms.quantity)} ${symbol} reserved until ${expiryLabel(terms.expiry)}, and ${usd(Math.abs(quote.premium))} paid into the vault.`,
+      );
+    }
+  };
 
   if (!current)
     return (
@@ -338,14 +446,8 @@ function Underwrite({
       detail,
     })),
   ];
-
-  const strike = summary ? Number(summary.derivedStrikePerToken) : null;
-  const tokens = Number(amount) || 0;
-  const keep = Number(premium) || 0;
-  const exercised = keep + (Number(exercise) || 0);
-  // What the seller gives up above the strike: the tokens go at the
-  // strike however far the mark runs past it.
-  const capped = spot != null && strike != null;
+  const writable = current.verdict.escrowSupported && !!under;
+  const exerciseTotal = terms ? terms.quantity * strike : 0;
 
   return (
     <div className="od-work">
@@ -390,63 +492,123 @@ function Underwrite({
                 ))}
               </ul>
             </>
+          ) : !under ? (
+            <p className="od-note">
+              This token has no replay path on the desk yet, so nothing can be
+              written against it.
+            </p>
           ) : (
             <>
               <Field
-                label={`Tokens to escrow`}
-                hint={spot != null ? `Mark ${usd(spot)}` : undefined}
+                label="Tokens to escrow"
+                hint={`Session mark ${usd(under.price)}${live != null ? ` · live ${usd(live)}` : ''}`}
+                help={`${qty(free)} ${symbol} free in the vault of ${qty(held)} held; ${qty(inWallet)} in the wallet.`}
               >
                 <input
                   aria-label="Tokens to escrow"
                   value={amount}
                   inputMode="decimal"
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => update(setAmount)(e.target.value)}
                 />
               </Field>
-              <Field label="Total premium (USDC)">
+              <Field
+                label="Strike per token (USDC)"
+                hint={
+                  strike > 0
+                    ? `${strike / under.price - 1 >= 0 ? '+' : ''}${((strike / under.price - 1) * 100).toFixed(1)}% vs the mark`
+                    : undefined
+                }
+              >
                 <input
-                  value={premium}
+                  aria-label="Strike per token"
+                  value={strikeInput}
                   inputMode="decimal"
-                  onChange={(e) => setPremium(e.target.value)}
+                  onChange={(e) => update(setStrikeInput)(e.target.value)}
                 />
               </Field>
-              <Field label="Total exercise payment (USDC)">
-                <input
-                  value={exercise}
-                  inputMode="decimal"
-                  onChange={(e) => setExercise(e.target.value)}
-                />
+              <Field label="Expiry">
+                <select
+                  aria-label="Covered call expiry"
+                  value={expiry}
+                  onChange={(e) => update(setExpiry)(e.target.value)}
+                >
+                  {future.map((d) => (
+                    <option key={d} value={d}>
+                      {expiryLabel(d)} · {Math.round(days(session, d))}d
+                    </option>
+                  ))}
+                </select>
               </Field>
 
               <div className="od-lines">
                 <Line
-                  label="Derived strike per token"
-                  value={summary ? `$${summary.derivedStrikePerToken}` : '—'}
+                  label={quote ? 'Premium, funded' : 'Premium, model'}
+                  value={terms ? usd(premium) : '—'}
+                  tone="up"
                 />
                 <Line
-                  label="Against the live mark"
-                  value={
-                    capped && strike
-                      ? `${(strike as number) / (spot as number) - 1 >= 0 ? '+' : ''}${(((strike as number) / (spot as number) - 1) * 100).toFixed(1)}%`
-                      : '—'
-                  }
-                  tone="muted"
+                  label="Exercise payment if called"
+                  value={terms ? usd(exerciseTotal) : '—'}
                 />
               </div>
 
-              {termsError && (
+              {short > 0 && (
+                <div className="od-note od-deposit-cue">
+                  <p>
+                    Writing {qty(terms!.quantity)} {symbol} needs {qty(short)}{' '}
+                    more in the vault.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      onTransfer({ asset: symbol, direction: 'deposit' })
+                    }
+                  >
+                    Deposit {symbol}
+                  </Button>
+                </div>
+              )}
+
+              {(termsError || error) && (
                 <p className="od-error" role="alert">
-                  {termsError}
+                  {termsError || error}
                 </p>
+              )}
+              {written && (
+                <output className="od-note od-written">
+                  <ShieldCheck size={13} /> Written. {written}{' '}
+                  <button className="od-link" onClick={openPortfolio}>
+                    See it in the portfolio
+                  </button>
+                </output>
               )}
               <Button
                 size="lg"
                 full
-                disabled={!summary}
-                onClick={() => setConfirm(true)}
+                disabled={!terms || requesting || desk.busy || short > 0}
+                onClick={request}
               >
-                Review covered call
+                {requesting ? 'Pricing…' : 'Review covered call'}
               </Button>
+              <p className="od-note">
+                Settles in your {state.mode} vault on the session clock. No
+                sponsor token moves on chain.
+              </p>
+              {/* What the issuer can still do to this mint, on the
+                  ticket rather than three screens away. */}
+              {current.verdict.disclosures.map((d) => (
+                <p className="od-note" key={d}>
+                  <AlertTriangle size={13} /> {d}
+                </p>
+              ))}
+              <a
+                className="od-link"
+                href={current.asset.issuerTerms.reference}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Issuer documentation <ExternalLink size={13} />
+              </a>
               <button className="od-chain-cue" onClick={openTrade}>
                 <ArrowLeftRight size={15} />
                 Writing against NVDA instead? That underwrites on the trade
@@ -462,57 +624,56 @@ function Underwrite({
           <PanelHead
             title="What happens at expiry"
             description={
-              summary
+              terms && writable
                 ? `Two outcomes, both fixed the moment you sign.`
                 : 'Set the terms to price both outcomes.'
             }
           />
-          {summary ? (
+          {terms && under && writable ? (
             <>
               <div className="od-panel-body od-outcomes">
                 <div className="od-outcome">
-                  <span>Above ${summary.derivedStrikePerToken}</span>
+                  <span>Above {usd(strike, 0)}</span>
                   <strong>
-                    <Money value={exercised} />
+                    <Money value={premium + exerciseTotal} />
                   </strong>
                   <small>
-                    The buyer exercises. You deliver {summary.underlyingAmount}{' '}
-                    {current.asset.symbol} and keep both the premium and the
-                    exercise payment.
+                    The buyer exercises. You deliver {qty(terms.quantity)}{' '}
+                    {symbol} and keep both the premium and the exercise payment.
                   </small>
                 </div>
                 <div className="od-outcome">
-                  <span>At or below ${summary.derivedStrikePerToken}</span>
+                  <span>At or below {usd(strike, 0)}</span>
                   <strong className="up">
-                    <Money value={keep} />
+                    <Money value={premium} />
                   </strong>
                   <small>
                     It expires. You keep the premium and all{' '}
-                    {summary.underlyingAmount} {current.asset.symbol}.
+                    {qty(terms.quantity)} {symbol}.
                   </small>
                 </div>
               </div>
 
               <div className="od-panel-body">
                 <OutcomeChart
-                  tokens={tokens}
-                  strike={Number(summary.derivedStrikePerToken)}
-                  premium={keep}
-                  spot={spot ?? Number(summary.derivedStrikePerToken)}
-                  symbol={current.asset.symbol}
+                  tokens={terms.quantity}
+                  strike={strike}
+                  premium={premium}
+                  spot={under.price}
+                  symbol={symbol}
                 />
               </div>
             </>
           ) : (
             <Empty
               title="Set the terms to price it"
-              description="Enter a token quantity, a premium and an exercise payment to see both outcomes."
+              description="Enter a token quantity, a strike and an expiry to see both outcomes."
             />
           )}
 
           {current.onchain && (
             <div className="od-panel-foot">
-              <span>Verified on chain</span>
+              <span>Mint verified on {data.network}</span>
               <a
                 className="od-link"
                 href={EXPLORER(current.asset.mint, data.network)}
@@ -525,70 +686,16 @@ function Underwrite({
             </div>
           )}
         </Panel>
-
-        {/* "Advanced" on this page revealed exactly one panel of
-            issuer terms, which is not a mode, it is a panel. The rights
-            the issuer keeps are on the confirm step with the rest of
-            the disclosures, next to a link to its documentation. */}
       </div>
 
-      {confirm && summary && (
-        <Modal
-          title="Confirm covered call"
-          description="Read every figure. Once signed, the terms are immutable."
-          onClose={() => setConfirm(false)}
-        >
-          <div className="od-lines">
-            <Line label="Underlying mint" value={current.asset.mint} />
-            <Line
-              label="Tokens escrowed"
-              value={`${summary.underlyingAmount} ${current.asset.symbol}`}
-            />
-            <Line
-              label="Total premium"
-              value={`${summary.totalPremium} USDC`}
-            />
-            <Line
-              label="Total exercise payment"
-              value={`${summary.totalExercisePayment} USDC`}
-            />
-            <Line
-              label="Derived strike per token"
-              value={`$${summary.derivedStrikePerToken}`}
-            />
-            <Line label="Network" value={data.network} />
-          </div>
-          <p className="od-note">
-            You keep the {summary.totalPremium} USDC premium whatever happens,
-            you keep all downside on the tokens, and your upside is capped:
-            above the strike the buyer takes every token for{' '}
-            {summary.totalExercisePayment} USDC. A buyer who never exercises
-            loses their whole {summary.buyerMaxLoss} USDC premium.
-          </p>
-          <p className="od-note">
-            An offer with no funded buyer stays unfilled.
-          </p>
-          {/* What the issuer can still do to this mint. These used to
-              sit under the chart on the page behind, which is where
-              three warning triangles stop being read. This is the last
-              screen before a signature, so it is where they belong. */}
-          {current.verdict.disclosures.map((d) => (
-            <p className="od-note" key={d}>
-              <AlertTriangle size={13} /> {d}
-            </p>
-          ))}
-          <a
-            className="od-link"
-            href={current.asset.issuerTerms.reference}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Issuer documentation <ExternalLink size={13} />
-          </a>
-          <Button full disabled>
-            Connect wallet to sign
-          </Button>
-        </Modal>
+      {quote && (
+        <QuoteReview
+          quote={quote}
+          revision={state.revision}
+          busy={desk.busy}
+          onClose={() => setQuote(null)}
+          onConfirm={() => void execute()}
+        />
       )}
     </div>
   );

@@ -11,7 +11,11 @@ import {
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { MarkFeed } from '@/hooks/oddlot/use-marks';
 import { orderGreeks } from '@/lib/oddlot/math';
-import { accruedInterest, shortCloseAmounts } from '@/lib/oddlot/funding';
+import {
+  accruedInterest,
+  borrowDebt,
+  shortCloseAmounts,
+} from '@/lib/oddlot/funding';
 import {
   RANGES,
   changeOver,
@@ -344,6 +348,7 @@ function Positions({
   const s = desk.state!;
   const loans = s.book.loans.filter((p) => p.status === 'active');
   const shorts = s.book.shorts.filter((p) => p.status === 'active');
+  const borrows = s.book.borrows.filter((p) => p.status === 'active');
   const openPnl = marked.reduce((t, m) => t + m.pnl, 0);
 
   /**
@@ -513,6 +518,72 @@ function Positions({
                 </Button>
               </div>
             ))}
+          </div>
+        )}
+      </Panel>
+
+      <Panel>
+        <PanelHead
+          title="Cash borrowed"
+          action={<Badge>{borrows.length}</Badge>}
+        />
+        {!borrows.length ? (
+          <div className="od-pos-none">
+            <p>Nothing borrowed against your stock.</p>
+            <Button
+              variant="quiet"
+              size="sm"
+              onClick={() => navigate('Lending')}
+            >
+              Borrow against stock
+            </Button>
+          </div>
+        ) : (
+          <div className="od-pos">
+            {borrows.map((p) => {
+              const debt = borrowDebt(p, s.book.date);
+              return (
+                <div key={p.id} className="od-pos-row">
+                  <div className="od-pos-what">
+                    <b>{usd(p.principal)} USDC</b>
+                    <small>
+                      Against {qty(p.pledged)} {p.symbol} ·{' '}
+                      {(p.apr * 100).toFixed(2)}%{' '}
+                      {p.expiry
+                        ? `fixed until ${expiryLabel(p.expiry)}`
+                        : 'variable'}
+                    </small>
+                  </div>
+                  <div className="od-pos-num">
+                    <b>{usd(debt.total)}</b>
+                    <small>{usd(debt.interest, 4)} interest owed</small>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={desk.busy}
+                    onClick={() =>
+                      setReview({
+                        action: { type: 'repay', id: p.id },
+                        title: 'Review loan repayment',
+                        label: 'You pay to repay',
+                        value: debt.total,
+                        details: [
+                          ['Principal', usd(p.principal, 6)],
+                          ['Interest accrued', usd(debt.interest, 6)],
+                          [
+                            'Pledge released',
+                            `${qty(p.pledged)} ${p.symbol} back to free collateral`,
+                          ],
+                        ],
+                      })
+                    }
+                  >
+                    Repay
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         )}
       </Panel>

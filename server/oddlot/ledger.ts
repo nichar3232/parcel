@@ -19,15 +19,18 @@ import {
 } from '../../lib/oddlot/math';
 import {
   accruedInterest,
+  borrowDebt,
   termInterest,
   shortCloseAmounts,
 } from '../../lib/oddlot/funding';
+import { reserveOf } from '../../lib/oddlot/lending';
 import { payoffBounds } from '../../lib/oddlot/envelope';
 import { bounded } from '../../lib/oddlot/math';
 import { assertCollateral, risk } from '../../lib/oddlot/risk';
 import type {
   Asset,
   Balances,
+  BorrowPosition,
   LendingPosition,
   OrderTerms,
   ShortPosition,
@@ -61,6 +64,7 @@ export function initialVault(): VaultBook {
     options: [],
     loans: [],
     shorts: [],
+    borrows: [],
     events: [],
   };
 }
@@ -74,6 +78,9 @@ export function initialVault(): VaultBook {
  * together, the way a fresh book starts.
  */
 export function migrate(book: VaultBook & { version: number }): VaultBook {
+  // Cash loans arrived after version 3 without changing anything a
+  // stored book already had, so an older book just gains the empty list.
+  book.borrows ??= [];
   if (book.version >= 3) return book;
   const fresh = initialVault();
   for (const side of ['wallet', 'vault', 'counterparty', 'market'] as const)
@@ -224,7 +231,12 @@ export function closeOrder(book: VaultBook, id: string, quotedValue?: number) {
   assertCollateral(book);
   emit(book, 'Contract closed', p.terms.name, cost, 0, id, p.terms.symbol);
 }
-export function setMarketDate(book: VaultBook, date: string) {
+export function setMarketDate(
+  book: VaultBook,
+  date: string,
+  /** The pool's borrow APR for an asset as of this session; variable loans reprice off it. */
+  observe?: (symbol: string) => number,
+) {
   if (!clockDates.includes(date))
     throw Error('Choose an available market session.');
   if (date <= book.date)
@@ -282,6 +294,8 @@ export function setMarketDate(book: VaultBook, date: string) {
     (p) => p.status === 'active' && p.expiry <= date,
   ))
     closeLoan(book, p, p.expiry);
+  for (const p of book.borrows.filter((p) => p.status === 'active'))
+    carryBorrow(book, p, date, observe);
   emit(
     book,
     'Market session advanced',
@@ -458,6 +472,148 @@ export function closeShort(book: VaultBook, p: ShortPosition, at = book.date) {
     p.id,
     p.symbol,
   );
+}
+/**
+ * A cash loan against stock left in the vault.
+ *
+ * The pool lends the cash; the pledge stays in the vault and is
+ * reserved. A fixed loan locks the rate the pool quotes now and repays
+ * itself on its last session; a variable loan is repriced every
+ * session off the same curve and runs until it is repaid. Either kind
+ * is sold up if the pledge stops covering the debt at the asset's
+ * liquidation threshold.
+ */
+export function openBorrow(
+  book: VaultBook,
+  pledged: number,
+  amount: number,
+  rate: BorrowPosition['rate'],
+  apr: number,
+  expiry: string | undefined,
+  symbol = DEFAULT_UNDERLYING,
+) {
+  const reserve = reserveOf(symbol);
+  if (!reserve) throw Error('Choose a supported underlying.');
+  if (rate === 'fixed' && !expiry)
+    throw Error('A fixed-rate loan needs a session to end on.');
+  if (pledged > risk(book).freeShares[symbol])
+    throw Error(
+      'Shares already committed to another obligation cannot be pledged.',
+    );
+  const price = mark(symbol, book.date),
+    limit = Math.floor(pledged * price * reserve.ltv * 1e6) / 1e6;
+  if (amount > limit)
+    throw Error(
+      `${symbol} lends up to ${Math.round(reserve.ltv * 100)}% of its value: at most ${limit.toFixed(2)} USDC against this pledge.`,
+    );
+  transfer(book.market, book.vault, 'USDC', amount);
+  const p: BorrowPosition = {
+    id: randomUUID(),
+    symbol,
+    pledged,
+    principal: amount,
+    rate,
+    apr,
+    opened: book.date,
+    ...(rate === 'fixed' ? { expiry } : {}),
+    accrued: 0,
+    accruedTo: book.date,
+    status: 'active',
+  };
+  book.borrows.unshift(p);
+  assertCollateral(book);
+  emit(
+    book,
+    'Cash borrowed',
+    `${amount} USDC drawn against ${pledged} ${symbol} · ${(apr * 100).toFixed(2)}% ${rate}${expiry ? ` until ${expiry}` : ''}`,
+    amount,
+    0,
+    p.id,
+    symbol,
+  );
+}
+/** Book the interest run since the last session, capped at a fixed loan's end. */
+function accrueBorrow(p: BorrowPosition, at: string) {
+  const { interest } = borrowDebt(p, at);
+  p.accrued = interest;
+  p.accruedTo = p.expiry && p.expiry < at ? p.expiry : at;
+}
+/**
+ * Settle a cash loan.
+ *
+ * Repaid: the vault pays principal and interest back to the pool, and
+ * the pledge is released. Expired: the same, from the vault's cash if
+ * it is there, otherwise the pledge is sold to the pool at the closing
+ * mark and the debt is taken from the proceeds. Liquidated: the pledge
+ * is sold and the pool also takes its bonus. A vault with less than
+ * the debt after the sale leaves the shortfall with the pool; the
+ * transfers still balance because nothing is created.
+ */
+export function repayBorrow(
+  book: VaultBook,
+  p: BorrowPosition,
+  at = book.date,
+  how: NonNullable<BorrowPosition['closedBy']> = 'repaid',
+) {
+  if (p.status !== 'active') throw Error('This loan is already repaid.');
+  accrueBorrow(p, at);
+  const debt = add(p.principal, p.accrued);
+  let sold = 0,
+    proceeds = 0,
+    bonus = 0,
+    taken = debt;
+  if (how === 'repaid' || (how === 'expired' && book.vault.USDC >= debt)) {
+    transfer(book.vault, book.market, 'USDC', debt);
+  } else {
+    const spot = mark(p.symbol, at);
+    sold = p.pledged;
+    proceeds = mul(p.pledged, spot);
+    transfer(book.vault, book.market, p.symbol, sold);
+    transfer(book.market, book.vault, 'USDC', proceeds);
+    bonus = how === 'liquidated' ? mul(debt, reserveOf(p.symbol)!.bonus) : 0;
+    taken = Math.min(add(debt, bonus), book.vault.USDC);
+    transfer(book.vault, book.market, 'USDC', taken);
+  }
+  p.status = 'closed';
+  p.paid = p.accrued;
+  p.closedBy = how;
+  emit(
+    book,
+    how === 'repaid'
+      ? 'Cash loan repaid'
+      : how === 'expired'
+        ? 'Cash loan settled at term'
+        : 'Cash loan liquidated',
+    sold
+      ? `${sold} ${p.symbol} pledge sold at $${mark(p.symbol, at)} · ${debt} USDC debt${bonus ? ` and ${bonus} USDC liquidation bonus` : ''} taken from the proceeds`
+      : `${p.principal} USDC principal and ${p.accrued} USDC interest returned to the pool · ${p.pledged} ${p.symbol} released`,
+    add(proceeds, -taken),
+    -sold,
+    p.id,
+    p.symbol,
+  );
+}
+/**
+ * One session's work on an open cash loan: a fixed loan that has run
+ * its term settles at its own close; anything else books the interest
+ * since last session at the rate that was in force, a variable loan
+ * takes the pool's new rate, and a pledge that no longer covers the
+ * debt at the liquidation threshold is sold up at this session's mark.
+ */
+function carryBorrow(
+  book: VaultBook,
+  p: BorrowPosition,
+  date: string,
+  observe?: (symbol: string) => number,
+) {
+  if (p.expiry && p.expiry <= date) {
+    repayBorrow(book, p, p.expiry, 'expired');
+    return;
+  }
+  accrueBorrow(p, date);
+  if (p.rate === 'variable' && observe) p.apr = observe(p.symbol);
+  const cover = mul(p.pledged, mark(p.symbol, date)) * reserveOf(p.symbol)!.liquidation;
+  if (add(p.principal, p.accrued) > cover) repayBorrow(book, p, date, 'liquidated');
 }
 export function totals(book: VaultBook) {
   const balances = [book.wallet, book.vault, book.counterparty, book.market];

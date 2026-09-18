@@ -1,6 +1,6 @@
 import { units } from '../engine';
 import { add, days, mul, optionGreeks, round } from './math';
-import type { ShortPosition } from './types';
+import type { BorrowPosition, ShortPosition } from './types';
 
 // Shared display/execution amounts. Only stored market dates feed these functions.
 export function termInterest(
@@ -55,4 +55,35 @@ export function shortCloseAmounts(p: ShortPosition, spot: number, at: string) {
       -p.premium,
     ),
   };
+}
+
+/**
+ * Simple interest on a cash loan, in six-decimal USDC.
+ *
+ * Same shape as termInterest, with the rate as an input rather than
+ * the fixed 3.5% the stock loans use: a cash loan is priced off the
+ * pool's curve, and a variable one is repriced every session.
+ */
+export function borrowInterest(
+  principal: number,
+  apr: number,
+  from: string,
+  to: string,
+) {
+  const elapsed = BigInt(Math.max(0, Date.parse(to) - Date.parse(from)));
+  const rate = BigInt(Math.round(apr * 1e6));
+  const denominator = 1_000_000n * 365n * 86_400_000n;
+  return (
+    Number((units(principal) * rate * elapsed + denominator / 2n) / denominator) /
+    1e6
+  );
+}
+/** What a cash loan owes as of a session: interest booked so far plus the run since. */
+export function borrowDebt(p: BorrowPosition, at: string) {
+  const through = p.expiry && p.expiry < at ? p.expiry : at;
+  const interest = add(
+    p.accrued,
+    borrowInterest(p.principal, p.apr, p.accruedTo, through),
+  );
+  return { interest, total: add(p.principal, interest) };
 }

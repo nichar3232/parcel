@@ -21,6 +21,7 @@ import {
   symbol as parseSymbol,
 } from '../../lib/oddlot/validation';
 import { risk } from '../../lib/oddlot/risk';
+import { borrowRate } from '../../lib/oddlot/lending';
 import type {
   Asset,
   Quote,
@@ -35,6 +36,8 @@ import {
   closeLoan,
   closeOrder,
   closeShort,
+  openBorrow,
+  repayBorrow,
   emit,
   initialVault,
   migrate,
@@ -60,7 +63,17 @@ export class VaultService {
     private store: Store,
     private clock = Date.now,
     private activeLimit = 500,
+    /**
+     * How much of an asset's pool is out, as the live engine sees it,
+     * or null when nothing is watching. Read once at open for a fixed
+     * loan and once a session for a variable one; the rate it yields
+     * is stored on the position, so the ledger replays without it.
+     */
+    private utilisation: (symbol: string) => number | null = () => null,
   ) {}
+  private borrowRate(symbol: string) {
+    return borrowRate(symbol, this.utilisation(symbol));
+  }
   private read(session: Session) {
     this.store.db
       .prepare('INSERT OR IGNORE INTO vault_accounts VALUES(?,0,?,?)')
@@ -100,9 +113,12 @@ export class VaultService {
     };
   }
   private capacity(book: VaultBook) {
-    const active = [...book.options, ...book.loans, ...book.shorts].filter(
-      (p) => p.status === 'active',
-    ).length;
+    const active = [
+      ...book.options,
+      ...book.loans,
+      ...book.shorts,
+      ...book.borrows,
+    ].filter((p) => p.status === 'active').length;
     if (active > this.activeLimit)
       throw Error(
         `This vault supports ${this.activeLimit} active positions. Close or settle existing positions first.`,
@@ -360,11 +376,31 @@ export class VaultService {
       const p = book.shorts.find((p) => p.id === a.id && p.status === 'active');
       if (!p) throw Error('This active short was not found.');
       closeShort(book, p);
+    } else if (a.type === 'borrow') {
+      if (a.rate !== 'variable' && a.rate !== 'fixed')
+        throw Error('Choose a variable or fixed rate.');
+      const on = parseSymbol(a.symbol);
+      openBorrow(
+        book,
+        parseAmount(a.pledged),
+        parseAmount(a.amount, 0.000001, 1000000),
+        a.rate,
+        this.borrowRate(on),
+        a.rate === 'fixed' ? expiry(a.expiry, book.date) : undefined,
+        on,
+      );
+    } else if (a.type === 'repay') {
+      const p = book.borrows.find(
+        (p) => p.id === a.id && p.status === 'active',
+      );
+      if (!p) throw Error('This active loan was not found.');
+      repayBorrow(book, p);
     } else if (a.type === 'restart') {
       if (
         book.options.some((p) => p.status === 'active') ||
         book.loans.some((p) => p.status === 'active') ||
-        book.shorts.some((p) => p.status === 'active')
+        book.shorts.some((p) => p.status === 'active') ||
+        book.borrows.some((p) => p.status === 'active')
       )
         throw Error(
           'Close or settle all positions before restarting the replay.',
@@ -379,9 +415,9 @@ export class VaultService {
       );
     } else if (a.type === 'advance') {
       if (typeof a.date !== 'string') throw Error('Choose a market date.');
-      setMarketDate(book, a.date);
+      setMarketDate(book, a.date, (symbol) => this.borrowRate(symbol));
     } else throw Error('Unsupported vault action.');
-    if (book.loans.length + book.shorts.length > 500)
+    if (book.loans.length + book.shorts.length + book.borrows.length > 500)
       throw Error('Account position limit reached.');
     this.capacity(book);
     validateLedger(book, original);

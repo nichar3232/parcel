@@ -112,6 +112,13 @@ export function risk(book: VaultBook): RiskSummary {
     shares = perSymbol(groups, 'shares');
   const grossCash = add(total(gross, 'cash'), shortCash),
     grossShares = perSymbol(gross, 'shares');
+  // A pledge is committed stock: it cannot be withdrawn, sold or lent
+  // while the cash drawn against it is out, and it never nets against
+  // anything, so it is the same reserve under both collateral modes.
+  for (const p of book.borrows.filter((p) => p.status === 'active')) {
+    bump(shares, p.symbol, p.pledged);
+    bump(grossShares, p.symbol, p.pledged);
+  }
   const price = (symbol: string) => mark(symbol, book.date);
   const freeShares = zero();
   let collateralValue = cash,
