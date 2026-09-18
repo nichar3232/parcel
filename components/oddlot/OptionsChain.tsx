@@ -1,30 +1,22 @@
 'use client';
-import {
-  Fragment,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { ChainCatalog } from '@/lib/oddlot/types';
 import type { OrderTerms } from '@/lib/oddlot/types';
 import { selectableExpiries } from '@/lib/oddlot/market';
-import {
-  Button,
-  Panel,
-  qty,
-  usd,
-} from './shared';
+import { Button, Panel, qty, usd } from './shared';
 export function OptionsChain({
   desk,
   quantity,
   side,
   kind,
   expiry,
+  symbol,
   onSelect,
 }: {
   desk: VaultController;
+  /** The underlying the ladder is priced on. */
+  symbol: string;
   /**
    * The size to price the ladder at, owned by the ticket beside it.
    *
@@ -63,7 +55,7 @@ export function OptionsChain({
       setError('');
       setCatalog(null);
       try {
-        const result = await read.current(effective, quantity);
+        const result = await read.current(effective, quantity, symbol);
         if (!cancelled) setCatalog(result);
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
@@ -75,7 +67,7 @@ export function OptionsChain({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [effective, quantity, state.revision, state.csrf]);
+  }, [effective, quantity, symbol, state.revision, state.csrf]);
   const current =
     catalog &&
     catalog.revision === state.revision &&
@@ -110,7 +102,9 @@ export function OptionsChain({
     const v = Math.abs(p);
     return v > 0 && v < 0.005 ? '<$0.01' : chainPrice.format(v);
   };
-  const spot = state.market.price;
+  const spot =
+    state.market.underlyings.find((u) => u.symbol === symbol)?.price ??
+    state.market.price;
 
   /**
    * Open the ladder on the money.
@@ -177,9 +171,7 @@ export function OptionsChain({
                           {/* Half-steps are real strikes, so they keep
                               their cents; whole ones do not carry two
                               zeros for the sake of it. */}
-                          <b>
-                            {usd(row.strike, row.strike % 1 === 0 ? 0 : 2)}
-                          </b>
+                          <b>{usd(row.strike, row.strike % 1 === 0 ? 0 : 2)}</b>
                         </td>
                         <td className="num">{usd(breakeven)}</td>
                         <td
@@ -192,7 +184,7 @@ export function OptionsChain({
                           {c[side].cash > 0
                             ? usd(c[side].cash)
                             : c[side].shares > 0
-                              ? `${qty(c[side].shares)} NVDA`
+                              ? `${qty(c[side].shares)} ${symbol}`
                               : '—'}
                         </td>
                         <td className="num">
@@ -218,7 +210,6 @@ export function OptionsChain({
           </table>
         </div>
       )}
-
     </Panel>
   );
 }

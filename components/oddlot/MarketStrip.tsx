@@ -50,16 +50,13 @@ function useSeen(feed: MarkFeed) {
 export function MarketStrip({
   feed,
   date,
-  navigate,
+  onPick,
 }: {
   feed: MarkFeed;
   /** The session date, so the NVDA line stops where the desk is. */
   date: string;
-  navigate: (
-    page: 'Portfolio' | 'Trade' | 'Pre-IPO' | 'Lending',
-    to?: string,
-    pick?: string,
-  ) => void;
+  /** Make this the desk's underlying and open the trade ticket on it. */
+  onPick: (symbol: string) => void;
 }) {
   const { data } = usePreIpoAssets();
   const seen = useSeen(feed);
@@ -79,7 +76,7 @@ export function MarketStrip({
       <button
         type="button"
         className="od-strip-row"
-        onClick={() => navigate('Trade', 'trade')}
+        onClick={() => onPick('NVDA')}
       >
         <AssetLogo symbol="NVDA" size={30} />
         <div className="od-strip-what">
@@ -106,7 +103,7 @@ export function MarketStrip({
             key={a.asset.id}
             type="button"
             className="od-strip-row"
-            onClick={() => navigate('Pre-IPO', 'underwrite', a.asset.id)}
+            onClick={() => onPick(a.asset.symbol)}
           >
             <AssetLogo
               symbol={company(a.asset.displayName)}

@@ -90,10 +90,15 @@ const prestocks = (
   mint,
   displayName: `${company} PreStocks`,
   symbol,
+  logo: COMPANY_LOGO(company),
   expectedTokenProgram: TOKEN_2022,
   expectedDecimals: 9,
   issuerTerms: PRESTOCKS_TERMS,
 });
+
+/** The company mark for a registry symbol, or null for anything else. */
+export const logoOf = (symbol: string) =>
+  registry.find((a) => a.symbol === symbol)?.logo ?? null;
 
 export const registry: RegistryAsset[] = [
   tessera('OpenAI', 'T-OpenAI', 'oPAiAikWTaFj9RYoRFD35ccfwhnMcB3ThgBZRHSkjTZ'),

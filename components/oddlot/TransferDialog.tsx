@@ -4,6 +4,7 @@ import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { Asset } from '@/lib/oddlot/types';
 import { AssetLogo, ASSETS } from './AssetLogo';
 import { nameOf } from '@/lib/oddlot/universe';
+import { logoOf } from '@/lib/preipo/registry';
 import { Button, Field, Modal, Line, qty, usd } from './shared';
 
 export type Transfer = { asset: Asset; direction: 'deposit' | 'withdraw' };
@@ -54,12 +55,15 @@ export function TransferDialog({
       }
     >
       <div className="od-transfer-asset">
-        <AssetLogo symbol={asset} size={40} />
+        <AssetLogo symbol={asset} src={logoOf(asset)} size={40} />
         <div>
           <b>{asset === 'USDC' ? ASSETS.USDC.name : nameOf(asset)}</b>
           <small>
             {asset}{' '}
-            {(asset === 'USDC' ? ASSETS.USDC.note : ASSETS.NVDA.note).toLowerCase()}
+            {(asset === 'USDC'
+              ? ASSETS.USDC.note
+              : ASSETS.NVDA.note
+            ).toLowerCase()}
           </small>
         </div>
       </div>
@@ -99,8 +103,9 @@ export function TransferDialog({
           value={`${qty(
             Math.max(
               0,
-              (direction === 'deposit' ? s.book.vault[asset] : s.book.wallet[asset]) +
-                (Number.isFinite(value) ? value : 0),
+              (direction === 'deposit'
+                ? s.book.vault[asset]
+                : s.book.wallet[asset]) + (Number.isFinite(value) ? value : 0),
             ),
           )} ${asset}`}
         />

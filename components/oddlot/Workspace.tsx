@@ -16,24 +16,15 @@ import { Mark } from '@/components/brand/Mark';
 import { ThemeToggle } from '@/components/brand/Theme';
 import { useVault } from '@/hooks/oddlot/use-vault';
 import { useMarks } from '@/hooks/oddlot/use-marks';
-import {
-  CATEGORIES,
-  CONTRACTS,
-  templates,
-} from '@/lib/oddlot/templates';
+import { CATEGORIES, CONTRACTS, templates } from '@/lib/oddlot/templates';
 import { PortfolioView, type PortfolioTab } from './PortfolioView';
 import { TradeView, type TradeTab } from './TradeView';
 import { LendingView } from './LendingView';
 import { PreIpoView, type PreIpoTab } from './PreIpoView';
+import { DEFAULT_UNDERLYING } from '@/lib/oddlot/universe';
 import { TransferDialog, type Transfer } from './TransferDialog';
 import { Welcome, markWelcomeSeen, welcomeSeen } from './Welcome';
-import {
-  Button,
-  Line,
-  Modal,
-  qty,
-  usd,
-} from './shared';
+import { Button, Line, Modal, qty, usd } from './shared';
 import '@/app/desk.css';
 
 const NAV = [
@@ -103,8 +94,8 @@ type Choice = { id: string; label: string };
 
 /** What a section opens on when you have not picked yet. */
 const firstChoice = (page: Page, section: string) =>
-  ((TABS[page] as readonly Section[]).find((t) => t.id === section)
-    ?.choices?.[0]?.id ?? '');
+  (TABS[page] as readonly Section[]).find((t) => t.id === section)?.choices?.[0]
+    ?.id ?? '';
 
 /**
  * Where a link from the landing page should land.
@@ -247,7 +238,9 @@ function ProductNav({
                           <button
                             key={pick.id}
                             className={`od-nav-pick ${
-                              here && current === section.id && choice === pick.id
+                              here &&
+                              current === section.id &&
+                              choice === pick.id
                                 ? 'active'
                                 : ''
                             }`}
@@ -289,6 +282,8 @@ export default function Workspace() {
     welcome: boolean;
   }>({ page: 'Portfolio', tab: {}, pick: {}, welcome: false });
   const [advanced, setAdvanced] = useState(false);
+  /** The underlying every ticket is written on until the reader picks another. */
+  const [symbol, setSymbol] = useState(DEFAULT_UNDERLYING);
   const [transfer, setTransfer] = useState<Transfer | null>(null);
   const [modal, setModal] = useState<'wallet' | 'about' | null>(null);
 
@@ -319,8 +314,7 @@ export default function Workspace() {
 
   const s = desk.state;
   const current = ui.tab[page] || TABS[page][0].id;
-  const choice =
-    ui.pick[`${page}:${current}`] || firstChoice(page, current);
+  const choice = ui.pick[`${page}:${current}`] || firstChoice(page, current);
 
   const navigate = (next: Page, to?: string, pick?: string) => {
     setUi((view) => {
@@ -329,9 +323,7 @@ export default function Workspace() {
         ...view,
         page: next,
         tab: to ? { ...view.tab, [next]: to } : view.tab,
-        pick: pick
-          ? { ...view.pick, [`${next}:${section}`]: pick }
-          : view.pick,
+        pick: pick ? { ...view.pick, [`${next}:${section}`]: pick } : view.pick,
       };
     });
     window.scrollTo({
@@ -372,31 +364,31 @@ export default function Workspace() {
         />
 
         <div className="od-bar-right">
-              <button
-                className="od-bar-btn"
-                aria-label="About Parcel"
-                onClick={() => setModal('about')}
-              >
-                <CircleHelp size={15} />
-                <span className="wide">About</span>
-              </button>
+          <button
+            className="od-bar-btn"
+            aria-label="About Parcel"
+            onClick={() => setModal('about')}
+          >
+            <CircleHelp size={15} />
+            <span className="wide">About</span>
+          </button>
 
-              <button
-                className="od-bar-btn"
-                aria-label="Wallet"
-                onClick={() => setModal('wallet')}
-                disabled={!s}
-              >
-                <Wallet size={15} />
-                <b>{s ? usd(walletValue, 0) : '—'}</b>
-                <ChevronDown size={13} />
-              </button>
+          <button
+            className="od-bar-btn"
+            aria-label="Wallet"
+            onClick={() => setModal('wallet')}
+            disabled={!s}
+          >
+            <Wallet size={15} />
+            <b>{s ? usd(walletValue, 0) : '—'}</b>
+            <ChevronDown size={13} />
+          </button>
 
-              <ThemeToggle />
-            </div>
-          </header>
+          <ThemeToggle />
+        </div>
+      </header>
 
-          <main id="workspace" className="od-main" tabIndex={-1}>
+      <main id="workspace" className="od-main" tabIndex={-1}>
         {/* Every screen needs one. The views are built out of panels
             with their own headings, so the page's own name is carried
             here rather than repeated as a banner nobody reads twice. */}
@@ -445,17 +437,22 @@ export default function Workspace() {
             tab={current as PortfolioTab}
             navigate={navigate}
             onTransfer={setTransfer}
+            onPick={(next) => {
+              setSymbol(next);
+              navigate('Trade', 'trade');
+            }}
           />
         ) : page === 'Trade' ? (
           /* Keyed on the section and the choice: the ticket's template,
              its legs and its size all come from them at mount, so a new
              choice is a new contract rather than a new view of one. */
           <TradeView
-            key={`${current}:${choice}`}
+            key={`${current}:${choice}:${symbol}`}
             desk={desk}
-            feed={feed}
             tab={current as TradeTab}
             choice={choice}
+            symbol={symbol}
+            onSymbol={setSymbol}
             advanced={advanced}
             onAdvanced={setAdvanced}
           />
@@ -468,7 +465,14 @@ export default function Workspace() {
             pick={ui.pick['Pre-IPO:underwrite']}
           />
         ) : (
-          <LendingView key={choice} desk={desk} feed={feed} mode={choice} />
+          <LendingView
+            key={`${choice}:${symbol}`}
+            desk={desk}
+            feed={feed}
+            mode={choice}
+            symbol={symbol}
+            onSymbol={setSymbol}
+          />
         )}
       </main>
 
@@ -519,14 +523,22 @@ export default function Workspace() {
         >
           <div className="od-lines">
             <Line label="Available USDC" value={usd(s.book.wallet.USDC)} />
-            <Line
-              label="Available NVDA"
-              value={`${qty(s.book.wallet.NVDA)} shares`}
-            />
+            {s.market.underlyings
+              .filter((u) => (s.book.wallet[u.symbol] ?? 0) > 0)
+              .map((u) => (
+                <Line
+                  key={u.symbol}
+                  label={`Available ${u.symbol}`}
+                  value={`${qty(s.book.wallet[u.symbol])} shares`}
+                />
+              ))}
             <Line
               label="In the vault"
               value={usd(
-                s.book.vault.USDC + s.book.vault.NVDA * s.market.price,
+                s.market.underlyings.reduce(
+                  (t, u) => t + (s.book.vault[u.symbol] ?? 0) * u.price,
+                  s.book.vault.USDC,
+                ),
               )}
               tone="muted"
             />
@@ -548,10 +560,10 @@ export default function Workspace() {
             <Button
               onClick={() => {
                 setModal(null);
-                setTransfer({ asset: 'NVDA', direction: 'deposit' });
+                setTransfer({ asset: symbol, direction: 'deposit' });
               }}
             >
-              Deposit NVDA
+              Deposit {symbol}
             </Button>
           </div>
         </Modal>

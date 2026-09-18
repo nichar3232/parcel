@@ -42,9 +42,7 @@ export function CurveEditor({
             }
           >
             <option value="quadratic">Quadratic, x²</option>
-            <option value="exponential">
-              Exponential, normalised exp(4x)
-            </option>
+            <option value="exponential">Exponential, normalised exp(4x)</option>
           </select>
         </Field>
         {(['lower', 'upper', 'cap'] as const).map((key) => (

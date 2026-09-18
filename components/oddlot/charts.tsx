@@ -15,9 +15,9 @@ import { usd } from './shared';
  */
 
 const path = (points: [number, number][]) =>
-  points.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`).join(
-    ' ',
-  );
+  points
+    .map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)}`)
+    .join(' ');
 
 /* ---------------------------------------------------------------- */
 
@@ -97,7 +97,8 @@ export function PriceHistory({
         x: x(i),
         label: rows[i].date.slice(5).replace('-', '/'),
       })),
-      marker: at >= 0 ? { x: x(at), y: y(rows[at].close), row: rows[at] } : null,
+      marker:
+        at >= 0 ? { x: x(at), y: y(rows[at].close), row: rows[at] } : null,
       up: closes.at(-1)! >= closes[0],
     };
   }, [rows, current]);
@@ -128,12 +129,7 @@ export function PriceHistory({
       <path d={plot.line} className="od-chart-line" />
       {plot.marker && (
         <g className="od-history-now">
-          <line
-            x1={plot.marker.x}
-            x2={plot.marker.x}
-            y1={P.y0}
-            y2={P.y1}
-          />
+          <line x1={plot.marker.x} x2={plot.marker.x} y1={P.y0} y2={P.y1} />
           <circle cx={plot.marker.x} cy={plot.marker.y} r="4.5" />
           {/* Pushed clear of the value column on the left; at the very
               start of the window the two labels sit on the same pixels. */}
@@ -221,7 +217,10 @@ export function ValueHistory({
       {/* preserveAspectRatio: none stretches the viewBox, which would
           stretch a circle into an ellipse. A cross of two strokes with
           vector-effect keeps its size in screen pixels instead. */}
-      <g className="od-value-now" transform={`translate(${plot.last[0]} ${plot.last[1]})`}>
+      <g
+        className="od-value-now"
+        transform={`translate(${plot.last[0]} ${plot.last[1]})`}
+      >
         <line x1="-5" x2="5" y1="0" y2="0" />
         <line x1="0" x2="0" y1="-5" y2="5" />
       </g>

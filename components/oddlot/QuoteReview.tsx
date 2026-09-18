@@ -139,12 +139,12 @@ export function QuoteReview({
         />
         <Line
           label="Shares reserved after this trade"
-          value={`${qty(quote.sharesRequired)} NVDA`}
+          value={`${qty(quote.sharesRequired)} ${quote.terms.symbol}`}
         />
         <Line label="Cash left available" value={usd(quote.cashAfter)} />
         <Line
           label="Shares left available"
-          value={`${qty(quote.sharesAfter)} NVDA`}
+          value={`${qty(quote.sharesAfter)} ${quote.terms.symbol}`}
         />
         {quote.releasedValue > 0 && (
           <Line

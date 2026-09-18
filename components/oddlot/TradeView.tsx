@@ -1,11 +1,7 @@
 'use client';
 import { useRef, useState } from 'react';
-import {
-  ArrowRight,
-  LockKeyhole,
-} from 'lucide-react';
+import { ArrowRight, LockKeyhole } from 'lucide-react';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
-import type { MarkFeed } from '@/hooks/oddlot/use-marks';
 import type { OrderTerms, Quote } from '@/lib/oddlot/types';
 import { deliveryBounds } from '@/lib/oddlot/envelope';
 import { bounded, orderGreeks } from '@/lib/oddlot/math';
@@ -16,6 +12,7 @@ import {
   templateTerms,
   templatesIn,
   type Category,
+  strikeStep,
 } from '@/lib/oddlot/templates';
 import { selectableExpiries } from '@/lib/oddlot/market';
 import { CurveEditor } from './CurveEditor';
@@ -45,21 +42,28 @@ const SIZES = [0.25, 0.5, 1, 2, 5];
 
 export function TradeView({
   desk,
-  feed,
   tab,
   choice,
+  symbol,
+  onSymbol,
   advanced,
   onAdvanced,
 }: {
   desk: VaultController;
-  feed: MarkFeed;
   tab: TradeTab;
   /** The contract, or on Structures the family, chosen in the rail. */
   choice: string;
+  /** The underlying the ticket is written on. */
+  symbol: string;
+  onSymbol: (symbol: string) => void;
   advanced: boolean;
   onAdvanced: (on: boolean) => void;
 }) {
   const state = desk.state!;
+  const under =
+    state.market.underlyings.find((u) => u.symbol === symbol) ??
+    state.market.underlyings[0];
+  const price = under.price;
   // Hoisted: a memo keyed on `state.book.date` cannot be preserved
   // through the compiler, because it cannot prove the chain is stable.
   const session = state.book.date;
@@ -87,7 +91,7 @@ export function TradeView({
 
   const [selected, setSelected] = useState(opening);
   const [draft, setDraft] = useState<OrderTerms>(() =>
-    templateTerms(opening, defaultExpiry),
+    templateTerms(opening, defaultExpiry, symbol, price),
   );
   /**
    * What the left column shows.
@@ -104,7 +108,9 @@ export function TradeView({
   const [chainExpiry, setChainExpiry] = useState(
     () => future.find((d) => !d.includes('T')) || future[0] || '',
   );
-  const chainDate = future.includes(chainExpiry) ? chainExpiry : future[0] || '';
+  const chainDate = future.includes(chainExpiry)
+    ? chainExpiry
+    : future[0] || '';
 
   const [quote, setQuote] = useState<Quote | null>(null);
   const [requesting, setRequesting] = useState(false);
@@ -140,11 +146,8 @@ export function TradeView({
   const invalid = !!validationError;
 
   const reference =
-    effective.reference === 'dividend'
-      ? state.market.dividend
-      : state.market.price;
-  const vol =
-    effective.reference === 'dividend' ? 0.8 : state.market.volatility;
+    effective.reference === 'dividend' ? state.market.dividend : price;
+  const vol = effective.reference === 'dividend' ? 0.8 : under.volatility;
 
   const g = invalid
     ? { price: 0, delta: 0, gamma: 0, theta: 0, vega: 0 }
@@ -167,7 +170,7 @@ export function TradeView({
   const select = (id: string) => {
     revision.current++;
     setSelected(id);
-    setDraft(templateTerms(id, defaultExpiry));
+    setDraft(templateTerms(id, defaultExpiry, symbol, price));
     setError('');
     setQuote(null);
   };
@@ -203,7 +206,6 @@ export function TradeView({
   // it.
 
   const single = effective.legs.length === 1 && !effective.curve;
-  const live = feed.marks.NVDA;
 
   return (
     <>
@@ -305,6 +307,7 @@ export function TradeView({
         {browse && tab === 'trade' ? (
           <OptionsChain
             desk={desk}
+            symbol={symbol}
             quantity={effective.quantity}
             side={chainSide}
             kind={chainKind}
@@ -422,204 +425,216 @@ export function TradeView({
 
         {/* ---------------- what to write it on ---------------- */}
         <Panel className="od-ticket">
-            <PanelHead
-              title={
-                tab === 'structures' ? 'Build a structure' : 'Your contract'
-              }
-              action={
-                <Badge
-                  tone={live?.source === 'simulated' ? 'neutral' : 'green'}
-                >
-                  NVDA {usd(state.market.price)}
-                </Badge>
-              }
-            />
-            <div className="od-panel-body">
-              {/* size */}
-              <div className="od-control">
-                <div className="od-control-top">
-                  <label htmlFor="od-size">Size</label>
-                  <span>share-equivalents</span>
-                </div>
-                <div className="od-size-row">
-                  <input
-                    id="od-size"
-                    aria-label="Contract quantity"
-                    type="number"
-                    min="0.000001"
-                    max="1000"
-                    step="any"
-                    value={Number.isNaN(draft.quantity) ? '' : draft.quantity}
-                    onChange={(e) =>
-                      update({
-                        quantity:
-                          e.target.value === '' ? NaN : Number(e.target.value),
-                      })
-                    }
-                  />
-                  <div className="od-chips">
-                    {SIZES.map((n) => (
-                      <button
-                        key={n}
-                        className={draft.quantity === n ? 'on' : ''}
-                        onClick={() => update({ quantity: n })}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+          <PanelHead
+            title={tab === 'structures' ? 'Build a structure' : 'Your contract'}
+            action={
+              <Badge tone={under.simulated ? 'neutral' : 'green'}>
+                {symbol} {usd(price)}
+              </Badge>
+            }
+          />
+          <div className="od-panel-body">
+            <Field label="Underlying">
+              <select
+                aria-label="Underlying"
+                value={symbol}
+                onChange={(e) => onSymbol(e.target.value)}
+              >
+                {state.market.underlyings.map((u) => (
+                  <option key={u.symbol} value={u.symbol}>
+                    {u.name} ({u.symbol}) · {usd(u.price)}
+                    {u.simulated ? ' · simulated path' : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            {/* size */}
+            <div className="od-control">
+              <div className="od-control-top">
+                <label htmlFor="od-size">Size</label>
+                <span>share-equivalents</span>
               </div>
-
-              {/* strike, in Basic, for the contracts that have exactly one */}
-              {!advanced && single && effective.reference === 'stock' && (
-                <div className="od-control">
-                  <div className="od-control-top">
-                    <label htmlFor="od-strike">Strike</label>
-                    <span>
-                      {usd(effective.legs[0].strike, 0)}
-                      {', '}
-                      {(
-                        (effective.legs[0].strike / state.market.price - 1) *
-                        100
-                      ).toFixed(1)}
-                      % from spot
-                    </span>
-                  </div>
-                  <input
-                    id="od-strike"
-                    aria-label="Strike price"
-                    type="range"
-                    min={Math.round((state.market.price * 0.7) / 2.5) * 2.5}
-                    max={Math.round((state.market.price * 1.3) / 2.5) * 2.5}
-                    step="2.5"
-                    value={effective.legs[0].strike}
-                    onChange={(e) =>
-                      update({
-                        legs: [
-                          {
-                            ...effective.legs[0],
-                            strike: Number(e.target.value),
-                          },
-                        ],
-                      })
-                    }
-                  />
-                </div>
-              )}
-
-              <Field label="Expiry">
-                <select
-                  aria-label="Expiration"
-                  value={effective.expiry}
-                  onChange={(e) => update({ expiry: e.target.value })}
-                  disabled={effective.reference === 'dividend'}
-                >
-                  {(effective.reference === 'dividend'
-                    ? ['2025-03-12']
-                    : future
-                  ).map((d) => (
-                    <option key={d} value={d}>
-                      {expiryLabel(d)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-
-              {advanced && (
-                <>
-                  <SizingControl
-                    desk={desk}
-                    terms={effective}
-                    onApply={(terms) => update(terms)}
-                  />
-                  {draft.curve ? (
-                    <CurveEditor draft={draft} update={update} />
-                  ) : (
-                    <ContractLegEditor
-                      draft={draft}
-                      update={update}
-                      mode={tab}
-                      advanced
-                    />
-                  )}
-                </>
-              )}
-
-              <div className="od-lines">
-                <Line
-                  label="Cash to fund it standalone"
-                  value={
-                    invalid
-                      ? '—'
-                      : usd(
-                          Math.max(0, g.price) +
-                            Number(cashBound < 0n ? -cashBound : 0n) / 1e6,
-                        )
+              <div className="od-size-row">
+                <input
+                  id="od-size"
+                  aria-label="Contract quantity"
+                  type="number"
+                  min="0.000001"
+                  max="1000"
+                  step="any"
+                  value={Number.isNaN(draft.quantity) ? '' : draft.quantity}
+                  onChange={(e) =>
+                    update({
+                      quantity:
+                        e.target.value === '' ? NaN : Number(e.target.value),
+                    })
                   }
                 />
-                {/* Settlement convention and collateral mode are
+                <div className="od-chips">
+                  {SIZES.map((n) => (
+                    <button
+                      key={n}
+                      className={draft.quantity === n ? 'on' : ''}
+                      onClick={() => update({ quantity: n })}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* strike, in Basic, for the contracts that have exactly one */}
+            {!advanced && single && effective.reference === 'stock' && (
+              <div className="od-control">
+                <div className="od-control-top">
+                  <label htmlFor="od-strike">Strike</label>
+                  <span>
+                    {usd(effective.legs[0].strike, 0)}
+                    {', '}
+                    {((effective.legs[0].strike / price - 1) * 100).toFixed(1)}%
+                    from spot
+                  </span>
+                </div>
+                <input
+                  id="od-strike"
+                  aria-label="Strike price"
+                  type="range"
+                  min={
+                    Math.round((price * 0.7) / strikeStep(price)) *
+                    strikeStep(price)
+                  }
+                  max={
+                    Math.round((price * 1.3) / strikeStep(price)) *
+                    strikeStep(price)
+                  }
+                  step={strikeStep(price)}
+                  value={effective.legs[0].strike}
+                  onChange={(e) =>
+                    update({
+                      legs: [
+                        {
+                          ...effective.legs[0],
+                          strike: Number(e.target.value),
+                        },
+                      ],
+                    })
+                  }
+                />
+              </div>
+            )}
+
+            <Field label="Expiry">
+              <select
+                aria-label="Expiration"
+                value={effective.expiry}
+                onChange={(e) => update({ expiry: e.target.value })}
+                disabled={effective.reference === 'dividend'}
+              >
+                {(effective.reference === 'dividend'
+                  ? ['2025-03-12']
+                  : future
+                ).map((d) => (
+                  <option key={d} value={d}>
+                    {expiryLabel(d)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            {advanced && (
+              <>
+                <SizingControl
+                  desk={desk}
+                  terms={effective}
+                  onApply={(terms) => update(terms)}
+                />
+                {draft.curve ? (
+                  <CurveEditor draft={draft} update={update} />
+                ) : (
+                  <ContractLegEditor
+                    draft={draft}
+                    update={update}
+                    mode={tab}
+                    advanced
+                  />
+                )}
+              </>
+            )}
+
+            <div className="od-lines">
+              <Line
+                label="Cash to fund it standalone"
+                value={
+                  invalid
+                    ? '—'
+                    : usd(
+                        Math.max(0, g.price) +
+                          Number(cashBound < 0n ? -cashBound : 0n) / 1e6,
+                      )
+                }
+              />
+              {/* Settlement convention and collateral mode are
                     decisions, and Basic has already made both. Printing
                     them on the ticket asks a first-time reader to have
                     an opinion about words they have not met yet; the
                     quote states them in full before anything is
                     signed. */}
-                {advanced && (
-                  <>
-                    <Line
-                      label="Settlement"
-                      value={
-                        draft.settlement === 'physical'
-                          ? 'Fully funded physical delivery'
-                          : 'Cash, capped obligations'
-                      }
-                      tone="muted"
-                    />
-                    <Line
-                      label="Collateral mode"
-                      value={
-                        state.book.margin === 'cross' ? 'Cross' : 'Isolated'
-                      }
-                      tone="muted"
-                    />
-                  </>
-                )}
-              </div>
-
-              {error && (
-                <p className="od-error" role="alert">
-                  {error}
-                </p>
+              {advanced && (
+                <>
+                  <Line
+                    label="Settlement"
+                    value={
+                      draft.settlement === 'physical'
+                        ? 'Fully funded physical delivery'
+                        : 'Cash, capped obligations'
+                    }
+                    tone="muted"
+                  />
+                  <Line
+                    label="Collateral mode"
+                    value={state.book.margin === 'cross' ? 'Cross' : 'Isolated'}
+                    tone="muted"
+                  />
+                </>
               )}
-              {invalid && (
-                <p className="od-error" role="alert">
-                  {validationError}
-                </p>
-              )}
-              {!bounded(draft.legs) && draft.settlement === 'cash' && (
-                <p className="od-note">
-                  This payoff has an uncapped upside leg. Choose physical
-                  settlement or add a cap.
-                </p>
-              )}
-
-              <Button
-                size="lg"
-                full
-                onClick={() => void request()}
-                disabled={invalid || requesting || desk.busy}
-              >
-                {requesting ? 'Checking collateral…' : 'Review funded quote'}
-                <ArrowRight size={16} />
-              </Button>
-              <p className="od-note">
-                <LockKeyhole size={12} />
-                {advanced
-                  ? 'Physical buyers prefund exercise cash or shares on top of the premium. The quote shows the full requirement.'
-                  : 'Nothing is signed until you review the quote.'}
-              </p>
             </div>
-          </Panel>
+
+            {error && (
+              <p className="od-error" role="alert">
+                {error}
+              </p>
+            )}
+            {invalid && (
+              <p className="od-error" role="alert">
+                {validationError}
+              </p>
+            )}
+            {!bounded(draft.legs) && draft.settlement === 'cash' && (
+              <p className="od-note">
+                This payoff has an uncapped upside leg. Choose physical
+                settlement or add a cap.
+              </p>
+            )}
+
+            <Button
+              size="lg"
+              full
+              onClick={() => void request()}
+              disabled={invalid || requesting || desk.busy}
+            >
+              {requesting ? 'Checking collateral…' : 'Review funded quote'}
+              <ArrowRight size={16} />
+            </Button>
+            <p className="od-note">
+              <LockKeyhole size={12} />
+              {advanced
+                ? 'Physical buyers prefund exercise cash or shares on top of the premium. The quote shows the full requirement.'
+                : 'Nothing is signed until you review the quote.'}
+            </p>
+          </div>
+        </Panel>
       </div>
 
       {quote && (

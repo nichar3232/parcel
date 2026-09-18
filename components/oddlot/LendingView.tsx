@@ -38,11 +38,16 @@ export function LendingView({
   desk,
   feed,
   mode,
+  symbol,
+  onSymbol,
 }: {
   desk: VaultController;
   feed: MarkFeed;
   /** Short, lend or spot — chosen in the rail. */
   mode: string;
+  /** The underlying being lent, shorted or bought. */
+  symbol: string;
+  onSymbol: (symbol: string) => void;
 }) {
   const s = desk.state!;
 
@@ -54,31 +59,45 @@ export function LendingView({
    * lending model so one health factor covers all of it.
    */
   const position = useMemo(() => {
-    const price = (symbol: string) =>
-      feed.marks[symbol]?.price ?? (symbol === 'NVDA' ? s.market.price : 1);
+    const priceOf = (of: string) =>
+      s.market.underlyings.find((u) => u.symbol === of)?.price ?? 1;
     const collateral: Holding[] = [
-      { symbol: 'USDC', amount: s.book.vault.USDC, price: price('USDC') },
-      { symbol: 'NVDA', amount: s.book.vault.NVDA, price: price('NVDA') },
+      { symbol: 'USDC', amount: s.book.vault.USDC, price: 1 },
+      ...s.market.underlyings.map((u) => ({
+        symbol: u.symbol,
+        amount: s.book.vault[u.symbol] ?? 0,
+        price: u.price,
+      })),
     ].filter((h) => h.amount > 0);
-    const shorted = s.book.shorts
-      .filter((p) => p.status === 'active')
-      .reduce((t, p) => t + p.quantity, 0);
-    const debt: Holding[] = shorted
-      ? [{ symbol: 'NVDA', amount: shorted, price: price('NVDA') }]
-      : [];
+    // Every short is debt, each at its own mark; the liquidation level
+    // is quoted for the underlying on screen, with the rest as a fixed
+    // charge against the same collateral.
+    const shortedBy: Record<string, number> = {};
+    for (const p of s.book.shorts.filter((p) => p.status === 'active'))
+      shortedBy[p.symbol] = (shortedBy[p.symbol] ?? 0) + p.quantity;
+    const debt: Holding[] = Object.entries(shortedBy).map(([of, amount]) => ({
+      symbol: of,
+      amount,
+      price: priceOf(of),
+    }));
     const h = health(collateral, debt);
     const weighted = collateral.reduce((t, c) => {
       const r = reserveOf(c.symbol);
       return t + (r ? c.amount * c.price * r.liquidation : 0);
     }, 0);
+    const shorted = shortedBy[symbol] ?? 0;
+    const otherDebt = debt
+      .filter((d) => d.symbol !== symbol)
+      .reduce((t, d) => t + d.amount * d.price, 0);
     return {
       ...h,
       collateral,
       debt,
       shorted,
-      liquidation: liquidationPrice(weighted, shorted),
+      weighted,
+      liquidation: liquidationPrice(weighted, shorted, otherDebt),
     };
-  }, [s, feed.marks]);
+  }, [s, symbol]);
 
   return (
     <Borrow
@@ -86,6 +105,8 @@ export function LendingView({
       feed={feed}
       position={position}
       mode={MODES.includes(mode as Mode) ? (mode as Mode) : 'short'}
+      symbol={symbol}
+      onSymbol={onSymbol}
     />
   );
 }
@@ -103,6 +124,7 @@ function usePositionShape() {
     collateral: [] as Holding[],
     debt: [] as Holding[],
     shorted: 0,
+    weighted: 0,
     liquidation: null as number | null,
   };
 }
@@ -114,13 +136,21 @@ function Borrow({
   feed,
   position,
   mode,
+  symbol,
+  onSymbol,
 }: {
   desk: VaultController;
   feed: MarkFeed;
   position: Position;
   mode: Mode;
+  symbol: string;
+  onSymbol: (symbol: string) => void;
 }) {
   const s = desk.state!;
+  const under =
+    s.market.underlyings.find((u) => u.symbol === symbol) ??
+    s.market.underlyings[0];
+  const price = under.price;
   // Daily closes only. The date list also carries the test clock's
   // hourly ticks, and a loan that ends an hour from now is not a term
   // anyone means to pick. Default to the first close at least two
@@ -133,7 +163,7 @@ function Borrow({
     future.find((d) => d >= fortnight) || future.at(-1) || s.book.date;
 
   const [quantity, setQuantity] = useState('1');
-  const [cap, setCap] = useState(String(Math.ceil(s.market.price * 1.12)));
+  const [cap, setCap] = useState(String(Math.ceil(price * 1.12)));
   const [expiry, setExpiry] = useState(defaultExpiry);
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [review, setReview] = useState<{
@@ -153,33 +183,30 @@ function Borrow({
   try {
     amount(q);
     if (mode === 'short') {
-      amount(k, 0.000001, Math.min(10000, s.market.price * 2));
-      if (k <= s.market.price) valid = false;
+      amount(k, 0.000001, Math.min(10000, price * 2));
+      if (k <= price) valid = false;
     }
   } catch {
     valid = false;
   }
 
-  const interest = valid
-    ? termInterest(q, s.market.price, s.book.date, end)
-    : 0;
+  const interest = valid ? termInterest(q, price, s.book.date, end) : 0;
   const protection =
     valid && mode === 'short'
-      ? protectionPremium(q, s.market.price, k, s.book.date, end)
+      ? protectionPremium(q, price, k, s.book.date, end)
       : 0;
 
   // What this borrow would do to the health factor, before it is taken.
   const projected = (() => {
     if (mode !== 'short' || !valid) return null;
-    const price = feed.marks.NVDA?.price ?? s.market.price;
-    const weighted = position.collateral.reduce((t, c) => {
-      const r = reserveOf(c.symbol);
-      return t + (r ? c.amount * c.price * r.liquidation : 0);
-    }, 0);
+    const weighted = position.weighted;
     const owed = position.owed + q * price;
+    const otherDebt = position.debt
+      .filter((d) => d.symbol !== symbol)
+      .reduce((t, d) => t + d.amount * d.price, 0);
     return {
       factor: owed > 0 ? weighted / owed : Infinity,
-      liquidation: liquidationPrice(weighted, position.shorted + q),
+      liquidation: liquidationPrice(weighted, position.shorted + q, otherDebt),
       owed,
     };
   })();
@@ -188,10 +215,10 @@ function Borrow({
     setReview({
       action:
         mode === 'lend'
-          ? { type: 'lend', quantity: q, expiry: end }
+          ? { type: 'lend', quantity: q, expiry: end, symbol }
           : mode === 'short'
-            ? { type: 'short', quantity: q, cap: k, expiry: end }
-            : { type: 'stock', side, quantity: q },
+            ? { type: 'short', quantity: q, cap: k, expiry: end, symbol }
+            : { type: 'stock', side, quantity: q, symbol },
       revision: s.revision,
       title:
         mode === 'lend'
@@ -218,10 +245,10 @@ function Borrow({
               ['Term ends', expiryLabel(end)],
               ['Borrow rate', '3.50% APR'],
               ['Full-term interest', usd(interest, 6)],
-              ['Stock sale proceeds', usd(mul(q, s.market.price), 6)],
+              ['Stock sale proceeds', usd(mul(q, price), 6)],
               [
                 'Protective call',
-                `Buy ${qty(q)} NVDA call at ${usd(mode === 'lend' ? round(s.market.price * 1.5) : k, 2)}`,
+                `Buy ${qty(q)} ${symbol} call at ${usd(mode === 'lend' ? round(price * 1.5) : k, 2)}`,
               ],
               [
                 `Protection premium paid by ${mode === 'lend' ? 'the borrower' : 'you'}`,
@@ -229,8 +256,8 @@ function Borrow({
                   mode === 'lend'
                     ? protectionPremium(
                         q,
-                        s.market.price,
-                        round(s.market.price * 1.5),
+                        price,
+                        round(price * 1.5),
                         s.book.date,
                         end,
                       )
@@ -242,15 +269,15 @@ function Borrow({
                 'Your cash movement now',
                 mode === 'lend'
                   ? '$0.000000'
-                  : usd(add(mul(q, s.market.price), -protection), 6),
+                  : usd(add(mul(q, price), -protection), 6),
               ],
             ],
       value:
         mode === 'lend'
-          ? add(mul(q, round(s.market.price * 1.5)), interest)
+          ? add(mul(q, round(price * 1.5)), interest)
           : mode === 'short'
             ? add(mul(q, k), interest)
-            : mul(q, s.market.price),
+            : mul(q, price),
     });
 
   const confirm = async () => {
@@ -267,8 +294,8 @@ function Borrow({
    * it is the reserve's own two-slope model, which is what actually
    * prices every loan on this screen.
    */
-  const reserve = reserveOf('NVDA');
-  const pool = feed.marks.NVDA;
+  const reserve = reserveOf(symbol);
+  const pool = feed.marks[symbol];
   const utilisation = pool?.utilisation ?? 0;
   const here = reserve
     ? rates(utilisation, reserve)
@@ -289,11 +316,11 @@ function Borrow({
       ? {
           eyebrow: 'Protected short',
           label: 'Most this can cost you',
-          value: usd(q * (k - s.market.price) + protection + interest),
+          value: usd(q * (k - price) + protection + interest),
           tone: 'down' as const,
           caption: `Capped at ${usd(k)} a share, protection and interest included.`,
           figures: [
-            { label: 'You receive now', value: usd(q * s.market.price) },
+            { label: 'You receive now', value: usd(q * price) },
             { label: 'Protection', value: usd(protection) },
             {
               label: 'Liquidates at',
@@ -313,11 +340,11 @@ function Borrow({
             label: 'You earn, paid at signing',
             value: usd(interest, 4),
             tone: 'up' as const,
-            caption: `For lending ${qty(q)} NVDA until ${expiryLabel(end)}.`,
+            caption: `For lending ${qty(q)} ${symbol} until ${expiryLabel(end)}.`,
             figures: [
               {
                 label: 'Borrower posts',
-                value: usd(q * s.market.price * 1.5),
+                value: usd(q * price * 1.5),
               },
               { label: 'Rate', value: '3.50% APR' },
               { label: 'Term ends', value: expiryLabel(end) },
@@ -326,11 +353,11 @@ function Borrow({
         : {
             eyebrow: 'Spot trade',
             label: side === 'buy' ? 'You pay' : 'You receive',
-            value: usd(q * s.market.price),
+            value: usd(q * price),
             tone: undefined,
             caption: 'Fully funded from the vault. Settles now.',
             figures: [
-              { label: 'Price', value: usd(s.market.price) },
+              { label: 'Price', value: usd(price) },
               { label: 'Shares', value: qty(q) },
               { label: 'Direction', value: side === 'buy' ? 'Buy' : 'Sell' },
             ],
@@ -380,7 +407,7 @@ function Borrow({
                 </strong>
               </div>
               <p>
-                {(utilisation * 100).toFixed(0)}% of the NVDA pool is out.{' '}
+                {(utilisation * 100).toFixed(0)}% of the {symbol} pool is out.{' '}
                 {qty(pool?.supplied ?? 0)} supplied, {qty(pool?.borrowed ?? 0)}{' '}
                 borrowed
                 {pool?.source === 'simulated' ? ', simulated depth.' : '.'}
@@ -394,12 +421,30 @@ function Borrow({
       <Panel className="od-ticket">
         <PanelHead
           title="Your terms"
-          action={<Badge tone="accent">NVDA {usd(s.market.price)}</Badge>}
+          action={
+            <Badge tone={under.simulated ? 'neutral' : 'accent'}>
+              {symbol} {usd(price)}
+            </Badge>
+          }
         />
         <div className="od-panel-body">
+          <Field label="Underlying">
+            <select
+              aria-label="Underlying"
+              value={symbol}
+              onChange={(e) => onSymbol(e.target.value)}
+            >
+              {s.market.underlyings.map((u) => (
+                <option key={u.symbol} value={u.symbol}>
+                  {u.name} ({u.symbol}) · {usd(u.price)}
+                  {u.simulated ? ' · simulated path' : ''}
+                </option>
+              ))}
+            </select>
+          </Field>
           <Field
             label="Shares"
-            hint={`Available ${qty(s.risk.freeShares.NVDA)} NVDA`}
+            hint={`Available ${qty(s.risk.freeShares[symbol] ?? 0)} ${symbol}`}
           >
             <input
               type="number"
@@ -436,13 +481,13 @@ function Borrow({
           {mode === 'short' && (
             <Field
               label="Repurchase cap"
-              hint={`${((k / s.market.price - 1) * 100).toFixed(1)}% above spot`}
+              hint={`${((k / price - 1) * 100).toFixed(1)}% above spot`}
             >
               <input
                 aria-label="Protective call strike"
                 type="number"
                 step="any"
-                min={s.market.price + 0.01}
+                min={price + 0.01}
                 value={cap}
                 onChange={(e) => setCap(e.target.value)}
               />
@@ -469,7 +514,7 @@ function Borrow({
       {review && (
         <Modal
           title={review.title}
-          description={`${qty(q)} NVDA at the ${usd(s.market.price)} stored reference`}
+          description={`${qty(q)} ${symbol} at the ${usd(price)} stored reference`}
           onClose={() => setReview(null)}
         >
           <div className="od-lines">

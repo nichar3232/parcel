@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -21,8 +21,9 @@ import {
 } from '@/lib/oddlot/value';
 import { QuoteReview } from './QuoteReview';
 import type { Quote, VaultAction } from '@/lib/oddlot/types';
-import { AssetLogo, ASSETS } from './AssetLogo';
+import { AssetLogo } from './AssetLogo';
 import { MarketStrip } from './MarketStrip';
+import { logoOf } from '@/lib/preipo/registry';
 import { Meter, ValueHistory } from './charts';
 import type { Transfer } from './TransferDialog';
 import {
@@ -58,6 +59,7 @@ export function PortfolioView({
   tab,
   navigate,
   onTransfer,
+  onPick,
 }: {
   desk: VaultController;
   feed: MarkFeed;
@@ -68,12 +70,22 @@ export function PortfolioView({
     pick?: string,
   ) => void;
   onTransfer: (t: Transfer) => void;
+  /** Make a symbol the desk's underlying and open the ticket on it. */
+  onPick: (symbol: string) => void;
 }) {
   const s = desk.state!;
   const { book, risk, market } = s;
 
-  const live = feed.marks.NVDA;
-  const nav = book.vault.USDC + book.vault.NVDA * market.price;
+  const nav = market.underlyings.reduce(
+    (t, u) => t + (book.vault[u.symbol] ?? 0) * u.price,
+    book.vault.USDC,
+  );
+  // What is held: every underlying with something in the vault, NVDA
+  // always so the list never comes up empty. What sits only in the
+  // wallet is deposited from the wallet, not listed here as a zero.
+  const held = market.underlyings.filter(
+    (u) => u.symbol === 'NVDA' || (book.vault[u.symbol] ?? 0) > 0,
+  );
   const active = book.options.filter((p) => p.status === 'active');
 
   /**
@@ -86,11 +98,14 @@ export function PortfolioView({
   const marked = useMemo(
     () =>
       active.map((p) => {
+        const on =
+          market.underlyings.find((u) => u.symbol === p.terms.symbol) ??
+          market.underlyings[0];
         const value = orderGreeks(
           p.terms,
-          p.terms.reference === 'dividend' ? market.dividend : market.price,
+          p.terms.reference === 'dividend' ? market.dividend : on.price,
           book.date,
-          p.terms.reference === 'dividend' ? 0.8 : market.volatility,
+          p.terms.reference === 'dividend' ? 0.8 : on.volatility,
         ).price;
         // A contract opened this session marks at what it cost. Left
         // alone, floating point turns that into +$0.000000, which reads
@@ -229,7 +244,7 @@ export function PortfolioView({
           </Button>
         </div>
 
-        <MarketStrip feed={feed} date={book.date} navigate={navigate} />
+        <MarketStrip feed={feed} date={book.date} onPick={onPick} />
       </div>
 
       <aside className="od-open-side">
@@ -238,52 +253,67 @@ export function PortfolioView({
             side of the screen. Cash is not: it is the buying power
             line under the chart, because it is what you spend. */}
         <Panel>
-          <PanelHead title="Your stock" />
+          <PanelHead title={held.length > 1 ? 'Your holdings' : 'Your stock'} />
           <div className="od-pos">
-            <div className="od-pos-row od-pos-asset">
-              <AssetLogo symbol="NVDA" size={30} />
-              <div className="od-pos-what">
-                <b>{ASSETS.NVDA.name}</b>
-                <small>
-                  {qty(book.vault.NVDA)} NVDA
-                  {risk.shares.NVDA > 0 ? `, ${qty(risk.shares.NVDA)} reserved` : ''}
-                  {book.wallet.NVDA > 0
-                    ? `, ${qty(book.wallet.NVDA)} in wallet`
-                    : ''}
-                </small>
-              </div>
-              <div className="od-pos-num">
-                <b>{usd(book.vault.NVDA * market.price)}</b>
-                {live && (
-                  <small className={live.change >= 0 ? 'od-up' : 'od-down'}>
-                    {live.change >= 0 ? '+' : ''}
-                    {(live.change * 100).toFixed(2)}%
-                  </small>
-                )}
-              </div>
-            </div>
-            <div className="od-pos-row od-pos-actions">
-              <div className="od-row-actions">
-                <button
-                  onClick={() =>
-                    onTransfer({ asset: 'NVDA', direction: 'deposit' })
-                  }
-                  aria-label="Deposit NVDA"
-                >
-                  <ArrowDownLeft size={14} />
-                  Deposit
-                </button>
-                <button
-                  onClick={() =>
-                    onTransfer({ asset: 'NVDA', direction: 'withdraw' })
-                  }
-                  aria-label="Withdraw NVDA"
-                >
-                  <ArrowUpRight size={14} />
-                  Withdraw
-                </button>
-              </div>
-            </div>
+            {held.map((u) => {
+              const live = feed.marks[u.symbol];
+              return (
+                <Fragment key={u.symbol}>
+                  <div className="od-pos-row od-pos-asset">
+                    <AssetLogo
+                      symbol={u.symbol}
+                      src={logoOf(u.symbol)}
+                      size={30}
+                    />
+                    <div className="od-pos-what">
+                      <b>{u.name}</b>
+                      <small>
+                        {qty(book.vault[u.symbol] ?? 0)} {u.symbol}
+                        {(risk.shares[u.symbol] ?? 0) > 0
+                          ? `, ${qty(risk.shares[u.symbol])} reserved`
+                          : ''}
+                        {(book.wallet[u.symbol] ?? 0) > 0
+                          ? `, ${qty(book.wallet[u.symbol])} in wallet`
+                          : ''}
+                      </small>
+                    </div>
+                    <div className="od-pos-num">
+                      <b>{usd((book.vault[u.symbol] ?? 0) * u.price)}</b>
+                      {live && (
+                        <small
+                          className={live.change >= 0 ? 'od-up' : 'od-down'}
+                        >
+                          {live.change >= 0 ? '+' : ''}
+                          {(live.change * 100).toFixed(2)}%
+                        </small>
+                      )}
+                    </div>
+                  </div>
+                  <div className="od-pos-row od-pos-actions">
+                    <div className="od-row-actions">
+                      <button
+                        onClick={() =>
+                          onTransfer({ asset: u.symbol, direction: 'deposit' })
+                        }
+                        aria-label={`Deposit ${u.symbol}`}
+                      >
+                        <ArrowDownLeft size={14} />
+                        Deposit
+                      </button>
+                      <button
+                        onClick={() =>
+                          onTransfer({ asset: u.symbol, direction: 'withdraw' })
+                        }
+                        aria-label={`Withdraw ${u.symbol}`}
+                      >
+                        <ArrowUpRight size={14} />
+                        Withdraw
+                      </button>
+                    </div>
+                  </div>
+                </Fragment>
+              );
+            })}
           </div>
         </Panel>
 
@@ -444,7 +474,9 @@ function Positions({
             {loans.map((p) => (
               <div key={p.id} className="od-pos-row">
                 <div className="od-pos-what">
-                  <b>{qty(p.quantity)} NVDA</b>
+                  <b>
+                    {qty(p.quantity)} {p.symbol}
+                  </b>
                   <small>Until {expiryLabel(p.expiry)}</small>
                 </div>
                 <div className="od-pos-num">
@@ -467,7 +499,7 @@ function Positions({
                         s.book.date,
                       ),
                       details: [
-                        ['Shares returned', `${qty(p.quantity)} NVDA`],
+                        ['Shares returned', `${qty(p.quantity)} ${p.symbol}`],
                         [
                           'Unused borrower collateral',
                           'Returned to the borrower after repurchase',
@@ -507,7 +539,9 @@ function Positions({
               return (
                 <div key={p.id} className="od-pos-row">
                   <div className="od-pos-what">
-                    <b>{qty(p.quantity)} NVDA short</b>
+                    <b>
+                      {qty(p.quantity)} {p.symbol} short
+                    </b>
                     <small>
                       {usd(p.entry)} entry · {usd(p.cap)} cap ·{' '}
                       {expiryLabel(p.expiry)}
@@ -725,7 +759,9 @@ function Collateral({ desk }: { desk: VaultController }) {
                     <td className="num">{qty(g.shares)}</td>
                     <td className="num">
                       {usd(g.counterpartyCash)}
-                      <small>{qty(g.counterpartyShares)} {g.symbol}</small>
+                      <small>
+                        {qty(g.counterpartyShares)} {g.symbol}
+                      </small>
                     </td>
                   </tr>
                 ))}

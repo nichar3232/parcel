@@ -226,13 +226,41 @@ templates.push(
     },
   },
 );
-export function templateTerms(id: string, expiry: string): OrderTerms {
+/** The NVDA close the template strikes were written against. */
+const TEMPLATE_SPOT = 142.62;
+/** The strike grid a price trades on, the way a listed chain steps. */
+export const strikeStep = (price: number) =>
+  price < 100 ? 1 : price < 300 ? 2.5 : price < 1000 ? 5 : 10;
+/**
+ * A template's terms on one underlying.
+ *
+ * The templates are written around NVDA's price, so on another
+ * underlying every strike is moved by the ratio of the two prices and
+ * snapped to that price's grid: a $145 call on a $142 stock becomes a
+ * $1,035 call on a $1,017 token, not a $145 one.
+ */
+export function templateTerms(
+  id: string,
+  expiry: string,
+  symbol = 'NVDA',
+  price = TEMPLATE_SPOT,
+): OrderTerms {
   const t = templates.find((t) => t.id === id) || templates[0];
+  const ratio = symbol === 'NVDA' ? 1 : price / TEMPLATE_SPOT;
+  const step = strikeStep(price);
+  const legs = structuredClone(t.legs).map((l) =>
+    ratio === 1 || t.reference === 'dividend'
+      ? l
+      : {
+          ...l,
+          strike: Math.max(step, Math.round((l.strike * ratio) / step) * step),
+        },
+  );
   return {
     ...(t.curve ? { curve: structuredClone(t.curve) } : {}),
-    symbol: 'NVDA',
+    symbol,
     name: t.name,
-    legs: structuredClone(t.legs),
+    legs,
     quantity: 1,
     expiry: t.reference === 'dividend' ? '2025-03-12' : expiry,
     settlement: t.settlement,

@@ -190,8 +190,8 @@ export function useVault() {
     });
   }
   return {
-    chain: (expiry: string, quantity: number) =>
-      catalog<ChainCatalog>('/api/vault/chain', { expiry, quantity }),
+    chain: (expiry: string, quantity: number, symbol?: string) =>
+      catalog<ChainCatalog>('/api/vault/chain', { expiry, quantity, symbol }),
     size: (terms: OrderTerms, mode: string, target: number) =>
       catalog<SizeResult>('/api/vault/size', { terms, mode, target }),
     closeQuote,

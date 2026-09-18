@@ -1,3 +1,4 @@
+import { isUnderlying, nameOf } from './universe';
 /**
  * The money-market model behind the lending screen.
  *
@@ -115,8 +116,30 @@ export const RESERVES: Reserve[] = [
   },
 ];
 
-export const reserveOf = (symbol: string) =>
-  RESERVES.find((r) => r.symbol === symbol) || null;
+/**
+ * A private company's token, as a reserve.
+ *
+ * None of the tokens has a lending market of its own, so they share
+ * one set of terms: thin collateral credit, a steep curve, and a wide
+ * liquidation bonus, because a mark that walks on a sponsor's print
+ * can gap the way an illiquid equity does.
+ */
+const PRIVATE: Omit<Reserve, 'symbol' | 'name'> = {
+  ltv: 0.4,
+  liquidation: 0.5,
+  bonus: 0.12,
+  base: 0.01,
+  slope1: 0.12,
+  slope2: 2.5,
+  optimal: 0.6,
+  reserveFactor: 0.25,
+  collateral: true,
+  borrowable: true,
+  note: 'A private mark: thin credit, dear to borrow, and a wide bonus for whoever takes it over.',
+};
+export const reserveOf = (symbol: string): Reserve | null =>
+  RESERVES.find((r) => r.symbol === symbol) ||
+  (isUnderlying(symbol) ? { symbol, name: nameOf(symbol), ...PRIVATE } : null);
 
 /**
  * The two-slope curve.
