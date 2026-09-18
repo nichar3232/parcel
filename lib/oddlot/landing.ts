@@ -761,7 +761,7 @@ export const WALKTHROUGH: {
     id: 'pick',
     title: 'Pick a position',
     detail:
-      'An option, a four-leg structure, a covered call on a sponsor token, or a stock loan. The shape it makes is drawn before you commit to it.',
+      'An option, a four-leg structure, a covered call on a sponsor token, or a stock loan.',
     figure: {
       kind: 'payoff',
       payoff: HERO_PAYOFF,
