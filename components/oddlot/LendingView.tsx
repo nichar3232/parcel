@@ -309,31 +309,19 @@ function Borrow({
       details:
         mode === 'borrow'
           ? [
-              ['Pledged', `${qty(q)} ${symbol}, reserved until repaid`],
+              ['Pledged', `${qty(q)} ${symbol}`],
               [
                 'Rate',
                 rateKind === 'fixed'
-                  ? `${aprLabel}, locked until ${expiryLabel(end)}`
-                  : `${aprLabel} today, repriced each session off the ${symbol} pool`,
+                  ? `${aprLabel} fixed until ${expiryLabel(end)}`
+                  : `${aprLabel} variable`,
               ],
-              rateKind === 'fixed'
-                ? ['Interest over the term', usd(loan?.termCost ?? 0, 6)]
-                : ['Interest', 'Accrues each session; repay whenever you like'],
+              ...(rateKind === 'fixed'
+                ? [['Interest', usd(loan?.termCost ?? 0, 4)] as [string, string]]
+                : []),
               [
-                'Loan-to-value',
-                `${((loan?.ltv ?? 0) * 100).toFixed(0)}% drawn of ${Math.round((reserve?.ltv ?? 0) * 100)}% allowed`,
-              ],
-              [
-                'Pledge sold if',
-                loan?.liquidation != null
-                  ? `${symbol} closes below ${usd(loan.liquidation)}`
-                  : '—',
-              ],
-              [
-                'At term end',
-                rateKind === 'fixed'
-                  ? 'Repaid from vault cash, or from the pledge if the cash is not there'
-                  : 'No term. Repay from the portfolio when you choose',
+                'Pledge sold below',
+                loan?.liquidation != null ? usd(loan.liquidation) : '—',
               ],
             ]
           : mode === 'stock'
@@ -725,9 +713,9 @@ function Borrow({
             </p>
           )}
           <p className="od-note">
-            Pledged protection cannot be reused. The transaction either updates
-            every balance and reserve together or rolls back entirely, and the
-            backend validates the amounts again.
+            {mode === 'borrow'
+              ? 'The pledge stays in your vault and is released when you repay.'
+              : 'Pledged protection cannot be reused. The transaction either updates every balance and reserve together or rolls back entirely, and the backend validates the amounts again.'}
           </p>
           <Button
             size="lg"

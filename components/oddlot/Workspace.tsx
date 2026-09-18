@@ -76,16 +76,16 @@ const TABS = {
   // One screen. "Rates" was a table of five reserves, four of which
   // this build cannot lend, borrow or short — it showed nothing a
   // reader could act on. The one rate that matters is on the ticket.
-  // Borrow comes first: it is the one a reader arriving from "borrow
-  // against your stock" is looking for.
+  // In the order the label says them: lend, then borrow against what
+  // you hold, then the two ways of trading the stock itself.
   Lending: [
     {
       id: 'borrow',
       label: 'Lend & borrow',
       choices: [
+        { id: 'lend', label: 'Lend' },
         { id: 'borrow', label: 'Borrow' },
         { id: 'short', label: 'Short' },
-        { id: 'lend', label: 'Lend' },
         { id: 'stock', label: 'Spot' },
       ],
     },

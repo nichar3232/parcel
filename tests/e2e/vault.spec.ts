@@ -756,8 +756,14 @@ test('a cash loan against pledged stock draws and repays through the real API', 
   page,
 }) => {
   await deposit(page, 'NVDA', '2');
-  // Borrow is the section's first choice, so arriving is enough.
   await nav(page, 'Lending');
+  // The section's choices drop down from the view's own button once
+  // you are on the view, so a second press opens them.
+  await page
+    .getByRole('navigation', { name: 'Main navigation' })
+    .getByRole('button', { name: 'Lending', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Borrow', exact: true }).click();
   await expect(page.getByText('Borrow against stock')).toBeVisible();
   await page.getByLabel('Borrow amount').fill('40');
   await page.getByRole('button', { name: 'Review cash loan' }).click();
