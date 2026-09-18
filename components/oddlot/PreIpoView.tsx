@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -8,6 +8,11 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import type { MarkFeed } from '@/hooks/oddlot/use-marks';
+import {
+  company,
+  usePreIpoAssets,
+  type AssetsPayload,
+} from '@/hooks/oddlot/use-preipo';
 import type { ResolvedAsset } from '@/lib/preipo/types';
 import {
   ACCEPTANCE_WINDOW_SECONDS,
@@ -34,16 +39,6 @@ import {
 
 export type PreIpoTab = 'market' | 'underwrite';
 
-interface AssetsPayload {
-  network: string;
-  programId: string | null;
-  usdcMint: string | null;
-  executionEnabled: boolean;
-  assets: ResolvedAsset[];
-  warnings: string[];
-  refreshedAt: string;
-}
-
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
 const EXPLORER = (mint: string, network: string) =>
@@ -64,50 +59,36 @@ const BLOCKER_LABEL: Record<string, string> = {
 };
 
 /** The company, without the provider's naming attached to it. */
-const company = (displayName: string) =>
-  displayName.replace(/^Tessera T-/, '').replace(/ PreStocks$/, '');
-
 export function PreIpoView({
   feed,
   tab,
   openTrade,
+  openUnderwrite,
+  pick,
 }: {
   feed: MarkFeed;
   tab: PreIpoTab;
   openTrade: () => void;
+  /** Take the reader to the ticket for whatever they just picked. */
+  openUnderwrite: () => void;
+  /** An asset chosen elsewhere, such as the portfolio's market strip. */
+  pick?: string;
 }) {
-  const [data, setData] = useState<AssetsPayload | null>(null);
-  const [error, setError] = useState('');
-  const [selected, setSelected] = useState('');
-
-  useEffect(() => {
-    let live = true;
-    const load = () =>
-      fetch('/api/preipo/assets')
-        .then((r) =>
-          r.ok ? r.json() : Promise.reject(new Error(`${r.status}`)),
-        )
-        .then((d: AssetsPayload) => {
-          if (!live) return;
-          setData(d);
-          setSelected(
-            (current) =>
-              current ||
-              d.assets.find((a) => a.verdict.escrowSupported)?.asset.id ||
-              d.assets[0]?.asset.id ||
-              '',
-          );
-        })
-        .catch((e) => live && setError((e as Error).message));
-    void load();
-    // The providers republish a mark on their own clock; re-reading keeps
-    // the mock tokens anchored to it rather than drifting all session.
-    const timer = setInterval(load, 60_000);
-    return () => {
-      live = false;
-      clearInterval(timer);
-    };
-  }, []);
+  const { data, error } = usePreIpoAssets();
+  const [chosen, setChosen] = useState(pick ?? '');
+  // A pick made elsewhere wins over the last choice made here, once.
+  const [seenPick, setSeenPick] = useState(pick);
+  if (pick !== seenPick) {
+    setSeenPick(pick);
+    if (pick) setChosen(pick);
+  }
+  // What the ticket shows: the choice, or the first escrowable asset.
+  const selected =
+    chosen ||
+    data?.assets.find((a) => a.verdict.escrowSupported)?.asset.id ||
+    data?.assets[0]?.asset.id ||
+    '';
+  const setSelected = setChosen;
 
   if (error)
     return (
@@ -140,14 +121,18 @@ export function PreIpoView({
       escrowable={escrowable}
       blocked={blocked}
       selected={selected}
-      onSelect={setSelected}
+      onSelect={(id) => {
+        // A row is a choice, not a highlight: picking a company opens
+        // its ticket, and a blocked one opens the reasons it is blocked.
+        setSelected(id);
+        openUnderwrite();
+      }}
     />
   ) : (
     <Underwrite
       data={data}
       feed={feed}
       current={current}
-      escrowable={escrowable}
       onSelect={setSelected}
       openTrade={openTrade}
     />
@@ -168,7 +153,8 @@ function AssetRow({
   onSelect: () => void;
 }) {
   const meta = a.quote?.meta || {};
-  const logo = typeof meta.image === 'string' ? meta.image : null;
+  const logo =
+    typeof meta.image === 'string' ? meta.image : (a.asset.logo ?? null);
   const sector = typeof meta.sector === 'string' ? meta.sector : null;
   const holders = num(meta.holders);
   const valuation = num(meta.markValuation) ?? num(meta.impliedValuation);
@@ -235,8 +221,6 @@ function Market({
   selected: string;
   onSelect: (id: string) => void;
 }) {
-
-
   return (
     <>
       {/* The table counts its own rows, and every one of them prints a
@@ -296,14 +280,12 @@ function Underwrite({
   data,
   feed,
   current,
-  escrowable,
   onSelect,
   openTrade,
 }: {
   data: AssetsPayload;
   feed: MarkFeed;
   current: ResolvedAsset | null;
-  escrowable: ResolvedAsset[];
   onSelect: (id: string) => void;
   openTrade: () => void;
 }) {
@@ -378,9 +360,12 @@ function Underwrite({
               value={current.asset.id}
               onChange={(e) => onSelect(e.target.value)}
             >
-              {escrowable.map((a) => (
+              {/* Every company the market lists, so the picker always
+                  reads what the ticket is showing; a blocked one says so. */}
+              {data.assets.map((a) => (
                 <option key={a.asset.id} value={a.asset.id}>
                   {company(a.asset.displayName)} ({a.asset.issuerTerms.issuer})
+                  {a.verdict.escrowSupported ? '' : ' — blocked'}
                 </option>
               ))}
             </select>

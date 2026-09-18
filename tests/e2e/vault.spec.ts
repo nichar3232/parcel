@@ -204,7 +204,7 @@ test('a dropped mutation response retries once with the same receipt, not anothe
   await page.reload();
   await expect(page.locator('.pc-desk')).toHaveAttribute('data-ready', 'true');
   await nav(page, 'Vault');
-  await expect(page.locator('.od-summary-main')).toContainText('$100.00');
+  await expect(page.locator('.od-open-head')).toContainText('$100.00');
 });
 test('a second tab cannot overwrite the first tab’s vault revision', async ({
   page,
@@ -227,7 +227,7 @@ test('a second tab cannot overwrite the first tab’s vault revision', async ({
     .click();
   await expect(second.locator('.od-toast')).toContainText('vault changed');
   await second.getByRole('button', { name: 'Close dialog' }).click();
-  await expect(second.locator('.od-summary-main')).toContainText('$100.00');
+  await expect(second.locator('.od-open-head')).toContainText('$100.00');
   await second.close();
 });
 test('backend outage shows a recovery action and reconnect resumes the saved vault', async ({
@@ -241,7 +241,7 @@ test('backend outage shows a recovery action and reconnect resumes the saved vau
   await page.getByRole('button', { name: 'Reconnect' }).click();
   await expect(page.locator('.pc-desk')).toHaveAttribute('data-ready', 'true');
   await nav(page, 'Vault');
-  await expect(page.locator('.od-summary-main')).toContainText('$100.00');
+  await expect(page.locator('.od-open-head')).toContainText('$100.00');
 });
 
 test('invalid precision and out-of-range strikes never crash the payoff view', async ({
@@ -368,7 +368,7 @@ test('two lost responses survive reload and resolve the original deposit exactly
   expect(keys).toHaveLength(3);
   expect(new Set(keys).size).toBe(1);
   await nav(page, 'Vault');
-  await expect(page.locator('.od-summary-main')).toContainText('$100.00');
+  await expect(page.locator('.od-open-head')).toContainText('$100.00');
   await nav(page, 'Activity');
   await expect(page.getByText('Vault deposit', { exact: true })).toHaveCount(1);
 });
@@ -428,7 +428,7 @@ test('a delayed response from an old session cannot replace the new session vaul
     )
     .not.toBe(csrf);
   // Wait for the new snapshot to reach React before releasing the old response.
-  await expect(page.locator('.od-summary-main')).toContainText('$0.00');
+  await expect(page.locator('.od-open-head')).toContainText('$0.00');
   release();
   await expect
     .poll(() =>
@@ -439,7 +439,7 @@ test('a delayed response from an old session cannot replace the new session vaul
       ),
     )
     .toBeNull();
-  await expect(page.locator('.od-summary-main')).toContainText('$0.00');
+  await expect(page.locator('.od-open-head')).toContainText('$0.00');
   if (await page.getByRole('dialog').count())
     await page.getByRole('button', { name: 'Close dialog' }).click();
   await nav(page, 'Activity');

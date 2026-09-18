@@ -164,6 +164,154 @@ export function PriceHistory({
 
 /* ---------------------------------------------------------------- */
 
+const V = { w: 760, h: 200, x0: 4, x1: 756, y0: 12, y1: 188 };
+
+/**
+ * The vault's value over the sessions on screen.
+ *
+ * No axes and no grid. This is the balance line above the fold, read
+ * for its shape and its endpoint, and the endpoint is already printed
+ * at full precision directly above it — ruling the plot would be
+ * furniture around a number the reader has in front of them.
+ *
+ * Coloured against the first point of the drawn window, which is the
+ * move the figure beside it reports.
+ */
+export function ValueHistory({
+  points,
+  label,
+}: {
+  points: { date: string; value: number }[];
+  label: string;
+}) {
+  const plot = useMemo(() => {
+    const values = points.map((p) => p.value);
+    const min = Math.min(...values),
+      max = Math.max(...values);
+    const pad = (max - min) * 0.12 || Math.abs(max) * 0.02 || 1;
+    const lo = min - pad,
+      hi = max + pad;
+    const x = (i: number) =>
+      V.x0 + (i / Math.max(1, points.length - 1)) * (V.x1 - V.x0);
+    const y = (v: number) => V.y0 + ((hi - v) / (hi - lo)) * (V.y1 - V.y0);
+    const drawn = points.map((p, i) => [x(i), y(p.value)] as [number, number]);
+    return {
+      line: path(drawn),
+      area: `${path(drawn)} L${V.x1},${V.y1} L${V.x0},${V.y1} Z`,
+      last: drawn.at(-1)!,
+      up: values.at(-1)! >= values[0],
+    };
+  }, [points]);
+
+  return (
+    <svg
+      className={`od-value ${plot.up ? 'up' : 'down'}`}
+      viewBox={`0 0 ${V.w} ${V.h}`}
+      preserveAspectRatio="none"
+      aria-label={label}
+    >
+      <defs>
+        <linearGradient id="odValue" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor="currentColor" stopOpacity=".18" />
+          <stop offset="1" stopColor="currentColor" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={plot.area} fill="url(#odValue)" />
+      <path d={plot.line} className="od-value-line" />
+      {/* preserveAspectRatio: none stretches the viewBox, which would
+          stretch a circle into an ellipse. A cross of two strokes with
+          vector-effect keeps its size in screen pixels instead. */}
+      <g className="od-value-now" transform={`translate(${plot.last[0]} ${plot.last[1]})`}>
+        <line x1="-5" x2="5" y1="0" y2="0" />
+        <line x1="0" x2="0" y1="-5" y2="5" />
+      </g>
+    </svg>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+
+const R = { w: 880, h: 300, x0: 60, x1: 858, y0: 26, y1: 246, axisY: 276 };
+
+/**
+ * The borrow and supply curves, across the whole utilisation range.
+ *
+ * The two-slope model is the only thing on the lending screen that a
+ * reader cannot work out from a number: the borrow rate is gentle up
+ * to the optimal point and then turns almost vertical, and the supply
+ * rate trails it by utilisation and the reserve factor. Printing "3.50%
+ * APR" says nothing about the cliff a few points to the right.
+ */
+export function RateCurve({
+  curve,
+  at,
+}: {
+  curve: { u: number; borrow: number; supply: number }[];
+  /** Where the pool is sitting now. */
+  at: { u: number; borrow: number; supply: number };
+}) {
+  const plot = useMemo(() => {
+    const top = Math.max(...curve.map((p) => p.borrow), at.borrow) * 1.08 || 1;
+    const x = (u: number) => R.x0 + u * (R.x1 - R.x0);
+    const y = (v: number) => R.y1 - (v / top) * (R.y1 - R.y0);
+    const line = (k: 'borrow' | 'supply') =>
+      path(curve.map((p) => [x(p.u), y(p[k])] as [number, number]));
+    return {
+      borrow: line('borrow'),
+      supply: line('supply'),
+      grid: [0, 0.5, 1].map((n) => ({
+        y: R.y1 - n * (R.y1 - R.y0),
+        label: `${(top * n * 100).toFixed(1)}%`,
+      })),
+      ticks: [0, 0.25, 0.5, 0.75, 1].map((u) => ({
+        x: x(u),
+        label: `${u * 100}%`,
+      })),
+      now: { x: x(at.u), borrow: y(at.borrow), supply: y(at.supply) },
+    };
+  }, [curve, at]);
+
+  return (
+    <svg
+      className="od-rates"
+      viewBox={`0 0 ${R.w} ${R.h}`}
+      aria-label={`Borrow and supply rates across utilisation, currently ${(at.u * 100).toFixed(1)}% utilised`}
+    >
+      <g className="od-chart-grid">
+        {plot.grid.map((g) => (
+          <g key={g.label}>
+            <line x1={R.x0} x2={R.x1} y1={g.y} y2={g.y} />
+            <text x={R.x0 - 10} y={g.y + 4} textAnchor="end">
+              {g.label}
+            </text>
+          </g>
+        ))}
+      </g>
+      <path d={plot.supply} className="od-rates-supply" />
+      <path d={plot.borrow} className="od-rates-borrow" />
+      <g className="od-rates-now">
+        <line x1={plot.now.x} x2={plot.now.x} y1={R.y0} y2={R.y1} />
+        <circle cx={plot.now.x} cy={plot.now.borrow} r="4.5" />
+        <circle cx={plot.now.x} cy={plot.now.supply} r="4.5" className="sup" />
+      </g>
+      <g className="od-chart-ticks">
+        {plot.ticks.map((t, i) => (
+          <text
+            key={t.label}
+            x={t.x}
+            y={R.axisY}
+            textAnchor={i === 0 ? 'start' : i === 4 ? 'end' : 'middle'}
+          >
+            {t.label}
+          </text>
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+
 export interface Slice {
   label: string;
   value: number;

@@ -5,6 +5,7 @@ import {
   HERO,
   HERO_CALL,
   OPEN_DATE,
+  PLOT,
   PREIPO_EXPIRY,
   SPOT,
   EXPIRY,
@@ -108,7 +109,7 @@ void test('the hero is a long call, whose upside does not stop', () => {
   const ys = [...HERO.line.matchAll(/[ML]([\d.]+),([\d.]+)/g)].map(
     ([, x, y]) => {
       assert.ok(Number(x) >= 0 && Number(x) <= 760);
-      assert.ok(Number(y) >= 0 && Number(y) <= 240);
+      assert.ok(Number(y) >= 0 && Number(y) <= PLOT.h);
       return Number(y);
     },
   );

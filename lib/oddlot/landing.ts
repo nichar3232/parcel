@@ -80,15 +80,15 @@ const LOW = Math.round(SPOT * 0.65),
  */
 export const PLOT = {
   w: 760,
-  h: 250,
-  /** left edge of the plot: wide enough for a five-character dollar label */
-  x0: 74,
-  x1: 724,
+  h: 340,
+  /** The plot runs edge to edge: there is no P&L axis to make room for. */
+  x0: 14,
+  x1: 746,
   /* y0 leaves a band above the plot for the strike labels */
-  y0: 44,
-  y1: 200,
+  y0: 42,
+  y1: 296,
   /** baseline the price labels sit on */
-  axisY: 226,
+  axisY: 330,
 } as const;
 
 export interface Payoff {
@@ -110,7 +110,7 @@ export interface Payoff {
 }
 
 /**
- * Project a contract's payoff at expiry into a 760×240 viewBox.
+ * Project a contract's payoff at expiry into a 760×340 viewBox.
  *
  * Every product that has a shape gets one from here, so the previews
  * are the same arithmetic the desk runs rather than drawings of it.
@@ -233,7 +233,6 @@ export interface Structure {
   /** The desk view this opens, for the card's own link. */
   at: string;
   name: string;
-  tag: string;
   contract: string;
   blurb: string;
   payoff: Payoff;
@@ -269,7 +268,6 @@ function structure(
   id: string,
   at: string,
   name: string,
-  tag: string,
   contract: string,
   blurb: string,
   order: OrderTerms,
@@ -281,7 +279,6 @@ function structure(
     id,
     at,
     name,
-    tag,
     contract,
     blurb,
     payoff: shape,
@@ -297,7 +294,6 @@ export const STRUCTURES: Structure[] = [
     'long-call',
     'options',
     'Long call',
-    'Upside',
     '1× $145 call',
     'Risks the premium and nothing else. Above the strike it keeps paying, with no ceiling to quote.',
     HERO_CALL,
@@ -307,7 +303,6 @@ export const STRUCTURES: Structure[] = [
     'covered-call',
     'underwriting',
     'Covered call',
-    'Income',
     'Own 1 share, sell the $150 call',
     'The premium is yours whatever happens. It cushions the fall and caps the climb at the strike.',
     terms({
@@ -322,7 +317,6 @@ export const STRUCTURES: Structure[] = [
     'call-spread',
     'structures',
     'Call spread',
-    'Defined upside',
     'Buy the $145 call, sell the $160',
     'Both ends are known before you sign: a fixed cost against a fixed ceiling.',
     terms({
@@ -338,7 +332,6 @@ export const STRUCTURES: Structure[] = [
     'collar',
     'structures',
     'Stock collar',
-    'Protected',
     'Own 1 share, buy the $130 put, sell the $150 call',
     'The put sets a floor under the share and the call pays for it. The position cannot leave the band.',
     terms({
@@ -356,7 +349,6 @@ export const STRUCTURES: Structure[] = [
     'straddle',
     'structures',
     'Long straddle',
-    'Volatility',
     'Buy the $145 call and the $145 put',
     'Pays for a move in either direction. The only losing outcome is the stock sitting still.',
     terms({
@@ -374,7 +366,6 @@ export const STRUCTURES: Structure[] = [
     'condor',
     'structures',
     'Iron condor',
-    'Range',
     'Underwrite $135 to $150, capped at $125 and $160',
     'Collects premium while the stock stays in the band, with both tails bought back explicitly.',
     terms({

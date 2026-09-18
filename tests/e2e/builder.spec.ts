@@ -66,22 +66,26 @@ for (const [view, template, kind, side] of [
 test('the shell is four destinations, each with its own sections', async ({
   page,
 }) => {
-  const items = page
-    .getByRole('navigation', { name: 'Main navigation' })
-    .getByRole('button');
-  await expect(items).toHaveText(['Portfolio', 'Trade', 'Pre-IPO', 'Lending']);
+  await expect(page.locator('.od-side-item')).toHaveText([
+    'Portfolio',
+    'Trade',
+    'Pre-IPO',
+    'Lending',
+  ]);
 
-  // Every destination names itself, and its sections belong to it.
+  // Every destination names itself, and its sections belong to it —
+  // nested under it in the rail, and only while it is the open one.
+  // Lending owns a single section, so it has no list to open.
   const sections: Record<string, string[]> = {
     Portfolio: ['Holdings', 'Activity'],
     Trade: ['Options', 'Structures'],
     'Pre-IPO': ['Market', 'Underwrite'],
-    Lending: ['Lend & borrow'],
+    Lending: [],
   };
   for (const [name, tabs] of Object.entries(sections)) {
     await navTop(page, name);
     await expect(page.getByRole('heading', { level: 1 })).toContainText(name);
-    await expect(page.getByRole('tab')).toHaveText(tabs);
+    await expect(page.locator('.od-side-sub-item')).toHaveText(tabs);
   }
 
   // Underwrite and Structures are sections of Trade, and each opens the
@@ -94,7 +98,9 @@ test('the shell is four destinations, each with its own sections', async ({
   // The contract is chosen on the ticket, in both modes; Advanced adds
   // the leg editor and the surface.
   await nav(page, 'Trade');
-  await expect(page.locator('.od-ticket .od-segmented')).toBeVisible();
+  // Which contract is the first decision on the screen, above the
+  // payoff, not a control inside the ticket below it.
+  await expect(page.locator('.od-kinds .od-segmented')).toBeVisible();
   await expect(page.locator('.od-leg')).toHaveCount(0);
   await advanced(page);
   await expect(page.locator('.od-leg')).toHaveCount(1);

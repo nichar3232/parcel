@@ -12,10 +12,18 @@ import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { MarkFeed } from '@/hooks/oddlot/use-marks';
 import { orderGreeks } from '@/lib/oddlot/math';
 import { accruedInterest, shortCloseAmounts } from '@/lib/oddlot/funding';
+import {
+  RANGES,
+  changeOver,
+  valueSeries,
+  withinRange,
+  type Range,
+} from '@/lib/oddlot/value';
 import { QuoteReview } from './QuoteReview';
-import type { Asset, Quote, VaultAction } from '@/lib/oddlot/types';
+import type { Quote, VaultAction } from '@/lib/oddlot/types';
 import { AssetLogo, ASSETS } from './AssetLogo';
-import { Meter } from './charts';
+import { MarketStrip } from './MarketStrip';
+import { Meter, ValueHistory } from './charts';
 import type { Transfer } from './TransferDialog';
 import {
   Badge,
@@ -54,13 +62,17 @@ export function PortfolioView({
   desk: VaultController;
   feed: MarkFeed;
   tab: PortfolioTab;
-  navigate: (page: 'Portfolio' | 'Trade' | 'Pre-IPO' | 'Lending', to?: string) => void;
+  navigate: (
+    page: 'Portfolio' | 'Trade' | 'Pre-IPO' | 'Lending',
+    to?: string,
+    pick?: string,
+  ) => void;
   onTransfer: (t: Transfer) => void;
 }) {
   const s = desk.state!;
   const { book, risk, market } = s;
-  const live = feed.marks.NVDA;
 
+  const live = feed.marks.NVDA;
   const nav = book.vault.USDC + book.vault.NVDA * market.price;
   const active = book.options.filter((p) => p.status === 'active');
 
@@ -88,7 +100,10 @@ export function PortfolioView({
       }),
     [active, market, book.date],
   );
-  const openPnl = marked.reduce((t, m) => t + m.pnl, 0);
+  const [range, setRange] = useState<Range>('1M');
+  const series = useMemo(() => valueSeries(book), [book]);
+  const drawn = withinRange(series, range);
+  const move = changeOver(drawn);
 
   if (tab === 'collateral') return <Collateral desk={desk} />;
   if (tab === 'activity') return <Activity desk={desk} />;
@@ -108,121 +123,173 @@ export function PortfolioView({
    * reached from the line that states it.
    */
   return (
-    <>
-      <div className="od-summary">
-        <div className="od-summary-main">
+    <div className="od-open">
+      <div className="od-open-main">
+        <div className="od-open-head">
           <span>Vault value</span>
           <strong>
             <Money value={nav} />
           </strong>
-          <div className="od-summary-sub">
-            <span>{qty(book.vault.NVDA)} NVDA</span>
-            <span>{usd(book.vault.USDC)} USDC</span>
-            {live && (
-              <span className={live.change >= 0 ? 'up' : 'down'}>
-                {live.change >= 0 ? (
-                  <TrendingUp size={13} />
-                ) : (
-                  <TrendingDown size={13} />
-                )}
-                NVDA {(live.change * 100).toFixed(2)}% today
-              </span>
-            )}
+          {move ? (
+            <div className={`od-open-move ${move.amount >= 0 ? 'up' : 'down'}`}>
+              {move.amount >= 0 ? (
+                <TrendingUp size={15} />
+              ) : (
+                <TrendingDown size={15} />
+              )}
+              <b>
+                <Money value={move.amount} sign />
+              </b>
+              <span>({(move.percent * 100).toFixed(2)}%)</span>
+              <em>{RANGES.find((r) => r.id === range)?.label}</em>
+            </div>
+          ) : (
+            <div className="od-open-move flat">
+              Cash and stock. Open contracts are marked separately below.
+            </div>
+          )}
+        </div>
+
+        {drawn.length > 1 ? (
+          <ValueHistory
+            points={drawn}
+            label={`Vault value across ${drawn.length} sessions, ending ${usd(nav)}`}
+          />
+        ) : (
+          /* One session is a dot, and a dot stretched across 760px is a
+             flat line implying a day of no movement. The vault opened
+             this session; say so rather than draw it. */
+          <div className="od-open-blank">
+            <p>
+              Your vault opened this session. The value line starts once the
+              market clock moves on.
+            </p>
+          </div>
+        )}
+
+        <div className="od-range">
+          {RANGES.map((r) => (
+            <button
+              key={r.id}
+              className={range === r.id ? 'active' : ''}
+              aria-pressed={range === r.id}
+              disabled={series.length < 2}
+              onClick={() => setRange(r.id)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        {/* USDC had a row in the table beside NVDA, which framed the
+            cash as a holding you are long rather than as the thing you
+            can spend. It is the balance that decides what you can open
+            next, so it reads as that and keeps its two actions. */}
+        <div className="od-power">
+          <div>
+            <span>Buying power</span>
+            <small>
+              {usd(book.vault.USDC)} USDC in vault
+              {risk.cash > 0 ? `, ${usd(risk.cash)} reserved` : ''}
+            </small>
+          </div>
+          <b>{usd(risk.freeCash)}</b>
+          <div className="od-row-actions">
+            <button
+              onClick={() =>
+                onTransfer({ asset: 'USDC', direction: 'deposit' })
+              }
+              aria-label="Deposit USDC"
+            >
+              <ArrowDownLeft size={14} />
+              Deposit
+            </button>
+            <button
+              onClick={() =>
+                onTransfer({ asset: 'USDC', direction: 'withdraw' })
+              }
+              aria-label="Withdraw USDC"
+            >
+              <ArrowUpRight size={14} />
+              Withdraw
+            </button>
           </div>
         </div>
-        <div className="od-summary-stats one">
-          <Stat
-            label="Open contract P&L"
-            value={<Money value={openPnl} sign />}
-            detail={`${active.length} marked to model`}
-            tone={openPnl > 0 ? 'positive' : openPnl < 0 ? 'negative' : ''}
-          />
+
+        <div className="od-holdings-foot">
+          <span>
+            Collateral mode {book.margin === 'cross' ? 'cross' : 'isolated'}
+          </span>
+          <Button
+            variant="quiet"
+            size="sm"
+            onClick={() => navigate('Portfolio', 'collateral')}
+          >
+            Change
+          </Button>
         </div>
+
+        <MarketStrip feed={feed} date={book.date} navigate={navigate} />
       </div>
 
-      <Panel>
-        <PanelHead title="Your assets" />
-        <div className="od-table-wrap">
-          <table className="od-table">
-            <thead>
-              <tr>
-                <th>Asset</th>
-                <th className="num">In vault</th>
-                <th className="num">Reserved</th>
-                <th className="num">Available</th>
-                <th className="num">Wallet</th>
-                <th>
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {(['NVDA', 'USDC'] as const).map((asset) => (
-                <tr key={asset}>
-                  <td>
-                    <div className="od-asset-cell">
-                      <AssetLogo symbol={asset} size={34} />
-                      <div>
-                        <b>{ASSETS[asset].name}</b>
-                        <small>
-                          {asset}
-                          {feed.marks[asset]
-                            ? `  ${usd(feed.marks[asset].price, asset === 'USDC' ? 4 : 2)}`
-                            : ''}
-                        </small>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="num">{qty(book.vault[asset])}</td>
-                  <td className="num">
-                    {qty(asset === 'NVDA' ? risk.shares : risk.cash)}
-                  </td>
-                  <td className="num">
-                    <b>{qty(asset === 'NVDA' ? risk.freeShares : risk.freeCash)}</b>
-                  </td>
-                  <td className="num od-muted">{qty(book.wallet[asset])}</td>
-                  <td>
-                    <div className="od-row-actions">
-                      <button
-                        onClick={() =>
-                          onTransfer({ asset: asset as Asset, direction: 'deposit' })
-                        }
-                        aria-label={`Deposit ${asset}`}
-                      >
-                        <ArrowDownLeft size={14} />
-                        Deposit
-                      </button>
-                      <button
-                        onClick={() =>
-                          onTransfer({ asset: asset as Asset, direction: 'withdraw' })
-                        }
-                        aria-label={`Withdraw ${asset}`}
-                      >
-                        <ArrowUpRight size={14} />
-                        Withdraw
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+      <aside className="od-open-side">
+        {/* The stock is a position, so it is listed with the rest of
+            them rather than kept in a table of its own on the other
+            side of the screen. Cash is not: it is the buying power
+            line under the chart, because it is what you spend. */}
+        <Panel>
+          <PanelHead title="Your stock" />
+          <div className="od-pos">
+            <div className="od-pos-row od-pos-asset">
+              <AssetLogo symbol="NVDA" size={30} />
+              <div className="od-pos-what">
+                <b>{ASSETS.NVDA.name}</b>
+                <small>
+                  {qty(book.vault.NVDA)} NVDA
+                  {risk.shares > 0 ? `, ${qty(risk.shares)} reserved` : ''}
+                  {book.wallet.NVDA > 0
+                    ? `, ${qty(book.wallet.NVDA)} in wallet`
+                    : ''}
+                </small>
+              </div>
+              <div className="od-pos-num">
+                <b>{usd(book.vault.NVDA * market.price)}</b>
+                {live && (
+                  <small className={live.change >= 0 ? 'od-up' : 'od-down'}>
+                    {live.change >= 0 ? '+' : ''}
+                    {(live.change * 100).toFixed(2)}%
+                  </small>
+                )}
+              </div>
+            </div>
+            <div className="od-pos-row od-pos-actions">
+              <div className="od-row-actions">
+                <button
+                  onClick={() =>
+                    onTransfer({ asset: 'NVDA', direction: 'deposit' })
+                  }
+                  aria-label="Deposit NVDA"
+                >
+                  <ArrowDownLeft size={14} />
+                  Deposit
+                </button>
+                <button
+                  onClick={() =>
+                    onTransfer({ asset: 'NVDA', direction: 'withdraw' })
+                  }
+                  aria-label="Withdraw NVDA"
+                >
+                  <ArrowUpRight size={14} />
+                  Withdraw
+                </button>
+              </div>
+            </div>
+          </div>
+        </Panel>
 
-      <div className="od-holdings-foot">
-        <span>Collateral mode {book.margin === 'cross' ? 'cross' : 'isolated'}</span>
-        <Button
-          variant="quiet"
-          size="sm"
-          onClick={() => navigate('Portfolio', 'collateral')}
-        >
-          Change
-        </Button>
-      </div>
-
-      <Positions marked={marked} desk={desk} navigate={navigate} />
-    </>
+        <Positions marked={marked} desk={desk} navigate={navigate} />
+      </aside>
+    </div>
   );
 }
 
@@ -233,14 +300,21 @@ function Positions({
   desk,
   navigate,
 }: {
-  marked: { position: import('@/lib/oddlot/types').OptionPosition; value: number; pnl: number }[];
+  marked: {
+    position: import('@/lib/oddlot/types').OptionPosition;
+    value: number;
+    pnl: number;
+  }[];
   desk: VaultController;
-  navigate: (page: 'Portfolio' | 'Trade' | 'Pre-IPO' | 'Lending', to?: string) => void;
+  navigate: (
+    page: 'Portfolio' | 'Trade' | 'Pre-IPO' | 'Lending',
+    to?: string,
+  ) => void;
 }) {
   const s = desk.state!;
   const loans = s.book.loans.filter((p) => p.status === 'active');
   const shorts = s.book.shorts.filter((p) => p.status === 'active');
-  const settled = s.book.options.filter((p) => p.status !== 'active');
+  const openPnl = marked.reduce((t, m) => t + m.pnl, 0);
 
   /**
    * Closing a loan or a short.
@@ -271,265 +345,215 @@ function Positions({
     if (review && (await desk.act(review.action, s.revision))) setReview(null);
   };
 
-  if (!marked.length && !loans.length && !shorts.length && !settled.length)
-    return (
-      <Panel>
-        <Empty
-          title="Nothing open yet"
-          description="Write your first contract and it will be listed here with its live mark, its collateral and its worst case."
-          action={
-            <Button onClick={() => navigate('Trade', 'trade')}>
-              Open the trade ticket
-            </Button>
-          }
-        />
-      </Panel>
-    );
-
+  /**
+   * Every kind of position the vault can hold, listed whether or not
+   * it holds any.
+   *
+   * One blanket "nothing open yet" for the whole rail hid what the
+   * desk is even capable of: a reader with no positions could not tell
+   * from this screen that contracts, stock loans and protected shorts
+   * were three different things they could have. The headings are the
+   * shape of the product, so they stay.
+   */
   return (
     <>
-      {!!marked.length && (
-        <Panel>
-          <PanelHead
-            title="Open contracts"
-            description="Marked to the same model the desk quotes with, at the current session price."
-            action={<Badge tone="accent">{marked.length} active</Badge>}
-          />
-          <div className="od-table-wrap">
-            <table className="od-table">
-              <thead>
-                <tr>
-                  <th>Contract</th>
-                  <th className="num">Quantity</th>
-                  <th>Expiry</th>
-                  <th className="num">Paid</th>
-                  <th className="num">Mark</th>
-                  <th className="num">P&amp;L</th>
-                  <th>
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {marked.map(({ position: p, value, pnl }) => (
-                  <tr key={p.id}>
-                    <td>
-                      <b>{p.terms.name}</b>
-                      <small>{p.id.slice(0, 8).toUpperCase()}</small>
-                    </td>
-                    <td className="num">{qty(p.terms.quantity)}</td>
-                    <td>{expiryLabel(p.terms.expiry)}</td>
-                    <td className="num">
-                      {usd(
-                        Math.abs(p.premium),
-                        p.terms.reference === 'dividend' ? 4 : 2,
-                      )}
-                    </td>
-                    <td className="num">
-                      {usd(value, p.terms.reference === 'dividend' ? 4 : 2)}
-                    </td>
-                    <td className={`num ${pnl >= 0 ? 'od-up' : 'od-down'}`}>
+      <Panel>
+        <PanelHead
+          title="Open contracts"
+          description={
+            marked.length
+              ? `Marked to model · ${openPnl > 0 ? '+' : ''}${usd(openPnl)} open`
+              : undefined
+          }
+          action={
+            <Badge tone={marked.length ? 'accent' : 'neutral'}>
+              {marked.length}
+            </Badge>
+          }
+        />
+        {!marked.length ? (
+          <div className="od-pos-none">
+            <p>No contracts open.</p>
+            <Button
+              variant="quiet"
+              size="sm"
+              onClick={() => navigate('Trade', 'trade')}
+            >
+              Write one
+            </Button>
+          </div>
+        ) : (
+          <div className="od-pos">
+            {marked.map(({ position: p, value, pnl }) => {
+              const dp = p.terms.reference === 'dividend' ? 4 : 2;
+              return (
+                <div key={p.id} className="od-pos-row">
+                  <div className="od-pos-what">
+                    <b>{p.terms.name}</b>
+                    <small>
+                      {qty(p.terms.quantity)} × {expiryLabel(p.terms.expiry)}
+                    </small>
+                  </div>
+                  <div className="od-pos-num">
+                    <b>{usd(value, dp)}</b>
+                    <small className={pnl >= 0 ? 'od-up' : 'od-down'}>
                       {pnl > 0 ? '+' : ''}
-                      {usd(pnl, p.terms.reference === 'dividend' ? 4 : 2)}
-                    </td>
-                    <td>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={requesting || desk.busy}
-                        onClick={() => {
-                          setRequesting(true);
-                          void desk
-                            .closeQuote(p.id)
-                            .then(setQuote)
-                            .catch((e) => desk.setToast((e as Error).message))
-                            .finally(() => setRequesting(false));
-                        }}
-                      >
-                        Close
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      {usd(pnl, dp)}
+                    </small>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={requesting || desk.busy}
+                    onClick={() => {
+                      setRequesting(true);
+                      void desk
+                        .closeQuote(p.id)
+                        .then(setQuote)
+                        .catch((e) => desk.setToast((e as Error).message))
+                        .finally(() => setRequesting(false));
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
+              );
+            })}
           </div>
-        </Panel>
-      )}
+        )}
+      </Panel>
 
-      {!!loans.length && (
-        <Panel>
-          <PanelHead title="Stock on loan" action={<Badge>{loans.length}</Badge>} />
-          <div className="od-table-wrap">
-            <table className="od-table">
-              <thead>
-                <tr>
-                  <th>Principal</th>
-                  <th>Term ends</th>
-                  <th className="num">Collateral</th>
-                  <th className="num">Interest prepaid</th>
-                  <th>
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {loans.map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      <b>{qty(p.quantity)} NVDA</b>
-                    </td>
-                    <td>{expiryLabel(p.expiry)}</td>
-                    <td className="num">{usd(p.collateral)}</td>
-                    <td className="num">{usd(p.prepaidInterest, 4)}</td>
-                    <td>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={desk.busy}
-                        onClick={() =>
-                          setReview({
-                            action: { type: 'recall', id: p.id },
-                            title: 'Review stock recall',
-                            label: 'Interest you receive',
-                            value: accruedInterest(
-                              p.prepaidInterest,
-                              p.opened,
-                              p.expiry,
-                              s.book.date,
-                            ),
-                            details: [
-                              ['Shares returned', `${qty(p.quantity)} NVDA`],
-                              [
-                                'Unused borrower collateral',
-                                'Returned to the borrower after repurchase',
-                              ],
-                            ],
-                          })
-                        }
-                      >
-                        Recall shares
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <Panel>
+        <PanelHead
+          title="Stock on loan"
+          action={<Badge>{loans.length}</Badge>}
+        />
+        {!loans.length ? (
+          <div className="od-pos-none">
+            <p>No shares lent out.</p>
+            <Button
+              variant="quiet"
+              size="sm"
+              onClick={() => navigate('Lending')}
+            >
+              Lend some
+            </Button>
           </div>
-        </Panel>
-      )}
+        ) : (
+          <div className="od-pos">
+            {loans.map((p) => (
+              <div key={p.id} className="od-pos-row">
+                <div className="od-pos-what">
+                  <b>{qty(p.quantity)} NVDA</b>
+                  <small>Until {expiryLabel(p.expiry)}</small>
+                </div>
+                <div className="od-pos-num">
+                  <b>{usd(p.collateral)}</b>
+                  <small>{usd(p.prepaidInterest, 4)} prepaid</small>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={desk.busy}
+                  onClick={() =>
+                    setReview({
+                      action: { type: 'recall', id: p.id },
+                      title: 'Review stock recall',
+                      label: 'Interest you receive',
+                      value: accruedInterest(
+                        p.prepaidInterest,
+                        p.opened,
+                        p.expiry,
+                        s.book.date,
+                      ),
+                      details: [
+                        ['Shares returned', `${qty(p.quantity)} NVDA`],
+                        [
+                          'Unused borrower collateral',
+                          'Returned to the borrower after repurchase',
+                        ],
+                      ],
+                    })
+                  }
+                >
+                  Recall
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Panel>
 
-      {!!shorts.length && (
-        <Panel>
-          <PanelHead
-            title="Protected shorts"
-            action={<Badge>{shorts.length}</Badge>}
-          />
-          <div className="od-table-wrap">
-            <table className="od-table">
-              <thead>
-                <tr>
-                  <th className="num">Quantity</th>
-                  <th className="num">Entry</th>
-                  <th className="num">Protection</th>
-                  <th>Term ends</th>
-                  <th className="num">Open P&amp;L</th>
-                  <th>
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {shorts.map((p) => {
-                  const pnl =
-                    p.quantity * (p.entry - s.market.price) - p.premium;
-                  return (
-                    <tr key={p.id}>
-                      <td className="num">{qty(p.quantity)}</td>
-                      <td className="num">{usd(p.entry)}</td>
-                      <td className="num">{usd(p.cap)}</td>
-                      <td>{expiryLabel(p.expiry)}</td>
-                      <td className={`num ${pnl >= 0 ? 'od-up' : 'od-down'}`}>
-                        {pnl > 0 ? '+' : ''}
-                        {usd(pnl)}
-                      </td>
-                      <td>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={desk.busy}
-                          onClick={() => {
-                            const close = shortCloseAmounts(
-                              p,
-                              s.market.price,
-                              s.book.date,
-                            );
-                            setReview({
-                              action: { type: 'close-short', id: p.id },
-                              title: 'Review short close',
-                              label: 'You pay to cover and repay',
-                              value: close.total,
-                              details: [
-                                ['Repurchase cost', usd(close.repurchase, 6)],
-                                ['Accrued borrow cost', usd(close.interest, 6)],
-                                [
-                                  'Total P&L including paid protection',
-                                  usd(close.pnl, 6),
-                                ],
-                              ],
-                            });
-                          }}
-                        >
-                          Cover &amp; repay
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      <Panel>
+        <PanelHead
+          title="Protected shorts"
+          action={<Badge>{shorts.length}</Badge>}
+        />
+        {!shorts.length ? (
+          <div className="od-pos-none">
+            <p>Nothing sold short.</p>
+            <Button
+              variant="quiet"
+              size="sm"
+              onClick={() => navigate('Lending')}
+            >
+              Open a short
+            </Button>
           </div>
-        </Panel>
-      )}
-
-      {!!settled.length && (
-        <Panel>
-          <PanelHead
-            title="Closed and settled"
-            description="Realised outcomes, kept for the record."
-          />
-          <div className="od-table-wrap">
-            <table className="od-table">
-              <thead>
-                <tr>
-                  <th>Contract</th>
-                  <th>Opened</th>
-                  <th className="num">Premium</th>
-                  <th className="num">Cash settled</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {settled.slice(0, 20).map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      <b>{p.terms.name}</b>
-                    </td>
-                    <td>{expiryLabel(p.opened)}</td>
-                    <td className="num">{usd(Math.abs(p.premium))}</td>
-                    <td className="num">{usd(p.cashFlow ?? 0)}</td>
-                    <td>
-                      <Badge tone={p.status === 'settled' ? 'green' : 'neutral'}>
-                        {p.status}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        ) : (
+          <div className="od-pos">
+            {shorts.map((p) => {
+              const pnl = p.quantity * (p.entry - s.market.price) - p.premium;
+              return (
+                <div key={p.id} className="od-pos-row">
+                  <div className="od-pos-what">
+                    <b>{qty(p.quantity)} NVDA short</b>
+                    <small>
+                      {usd(p.entry)} entry · {usd(p.cap)} cap ·{' '}
+                      {expiryLabel(p.expiry)}
+                    </small>
+                  </div>
+                  <div className="od-pos-num">
+                    <b className={pnl >= 0 ? 'od-up' : 'od-down'}>
+                      {pnl > 0 ? '+' : ''}
+                      {usd(pnl)}
+                    </b>
+                    <small>open</small>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={desk.busy}
+                    onClick={() => {
+                      const close = shortCloseAmounts(
+                        p,
+                        s.market.price,
+                        s.book.date,
+                      );
+                      setReview({
+                        action: { type: 'close-short', id: p.id },
+                        title: 'Review short close',
+                        label: 'You pay to cover and repay',
+                        value: close.total,
+                        details: [
+                          ['Repurchase cost', usd(close.repurchase, 6)],
+                          ['Accrued borrow cost', usd(close.interest, 6)],
+                          [
+                            'Total P&L including paid protection',
+                            usd(close.pnl, 6),
+                          ],
+                        ],
+                      });
+                    }}
+                  >
+                    Cover
+                  </Button>
+                </div>
+              );
+            })}
           </div>
-        </Panel>
-      )}
+        )}
+      </Panel>
 
       {quote && (
         <QuoteReview
@@ -660,8 +684,8 @@ function Collateral({ desk }: { desk: VaultController }) {
             color="var(--pc-magenta)"
           />
           <p className="od-note">
-            A share has one job at a time. Withdrawals and sales must leave every
-            remaining commitment fully funded.
+            A share has one job at a time. Withdrawals and sales must leave
+            every remaining commitment fully funded.
           </p>
         </div>
       </Panel>
@@ -740,7 +764,9 @@ function Activity({ desk }: { desk: VaultController }) {
   const s = desk.state!;
   const [query, setQuery] = useState('');
   const events = s.book.events.filter((e) =>
-    `${e.title} ${e.detail} ${e.date}`.toLowerCase().includes(query.toLowerCase()),
+    `${e.title} ${e.detail} ${e.date}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
   );
 
   const download = () => {
@@ -809,7 +835,9 @@ function Activity({ desk }: { desk: VaultController }) {
                     <small>{e.detail}</small>
                   </td>
                   <td>{e.date}</td>
-                  <td className={`num ${e.cash > 0 ? 'od-up' : e.cash < 0 ? 'od-down' : ''}`}>
+                  <td
+                    className={`num ${e.cash > 0 ? 'od-up' : e.cash < 0 ? 'od-down' : ''}`}
+                  >
                     {e.cash ? usd(e.cash) : '—'}
                   </td>
                   <td className="num">{e.shares ? qty(e.shares) : '—'}</td>

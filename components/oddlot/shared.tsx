@@ -33,8 +33,16 @@ export const usd = (n: number, d = 2) =>
       d === 2 && Math.abs(n) > 0 && Math.abs(n) < 0.01 ? 6 : d,
   }).format(n);
 
-export const qty = (n: number) =>
-  new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 }).format(n);
+/** Precision scales with size: a pool of 168,282 shares is a whole
+ *  number, a position of 1.25 keeps its cents, and only a fraction of
+ *  one share shows the six places the desk can actually size to. */
+export const qty = (n: number) => {
+  const a = Math.abs(n);
+  const digits = a >= 1000 ? 0 : a >= 1 ? 2 : 6;
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: digits,
+  }).format(n);
+};
 
 /** $950,000,000,000 is noise in a cell; $950B is the number. */
 export const compact = (n: number) => {

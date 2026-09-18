@@ -31,8 +31,12 @@
      particular need somewhere to stop. */
   --dk-gutter: clamp(20px, 4.4vw, 84px);
   --dk-bar: 60px;
-  --dk-sub: 48px;
 
+  /* A column that fills the window: the workspace takes whatever is
+     left, so the footer sits on the bottom edge of a short page rather
+     than above a block of empty canvas. */
+  display: flex;
+  flex-direction: column;
   position: relative;
   min-height: 100vh;
   color: var(--pc-text);
@@ -119,7 +123,7 @@
   align-items: center;
   gap: 24px;
   height: var(--dk-bar);
-  padding: 0 var(--dk-gutter);
+  padding: 0 32px;
   border-bottom: 1px solid var(--pc-line-soft);
   background: color-mix(in srgb, var(--pc-void) 84%, transparent);
   backdrop-filter: blur(16px) saturate(1.4);
@@ -131,23 +135,38 @@
   flex: none;
   color: var(--pc-text);
 }
+
 .od-brand b {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.2em;
 }
+/* The nav left the bar for the rail, so nothing pushes the right
+   cluster over any more. */
+.od-bar > .od-bar-right {
+  margin-left: auto;
+}
 
+/* ==================================================================
+   Navigation — the product bar
+   ================================================================== */
+
+/* The products run across the top of the dashboard, each opening to
+   the sections and choices it owns. */
 .od-nav {
   display: flex;
   align-items: center;
   gap: 2px;
   margin-right: auto;
 }
+.od-nav-group {
+  position: relative;
+}
 .od-nav-item {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 34px;
+  height: 36px;
   padding: 0 13px;
   border: 0;
   border-radius: var(--pc-r-sm);
@@ -156,12 +175,13 @@
   font-family: inherit;
   font-size: 13.5px;
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     color 0.15s,
     background 0.15s;
 }
-.od-nav-item svg {
+.od-nav-item svg:first-child {
   opacity: 0.7;
 }
 .od-nav-item:hover {
@@ -173,8 +193,93 @@
   background: var(--pc-cyan-wash);
   box-shadow: inset 0 0 0 1px var(--pc-cyan-edge);
 }
-.od-nav-item.active svg {
+.od-nav-item.active svg:first-child {
   opacity: 1;
+}
+/* Points down only while this product's menu is the open one. */
+.od-nav-item svg:last-child {
+  opacity: 0.5;
+  transform: rotate(-90deg);
+  transition: transform 0.18s;
+}
+.od-nav-item[aria-expanded='true'] svg:last-child {
+  transform: none;
+  opacity: 0.9;
+}
+
+/* Sits flush under the item with the offset drawn as a transparent
+   border, so the pointer travelling from the product to its menu never
+   crosses a gap that would count as leaving. */
+.od-nav-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0;
+  border-top: 6px solid transparent;
+  background-clip: padding-box;
+  z-index: 60;
+  display: flex;
+  gap: 26px;
+  min-width: 190px;
+  padding: 14px 16px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-lg);
+  background: var(--pc-void);
+  box-shadow: var(--pc-shadow, 0 18px 44px rgba(0, 0, 0, 0.32));
+}
+/* One column per section, so Options and Structures stand side by side
+   with their own choices under them rather than in one long list. */
+.od-nav-section {
+  min-width: 132px;
+}
+.od-nav-link {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--pc-r-sm);
+  background: none;
+  color: var(--pc-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.od-nav-link:hover {
+  background: var(--pc-surface);
+}
+.od-nav-link.active {
+  color: var(--pc-cyan);
+}
+.od-nav-picks {
+  display: flex;
+  flex-direction: column;
+  margin-top: 2px;
+}
+.od-nav-pick {
+  border: 0;
+  border-radius: var(--pc-r-sm);
+  padding: 5px 8px;
+  background: none;
+  color: var(--pc-muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.od-nav-pick:hover {
+  color: var(--pc-text);
+  background: var(--pc-surface);
+}
+.od-nav-pick.active {
+  color: var(--pc-cyan);
+  font-weight: 500;
 }
 
 .od-bar-right {
@@ -278,26 +383,6 @@
 
 /* second row: the view's own tabs, plus whatever that view needs
    pinned to the top right */
-.od-subbar {
-  position: sticky;
-  top: var(--dk-bar);
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: var(--dk-sub);
-  padding: 7px var(--dk-gutter);
-  border-bottom: 1px solid var(--pc-line-soft);
-  background: color-mix(in srgb, var(--pc-void) 86%, transparent);
-  backdrop-filter: blur(16px);
-}
-.od-subbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 /* With no card edges left, the gap between two panels is the only
    thing separating them, so it is larger than it was — a 18px gutter
    reads as a boundary when both sides are boxed and as a paragraph
@@ -305,23 +390,26 @@
 .od-main {
   display: flex;
   flex-direction: column;
+  flex: 1 0 auto;
   gap: 40px;
+  width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 28px var(--dk-gutter) 72px;
+  padding: 40px 32px 64px;
 }
 .od-main:focus {
   outline: none;
 }
 
 .od-foot {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   max-width: 1560px;
   margin: 0 auto;
-  padding: 18px var(--dk-gutter) 32px;
+  padding: 18px 32px 32px;
   border-top: 1px solid var(--pc-line-soft);
   color: var(--pc-muted);
   font-size: 12.5px;
@@ -730,6 +818,34 @@
   gap: 14px;
   padding: 0;
 }
+/* The greeks read as one row, five columns, the way a stats block on a
+   contract page does: label over value, a rule between columns. */
+.od-greeks {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0 20px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-greeks .od-stat + .od-stat {
+  padding-left: 20px;
+  border-left: 1px solid var(--pc-line-soft);
+}
+.od-greeks .od-stat strong {
+  font-size: 17px;
+}
+@media (max-width: 760px) {
+  .od-greeks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 16px;
+  }
+  .od-greeks .od-stat + .od-stat {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
 .od-panel-foot {
   display: flex;
   align-items: center;
@@ -822,20 +938,141 @@
   overflow-x: visible;
 }
 
+/* Same column, same rhythm and same widths as .od-work: the band, the
+   outcome, then the terms. The ticket was capped at 460px inside a
+   760px column, which left it looking like a form someone had forgotten
+   to finish laying out. */
 .od-borrow {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 32px;
-  max-width: 760px;
 }
-.od-borrow .od-ticket {
-  max-width: 460px;
+.od-outcome-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.od-work {
+/* Every market row is a way in: it reads as one, and the one the
+   ticket is showing stays lit. */
+.od-market-row {
+  cursor: pointer;
+}
+.od-market-row:hover td {
+  background: var(--pc-hover, rgba(255, 255, 255, 0.03));
+}
+.od-market-row.selected td {
+  background: var(--pc-cyan-wash);
+}
+
+/* The two outcomes at expiry, side by side: what it is called, what
+   it pays, and one sentence on what happens. */
+.od-outcomes {
   display: grid;
-  grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
-  gap: 40px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 28px;
+}
+.od-outcomes > .od-outcome + .od-outcome {
+  padding-left: 28px;
+  border-left: 1px solid var(--pc-line-soft);
+}
+.od-outcome {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-outcome > span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-outcome strong {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.od-outcome strong.up {
+  color: var(--pc-up);
+}
+.od-outcome small {
+  color: var(--pc-body);
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (max-width: 720px) {
+  .od-outcomes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .od-outcomes > .od-outcome + .od-outcome {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+/* The product screens: the picture on the left, the ticket beside it
+   on the right.
+ 
+   Stacked, the ticket sat below the fold and every change to a size or
+   a strike was made with the payoff off-screen — the one thing the
+   reader is changing it against. Side by side, the chart redraws in
+   view while they type. */
+.od-work,
+.od-borrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
   align-items: start;
+  gap: 34px;
+}
+/* Placement rather than markup order: the screens disagree about which
+   of the two they render first, and the reading order is the same on
+   all of them. Column 1 takes however many panels a screen has; the
+   ticket holds column 2 from the top row. */
+.od-insight,
+.od-chain,
+.od-stack,
+.od-work > .od-panel:not(.od-ticket),
+.od-borrow > .od-panel:not(.od-ticket) {
+  order: 1;
+  grid-column: 1;
+  grid-row: 1;
+}
+/* A screen with more than one panel on the left stacks them in the one
+   cell. Left as separate grid rows, the ticket spanning beside them
+   inflated the first row to its own height and opened a hole between
+   them. */
+.od-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+}
+/* Two different jobs, so they are two surfaces. Browsing a ladder and
+   assembling a contract are not the same activity, and on one flat
+   field they read as one. The divider is a rule down the ticket's
+   left, the way the toned panels carry theirs — a box around it would
+   be chrome. */
+.od-ticket {
+  order: 2;
+  grid-column: 2;
+  grid-row: 1;
+  padding-left: 34px;
+  border-left: 1px solid var(--pc-line-soft);
+  /* It is the shorter column, so it keeps pace with the chart rather
+     than leaving a column of air beside it. */
+  position: sticky;
+  top: calc(var(--dk-bar) + 14px);
+}
+/* Anything that is neither — the structure cards, the title row —
+   spans the whole width above them. */
+.od-work > .od-templates,
+.od-work > .od-row-end,
+.od-borrow > .od-row-end {
+  order: 0;
+  grid-column: 1 / -1;
 }
 
 /* ---------- stats, badges, lines ---------- */
@@ -1241,8 +1478,8 @@
 .od-payoff {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px 18px 18px;
+  gap: 8px;
+  padding: 13px 18px 14px;
   border-radius: var(--pc-r-lg);
   background: var(--pc-plot);
 }
@@ -1404,12 +1641,258 @@
 }
 
 /* ==================================================================
+   Holdings — the balance, and what is open against it
+   ================================================================== */
+
+.od-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: start;
+  gap: 28px;
+}
+.od-open-main {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.od-open-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+/* A rail of headings is a list, not five separate panels, so the
+   sections carry their own rule instead of a gutter each. */
+.od-open-side > .od-panel + .od-panel {
+  padding-top: 10px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-open-side .od-panel-head {
+  padding-bottom: 6px;
+}
+
+.od-open-head > span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.od-open-head > strong {
+  display: block;
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+}
+.od-open-move {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+.od-open-move.up {
+  color: var(--pc-up);
+}
+.od-open-move.down {
+  color: var(--pc-down);
+}
+.od-open-move.flat {
+  color: var(--pc-muted);
+}
+.od-open-move em {
+  color: var(--pc-muted);
+  font-style: normal;
+}
+
+.od-value {
+  display: block;
+  width: 100%;
+  height: 210px;
+  color: var(--pc-up);
+}
+.od-value.down {
+  color: var(--pc-down);
+}
+.od-value-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.od-value-now line {
+  stroke: currentColor;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+/* The chart's own empty state, at the height the chart would be, so
+   the screen does not jump when the line arrives. */
+.od-open-blank {
+  display: flex;
+  align-items: center;
+  height: 210px;
+  border-top: 1px solid var(--pc-line-soft);
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-open-blank p {
+  max-width: 34ch;
+  color: var(--pc-muted);
+  font-size: 13.5px;
+}
+
+.od-range {
+  display: flex;
+  gap: 2px;
+}
+.od-range button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 5px 12px;
+  background: none;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.od-range button:hover:not(:disabled) {
+  color: var(--pc-text);
+}
+.od-range button.active {
+  color: var(--pc-text);
+  border-bottom-color: currentColor;
+}
+.od-range button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.od-power {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--pc-line-soft);
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-power > div:first-child {
+  margin-right: auto;
+}
+.od-power span {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+}
+.od-power small {
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-power > b {
+  font-size: 19px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- the open-position rail ---------- */
+
+.od-pos {
+  display: flex;
+  flex-direction: column;
+}
+.od-pos-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 18px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-pos-row:first-child {
+  border-top: 0;
+}
+.od-pos-what {
+  min-width: 0;
+  margin-right: auto;
+}
+.od-pos-what b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.od-pos-what small,
+.od-pos-num small {
+  display: block;
+  color: var(--pc-muted);
+  font-size: 11.5px;
+}
+.od-pos-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.od-pos-num b {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.od-pos-num small.od-up {
+  color: var(--pc-up);
+}
+.od-pos-num small.od-down {
+  color: var(--pc-down);
+}
+/* A section with nothing in it yet. Quiet enough that a rail of five
+   headings does not read as five things needing attention. */
+.od-pos-none {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 18px 4px;
+}
+.od-pos-none p {
+  color: var(--pc-muted);
+  font-size: 12.5px;
+}
+
+/* The stock row carries a logo, and its two transfers sit on their own
+   line under it rather than squeezing a third column into 360px. */
+.od-pos-asset {
+  gap: 11px;
+}
+.od-pos-actions {
+  border-top: 0;
+  padding: 0 18px 6px;
+  justify-content: flex-end;
+}
+
+/* ==================================================================
    Narrow
    ================================================================== */
 
 @media (max-width: 1180px) {
-  .od-work {
+  .od-open {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .od-work,
+  .od-borrow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Stacked, the divider is the rule above it. */
+  .od-ticket {
+    position: static;
+    padding-left: 0;
+    padding-top: 28px;
+    border-left: 0;
+    border-top: 1px solid var(--pc-line-soft);
   }
   .od-grid-4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1424,13 +1907,20 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   .od-nav {
     order: 3;
     width: 100%;
     overflow-x: auto;
     scrollbar-width: none;
   }
+  .od-bar {
+    height: auto;
+    flex-wrap: wrap;
+    padding-bottom: 8px;
+  }
+}
+@media (max-width: 720px) {
   .od-bar {
     height: auto;
     flex-wrap: wrap;
@@ -1450,9 +1940,6 @@
     gap: 7px;
     padding: 0 9px;
   }
-  .od-subbar {
-    position: static;
-  }
   .od-grid-2,
   .od-grid-3,
   .od-grid-4 {
@@ -1468,66 +1955,6 @@
 /* ==================================================================
    Portfolio
    ================================================================== */
-
-/* One figure is the answer and the rest support it, so the answer gets
-   its own column rather than being the first of four equal tiles. */
-.od-summary {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 2fr);
-  padding: 6px 0 22px;
-  border-bottom: 1px solid var(--pc-line-soft);
-}
-.od-summary-main {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-right: 22px;
-}
-.od-summary-main > span {
-  color: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-.od-summary-main > strong {
-  font-size: 34px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-}
-.od-summary-sub {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  margin-top: 4px;
-  color: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
-}
-.od-summary-sub span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.od-summary-sub .up {
-  color: var(--pc-up);
-}
-.od-summary-sub .down {
-  color: var(--pc-down);
-}
-.od-summary-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.od-summary-stats.one {
-  grid-template-columns: minmax(0, 1fr);
-}
-.od-summary-stats .od-stat {
-  padding: 4px 22px;
-  border-left: 1px solid var(--pc-line-soft);
-}
 
 .od-overview-grid {
   align-items: stretch;
@@ -1901,20 +2328,37 @@
 .od-main > .od-segmented {
   align-self: flex-start;
 }
+/* The control line belongs to the thing under it, so it sits close to
+   it rather than floating a full 40px section gutter away on either
+   side. */
 .od-row-end {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 16px;
+  margin-bottom: -26px;
+}
+.od-templates + .od-row-end {
+  margin-top: -26px;
 }
 
-.od-ticket {
-  position: sticky;
-  top: calc(var(--dk-bar) + var(--dk-sub) + 14px);
-}
+/* Not sticky. It was the left column of a two-column screen and stuck
+   beside a much taller chart; stacked, there is nothing beside it to
+   stay level with, and pinning it just parks it on top of whatever
+   comes next. */
 .od-insight {
   display: flex;
   flex-direction: column;
   gap: 14px;
   min-width: 0;
+}
+/* The surface is its own chapter under the chart and the greeks, so it
+   carries a rule and a breath of air rather than running on from the
+   pricing basis line. */
+.od-insight > .od-panel + .od-panel {
+  margin-top: 14px;
+  padding-top: 26px;
+  border-top: 1px solid var(--pc-line-soft);
 }
 
 .od-control {
@@ -1945,10 +2389,26 @@
   line-height: 1.45;
 }
 
+/* A control row, so both halves are the same box.
+
+   The unscoped `input, select` rule in globals.css gives every field a
+   9px top margin — right when a label sits above it, wrong when the
+   field is sitting beside something. It is cancelled here, and the
+   chips are sized to the input's 42px rather than to their own
+   content. */
 .od-size-row {
   display: grid;
   grid-template-columns: minmax(96px, 0.8fr) minmax(0, 1.2fr);
+  align-items: center;
   gap: 8px;
+}
+/* Specific enough to beat it: the globals.css selector carries two
+   :not() attribute tests, so a plain class rule loses to it. */
+.pc-desk .od-size-row > input:not([type='range']) {
+  margin: 0;
+}
+.od-size-row .od-chips button {
+  height: 34px;
 }
 .od-chips {
   display: grid;
@@ -1995,110 +2455,384 @@
 
 /* The scoreboard. The two numbers a reader actually wants, at the size
    those numbers deserve. */
-.od-score {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 0;
-  border-top: 1px solid var(--pc-line-soft);
-  border-bottom: 1px solid var(--pc-line-soft);
-}
-.od-score-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-}
-.od-score-cell.right {
-  text-align: right;
-}
-.od-score-cell span {
-  display: block;
-  margin-bottom: 3px;
-  color: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-.od-score-cell strong {
-  font-size: 21px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-.od-score-cell strong.up {
-  color: var(--pc-up);
-}
-.od-score-cell strong.down {
-  color: var(--pc-down);
-}
-.od-score-bars {
-  display: flex;
-  gap: 3px;
-  height: 8px;
-}
-.od-score-bars i {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-.od-score-bars i.down {
-  background: var(--pc-down);
-}
-.od-score-bars i.up {
-  background: var(--pc-up);
-}
-/* An uncapped payoff fades out at the end rather than stopping, because
-   the bar is not measuring anything past that point. */
-.od-score-bars i.up.open {
-  background: linear-gradient(
-    90deg,
-    var(--pc-up) 0%,
-    color-mix(in srgb, var(--pc-up) 20%, transparent) 100%
-  );
-}
-.od-score-foot {
+
+/* ---------- the strike ladder ---------- */
+
+/* The ladder's controls, on the screen's top line beside the view
+   toggles rather than inside the panel they steer. */
+.od-chain-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+/* Fixed width, and specific enough to beat the full-width form
+   select it would otherwise inherit: the hourly test-clock entries
+   are three times the length of a date and were sizing the control
+   to their own longest option.
+
+   38px is the segmented controls' outer height — button 30, padding 3
+   either side, border 1 — so the whole line sits on one baseline. */
+.pc-desk select.od-chain-expiry {
+  width: 210px;
+  height: 38px;
+  /* The form select carries a 9px top margin for the label that
+     normally sits above it. On a control line there is no label, and
+     the margin was pushing it half that far below the two segmented
+     controls beside it. */
+  margin: 0;
+  padding: 0 32px 0 12px;
+  font-size: 13px;
+  /* The chevron is drawn at a fixed offset tuned for the 42px form
+     select; at 38px it has to come up with the box. */
+  background-position:
+    calc(100% - 17px) 17px,
+    calc(100% - 12px) 17px;
+}
+.od-ladder td,
+.od-ladder th {
+  white-space: nowrap;
+}
+.od-ladder td .od-button {
+  min-width: 78px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+/* The ladder scrolls inside the panel rather than the page, so the
+   controls above it and the ticket beside it stay put while a reader
+   walks the strikes. */
+.od-ladder-scroll {
+  /* Runs to the bottom of the window rather than stopping short and
+     leaving the page half empty under it. */
+  max-height: calc(100vh - var(--dk-bar) - 156px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.od-ladder thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--pc-void);
+}
+
+/* Where the share price actually falls between two strikes. */
+/* Where spot falls in the ladder: a solid rule across the table between
+   the two strikes that bracket it, and the price on a filled pill
+   sitting on the rule. It is the one line a reader measures against,
+   so it is the one colored line in the table. */
+.od-ladder-spot td {
+  position: relative;
+  height: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1.5px solid var(--pc-up);
+}
+.od-ladder-spot td b {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -50%);
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: var(--pc-up);
+  color: var(--pc-void);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+/* ---------- the market strip ---------- */
+
+/* One row per underlying under the vault: mark, day, line. A row is a
+   way into that asset's ticket, so it is a button and reads as one. */
+.od-strip {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+.od-strip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 0 6px;
+}
+.od-strip-head h2 {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.od-strip-head span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-strip-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 120px auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 11px 4px;
+  border: 0;
+  border-top: 1px solid var(--pc-line-soft);
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.od-strip-row:hover {
+  background: var(--pc-hover);
+}
+.od-strip-what {
+  min-width: 0;
+}
+.od-strip-what b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.od-strip-what small,
+.od-strip-num small {
+  display: block;
   color: var(--pc-muted);
   font-size: 11.5px;
 }
-.od-score-foot b {
-  color: var(--pc-body);
+.od-strip-line {
+  height: 34px;
+}
+.od-strip-line .od-spark {
+  height: 100%;
+}
+.od-strip-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.od-strip-num b {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.od-strip-num small.od-up {
+  color: var(--pc-up);
+}
+.od-strip-num small.od-down {
+  color: var(--pc-down);
+}
+@media (max-width: 720px) {
+  .od-strip-row {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+  }
+  .od-strip-line {
+    display: none;
+  }
+}
+
+/* ---------- lending: the read, then the pool ---------- */
+
+/* One number the screen is about, with the three figures behind it. */
+.od-read {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.od-read-eyebrow {
+  color: var(--pc-muted);
   font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.od-read-label {
+  margin-top: 22px;
+  color: var(--pc-body);
+  font-size: 14px;
+}
+.od-read > b {
+  margin-top: 4px;
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
   font-variant-numeric: tabular-nums;
 }
-.od-score-ratio {
-  margin-left: auto;
-  color: var(--pc-cyan);
-  font-family: var(--pc-mono);
+.od-read > b.up {
+  color: var(--pc-up);
 }
+.od-read > b.down {
+  color: var(--pc-down);
+}
+.od-read > p {
+  margin-top: 10px;
+  color: var(--pc-muted);
+  font-size: 13px;
+}
+.od-read .od-error {
+  margin-top: 18px;
+}
+.od-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 20px;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-figures .od-stat + .od-stat {
+  padding-left: 20px;
+  border-left: 1px solid var(--pc-line-soft);
+}
+.od-figures .od-stat strong {
+  font-size: 17px;
+}
+
+/* The pool: its two rates, one line on its depth, and the curve. */
+.od-pool {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 28px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-pool-rates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 36px;
+}
+.od-pool-rates .od-stat strong {
+  font-size: 24px;
+  letter-spacing: -0.025em;
+}
+.od-pool-rates .od-stat strong.up {
+  color: var(--pc-up);
+}
+.od-pool-rates .od-stat strong.down {
+  color: var(--pc-down);
+}
+.od-pool-rates p {
+  flex: 1 1 260px;
+  margin: 0 0 3px;
+  color: var(--pc-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+@media (max-width: 720px) {
+  .od-figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 16px;
+  }
+  .od-figures .od-stat + .od-stat {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+/* ---------- the lending pool ---------- */
+
+.od-rates {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.od-rates-borrow,
+.od-rates-supply {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.od-rates-borrow {
+  stroke: var(--pc-down);
+}
+.od-rates-supply {
+  stroke: var(--pc-up);
+}
+.od-rates-now line {
+  stroke: var(--pc-line);
+  stroke-dasharray: 3 4;
+}
+.od-rates-now circle {
+  fill: var(--pc-down);
+}
+.od-rates-now circle.sup {
+  fill: var(--pc-up);
+}
+
+.od-rate-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 16px;
+  font-size: 13px;
+}
+.od-rate-key span {
+  color: var(--pc-muted);
+}
+.od-rate-key b {
+  font-variant-numeric: tabular-nums;
+}
+.od-rate-key .borrow b {
+  color: var(--pc-down);
+}
+.od-rate-key .supply b {
+  color: var(--pc-up);
+}
+.od-rate-key .at {
+  margin-left: auto;
+  font-family: var(--pc-mono);
+  font-size: 11.5px;
+}
+
+/* What the trade does to the position's health, read before it is
+   signed. It survived the health card being deleted; its styles did
+   not. */
+.od-projection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 12px 0;
+  border-top: 1px solid var(--pc-line-soft);
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-projection span {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-projection b {
+  font-size: 19px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.od-projection.safe b {
+  color: var(--pc-up);
+}
+.od-projection.watch b {
+  color: var(--pc-warn);
+}
+.od-projection.risk b {
+  color: var(--pc-down);
+}
+
+/* ==================================================================
+   Restored: rules for classes the views still render, which the last
+   pass removed with the decoration around them.
+   ================================================================== */
 
 .od-lines {
   display: flex;
   flex-direction: column;
-}
-
-/* Its own row, below the plot's tinted field rather than butted against
-   the rounded corner of it. The 1px background grid it used to draw
-   its dividers with only worked while the stats were filled. */
-.od-greeks {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--pc-line-soft);
-}
-.od-greeks .od-stat {
-  padding-right: 18px;
-}
-.od-greeks .od-stat + .od-stat {
-  padding-left: 18px;
-  border-left: 1px solid var(--pc-line-soft);
-}
-.od-greeks .od-stat strong {
-  font-size: 16px;
 }
 
 .od-legs-label {
@@ -2111,44 +2845,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
-.od-leg,
-.od-basic-leg {
-  display: grid;
-  gap: 8px;
-  align-items: end;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--pc-line-soft);
-}
-.od-leg {
-  grid-template-columns: 22px repeat(3, minmax(0, 1fr)) auto;
-}
-.od-basic-leg {
-  grid-template-columns: 22px minmax(0, 1fr) minmax(88px, 0.8fr);
-}
-.od-leg-side {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  margin-bottom: 8px;
-  border-radius: 6px;
-  font-family: var(--pc-mono);
-  font-size: 13px;
-}
-.od-leg-side.buy {
-  background: var(--pc-up-wash);
-  color: var(--pc-up);
-}
-.od-leg-side.sell {
-  background: var(--pc-down-wash);
-  color: var(--pc-down);
-}
-.od-basic-leg strong {
-  font-size: 13.5px;
-}
 
-/* A quiet way out of Basic, not a piece of furniture. A dashed box the
-   width of the page is a louder object than the sentence inside it. */
 .od-chain-cue {
   display: inline-flex;
   align-items: center;
@@ -2163,41 +2860,31 @@
   cursor: pointer;
   transition: color 0.15s;
 }
+
 .od-chain-cue:hover {
   color: var(--pc-cyan);
 }
 
-/* ---------- the surface ---------- */
-
-.od-surface {
-  padding: 8px 18px 18px;
-}
-.od-surface svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  cursor: grab;
-  touch-action: pan-y;
-}
-.od-surface svg:active {
-  cursor: grabbing;
-}
 .od-surface-cell {
   stroke: color-mix(in srgb, var(--pc-void) 45%, transparent);
   stroke-width: 0.4;
 }
+
 .od-surface-edge {
   fill: none;
   stroke-width: 2.2;
   stroke-linejoin: round;
 }
+
 .od-surface-edge.today {
   stroke: var(--pc-magenta);
   stroke-dasharray: 5 4;
 }
+
 .od-surface-edge.expiry {
   stroke: var(--pc-cyan);
 }
+
 .od-surface-key {
   display: flex;
   flex-wrap: wrap;
@@ -2207,98 +2894,33 @@
   color: var(--pc-muted);
   font-size: 11.5px;
 }
+
 .od-surface-key span {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
+
 .od-surface-key i {
   width: 16px;
   height: 2px;
   border-radius: 1px;
 }
+
 .od-surface-key i.today {
   background: var(--pc-magenta);
 }
+
 .od-surface-key i.expiry {
   background: var(--pc-cyan);
 }
+
 .od-surface-range {
   font-family: var(--pc-mono);
 }
+
 .od-surface-hint {
   margin-left: auto;
-}
-
-/* ==================================================================
-   Pre-IPO
-   ================================================================== */
-
-.od-market-row {
-  cursor: pointer;
-}
-.od-market-row.selected td {
-  background: var(--pc-cyan-wash);
-}
-.od-util {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: flex-end;
-  width: 100%;
-}
-.od-util i {
-  display: block;
-  height: 5px;
-  min-width: 2px;
-  max-width: 54px;
-  border-radius: 3px;
-  background: var(--pc-cyan);
-}
-.od-util span {
-  width: 34px;
-  font-family: var(--pc-mono);
-  font-size: 12px;
-}
-
-/* Two outcomes side by side, divided by a rule rather than drawn as
-   two boxes — one of which used to be filled green, which made a pair
-   of equally-certain outcomes look like a recommendation. */
-.od-outcomes {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 28px;
-}
-.od-outcomes > .od-outcome + .od-outcome {
-  padding-left: 28px;
-  border-left: 1px solid var(--pc-line-soft);
-}
-.od-outcome {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 14px 0 0;
-  border-top: 1px solid var(--pc-line-soft);
-}
-.od-outcome > span {
-  color: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.od-outcome strong {
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-}
-.od-outcome strong.up {
-  color: var(--pc-up);
-}
-.od-outcome small {
-  color: var(--pc-body);
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .od-reasons {
@@ -2309,6 +2931,7 @@
   padding: 0;
   list-style: none;
 }
+
 .od-reasons li {
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
@@ -2318,14 +2941,17 @@
   border-radius: var(--pc-r-sm);
   background: var(--pc-surface-2);
 }
+
 .od-reasons svg {
   margin-top: 2px;
   color: var(--pc-down);
 }
+
 .od-reasons b {
   display: block;
   font-size: 13px;
 }
+
 .od-reasons small {
   display: block;
   margin-top: 3px;
@@ -2334,157 +2960,23 @@
   line-height: 1.5;
 }
 
-.od-subhead {
-  margin-top: 4px;
-  color: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-.od-bullets {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding-left: 18px;
-  color: var(--pc-body);
-  font-size: 12.5px;
-  line-height: 1.5;
-}
-
-/* ---------- the tape ---------- */
-
 .od-tape {
   display: flex;
   flex-direction: column;
   padding: 6px 18px 16px;
 }
-.od-print {
-  display: grid;
-  grid-template-columns: 22px 78px 44px minmax(0, 1fr) minmax(0, 1fr) 48px 62px;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--pc-line-soft);
-  font-family: var(--pc-mono);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  animation: pc-rise 0.25s ease both;
-}
-.od-print:last-child {
-  border-bottom: 0;
-}
-.od-print b {
-  font-weight: 500;
-}
+
 .od-print-size,
 .od-print-price {
   text-align: right;
 }
+
 .od-print-effect {
   color: var(--pc-muted);
   font-size: 10.5px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.od-print time {
-  color: var(--pc-faint);
-  text-align: right;
-}
-
-/* ==================================================================
-   Lending
-   ================================================================== */
-
-.od-lend-work {
-  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
-}
-.od-health.safe {
-  border-color: color-mix(in srgb, var(--pc-up) 30%, transparent);
-}
-.od-health.watch {
-  border-color: color-mix(in srgb, var(--pc-warn) 34%, transparent);
-}
-.od-health.risk {
-  border-color: color-mix(in srgb, var(--pc-down) 36%, transparent);
-}
-.od-health-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-.od-health-top span {
-  display: block;
-  margin-bottom: 3px;
-  color: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-.od-health-top strong {
-  font-size: 32px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
-}
-.od-health.safe .od-health-top strong {
-  color: var(--pc-up);
-}
-.od-health.watch .od-health-top strong {
-  color: var(--pc-warn);
-}
-.od-health.risk .od-health-top strong {
-  color: var(--pc-down);
-}
-
-.od-projection {
-  display: flex;
-  gap: 24px;
-  padding: 12px 0;
-  border-top: 1px solid var(--pc-line-soft);
-  border-bottom: 1px solid var(--pc-line-soft);
-}
-.od-projection span {
-  display: block;
-  color: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.od-projection b {
-  font-size: 18px;
-  font-variant-numeric: tabular-nums;
-}
-.od-projection.safe b {
-  color: var(--pc-up);
-}
-.od-projection.watch b {
-  color: var(--pc-warn);
-}
-.od-projection.risk b {
-  color: var(--pc-down);
-}
-/* A max-width on a <td> does not constrain an auto-layout table, so
-   the rationale ran off the right edge instead of wrapping. The block
-   inside the cell is what carries the measure. */
-.od-why {
-  display: block;
-  max-width: 32ch;
-  color: var(--pc-muted);
-  font-size: 11.5px;
-  line-height: 1.45;
-  text-align: left;
-  white-space: normal;
-}
-
-/* ==================================================================
-   Dialogs and the walkthrough
-   ================================================================== */
 
 .od-transfer-asset {
   display: flex;
@@ -2494,37 +2986,31 @@
   border-top: 1px solid var(--pc-line-soft);
   border-bottom: 1px solid var(--pc-line-soft);
 }
+
 .od-transfer-asset b {
   display: block;
   font-size: 14px;
 }
+
 .od-transfer-asset small {
   display: block;
   margin-top: 2px;
   color: var(--pc-muted);
   font-size: 12px;
 }
+
 .od-modal-actions {
   display: flex;
   gap: 8px;
 }
+
 .od-modal-actions > * {
   flex: 1;
 }
 
-.od-welcome-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: color-mix(in srgb, var(--pc-void) 76%, transparent);
-  backdrop-filter: blur(8px);
-}
 .od-welcome {
   /* <dialog> brings its own absolute positioning and auto margins,
-     which override the scrim's centring and pin the card to the left. */
+  which override the scrim's centring and pin the card to the left. */
   position: static;
   inset: auto;
   margin: 0;
@@ -2532,7 +3018,6 @@
   max-width: none;
   max-height: none;
   color: inherit;
-
   width: min(520px, 100%);
   border: 1px solid var(--pc-line);
   border-radius: var(--pc-r-xl);
@@ -2541,11 +3026,12 @@
   overflow: hidden;
   animation: pc-rise 0.3s ease both;
 }
+
 .od-welcome-art {
   display: block;
   width: 100%;
   /* Fixed height, so the drawing scales to fit rather than stretching
-     to the dialog's width and taking its 9px labels to twenty. */
+  to the dialog's width and taking its 9px labels to twenty. */
   height: 168px;
   padding: 22px 26px 4px;
   background:
@@ -2556,6 +3042,7 @@
     ),
     var(--pc-surface-2);
 }
+
 .od-welcome-cap {
   fill: var(--pc-muted);
   font-family: var(--pc-mono);
@@ -2563,9 +3050,11 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
+
 .od-welcome-body {
   padding: 22px 26px 6px;
 }
+
 .od-welcome-kicker {
   display: inline-flex;
   align-items: center;
@@ -2577,17 +3066,20 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
+
 .od-welcome h2 {
   margin-bottom: 8px;
   font-size: 21px;
   font-weight: 600;
   letter-spacing: -0.025em;
 }
+
 .od-welcome p {
   color: var(--pc-body);
   font-size: 13.5px;
   line-height: 1.6;
 }
+
 .od-welcome-foot {
   display: flex;
   align-items: center;
@@ -2595,10 +3087,12 @@
   gap: 16px;
   padding: 18px 26px 22px;
 }
+
 .od-welcome-pips {
   display: flex;
   gap: 6px;
 }
+
 .od-welcome-pips button {
   width: 22px;
   height: 4px;
@@ -2609,61 +3103,23 @@
   cursor: pointer;
   transition: background 0.16s;
 }
+
 .od-welcome-pips button.on {
   background: var(--pc-cyan);
 }
+
 .od-welcome-actions {
   display: flex;
   gap: 6px;
 }
 
-/* ==================================================================
-   Narrow, for the views
-   ================================================================== */
-
-@media (max-width: 1180px) {
-  .od-ticket {
-    position: static;
-  }
-  .od-summary {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 18px;
-  }
-  .od-summary-main {
-    padding-right: 0;
-  }
-  .od-lend-work {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 @media (max-width: 720px) {
-  .od-intents,
-  .od-outcomes,
-  .od-allocation,
-  .od-summary-stats,
-  .od-size-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .od-summary-stats {
-    row-gap: 16px;
-  }
-  .od-summary-stats .od-stat {
-    padding: 0;
-    border-left: 0;
-  }
-  .od-print {
-    grid-template-columns: 22px 1fr 40px 1fr 56px;
-  }
   .od-print-effect,
   .od-print time {
     display: none;
   }
 }
 
-/* ---------- the quote review ---------- */
-
-/* The one figure that decides whether to sign, at the size that decides
-   it. Everything else in the dialog is support. */
 .od-quote-premium {
   display: flex;
   flex-direction: column;
@@ -2671,6 +3127,7 @@
   padding: 4px 0 4px 16px;
   border-left: 2px solid var(--pc-cyan);
 }
+
 .od-quote-premium > span {
   color: var(--pc-muted);
   font-family: var(--pc-mono);
@@ -2678,12 +3135,14 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
+
 .od-quote-premium > strong {
   font-size: 30px;
   font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.1;
 }
+
 .od-quote-premium > small {
   color: var(--pc-muted);
   font-size: 12px;
@@ -2694,84 +3153,26 @@
   border-radius: var(--pc-r);
   background: var(--pc-plot);
 }
+
 .od-quote-curve b {
   display: block;
   margin-bottom: 5px;
   font-size: 13.5px;
   text-transform: capitalize;
 }
+
 .od-quote-curve p {
   color: var(--pc-body);
   font-size: 12.5px;
   line-height: 1.55;
 }
 
-.od-quote-legs {
-  border: 1px solid var(--pc-line-soft);
-  border-radius: var(--pc-r-sm);
-  overflow: hidden;
-}
-/* The side chip sits inline rather than turning the cell into a flex
-   container; a flex <td> stops participating in column sizing, which
-   pushed the last column out of the dialog. */
-.od-quote-legs th,
-.od-quote-legs td {
-  padding: 9px 8px;
-}
-.od-quote-legs td:first-child {
-  white-space: nowrap;
-}
-.od-quote-legs .od-leg-side {
-  display: inline-grid;
-  width: 18px;
-  height: 18px;
-  margin: 0 6px 0 0;
-  vertical-align: -3px;
-  font-size: 12px;
-}
-.od-quote-legs td:nth-child(2) {
-  text-transform: capitalize;
-}
-
-/* The countdown reads as a draining bar, not as a number to watch. */
-.od-quote-clock {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-.od-quote-clock i {
-  display: block;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--pc-cyan);
-  transition: width 0.25s linear;
-}
-.od-quote-clock span {
-  color: var(--pc-muted);
-  font-size: 12px;
-}
-.od-quote-clock.dead i {
-  background: var(--pc-down);
-}
-.od-quote-clock.dead span {
-  color: var(--pc-down);
-}
-
-/* ==================================================================
-   The builder's remaining controls
-
-   The chain, the sizing calculator and the curve editor kept their
-   markup through the rebuild, so their hooks are named here rather
-   than renamed across three files for no gain.
-   ================================================================== */
-
 .od-form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
 }
-/* The old note class, kept so the three retained components do not have
-   to be edited to say the same thing a second way. */
+
 .od-form-note {
   display: flex;
   align-items: flex-start;
@@ -2780,18 +3181,18 @@
   font-size: 12px;
   line-height: 1.5;
 }
+
 .od-form-note svg {
   flex: none;
   margin-top: 2px;
 }
-
-/* ---------- sizing ---------- */
 
 .od-sizing {
   border: 1px solid var(--pc-line);
   border-radius: var(--pc-r-sm);
   background: var(--pc-surface-2);
 }
+
 .od-sizing > summary {
   display: flex;
   align-items: center;
@@ -2803,9 +3204,11 @@
   cursor: pointer;
   list-style: none;
 }
+
 .od-sizing > summary::-webkit-details-marker {
   display: none;
 }
+
 .od-sizing > summary::before {
   content: '';
   width: 0;
@@ -2814,15 +3217,19 @@
   border-left-color: var(--pc-muted);
   transition: transform 0.16s;
 }
+
 .od-sizing[open] > summary::before {
   transform: rotate(90deg) translateX(-1px);
 }
+
 .od-sizing > summary:hover {
   color: var(--pc-text);
 }
+
 .od-sizing > *:not(summary) {
   margin: 0 14px 12px;
 }
+
 .od-sizing > output {
   display: block;
   padding: 10px 12px;
@@ -2839,132 +3246,33 @@
   gap: 12px;
 }
 
-/* ---------- the options chain ---------- */
-
-.od-chain .od-panel-head b {
-  font-family: var(--pc-mono);
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-}
-.od-chain-controls {
-  padding: 16px 18px 0;
-}
 .od-chain-note {
   padding: 0 18px;
 }
-.od-chain .od-error {
-  margin: 0 18px;
-}
-.od-chain-desktop {
-  margin-top: 14px;
-}
-/* Strike down the middle, calls to its left, puts to its right: the
-   layout every chain uses, because it is the only one where a reader
-   can compare the two sides without moving their eyes twice. */
-.od-chain-table th:nth-child(3),
-.od-chain-table td:nth-child(3) {
-  text-align: center;
-  background: var(--pc-surface-2);
-}
-.od-chain-table td:nth-child(3) b {
-  font-family: var(--pc-mono);
-  font-size: 14px;
-}
-.od-chain-table th:last-child,
-.od-chain-table td:last-child {
-  text-align: left;
-}
-.od-chain-table td small {
-  color: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 10.5px;
-  line-height: 1.5;
-}
-.od-chain-table tr.od-atm td {
-  background: var(--pc-cyan-wash);
-}
-.od-chain-table tr.od-atm td:nth-child(3) {
-  background: color-mix(in srgb, var(--pc-cyan) 18%, transparent);
-}
-.od-chain-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  align-items: stretch;
-}
-.od-chain-actions .od-button {
-  justify-content: space-between;
-  height: 30px;
-  padding: 0 10px;
-  font-family: var(--pc-mono);
-  font-size: 11.5px;
-  font-weight: 500;
-}
 
-.od-chain-mobile {
-  display: none;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px 18px 18px;
+/* The surface's own frame and the welcome scrim: restored with the
+   rest, missed the first time because a :has() selector mentions the
+   surface. */
+.od-surface {
+  padding: 8px 18px 18px;
 }
-.od-chain-card {
-  display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-  padding: 12px;
-  border: 1px solid var(--pc-line);
-  border-radius: var(--pc-r-sm);
-  background: var(--pc-surface-2);
-}
-.od-chain-card.od-atm {
-  border-color: var(--pc-cyan-edge);
-  background: var(--pc-cyan-wash);
-}
-.od-chain-strike strong {
+.od-surface svg {
   display: block;
-  font-family: var(--pc-mono);
-  font-size: 17px;
-  font-variant-numeric: tabular-nums;
-}
-.od-chain-strike span {
-  color: var(--pc-muted);
-  font-size: 11px;
-  text-transform: capitalize;
-}
-.od-chain-card-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-.od-chain-card-actions .od-button {
   width: 100%;
-  height: 32px;
-  padding: 0 8px;
-  font-family: var(--pc-mono);
-  font-size: 11.5px;
+  height: auto;
+  cursor: grab;
+  touch-action: pan-y;
 }
-.od-chain-card-actions small {
-  display: block;
-  margin-top: 4px;
-  color: var(--pc-muted);
-  font-size: 10.5px;
+.od-surface svg:active {
+  cursor: grabbing;
 }
-
-/* Below this the five-column chain cannot be read without scrolling it
-   sideways, which is worse than reading one side at a time. */
-@media (max-width: 900px) {
-  .od-chain-desktop {
-    display: none;
-  }
-  .od-chain-mobile {
-    display: flex;
-  }
-}
-
-.od-score-cell small {
-  display: block;
-  margin-top: 2px;
-  color: var(--pc-muted);
-  font-size: 11px;
+.od-welcome-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--pc-void) 76%, transparent);
+  backdrop-filter: blur(8px);
 }

@@ -1,7 +1,8 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { PLOT, STRUCTURES } from '@/lib/oddlot/landing';
+import { STRUCTURES } from '@/lib/oddlot/landing';
+import { PayoffGlyph } from './PayoffGlyph';
 
 const DWELL = 5200;
 const MORPH = 720;
@@ -94,7 +95,6 @@ export function StructureHero() {
   }, []);
 
   const line = useMemo(() => path(points), [points]);
-  const area = `${line} L${PLOT.x1},${zeroY.toFixed(1)} L${PLOT.x0},${zeroY.toFixed(1)} Z`;
 
   return (
     <div
@@ -106,7 +106,6 @@ export function StructureHero() {
     >
       <header>
         <div>
-          <span className="lp-tag">{current.tag}</span>
           <h2>{current.name}</h2>
           <p className="lp-viewer-contract">{current.contract}</p>
         </div>
@@ -117,72 +116,13 @@ export function StructureHero() {
       </header>
 
       <div className="lp-viewer-plot">
-        <svg viewBox={`0 0 ${PLOT.w} ${PLOT.h}`}>
-          <title>{`${current.name} payoff at expiry. ${current.blurb}`}</title>
-          <defs>
-            <linearGradient id="lpArea" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="var(--pc-cyan)" stopOpacity=".26" />
-              <stop offset="1" stopColor="var(--pc-cyan)" stopOpacity="0" />
-            </linearGradient>
-            <linearGradient id="lpStroke" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stopColor="var(--pc-cyan)" />
-              <stop offset="1" stopColor="var(--pc-magenta)" />
-            </linearGradient>
-          </defs>
-
-          {/* The P&L scale is per-shape, so it cross-fades with the
-              shape while the line itself morphs. */}
-          <g key={`g${current.id}`} className="lp-grid-band">
-            {current.payoff.grid.map((g) => (
-              <g key={g.label + g.y}>
-                <line x1={PLOT.x0} x2={PLOT.x1} y1={g.y} y2={g.y} />
-                <text x={PLOT.x0 - 12} y={g.y + 3.5} textAnchor="end">
-                  {g.label}
-                </text>
-              </g>
-            ))}
-          </g>
-
-          <g key={`k${current.id}`} className="lp-strikes">
-            {current.payoff.strikes.map((k, i) => (
-              <g key={`${k.value}-${i}`}>
-                <line x1={k.x} x2={k.x} y1={PLOT.y0} y2={PLOT.y1} />
-                <text x={k.x} y={PLOT.y0 - 10} textAnchor="middle">
-                  ${k.value}
-                </text>
-              </g>
-            ))}
-          </g>
-
-          <path d={area} fill="url(#lpArea)" />
-          <line
-            className="lp-zero"
-            x1={PLOT.x0}
-            x2={PLOT.x1}
-            y1={zeroY}
-            y2={zeroY}
-          />
-          <path
-            d={line}
-            className="lp-curve"
-            fill="none"
-            stroke="url(#lpStroke)"
-          />
-
-          <g className="lp-ticks">
-            {current.payoff.ticks.map((t, i) => (
-              <text
-                key={t.label}
-                x={t.x}
-                y={PLOT.axisY}
-                textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
-                data-mid={i === 1 || undefined}
-              >
-                {t.label}
-              </text>
-            ))}
-          </g>
-        </svg>
+        <PayoffGlyph
+          payoff={current.payoff}
+          line={line}
+          zeroY={zeroY}
+          fadeKey={current.id}
+          title={`${current.name} payoff at expiry. ${current.blurb}`}
+        />
       </div>
 
       <p className="lp-viewer-blurb">{current.blurb}</p>

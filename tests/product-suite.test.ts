@@ -231,7 +231,18 @@ void test('hourly expiries advance without look-ahead and settle at their exact 
 void test('chain indications match executable model premiums and expose physical exercise backing even with an empty vault', () => {
   const b = initialVault(),
     chain = optionsChain(b, '2025-02-07', 0.333333);
-  assert.equal(chain.rows.length, 11);
+  // The ladder is not evenly spaced: it lists real listed increments,
+  // dense around the money and thinning out, so asserting a row count
+  // would only pin today's spot. Assert the shape instead.
+  const strikes = chain.rows.map((r) => r.strike);
+  assert.ok(strikes.length > 15);
+  assert.deepEqual(strikes, [...strikes].sort((a, b) => a - b));
+  assert.equal(new Set(strikes).size, strikes.length);
+  assert.ok(strikes[0] < chain.spot && strikes.at(-1)! > chain.spot);
+  // Half-steps exist, and only inside the dense band around spot.
+  const half = strikes.filter((k) => k % 5 !== 0);
+  assert.ok(half.length > 0);
+  for (const k of half) assert.ok(Math.abs(k / chain.spot - 1) < 0.12);
   const call = chain.rows.find((r) => r.strike === 145)!.contracts[0];
   assert.equal(call.buy.cash, 48.333285);
   assert.equal(call.sell.shares, 0.333333);

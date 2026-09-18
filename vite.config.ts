@@ -5,5 +5,22 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   css: { postcss: { plugins: [tailwindcss()] } },
   plugins: [vinext(), sites()],
-  server: { proxy: { '/api': 'http://localhost:3025' } },
+  server: {
+    proxy: {
+      /**
+       * The API is a separate process in development, so the browser's
+       * Origin (the Vite port) never matches the Host the backend is
+       * reached on, and its mutation guard rejects every write —
+       * deposits, trades and the settlement clock all 403 while GETs
+       * sail through. Presenting the proxied request as same-origin is
+       * what the two-port split already means. In production one
+       * server answers both and the header is the browser's own.
+       */
+      '/api': {
+        target: 'http://localhost:3025',
+        changeOrigin: true,
+        headers: { origin: 'http://localhost:3025' },
+      },
+    },
+  },
 });

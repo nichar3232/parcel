@@ -238,3 +238,36 @@ export function templateTerms(id: string, expiry: string): OrderTerms {
     reference: t.reference,
   };
 }
+
+/**
+ * The structure families, and which templates belong to each.
+ *
+ * Declared here rather than as a filter inside the view, because the
+ * rail names the families and the screen lists their members: two
+ * readings of one fact, which have to agree.
+ */
+export const CATEGORIES = [
+  'Direction',
+  'Volatility',
+  'Convexity',
+  'Dividends',
+  'Cash flow',
+] as const;
+export type Category = (typeof CATEGORIES)[number];
+
+export function templatesIn(category: Category) {
+  return templates.filter((t) =>
+    category === 'Dividends'
+      ? t.reference === 'dividend'
+      : category === 'Convexity'
+        ? !!t.curve
+        : category === 'Cash flow'
+          ? t.id === 'box'
+          : category === 'Volatility'
+            ? ['straddle', 'strangle', 'condor', 'butterfly'].includes(t.id)
+            : ['call-spread', 'put-spread', 'collar'].includes(t.id),
+  );
+}
+
+/** The four single contracts the options ticket writes. */
+export const CONTRACTS = ['call', 'put', 'covered-call', 'secured-put'];

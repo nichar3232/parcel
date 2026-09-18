@@ -1,23 +1,21 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { ArrowRight, Info, TriangleAlert } from 'lucide-react';
+import { ArrowRight, TriangleAlert } from 'lucide-react';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { MarkFeed } from '@/hooks/oddlot/use-marks';
 import type { VaultAction } from '@/lib/oddlot/types';
 import { amount } from '@/lib/oddlot/validation';
 import { add, mul, round } from '@/lib/oddlot/math';
-import {
-  termInterest,
-  protectionPremium,
-} from '@/lib/oddlot/funding';
+import { termInterest, protectionPremium } from '@/lib/oddlot/funding';
 import {
   health,
-  healthTone,
   liquidationPrice,
+  rates,
   reserveOf,
   type Holding,
 } from '@/lib/oddlot/lending';
-import { Meter } from './charts';
+import { selectableExpiries } from '@/lib/oddlot/market';
+import { RateCurve } from './charts';
 import {
   Badge,
   Button,
@@ -26,21 +24,25 @@ import {
   Modal,
   Panel,
   PanelHead,
-  Segmented,
+  Stat,
   expiryLabel,
   qty,
   usd,
 } from './shared';
 
 export type LendingTab = 'borrow';
-
+type Mode = 'short' | 'lend' | 'stock';
+const MODES: Mode[] = ['short', 'lend', 'stock'];
 
 export function LendingView({
   desk,
   feed,
+  mode,
 }: {
   desk: VaultController;
   feed: MarkFeed;
+  /** Short, lend or spot — chosen in the rail. */
+  mode: string;
 }) {
   const s = desk.state!;
 
@@ -78,7 +80,14 @@ export function LendingView({
     };
   }, [s, feed.marks]);
 
-  return <Borrow desk={desk} feed={feed} position={position} />;
+  return (
+    <Borrow
+      desk={desk}
+      feed={feed}
+      position={position}
+      mode={MODES.includes(mode as Mode) ? (mode as Mode) : 'short'}
+    />
+  );
 }
 
 type Position = ReturnType<typeof usePositionShape>;
@@ -100,85 +109,29 @@ function usePositionShape() {
 
 /* ---------------------------------------------------------------- */
 
-function HealthCard({ position }: { position: Position }) {
-  const tone = healthTone(position.factor);
-  return (
-    <Panel className={`od-health ${tone}`}>
-      <div className="od-panel-body">
-        <div className="od-health-top">
-          <div>
-            <span>Health factor</span>
-            <strong>
-              {Number.isFinite(position.factor)
-                ? position.factor.toFixed(2)
-                : '∞'}
-            </strong>
-          </div>
-          <Badge
-            tone={tone === 'safe' ? 'green' : tone === 'watch' ? 'warn' : 'red'}
-          >
-            {tone === 'safe'
-              ? 'Healthy'
-              : tone === 'watch'
-                ? 'Watch'
-                : 'At risk'}
-          </Badge>
-        </div>
-        <Meter
-          label="Borrow power used"
-          value={position.used}
-          of={1}
-          note={`${(position.used * 100).toFixed(1)}% of ${usd(position.borrowPower)}`}
-          color={
-            tone === 'safe'
-              ? 'var(--pc-up)'
-              : tone === 'watch'
-                ? 'var(--pc-warn)'
-                : 'var(--pc-down)'
-          }
-        />
-        {/* Supplied, borrowed and still-available were printed here as
-            well as in the rail directly above, which is the same three
-            figures twice on one screen. The only number this card owns
-            that nothing else shows is the price the short liquidates
-            at. */}
-        {position.liquidation != null && position.shorted > 0 && (
-          <div className="od-lines">
-            <Line
-              label="Short liquidates at"
-              value={usd(position.liquidation)}
-              tone="down"
-            />
-          </div>
-        )}
-        <p className="od-note">
-          <Info size={13} />
-          Liquidation begins below 1.00.
-        </p>
-      </div>
-    </Panel>
-  );
-}
-
-/* ---------------------------------------------------------------- */
-
-/* ---------------------------------------------------------------- */
-
 function Borrow({
   desk,
   feed,
   position,
+  mode,
 }: {
   desk: VaultController;
   feed: MarkFeed;
   position: Position;
+  mode: Mode;
 }) {
   const s = desk.state!;
-  const future = s.market.dates.filter((d) => d > s.book.date);
+  // Daily closes only. The date list also carries the test clock's
+  // hourly ticks, and a loan that ends an hour from now is not a term
+  // anyone means to pick. Default to the first close at least two
+  // weeks out, so the figures describe a loan rather than an afternoon.
+  const future = selectableExpiries(s.book.date);
+  const fortnight = new Date(Date.parse(s.book.date) + 14 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
   const defaultExpiry =
-    future.find((d) => d >= '2025-02-07') || future[0] || s.book.date;
+    future.find((d) => d >= fortnight) || future.at(-1) || s.book.date;
 
-  const [mode, setMode] = useState<'short' | 'lend' | 'stock'>('short');
   const [quantity, setQuantity] = useState('1');
   const [cap, setCap] = useState(String(Math.ceil(s.market.price * 1.12)));
   const [expiry, setExpiry] = useState(defaultExpiry);
@@ -305,35 +258,145 @@ function Borrow({
       setReview(null);
   };
 
+  /**
+   * The NVDA pool, and the curve its rates come off.
+   *
+   * Depth and borrowed size are simulated — no venue publishes a
+   * lending book for this — so the panel says so rather than letting
+   * the numbers pass for a market. The curve itself is not simulated:
+   * it is the reserve's own two-slope model, which is what actually
+   * prices every loan on this screen.
+   */
+  const reserve = reserveOf('NVDA');
+  const pool = feed.marks.NVDA;
+  const utilisation = pool?.utilisation ?? 0;
+  const here = reserve
+    ? rates(utilisation, reserve)
+    : { borrow: 0, supply: 0, utilisation: 0 };
+  const curve = reserve
+    ? Array.from({ length: 101 }, (_, i) => {
+        const u = i / 100;
+        const r = rates(u, reserve);
+        return { u, borrow: r.borrow, supply: r.supply };
+      })
+    : [];
+
+  /* What each screen is about, as one number, and the three figures
+     that explain it. Anything that needed a sentence to read is on the
+     review, where the reader has asked for it. */
+  const read =
+    mode === 'short'
+      ? {
+          eyebrow: 'Protected short',
+          label: 'Most this can cost you',
+          value: usd(q * (k - s.market.price) + protection + interest),
+          tone: 'down' as const,
+          caption: `Capped at ${usd(k)} a share, protection and interest included.`,
+          figures: [
+            { label: 'You receive now', value: usd(q * s.market.price) },
+            { label: 'Protection', value: usd(protection) },
+            {
+              label: 'Liquidates at',
+              value:
+                projected?.liquidation != null
+                  ? usd(projected.liquidation)
+                  : '—',
+              detail: projected
+                ? `Health ${Number.isFinite(projected.factor) ? projected.factor.toFixed(2) : '∞'}`
+                : undefined,
+            },
+          ],
+        }
+      : mode === 'lend'
+        ? {
+            eyebrow: 'Stock loan',
+            label: 'You earn, paid at signing',
+            value: usd(interest, 4),
+            tone: 'up' as const,
+            caption: `For lending ${qty(q)} NVDA until ${expiryLabel(end)}.`,
+            figures: [
+              {
+                label: 'Borrower posts',
+                value: usd(q * s.market.price * 1.5),
+              },
+              { label: 'Rate', value: '3.50% APR' },
+              { label: 'Term ends', value: expiryLabel(end) },
+            ],
+          }
+        : {
+            eyebrow: 'Spot trade',
+            label: side === 'buy' ? 'You pay' : 'You receive',
+            value: usd(q * s.market.price),
+            tone: undefined,
+            caption: 'Fully funded from the vault. Settles now.',
+            figures: [
+              { label: 'Price', value: usd(s.market.price) },
+              { label: 'Shares', value: qty(q) },
+              { label: 'Direction', value: side === 'buy' ? 'Buy' : 'Sell' },
+            ],
+          };
+
   return (
     <div className="od-borrow">
-      <HealthCard position={position} />
+      <div className="od-stack">
+        <section className="od-read">
+          <span className="od-read-eyebrow">{read.eyebrow}</span>
+          <span className="od-read-label">{read.label}</span>
+          <b className={read.tone}>{read.value}</b>
+          <p>{read.caption}</p>
+
+          <div className="od-figures">
+            {read.figures.map((f) => (
+              <Stat
+                key={f.label}
+                label={f.label}
+                value={f.value}
+                detail={'detail' in f ? f.detail : undefined}
+              />
+            ))}
+          </div>
+
+          {projected && projected.factor < 1.25 && (
+            <p className="od-error" role="alert">
+              <TriangleAlert size={13} /> That leaves very little room. A move
+              against you liquidates the position.
+            </p>
+          )}
+        </section>
+
+        {reserve && (
+          <section className="od-pool">
+            <div className="od-pool-rates">
+              <div className="od-stat">
+                <span>Borrow</span>
+                <strong className="down">
+                  {(here.borrow * 100).toFixed(2)}%
+                </strong>
+              </div>
+              <div className="od-stat">
+                <span>Supply</span>
+                <strong className="up">
+                  {(here.supply * 100).toFixed(2)}%
+                </strong>
+              </div>
+              <p>
+                {(utilisation * 100).toFixed(0)}% of the NVDA pool is out.{' '}
+                {qty(pool?.supplied ?? 0)} supplied, {qty(pool?.borrowed ?? 0)}{' '}
+                borrowed
+                {pool?.source === 'simulated' ? ', simulated depth.' : '.'}
+              </p>
+            </div>
+            <RateCurve curve={curve} at={{ ...here, u: utilisation }} />
+          </section>
+        )}
+      </div>
 
       <Panel className="od-ticket">
         <PanelHead
-          title="Borrow and short"
-          action={<Badge tone="accent">NVDA</Badge>}
+          title="Your terms"
+          action={<Badge tone="accent">NVDA {usd(s.market.price)}</Badge>}
         />
         <div className="od-panel-body">
-          <Segmented
-            label="What to do"
-            value={mode}
-            onChange={setMode}
-            options={[
-              { id: 'short', label: 'Short' },
-              { id: 'lend', label: 'Lend' },
-              { id: 'stock', label: 'Spot' },
-            ]}
-          />
-
-          <p className="od-note">
-            {mode === 'short'
-              ? 'Borrow the stock against your vault, sell it, and buy a call that caps what the repurchase can cost. The cap is what makes the maximum loss knowable before you open.'
-              : mode === 'lend'
-                ? 'Lend unpledged shares. The borrower posts cash collateral and the whole term’s interest up front, and cannot reuse the protection they pledged.'
-                : 'Buy or sell stock outright against the vault, fully funded either way.'}
-          </p>
-
           <Field
             label="Shares"
             hint={`Available ${qty(s.risk.freeShares)} NVDA`}
@@ -371,15 +434,11 @@ function Borrow({
           )}
 
           {mode === 'short' && (
-            <div className="od-control">
-              <div className="od-control-top">
-                <label htmlFor="od-cap">Protective call strike</label>
-                <span>
-                  {((k / s.market.price - 1) * 100).toFixed(1)}% above spot
-                </span>
-              </div>
+            <Field
+              label="Repurchase cap"
+              hint={`${((k / s.market.price - 1) * 100).toFixed(1)}% above spot`}
+            >
               <input
-                id="od-cap"
                 aria-label="Protective call strike"
                 type="number"
                 step="any"
@@ -387,75 +446,7 @@ function Borrow({
                 value={cap}
                 onChange={(e) => setCap(e.target.value)}
               />
-              <small>
-                Caps the stock repurchase price. Full strike cash stays
-                reserved.
-              </small>
-            </div>
-          )}
-
-          <div className="od-lines">
-            {mode === 'lend' ? (
-              <>
-                <Line
-                  label="Borrower collateral"
-                  value={usd(q * s.market.price * 1.5)}
-                />
-                <Line label="Borrow rate" value="3.50% APR" />
-                <Line
-                  label="Full-term interest prepaid"
-                  value={usd(interest, 4)}
-                  tone="up"
-                />
-              </>
-            ) : mode === 'short' ? (
-              <>
-                <Line
-                  label="Stock sale proceeds"
-                  value={usd(q * s.market.price)}
-                />
-                <Line label="Protective call" value={usd(protection)} />
-                <Line
-                  label="Maximum loss including protection"
-                  value={usd(q * (k - s.market.price) + protection + interest)}
-                  tone="down"
-                />
-              </>
-            ) : (
-              <>
-                <Line label="Reference price" value={usd(s.market.price)} />
-                <Line
-                  label="Total consideration"
-                  value={usd(q * s.market.price)}
-                />
-              </>
-            )}
-          </div>
-
-          {projected && (
-            <div className={`od-projection ${healthTone(projected.factor)}`}>
-              <div>
-                <span>Health factor after</span>
-                <b>
-                  {Number.isFinite(projected.factor)
-                    ? projected.factor.toFixed(2)
-                    : '∞'}
-                </b>
-              </div>
-              {projected.liquidation != null && (
-                <div>
-                  <span>Liquidates at</span>
-                  <b>{usd(projected.liquidation)}</b>
-                </div>
-              )}
-            </div>
-          )}
-
-          {projected && projected.factor < 1.25 && (
-            <p className="od-error" role="alert">
-              <TriangleAlert size={13} /> That leaves very little room. A move
-              against you liquidates the position.
-            </p>
+            </Field>
           )}
 
           <Button
@@ -472,14 +463,8 @@ function Borrow({
                 : 'stock trade'}
             <ArrowRight size={16} />
           </Button>
-          <p className="od-note">Pledged protection cannot be reused.</p>
         </div>
       </Panel>
-
-      {/* A five-column reference table with a paragraph of prose in its
-          last cell used to sit to the right of the ticket. None of it
-          was a decision on this screen: the ticket prices the one asset
-          being borrowed. */}
 
       {review && (
         <Modal
@@ -499,8 +484,9 @@ function Borrow({
             </p>
           )}
           <p className="od-note">
-            The transaction either updates every balance and reserve together or
-            rolls back entirely. Amounts are validated again by the backend.
+            Pledged protection cannot be reused. The transaction either updates
+            every balance and reserve together or rolls back entirely, and the
+            backend validates the amounts again.
           </p>
           <Button
             size="lg"
@@ -517,4 +503,3 @@ function Borrow({
 }
 
 /* ---------------------------------------------------------------- */
-

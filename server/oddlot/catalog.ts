@@ -14,13 +14,49 @@ export function indicative(terms: OrderTerms, book: VaultBook) {
     shares: Number(b.sharesMin < 0n ? -b.sharesMin : 0n) / 1e6,
   };
 }
+/**
+ * The strikes a chain actually lists.
+ *
+ * Listed equity options are not evenly spaced. The exchanges open
+ * strikes densely around the money and thin them out as they go, so a
+ * reader working near spot gets the resolution to pick a level and is
+ * not made to scroll through fifty far-out-of-the-money lines to reach
+ * it. This follows the same convention: $2.50 inside 10% of spot, $5
+ * out to 25%, $10 beyond, walked outward from the nearest $2.50 so
+ * every strike sits on a real increment rather than on a grid derived
+ * from today's price.
+ *
+ * It replaces eleven strikes at a flat $5, which could not express
+ * $122.50 — or any other half-step — at all.
+ */
+export function strikeLadder(spot: number, reach = 0.32) {
+  // Each interval has its own grid: a $5 strike is a multiple of five,
+  // a $10 strike a multiple of ten. Walking outward by a changing step
+  // instead carries the starting offset all the way out, which is how
+  // a chain ends up listing $157.50 and $162.50 where every real one
+  // lists $160 and $165.
+  const bands = [
+    { step: 2.5, from: 0, to: 0.1 },
+    { step: 5, from: 0.1, to: 0.25 },
+    { step: 10, from: 0.25, to: reach },
+  ];
+  const out = new Set<number>();
+  for (const band of bands) {
+    const first = Math.ceil((spot * (1 - band.to)) / band.step) * band.step;
+    for (let k = first; k <= spot * (1 + band.to); k += band.step) {
+      const away = Math.abs(k / spot - 1);
+      if (k > 0 && away >= band.from && away < band.to)
+        out.add(Math.round(k * 100) / 100);
+    }
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
 export function optionsChain(book: VaultBook, end: unknown, quantity: unknown) {
   const selected = expiry(end, book.date),
     q = amount(quantity),
     spot = mark(book.date);
-  const center = Math.round(spot / 5) * 5;
-  const rows = Array.from({ length: 11 }, (_, i) => center + (i - 5) * 5)
-    .filter((k) => k > 0)
+  const rows = strikeLadder(spot)
     .map((strike) => ({
       strike,
       contracts: (['call', 'put'] as const).map((kind) => {

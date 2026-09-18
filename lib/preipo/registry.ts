@@ -53,6 +53,12 @@ const PRESTOCKS_TERMS = {
   reference: 'https://prestocks.com/products',
 };
 
+/* Tessera's feed carries no image, so its rows borrow the company mark
+   PreStocks publishes for the same company. It is the company's logo
+   either way; only the host differs. */
+const COMPANY_LOGO = (company: string) =>
+  `https://www.prestocks.com/logos/${company.toLowerCase().replace(/\s+/g, '')}.png`;
+
 const tessera = (
   company: string,
   symbol: string,
@@ -64,6 +70,7 @@ const tessera = (
   mint,
   displayName: `Tessera ${symbol}`,
   symbol,
+  logo: COMPANY_LOGO(company),
   expectedTokenProgram: TOKEN_2022,
   expectedDecimals: 9,
   issuerTerms: {

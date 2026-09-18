@@ -111,6 +111,8 @@ export interface RegistryAsset {
   mint: string;
   displayName: string;
   symbol: string;
+  /** The company's mark, for a provider whose feed publishes none. */
+  logo?: string;
   /** Expected token program; a mismatch on chain is a hard rejection. */
   expectedTokenProgram: string;
   /** Expected decimals; a mismatch on chain is a hard rejection. */

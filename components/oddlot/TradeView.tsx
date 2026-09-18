@@ -8,9 +8,15 @@ import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { MarkFeed } from '@/hooks/oddlot/use-marks';
 import type { OrderTerms, Quote } from '@/lib/oddlot/types';
 import { deliveryBounds } from '@/lib/oddlot/envelope';
-import { bounded, orderGreeks, strategyPnl } from '@/lib/oddlot/math';
+import { bounded, orderGreeks } from '@/lib/oddlot/math';
 import { parseOrderTerms } from '@/lib/oddlot/validation';
-import { templates, templateTerms } from '@/lib/oddlot/templates';
+import {
+  CATEGORIES,
+  CONTRACTS,
+  templateTerms,
+  templatesIn,
+  type Category,
+} from '@/lib/oddlot/templates';
 import { selectableExpiries } from '@/lib/oddlot/market';
 import { CurveEditor } from './CurveEditor';
 import { SizingControl } from './SizingControl';
@@ -19,7 +25,6 @@ import { PayoffChart } from './PayoffChart';
 import { QuoteReview } from './QuoteReview';
 import { ContractLegEditor } from './ContractLegEditor';
 import { Surface3D } from './Surface3D';
-import { Scoreboard } from './Scoreboard';
 import {
   Badge,
   Button,
@@ -31,19 +36,10 @@ import {
   Segmented,
   Stat,
   expiryLabel,
-  qty,
   usd,
 } from './shared';
 
 export type TradeTab = 'trade' | 'underwrite' | 'structures';
-
-const CATEGORIES = [
-  'Direction',
-  'Volatility',
-  'Convexity',
-  'Dividends',
-  'Cash flow',
-] as const;
 
 const SIZES = [0.25, 0.5, 1, 2, 5];
 
@@ -51,12 +47,17 @@ export function TradeView({
   desk,
   feed,
   tab,
+  choice,
   advanced,
+  onAdvanced,
 }: {
   desk: VaultController;
   feed: MarkFeed;
   tab: TradeTab;
+  /** The contract, or on Structures the family, chosen in the rail. */
+  choice: string;
   advanced: boolean;
+  onAdvanced: (on: boolean) => void;
 }) {
   const state = desk.state!;
   // Hoisted: a memo keyed on `state.book.date` cannot be preserved
@@ -66,26 +67,45 @@ export function TradeView({
   const defaultExpiry =
     future.find((d) => d >= '2025-02-07') || future[0] || session;
 
-  const [selected, setSelected] = useState(
-    tab === 'underwrite'
-      ? 'covered-call'
-      : tab === 'structures'
-        ? 'call-spread'
-        : 'call',
-  );
+  /**
+   * What the rail opened this screen on.
+   *
+   * On Options the choice is the contract itself; on Structures it is
+   * the family, and the screen opens on that family's first template.
+   */
+  const category = (
+    CATEGORIES.includes(choice as Category) ? choice : 'Direction'
+  ) as Category;
+  const opening =
+    tab === 'structures'
+      ? (templatesIn(category)[0]?.id ?? 'call-spread')
+      : CONTRACTS.includes(choice)
+        ? choice
+        : tab === 'underwrite'
+          ? 'covered-call'
+          : 'call';
+
+  const [selected, setSelected] = useState(opening);
   const [draft, setDraft] = useState<OrderTerms>(() =>
-    templateTerms(
-      tab === 'underwrite'
-        ? 'covered-call'
-        : tab === 'structures'
-          ? 'call-spread'
-          : 'call',
-      defaultExpiry,
-    ),
+    templateTerms(opening, defaultExpiry),
   );
-  const [category, setCategory] =
-    useState<(typeof CATEGORIES)[number]>('Direction');
-  const [browse, setBrowse] = useState(false);
+  /**
+   * What the left column shows.
+   *
+   * Options opens on the ladder, because the first question is which
+   * strike; the payoff is there for whoever wants to see what the one
+   * they picked turns into. Structures and Underwrite have no ladder,
+   * so they are always the picture.
+   */
+  const [browse, setBrowse] = useState(tab === 'trade');
+  /** Which ladder the chain shows, steered from the screen's top line. */
+  const [chainSide, setChainSide] = useState<'buy' | 'sell'>('buy');
+  const [chainKind, setChainKind] = useState<'call' | 'put'>('call');
+  const [chainExpiry, setChainExpiry] = useState(
+    () => future.find((d) => !d.includes('T')) || future[0] || '',
+  );
+  const chainDate = future.includes(chainExpiry) ? chainExpiry : future[0] || '';
+
   const [quote, setQuote] = useState<Quote | null>(null);
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState('');
@@ -143,57 +163,6 @@ export function TradeView({
    * window the chart draws. Quoted rather than derived from the legs so
    * a curve contract and a four-leg structure answer the same way.
    */
-  const outcome = (() => {
-    if (invalid)
-      return { worst: 0, best: 0, breakEven: [] as number[], capped: true };
-    const strikes = effective.curve
-      ? [effective.curve.lower, effective.curve.upper]
-      : effective.legs.map((l) => l.strike);
-    const low = Math.min(...strikes),
-      high = Math.max(...strikes);
-    const lo = Math.min(reference * 0.5, low * 0.7);
-    const hi = Math.max(reference * 1.6, high * 1.4);
-    const rows = Array.from({ length: 201 }, (_, i) => {
-      const price = lo + ((hi - lo) * i) / 200;
-      return {
-        price,
-        pnl: strategyPnl(effective, price, reference, g.price, includedStock),
-      };
-    });
-    const breakEven: number[] = [];
-    for (let i = 1; i < rows.length; i++) {
-      const a = rows[i - 1],
-        b = rows[i];
-      if (a.pnl === 0 || a.pnl < 0 === b.pnl < 0) continue;
-      breakEven.push(
-        a.price + (b.price - a.price) * (-a.pnl / (b.pnl - a.pnl)),
-      );
-    }
-    const worst = Math.min(...rows.map((r) => r.pnl));
-    const best = Math.max(...rows.map((r) => r.pnl));
-    const span = best - worst || 1;
-    /**
-     * Whether each end of the payoff has actually stopped moving.
-     *
-     * Read off the drawn shape rather than from the legs. `bounded()`
-     * answers whether the option legs net out, which is the question
-     * cash settlement asks — and it called a covered call uncapped,
-     * because the short call alone is. With the share included the
-     * position plainly stops at the strike, and the scoreboard was
-     * telling the writer their upside had no ceiling.
-     */
-    const flat = (a: number, b: number) => Math.abs(a - b) <= span * 0.004;
-    return {
-      worst,
-      best,
-      breakEven,
-      capped: flat(rows.at(-1)!.pnl, rows.at(-6)!.pnl),
-      // A position that is still losing at the bottom of the window has
-      // no worst case to quote, only a worst case at a price.
-      floored: flat(rows[0].pnl, rows[5].pnl),
-      riskAt: lo,
-    };
-  })();
 
   const select = (id: string) => {
     revision.current++;
@@ -232,11 +201,6 @@ export function TradeView({
   // "Trade" and "Underwrite" were two tabs running the same ticket with
   // the side flipped, so they are one tab and the side is a choice on
   // it.
-  const choices = templates.filter((t) =>
-    tab === 'structures'
-      ? !['call', 'put', 'covered-call', 'secured-put'].includes(t.id)
-      : ['call', 'put', 'covered-call', 'secured-put'].includes(t.id),
-  );
 
   const single = effective.legs.length === 1 && !effective.curve;
   const live = feed.marks.NVDA;
@@ -252,53 +216,64 @@ export function TradeView({
           component. */}
       {tab === 'structures' && (
         <>
-          <Segmented
-            label="Structure family"
-            value={category}
-            onChange={setCategory}
-            options={CATEGORIES.map((c) => ({ id: c, label: c }))}
-          />
           <div className="od-templates">
-            {choices
-              .filter((t) =>
-                category === 'Dividends'
-                  ? t.reference === 'dividend'
-                  : category === 'Convexity'
-                    ? !!t.curve
-                    : category === 'Cash flow'
-                      ? t.id === 'box'
-                      : category === 'Volatility'
-                        ? [
-                            'straddle',
-                            'strangle',
-                            'condor',
-                            'butterfly',
-                          ].includes(t.id)
-                        : ['call-spread', 'put-spread', 'collar'].includes(
-                            t.id,
-                          ),
-              )
-              .map((t) => (
-                <button
-                  key={t.id}
-                  className={`od-template ${selected === t.id ? 'selected' : ''}`}
-                  aria-pressed={selected === t.id}
-                  onClick={() => select(t.id)}
-                >
-                  <span>{t.tag}</span>
-                  <h3>{t.name}</h3>
-                  <p>{t.description}</p>
-                </button>
-              ))}
+            {templatesIn(category).map((t) => (
+              <button
+                key={t.id}
+                className={`od-template ${selected === t.id ? 'selected' : ''}`}
+                aria-pressed={selected === t.id}
+                onClick={() => select(t.id)}
+              >
+                <span>{t.tag}</span>
+                <h3>{t.name}</h3>
+                <p>{t.description}</p>
+              </button>
+            ))}
           </div>
         </>
       )}
 
-      {tab === 'trade' && (
-        <div className="od-row-end">
+      {/* Everything that steers this screen, on one line above it: the
+          ladder's side, kind and expiry on the left, the view and the
+          detail level on the right. */}
+      <div className="od-row-end">
+        {browse && tab === 'trade' && (
+          <div className="od-chain-controls">
+            <Segmented
+              label="Side"
+              value={chainSide}
+              onChange={(v) => setChainSide(v as 'buy' | 'sell')}
+              options={[
+                { id: 'buy', label: 'Buy' },
+                { id: 'sell', label: 'Write' },
+              ]}
+            />
+            <Segmented
+              label="Contract kind"
+              value={chainKind}
+              onChange={(v) => setChainKind(v as 'call' | 'put')}
+              options={[
+                { id: 'call', label: 'Call' },
+                { id: 'put', label: 'Put' },
+              ]}
+            />
+            <select
+              aria-label="Chain expiration"
+              className="od-chain-expiry"
+              value={chainDate}
+              onChange={(e) => setChainExpiry(e.target.value)}
+            >
+              {future.map((d) => (
+                <option key={d} value={d}>
+                  Expiring {expiryLabel(d)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {tab === 'trade' && (
           <Segmented
             label="Builder source"
-            size="sm"
             value={browse ? 'chain' : 'builder'}
             onChange={(v) => {
               revision.current++;
@@ -306,37 +281,147 @@ export function TradeView({
               setBrowse(v === 'chain');
             }}
             options={[
-              { id: 'builder', label: 'Ticket' },
-              { id: 'chain', label: 'Options chain' },
+              { id: 'chain', label: 'Chain' },
+              { id: 'builder', label: 'Payoff' },
             ]}
           />
-        </div>
-      )}
-
-      {browse && tab === 'trade' && (
-        <OptionsChain
-          desk={desk}
-          onSelect={(terms) => {
-            revision.current++;
-            setSelected(
-              terms.legs[0].side === 'sell'
-                ? terms.legs[0].kind === 'call'
-                  ? 'covered-call'
-                  : 'secured-put'
-                : terms.legs[0].kind,
-            );
-            setDraft(terms);
-            setQuote(null);
-            setError('');
-            setBrowse(false);
-          }}
+        )}
+        <Segmented
+          label="Detail level"
+          value={advanced ? 'advanced' : 'basic'}
+          onChange={(v) => onAdvanced(v === 'advanced')}
+          options={[
+            { id: 'basic', label: 'Basic', hint: 'One decision at a time' },
+            {
+              id: 'advanced',
+              label: 'Advanced',
+              hint: 'Legs, Greeks and the full surface',
+            },
+          ]}
         />
-      )}
+      </div>
 
-      {(!browse || tab !== 'trade') && (
-        <div className="od-work">
-          {/* ---------------- the ticket ---------------- */}
-          <Panel className="od-ticket">
+      <div className="od-work">
+        {browse && tab === 'trade' ? (
+          <OptionsChain
+            desk={desk}
+            quantity={effective.quantity}
+            side={chainSide}
+            kind={chainKind}
+            expiry={chainDate}
+            onSelect={(terms) => {
+              revision.current++;
+              setSelected(
+                terms.legs[0].side === 'sell'
+                  ? terms.legs[0].kind === 'call'
+                    ? 'covered-call'
+                    : 'secured-put'
+                  : terms.legs[0].kind,
+              );
+              // The ladder chooses a strike and a side, not a size:
+              // the ticket's quantity is what the ladder was priced
+              // at, so it carries straight through.
+              setDraft({ ...terms, quantity: effective.quantity });
+              setQuote(null);
+              setError('');
+            }}
+          />
+        ) : (
+          // What it pays, for whoever wants to see it.
+          <div className="od-insight">
+            <Panel>
+              {!invalid ? (
+                <PayoffChart
+                  terms={effective}
+                  stockQuantity={includedStock}
+                  premium={g.price}
+                  spot={reference}
+                  shock={shock}
+                  onShock={setShock}
+                />
+              ) : (
+                <Empty
+                  title="Choose valid terms"
+                  description={validationError}
+                />
+              )}
+              {/* Delta, theta, vega and gamma are the vocabulary of
+                  someone who already knows what they are looking at.
+                  Under the chart in Basic they are five more numbers
+                  between the reader and the one decision on the page,
+                  so the whole row, and the pricing basis under it,
+                  belong to Advanced. */}
+              {advanced && (
+                <>
+                  <div className="od-greeks">
+                    <Stat
+                      label="Per +1¢ move"
+                      value={usd((g.delta + includedStock) * 0.01, 4)}
+                      detail="Local estimate"
+                    />
+                    <Stat
+                      label={includedStock ? 'Net delta' : 'Delta'}
+                      value={(g.delta + includedStock).toFixed(3)}
+                      detail="Shares of exposure"
+                    />
+                    <Stat
+                      label="Theta per day"
+                      value={usd(g.theta, 4)}
+                      detail="Position-level decay"
+                    />
+                    <Stat
+                      label="Vega per vol point"
+                      value={usd(g.vega, 4)}
+                      detail="Modelled vol sensitivity"
+                    />
+                    <Stat
+                      label="Gamma"
+                      value={g.gamma.toFixed(4)}
+                      detail="Delta change per $1"
+                    />
+                  </div>
+                  <div className="od-panel-foot">
+                    <span>Pricing basis</span>
+                    <span>
+                      {effective.reference === 'dividend'
+                        ? 'Committed dividend event'
+                        : session.includes('T')
+                          ? 'Daily close carried forward'
+                          : 'Stored historical close'}
+                      {' — Black-Scholes at '}
+                      {(vol * 100).toFixed(0)}% vol, reference{' '}
+                      {usd(
+                        reference,
+                        effective.reference === 'dividend' ? 4 : 2,
+                      )}
+                    </span>
+                  </div>
+                </>
+              )}
+            </Panel>
+
+            {advanced && !invalid && (
+              <Panel>
+                <PanelHead
+                  title="Value across price and time"
+                  description="What the position marks at, every day between now and expiry."
+                  action={<Badge tone="accent">Surface</Badge>}
+                />
+                <Surface3D
+                  terms={effective}
+                  premium={g.price}
+                  spot={reference}
+                  date={session}
+                  vol={vol}
+                  stockQuantity={includedStock}
+                />
+              </Panel>
+            )}
+          </div>
+        )}
+
+        {/* ---------------- what to write it on ---------------- */}
+        <Panel className="od-ticket">
             <PanelHead
               title={
                 tab === 'structures' ? 'Build a structure' : 'Your contract'
@@ -350,20 +435,6 @@ export function TradeView({
               }
             />
             <div className="od-panel-body">
-              {/* The first decision, on the ticket where it is acted
-                  on. It used to be a pair of cards stacked above the
-                  whole page in Basic and a control down here in
-                  Advanced, which is the same question asked twice in
-                  two places. */}
-              {tab !== 'structures' && (
-                <Segmented
-                  label="Contract"
-                  value={selected}
-                  onChange={select}
-                  options={choices.map((t) => ({ id: t.id, label: t.name }))}
-                />
-              )}
-
               {/* size */}
               <div className="od-control">
                 <div className="od-control-top">
@@ -475,18 +546,6 @@ export function TradeView({
                 </>
               )}
 
-              <Scoreboard
-                risk={-Math.min(0, outcome.worst)}
-                reward={outcome.best}
-                capped={outcome.capped}
-                floored={outcome.floored}
-                riskAt={outcome.riskAt}
-                breakEven={outcome.breakEven}
-                premium={g.price}
-                decimals={effective.reference === 'dividend' ? 4 : 2}
-                invalid={invalid}
-              />
-
               <div className="od-lines">
                 <Line
                   label="Cash to fund it standalone"
@@ -561,109 +620,7 @@ export function TradeView({
               </p>
             </div>
           </Panel>
-
-          {/* ---------------- the picture ---------------- */}
-          <div className="od-insight">
-            <Panel>
-              <PanelHead
-                title={effective.name}
-                description={
-                  invalid
-                    ? 'Choose valid terms to price it.'
-                    : `${qty(effective.quantity)} share-equivalents, ${expiryLabel(effective.expiry)}`
-                }
-                action={<Badge tone="accent">Expiry payoff</Badge>}
-              />
-              {!invalid ? (
-                <PayoffChart
-                  terms={effective}
-                  stockQuantity={includedStock}
-                  premium={g.price}
-                  spot={reference}
-                  shock={shock}
-                  onShock={setShock}
-                />
-              ) : (
-                <Empty
-                  title="Choose valid terms"
-                  description={validationError}
-                />
-              )}
-              {/* Delta, theta, vega and gamma are the vocabulary of
-                  someone who already knows what they are looking at.
-                  Under the chart in Basic they are five more numbers
-                  between the reader and the one decision on the page,
-                  so the whole row, and the pricing basis under it,
-                  belong to Advanced. */}
-              {advanced && (
-                <>
-                  <div className="od-greeks">
-                    <Stat
-                      label="Per +1¢ move"
-                      value={usd((g.delta + includedStock) * 0.01, 4)}
-                      detail="Local estimate"
-                    />
-                    <Stat
-                      label={includedStock ? 'Net delta' : 'Delta'}
-                      value={(g.delta + includedStock).toFixed(3)}
-                      detail="Shares of exposure"
-                    />
-                    <Stat
-                      label="Theta per day"
-                      value={usd(g.theta, 4)}
-                      detail="Position-level decay"
-                    />
-                    <Stat
-                      label="Vega per vol point"
-                      value={usd(g.vega, 4)}
-                      detail="Modelled vol sensitivity"
-                    />
-                    <Stat
-                      label="Gamma"
-                      value={g.gamma.toFixed(4)}
-                      detail="Delta change per $1"
-                    />
-                  </div>
-                  <div className="od-panel-foot">
-                    <span>Pricing basis</span>
-                    <span>
-                      {effective.reference === 'dividend'
-                        ? 'Committed dividend event'
-                        : session.includes('T')
-                          ? 'Daily close carried forward'
-                          : 'Stored historical close'}
-                      {' — Black-Scholes at '}
-                      {(vol * 100).toFixed(0)}% vol, reference{' '}
-                      {usd(
-                        reference,
-                        effective.reference === 'dividend' ? 4 : 2,
-                      )}
-                    </span>
-                  </div>
-                </>
-              )}
-            </Panel>
-
-            {advanced && !invalid && (
-              <Panel>
-                <PanelHead
-                  title="Value across price and time"
-                  description="What the position marks at, every day between now and expiry."
-                  action={<Badge tone="accent">Surface</Badge>}
-                />
-                <Surface3D
-                  terms={effective}
-                  premium={g.price}
-                  spot={reference}
-                  date={session}
-                  vol={vol}
-                  stockQuantity={includedStock}
-                />
-              </Panel>
-            )}
-          </div>
-        </div>
-      )}
+      </div>
 
       {quote && (
         <QuoteReview

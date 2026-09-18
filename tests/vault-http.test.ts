@@ -370,8 +370,15 @@ void test('product catalog HTTP: chain and sizing are guarded, revision-bound, r
     );
     const chain = await c.post('chain', input);
     assert.equal(chain.status, 200);
-    const payload = (await chain.json()) as { rows: unknown[] };
-    assert.equal(payload.rows.length, 11);
+    const payload = (await chain.json()) as {
+      rows: { strike: number }[];
+      spot: number;
+    };
+    const strikes = payload.rows.map((r) => r.strike);
+    assert.ok(strikes.length > 15);
+    assert.deepEqual(strikes, [...strikes].sort((a, b) => a - b));
+    assert.ok(strikes.some((k) => k % 5 !== 0), 'lists half-step strikes');
+    assert.ok(strikes[0] < payload.spot && strikes.at(-1)! > payload.spot);
     const size = await c.post('size', {
       revision: before.revision,
       terms: templateTerms('quadratic', '2025-01-24T01:00:00Z'),

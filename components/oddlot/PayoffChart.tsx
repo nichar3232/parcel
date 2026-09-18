@@ -19,15 +19,20 @@ import { usd } from './shared';
  * itself stays neutral so the two fills are the only thing carrying
  * meaning.
  */
+/* Drawn wider than it is tall. The frame scales to the column, so a
+   2.5:1 plot in a full-width column was 430px of chart and pushed its
+   own reference-move row off the bottom of the screen; the reader
+   could not see the whole picture at once, which is the entire job of
+   a payoff chart. Every vertical below is the old one scaled. */
 const F = {
   w: 880,
-  h: 352,
+  h: 272,
   x0: 68,
   x1: 858,
   /** the band above the plot, where the strike labels live */
-  y0: 40,
-  y1: 292,
-  axisY: 322,
+  y0: 32,
+  y1: 228,
+  axisY: 254,
 } as const;
 
 const SAMPLES = 161;

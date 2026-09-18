@@ -35,12 +35,17 @@ export function shortExpiries(date: string) {
   );
 }
 
+/**
+ * The expiries a contract can actually be written to.
+ *
+ * Sessions only. Five of the test clock's hourly ticks used to be
+ * mixed in among the dates, which put "02/14/2025 at 01:00 UTC" in a
+ * dropdown beside "02/18/2025" — an intraday expiry offered against a
+ * price file that holds one committed close per day. The clock still
+ * ticks hourly and contracts still settle at the exact observation
+ * they expire on; there is just nothing to gain from letting someone
+ * pick one.
+ */
 export function selectableExpiries(date: string) {
-  const hourly = shortExpiries(date);
-  return [
-    ...new Set([
-      ...[0, 3, 7, 11, 22].map((i) => hourly[i]).filter(Boolean),
-      ...expiries(date),
-    ]),
-  ].sort();
+  return expiries(date);
 }

@@ -1,24 +1,53 @@
 'use client';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { VaultController } from '@/hooks/oddlot/use-vault';
 import type { ChainCatalog } from '@/lib/oddlot/types';
 import type { OrderTerms } from '@/lib/oddlot/types';
 import { selectableExpiries } from '@/lib/oddlot/market';
-import { Button, Field, Panel, expiryLabel, qty, usd } from './shared';
+import {
+  Button,
+  Panel,
+  qty,
+  usd,
+} from './shared';
 export function OptionsChain({
   desk,
+  quantity,
+  side,
+  kind,
+  expiry,
   onSelect,
 }: {
   desk: VaultController;
+  /**
+   * The size to price the ladder at, owned by the ticket beside it.
+   *
+   * The chain had its own size box, which meant two fields for one
+   * number: you could scan a ladder priced for one share and then
+   * place a different size without the premiums you read ever
+   * applying.
+   */
+  quantity: number;
+  /**
+   * Which ladder to read, chosen on the screen's top line.
+   *
+   * The controls live up there with the screen's other controls rather
+   * than inside the panel they steer, so the reader sets what they are
+   * looking at before they start looking.
+   */
+  side: 'buy' | 'sell';
+  kind: 'call' | 'put';
+  expiry: string;
   onSelect: (terms: OrderTerms) => void;
 }) {
   const state = desk.state!,
     dates = selectableExpiries(state.book.date);
-  const [expiry, setExpiry] = useState(
-      dates.find((d) => !d.includes('T')) || dates[0] || '',
-    ),
-    [quantity, setQuantity] = useState('1'),
-    [mobileKind, setMobileKind] = useState<'call' | 'put'>('call');
   const [catalog, setCatalog] = useState<ChainCatalog | null>(null),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(false);
@@ -34,7 +63,7 @@ export function OptionsChain({
       setError('');
       setCatalog(null);
       try {
-        const result = await read.current(effective, Number(quantity));
+        const result = await read.current(effective, quantity);
         if (!cancelled) setCatalog(result);
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
@@ -51,7 +80,7 @@ export function OptionsChain({
     catalog &&
     catalog.revision === state.revision &&
     catalog.expiry === effective &&
-    catalog.quantity === Number(quantity);
+    catalog.quantity === quantity;
   const choose = (
     strike: number,
     kind: 'call' | 'put',
@@ -80,40 +109,28 @@ export function OptionsChain({
     const v = Math.abs(p);
     return v > 0 && v < 0.005 ? '<$0.01' : chainPrice.format(v);
   };
+  const spot = state.market.price;
+
+  /**
+   * Open the ladder on the money.
+   *
+   * Strikes run high to low, so the top of the list is the deepest
+   * out-of-the-money contract there is — the one nobody opens a chain
+   * to read. The scroller starts with the share price in the middle of
+   * the view: as much of what is in the money below it as of what is
+   * not above it, and the rest a scroll away in either direction.
+   */
+  const scroller = useRef<HTMLDivElement>(null);
+  const marker = useRef<HTMLTableRowElement>(null);
+  useLayoutEffect(() => {
+    const box = scroller.current,
+      at = marker.current;
+    if (!box || !at) return;
+    box.scrollTop = Math.max(0, at.offsetTop - box.clientHeight / 2);
+  }, [catalog, kind, side]);
+
   return (
     <Panel className="od-chain">
-      <div className="od-panel-head">
-        <div>
-          <h2>NVDA options chain</h2>
-          <p>Choose a strike. Review funding before you trade.</p>
-        </div>
-        <b>{usd(state.market.price)}</b>
-      </div>
-      <div className="od-chain-controls od-form-grid">
-        <Field label="Chain expiration">
-          <select value={effective} onChange={(e) => setExpiry(e.target.value)}>
-            {dates.map((d) => (
-              <option key={d} value={d}>
-                {expiryLabel(d)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Chain share-equivalents">
-          <input
-            type="number"
-            min=".000001"
-            max="1000"
-            step="any"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-          />
-        </Field>
-      </div>
-      <p className="od-form-note od-chain-note">
-        Model premiums for the entire selected size. Physical exercise requires
-        separate cash or shares.
-      </p>
       {error && (
         <p role="alert" className="od-error">
           {error}
@@ -122,123 +139,85 @@ export function OptionsChain({
       {loading && (
         <output className="od-chain-note">Loading model chain…</output>
       )}
-      {current && (
-        <div className="od-table-wrap od-chain-desktop">
-          <table className="od-table od-chain-table">
+
+      {current && catalog && (
+        <div className="od-table-wrap od-ladder-scroll" ref={scroller}>
+          <table className="od-table od-ladder">
             <thead>
               <tr>
-                <th>Calls</th>
-                <th>Call funding</th>
-                <th>Strike</th>
-                <th>Put funding</th>
-                <th>Puts</th>
+                <th>Strike price</th>
+                <th className="num">Breakeven</th>
+                <th className="num">To breakeven</th>
+                <th className="num">
+                  {side === 'buy' ? 'Cash to fund' : 'Reserved to write'}
+                </th>
+                <th className="num">Premium</th>
               </tr>
             </thead>
             <tbody>
-              {catalog.rows.map((row) => {
-                const cell = (kind: 'call' | 'put') => {
+              {/* Highest strike first, the way a ladder is read, with
+                  the spot marked where it actually falls between two
+                  of them. */}
+              {[...catalog.rows]
+                .sort((a, b) => b.strike - a.strike)
+                .map((row, i, all) => {
                   const c = row.contracts.find((c) => c.kind === kind)!;
+                  const per = c[side].premium / catalog.quantity;
+                  const breakeven =
+                    kind === 'call' ? row.strike + per : row.strike - per;
+                  const away = (breakeven / spot - 1) * 100;
+                  const next = all[i + 1];
+                  const crosses =
+                    row.strike >= spot && (!next || next.strike < spot);
                   return (
-                    <div className="od-chain-actions">
-                      {(['buy', 'sell'] as const).map((side) => (
-                        <Button
-                          key={side}
-                          variant={side === 'buy' ? 'secondary' : 'quiet'}
-                          onClick={() => choose(row.strike, kind, side)}
+                    <Fragment key={row.strike}>
+                      <tr>
+                        <td>
+                          {/* Half-steps are real strikes, so they keep
+                              their cents; whole ones do not carry two
+                              zeros for the sake of it. */}
+                          <b>
+                            {usd(row.strike, row.strike % 1 === 0 ? 0 : 2)}
+                          </b>
+                        </td>
+                        <td className="num">{usd(breakeven)}</td>
+                        <td
+                          className={`num ${away >= 0 ? 'od-up' : 'od-down'}`}
                         >
-                          {side === 'buy' ? 'Buy' : 'Write'}{' '}
-                          {priceLabel(c[side].premium)}
-                        </Button>
-                      ))}
-                    </div>
+                          {away >= 0 ? '+' : ''}
+                          {away.toFixed(2)}%
+                        </td>
+                        <td className="num od-muted">
+                          {c[side].cash > 0
+                            ? usd(c[side].cash)
+                            : c[side].shares > 0
+                              ? `${qty(c[side].shares)} NVDA`
+                              : '—'}
+                        </td>
+                        <td className="num">
+                          <Button
+                            variant="secondary"
+                            onClick={() => choose(row.strike, kind, side)}
+                          >
+                            {priceLabel(c[side].premium)}
+                          </Button>
+                        </td>
+                      </tr>
+                      {crosses && (
+                        <tr className="od-ladder-spot" ref={marker}>
+                          <td colSpan={5}>
+                            <b>Share price: {usd(spot)}</b>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
-                };
-                const call = row.contracts[0],
-                  put = row.contracts[1];
-                return (
-                  <tr
-                    key={row.strike}
-                    className={
-                      Math.abs(row.strike - state.market.price) < 2.5
-                        ? 'od-atm'
-                        : ''
-                    }
-                  >
-                    <td>{cell('call')}</td>
-                    <td>
-                      <small>
-                        Buy: {usd(call.buy.cash)}
-                        <br />
-                        Write: {qty(call.sell.shares)} shares
-                      </small>
-                    </td>
-                    <td>
-                      <b>{usd(row.strike, 0)}</b>
-                    </td>
-                    <td>
-                      <small>
-                        Buy: {qty(put.buy.shares)} shares
-                        <br />
-                        Write: {usd(put.sell.cash)}
-                      </small>
-                    </td>
-                    <td>{cell('put')}</td>
-                  </tr>
-                );
-              })}
+                })}
             </tbody>
           </table>
         </div>
       )}
-      {current && (
-        <div className="od-chain-mobile">
-          <div className="od-segmented">
-            {(['call', 'put'] as const).map((kind) => (
-              <button
-                key={kind}
-                className={mobileKind === kind ? 'selected' : ''}
-                onClick={() => setMobileKind(kind)}
-              >
-                {kind === 'call' ? 'Calls' : 'Puts'}
-              </button>
-            ))}
-          </div>
-          {catalog.rows.map((row) => {
-            const c = row.contracts.find((c) => c.kind === mobileKind)!;
-            return (
-              <div
-                className={`od-chain-card ${Math.abs(row.strike - state.market.price) < 2.5 ? 'od-atm' : ''}`}
-                key={row.strike}
-              >
-                <div className="od-chain-strike">
-                  <strong>{usd(row.strike, 0)}</strong>
-                  <span>{mobileKind} strike</span>
-                </div>
-                <div className="od-chain-card-actions">
-                  {(['buy', 'sell'] as const).map((side) => (
-                    <div key={side}>
-                      <Button
-                        variant={side === 'buy' ? 'secondary' : 'quiet'}
-                        onClick={() => choose(row.strike, mobileKind, side)}
-                      >
-                        {side === 'buy' ? 'Buy' : 'Write'}{' '}
-                        {priceLabel(c[side].premium)}
-                      </Button>
-                      <small>
-                        +{' '}
-                        {c[side].cash
-                          ? usd(c[side].cash)
-                          : `${qty(c[side].shares)} ${c[side].shares === 1 ? 'share' : 'shares'}`}{' '}
-                        backing
-                      </small>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+
     </Panel>
   );
 }

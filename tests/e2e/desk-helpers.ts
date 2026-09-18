@@ -3,10 +3,11 @@ import { expect, type Page } from '@playwright/test';
 /**
  * One way to drive the desk from a test.
  *
- * The shell owns navigation now: four items in the app bar, and each
- * view's own sections as tabs beneath it. Every spec was reaching into
- * that structure itself, with three different ideas of where a view
- * lived, so the helpers live here and the specs say what they mean.
+ * The shell owns navigation now: four items down the left rail, and
+ * each view's own sections nested under it while it is open. Every
+ * spec was reaching into that structure itself, with three different
+ * ideas of where a view lived, so the helpers live here and the specs
+ * say what they mean.
  */
 
 /**
@@ -27,7 +28,7 @@ export async function openDesk(page: Page, path = '/app') {
   await expect(page.locator('.pc-desk')).toHaveAttribute('data-ready', 'true');
 }
 
-/** The four destinations in the app bar. */
+/** The four destinations in the left rail. */
 export async function navTop(page: Page, name: string) {
   const item = page
     .getByRole('navigation', { name: 'Main navigation' })
@@ -36,11 +37,19 @@ export async function navTop(page: Page, name: string) {
   await expect(item).toHaveAttribute('aria-current', 'page');
 }
 
-/** A section within the current view. */
+/**
+ * A section within the current view.
+ *
+ * Sections are nested under their view in the rail, and only while
+ * that view is open. A view with one section has no list to open, so
+ * arriving at the view is arriving at the section and there is
+ * nothing here to click.
+ */
 export async function section(page: Page, name: string) {
-  const tab = page.getByRole('tab', { name, exact: true });
-  await tab.click();
-  await expect(tab).toHaveAttribute('aria-selected', 'true');
+  const item = page.locator('.od-side-sub-item', { hasText: name });
+  if ((await item.count()) === 0) return;
+  await item.click();
+  await expect(item).toHaveAttribute('aria-current', 'true');
 }
 
 /**
