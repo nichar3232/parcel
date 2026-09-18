@@ -722,7 +722,7 @@ function OutcomeChart({
         <div>
           <span>Value at expiry</span>
           <b>
-            {tokens} {symbol} with the call written
+            Your {tokens} {symbol}, if you sell this call
           </b>
         </div>
         <div className="od-payoff-read">
@@ -733,7 +733,7 @@ function OutcomeChart({
           <b>{usd(withCall)}</b>
           <small className={diff >= 0 ? 'up' : 'down'}>
             {diff >= 0 ? '+' : '−'}
-            {usd(Math.abs(diff))} against holding
+            {usd(Math.abs(diff))} vs doing nothing
           </small>
         </div>
       </div>
@@ -742,7 +742,7 @@ function OutcomeChart({
         ref={svg}
         className="od-payoff-svg od-outcome-chart"
         viewBox={`0 0 ${O.w} ${O.h}`}
-        aria-label="Value of the escrowed tokens at expiry, with and without the covered call"
+        aria-label="What the escrowed tokens are worth at expiry if you sell this call, against doing nothing"
         onPointerMove={(e) => e.buttons !== 2 && scrub(e.clientX)}
         onPointerDown={(e) => scrub(e.clientX)}
         onPointerLeave={() => setAt(null)}
@@ -801,19 +801,19 @@ function OutcomeChart({
       <ul className="od-outcome-legend">
         <li>
           <i className="line" />
-          With the call written
+          If you sell this call
         </li>
         <li>
           <i className="dash" />
-          Holding the tokens
+          If you do nothing
         </li>
         <li>
           <i className="cushion" />
-          Premium kept
+          Premium you pocket
         </li>
         <li>
           <i className="given" />
-          Upside given up
+          Gains you give up above the strike
         </li>
       </ul>
     </div>
