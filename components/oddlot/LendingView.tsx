@@ -91,7 +91,9 @@ export function LendingView({
     // Cash loans are dollar debt against the same collateral. Their
     // pledges are already in the vault list above, so the one health
     // factor covers shorts and loans together.
-    for (const p of s.book.borrows.filter((p) => p.status === 'active'))
+    // A server that predates cash loans answers without the list; a
+    // deploy overlap should not blank the whole desk.
+    for (const p of (s.book.borrows ?? []).filter((p) => p.status === 'active'))
       debt.push({
         symbol: 'USDC',
         amount: borrowDebt(p, s.book.date).total,

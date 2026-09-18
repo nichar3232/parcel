@@ -348,7 +348,7 @@ function Positions({
   const s = desk.state!;
   const loans = s.book.loans.filter((p) => p.status === 'active');
   const shorts = s.book.shorts.filter((p) => p.status === 'active');
-  const borrows = s.book.borrows.filter((p) => p.status === 'active');
+  const borrows = (s.book.borrows ?? []).filter((p) => p.status === 'active');
   const openPnl = marked.reduce((t, m) => t + m.pnl, 0);
 
   /**
