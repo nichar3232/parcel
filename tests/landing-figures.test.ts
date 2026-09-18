@@ -26,7 +26,7 @@ const rows = (id: string) =>
   Object.fromEntries(EXAMPLES.find((e) => e.id === id)!.rows);
 
 void test('the reference close is the stored one, not a literal', () => {
-  assert.equal(SPOT, mark(OPEN_DATE));
+  assert.equal(SPOT, mark('NVDA', OPEN_DATE));
   assert.equal(HERO.spotLabel, '$142.62');
 });
 
@@ -67,6 +67,7 @@ void test('the pre-IPO expiry is one exercise window after the open', () => {
 
 void test('the quoted single-call premium is what the engine prices', () => {
   const call: OrderTerms = {
+    symbol: 'NVDA',
     name: 'call',
     quantity: 1,
     expiry: EXPIRY,

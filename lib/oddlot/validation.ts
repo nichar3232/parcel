@@ -3,6 +3,7 @@ import { DIVIDEND_DATE, clockRows } from './market';
 import { payoffBounds } from './envelope';
 import { bounded } from './math';
 import type { Leg, OrderTerms } from './types';
+import { DEFAULT_UNDERLYING, isUnderlying } from './universe';
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw Error('Provide an object with valid contract terms.');
@@ -22,8 +23,16 @@ export function expiry(value: unknown, date: string) {
     throw Error('Select a future session in the stored market window.');
   return value;
 }
+/** The underlying a request names, or the default when it names none. */
+export function symbol(value: unknown) {
+  if (value === undefined || value === null || value === '')
+    return DEFAULT_UNDERLYING;
+  if (!isUnderlying(value)) throw Error('Choose a supported underlying.');
+  return value;
+}
 export function parseOrderTerms(value: unknown, date: string): OrderTerms {
   const t = object(value);
+  const on = symbol(t.symbol);
   if (typeof t.name !== 'string' || t.name.length < 1 || t.name.length > 70)
     throw Error('Provide a contract name of 1–70 characters.');
   if (t.reference !== 'stock' && t.reference !== 'dividend')
@@ -58,6 +67,8 @@ export function parseOrderTerms(value: unknown, date: string): OrderTerms {
       'Unbounded cash-settled calls require physical share backing. Use physical settlement or add a cap.',
     );
   const end = expiry(t.expiry, date);
+  if (t.reference === 'dividend' && on !== DEFAULT_UNDERLYING)
+    throw Error('Dividend contracts are written on NVDA only.');
   if (
     t.reference === 'dividend' &&
     (t.settlement !== 'cash' || end !== DIVIDEND_DATE)
@@ -95,6 +106,7 @@ export function parseOrderTerms(value: unknown, date: string): OrderTerms {
   }
   const parsed: OrderTerms = {
     ...(curve ? { curve } : {}),
+    symbol: on,
     name: t.name,
     quantity: amount(t.quantity),
     expiry: end,

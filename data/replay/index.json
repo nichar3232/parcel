@@ -1,0 +1,82 @@
+{
+  "struckAt": "2026-09-18T06:51:10.284Z",
+  "tokens": [
+    {
+      "symbol": "T-OpenAI",
+      "name": "OpenAI",
+      "provider": "tessera",
+      "file": "t-openai.json",
+      "anchor": 812.79
+    },
+    {
+      "symbol": "T-Kalshi",
+      "name": "Kalshi",
+      "provider": "tessera",
+      "file": "t-kalshi.json",
+      "anchor": 413.8
+    },
+    {
+      "symbol": "T-SpaceX",
+      "name": "SpaceX",
+      "provider": "tessera",
+      "file": "t-spacex.json",
+      "anchor": 423
+    },
+    {
+      "symbol": "OPENAI",
+      "name": "OpenAI",
+      "provider": "prestocks",
+      "file": "openai.json",
+      "anchor": 970.8933654869912
+    },
+    {
+      "symbol": "ANTHROPIC",
+      "name": "Anthropic",
+      "provider": "prestocks",
+      "file": "anthropic.json",
+      "anchor": 1017.00499094
+    },
+    {
+      "symbol": "SPACEX",
+      "name": "SpaceX",
+      "provider": "prestocks",
+      "file": "spacex.json",
+      "anchor": 153.3719223824817
+    },
+    {
+      "symbol": "ANDURIL",
+      "name": "Anduril",
+      "provider": "prestocks",
+      "file": "anduril.json",
+      "anchor": 152.48722841
+    },
+    {
+      "symbol": "NEURALINK",
+      "name": "Neuralink",
+      "provider": "prestocks",
+      "file": "neuralink.json",
+      "anchor": 321.03309262
+    },
+    {
+      "symbol": "FIGUREAI",
+      "name": "Figure AI",
+      "provider": "prestocks",
+      "file": "figureai.json",
+      "anchor": 179.7136033
+    },
+    {
+      "symbol": "KALSHI",
+      "name": "Kalshi",
+      "provider": "prestocks",
+      "file": "kalshi.json",
+      "anchor": 878.2412996
+    },
+    {
+      "symbol": "POLYMARKET",
+      "name": "Polymarket",
+      "provider": "prestocks",
+      "file": "polymarket.json",
+      "anchor": 144.52319766
+    }
+  ]
+}

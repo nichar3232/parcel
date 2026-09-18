@@ -203,16 +203,16 @@ void test('hourly expiries advance without look-ahead and settle at their exact 
     original = totals(b);
   const hourly = '2025-01-24T01:00:00Z';
   assert.ok(shortExpiries(b.date).includes(hourly));
-  assert.equal(mark(hourly), 142.62);
+  assert.equal(mark('NVDA', hourly), 142.62);
   const t = templateTerms('quadratic', hourly);
   parseOrderTerms(t, b.date);
   addOrder(b, t, premium(t, b));
   setMarketDate(b, '2025-01-27');
   assert.equal(b.options[0].cashFlow, cashPayoff(t, 142.62));
-  assert.notEqual(b.options[0].cashFlow, cashPayoff(t, mark(b.date)));
+  assert.notEqual(b.options[0].cashFlow, cashPayoff(t, mark('NVDA', b.date)));
   validateLedger(b, original);
   assert.throws(() => parseOrderTerms(t, b.date), /future/);
-  assert.throws(() => mark('2025-01-24T01:30:00Z'));
+  assert.throws(() => mark('NVDA', '2025-01-24T01:30:00Z'));
   assert.equal(
     termInterest(1, 142.62, '2025-01-24', hourly),
     Math.round(((142.62 * 0.035) / 8760) * 1e6) / 1e6,
@@ -282,9 +282,9 @@ void test('server sizing respects actual rounded premium budgets, sensitivity ta
   );
   assert.throws(() => sizeOrder(b, t, 'exposure', 0.3333333));
   assert.ok(
-    Math.abs(orderGreeks(t, mark(b.date), b.date).theta) >
+    Math.abs(orderGreeks(t, mark('NVDA', b.date), b.date).theta) >
       Math.abs(
-        orderGreeks({ ...t, quantity: 0.1 }, mark(b.date), b.date).theta,
+        orderGreeks({ ...t, quantity: 0.1 }, mark('NVDA', b.date), b.date).theta,
       ),
   );
 });

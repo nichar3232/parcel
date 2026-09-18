@@ -1,16 +1,20 @@
 import type {
   CollateralGroup,
   OptionPosition,
+  PerSymbol,
   RiskSummary,
   VaultBook,
 } from './types';
 import { add, mul } from './math';
 import { mark } from './market';
+import { UNDERLYINGS } from './universe';
 import { deliveryBounds } from './envelope';
+
 function envelope(positions: OptionPosition[], key: string): CollateralGroup {
   const b = deliveryBounds(positions.map((p) => p.terms));
   return {
     key,
+    symbol: positions[0].terms.symbol,
     cashMinimum: Number(b.cashMin) / 1e6,
     cashMaximum: Number(b.cashMax) / 1e6,
     expiry: positions[0].terms.expiry,
@@ -22,6 +26,12 @@ function envelope(positions: OptionPosition[], key: string): CollateralGroup {
     counterpartyShares: Number(b.sharesMax > 0n ? b.sharesMax : 0n) / 1e6,
   };
 }
+/**
+ * Positions that share collateral. Shares of one underlying cannot
+ * deliver against a contract on another, so the symbol is part of the
+ * key: two calls expiring the same day on different tokens are two
+ * groups, each reserving its own stock.
+ */
 export function marginGroups(
   positions: OptionPosition[],
   mode: 'cross' | 'isolated',
@@ -31,7 +41,7 @@ export function marginGroups(
     const key =
       mode === 'isolated'
         ? p.id
-        : `${p.terms.reference}:${p.terms.expiry}:${p.terms.settlement}`;
+        : `${p.terms.symbol}:${p.terms.reference}:${p.terms.expiry}:${p.terms.settlement}`;
     const group = groups.get(key);
     if (group) group.push(p);
     else groups.set(key, [p]);
@@ -61,22 +71,36 @@ export function calendarCash(groups: CollateralGroup[]) {
   }
   return { cash, counterpartyCash };
 }
+
+const SYMBOLS = UNDERLYINGS.map((u) => u.symbol);
+const zero = (): PerSymbol => Object.fromEntries(SYMBOLS.map((s) => [s, 0]));
+const bump = (into: PerSymbol, symbol: string, amount: number) => {
+  into[symbol] = add(into[symbol] ?? 0, amount);
+};
+
 export function risk(book: VaultBook): RiskSummary {
   const groups = marginGroups(book.options, book.margin),
     gross = marginGroups(book.options, 'isolated');
-  const total = (
+  const total = (gs: CollateralGroup[], k: 'cash' | 'counterpartyCash') =>
+    gs.reduce((s, g) => add(s, g[k]), 0);
+  const perSymbol = (
     gs: CollateralGroup[],
-    k: 'cash' | 'shares' | 'counterpartyCash' | 'counterpartyShares',
-  ) => gs.reduce((s, g) => add(s, g[k]), 0);
+    k: 'shares' | 'counterpartyShares',
+  ) => {
+    const out = zero();
+    for (const g of gs) bump(out, g.symbol, g[k]);
+    return out;
+  };
   const shortCash = book.shorts
     .filter((p) => p.status === 'active')
     .reduce((s, p) => add(s, add(mul(p.quantity, p.cap), p.maxInterest)), 0);
-  const loanShares = book.loans
-    .filter((p) => p.status === 'active' && !p.productive)
-    .reduce((s, p) => add(s, p.quantity), 0);
-  const shortShares = book.shorts
-    .filter((p) => p.status === 'active')
-    .reduce((s, p) => add(s, p.quantity), 0);
+  const loanShares = zero(),
+    shortShares = zero(),
+    marketShares = zero();
+  for (const p of book.loans.filter((p) => p.status === 'active'))
+    bump(p.productive ? marketShares : loanShares, p.symbol, p.quantity);
+  for (const p of book.shorts.filter((p) => p.status === 'active'))
+    bump(shortShares, p.symbol, p.quantity);
   const calendar =
     book.margin === 'cross'
       ? calendarCash(groups)
@@ -85,14 +109,36 @@ export function risk(book: VaultBook): RiskSummary {
           counterpartyCash: total(groups, 'counterpartyCash'),
         };
   const cash = add(calendar.cash, shortCash),
-    shares = total(groups, 'shares');
+    shares = perSymbol(groups, 'shares');
   const grossCash = add(total(gross, 'cash'), shortCash),
-    grossShares = total(gross, 'shares');
-  const price = mark(book.date),
-    collateralValue = add(cash, mul(shares, price));
-  const freeCash = add(book.vault.USDC, -cash),
-    freeShares = add(book.vault.NVDA, -shares);
-  const availableValue = add(freeCash, mul(freeShares, price));
+    grossShares = perSymbol(gross, 'shares');
+  const price = (symbol: string) => mark(symbol, book.date);
+  const freeShares = zero();
+  let collateralValue = cash,
+    availableValue = add(book.vault.USDC, -cash),
+    releasedValue = add(grossCash, -cash);
+  for (const symbol of SYMBOLS) {
+    freeShares[symbol] = add(book.vault[symbol] ?? 0, -shares[symbol]);
+    // Only a symbol the book actually touches is priced; an idle one
+    // contributes nothing and need not be looked up.
+    if (!shares[symbol] && !freeShares[symbol] && !grossShares[symbol])
+      continue;
+    const p = price(symbol);
+    collateralValue = add(collateralValue, mul(shares[symbol], p));
+    availableValue = add(availableValue, mul(freeShares[symbol], p));
+    releasedValue = add(
+      releasedValue,
+      mul(add(grossShares[symbol], -shares[symbol]), p),
+    );
+  }
+  const freeCash = add(book.vault.USDC, -cash);
+  const counterpartyShares = perSymbol(groups, 'counterpartyShares');
+  for (const symbol of SYMBOLS)
+    bump(
+      counterpartyShares,
+      symbol,
+      add(shortShares[symbol], loanShares[symbol]),
+    );
   return {
     cash,
     shares,
@@ -102,20 +148,12 @@ export function risk(book: VaultBook): RiskSummary {
     freeShares,
     collateralValue,
     availableValue,
-    releasedValue: add(
-      add(grossCash, -cash),
-      mul(add(grossShares, -shares), price),
-    ),
+    releasedValue,
     utilization:
       collateralValue / (collateralValue + Math.max(0, availableValue) || 1),
     counterpartyCash: calendar.counterpartyCash,
-    counterpartyShares: add(
-      add(total(groups, 'counterpartyShares'), shortShares),
-      loanShares,
-    ),
-    marketShares: book.loans
-      .filter((p) => p.status === 'active' && p.productive)
-      .reduce((s, p) => add(s, p.quantity), 0),
+    counterpartyShares,
+    marketShares,
     groups,
   };
 }
@@ -125,18 +163,21 @@ export function assertCollateral(book: VaultBook) {
     throw Error(
       `This would leave the vault short of ${(-r.freeCash).toFixed(6)} USDC collateral. Deposit cash or close risk first.`,
     );
-  if (r.freeShares < 0)
-    throw Error(
-      `This requires ${(-r.freeShares).toFixed(6)} more available NVDA shares. Deposit shares or close risk first.`,
-    );
-  if (book.market.NVDA < r.marketShares)
-    throw Error(
-      'The market shares backing loan protection must remain reserved.',
-    );
-  if (
-    book.counterparty.USDC < r.counterpartyCash ||
-    book.counterparty.NVDA < r.counterpartyShares
-  )
+  for (const symbol of SYMBOLS) {
+    if (r.freeShares[symbol] < 0)
+      throw Error(
+        `This requires ${(-r.freeShares[symbol]).toFixed(6)} more available ${symbol} shares. Deposit shares or close risk first.`,
+      );
+    if ((book.market[symbol] ?? 0) < r.marketShares[symbol])
+      throw Error(
+        'The market shares backing loan protection must remain reserved.',
+      );
+    if ((book.counterparty[symbol] ?? 0) < r.counterpartyShares[symbol])
+      throw Error(
+        'The test counterparty has insufficient free collateral for this order.',
+      );
+  }
+  if (book.counterparty.USDC < r.counterpartyCash)
     throw Error(
       'The test counterparty has insufficient free collateral for this order.',
     );

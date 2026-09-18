@@ -230,6 +230,7 @@ export function templateTerms(id: string, expiry: string): OrderTerms {
   const t = templates.find((t) => t.id === id) || templates[0];
   return {
     ...(t.curve ? { curve: structuredClone(t.curve) } : {}),
+    symbol: 'NVDA',
     name: t.name,
     legs: structuredClone(t.legs),
     quantity: 1,

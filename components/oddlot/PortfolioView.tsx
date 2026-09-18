@@ -246,7 +246,7 @@ export function PortfolioView({
                 <b>{ASSETS.NVDA.name}</b>
                 <small>
                   {qty(book.vault.NVDA)} NVDA
-                  {risk.shares > 0 ? `, ${qty(risk.shares)} reserved` : ''}
+                  {risk.shares.NVDA > 0 ? `, ${qty(risk.shares.NVDA)} reserved` : ''}
                   {book.wallet.NVDA > 0
                     ? `, ${qty(book.wallet.NVDA)} in wallet`
                     : ''}
@@ -603,7 +603,7 @@ function Collateral({ desk }: { desk: VaultController }) {
           <Stat
             label="Collateral committed"
             value={<Money value={r.collateralValue} />}
-            detail={`${usd(r.cash)} plus ${qty(r.shares)} NVDA`}
+            detail={`${usd(r.cash)} plus ${qty(r.shares.NVDA)} NVDA`}
           />
         </Panel>
         <Panel>
@@ -678,9 +678,9 @@ function Collateral({ desk }: { desk: VaultController }) {
           />
           <Meter
             label="Share requirement"
-            value={r.shares}
-            of={Math.max(r.grossShares, r.shares, 0.000001)}
-            note={`${qty(r.shares)} of ${qty(r.grossShares)} NVDA standalone`}
+            value={r.shares.NVDA}
+            of={Math.max(r.grossShares.NVDA, r.shares.NVDA, 0.000001)}
+            note={`${qty(r.shares.NVDA)} of ${qty(r.grossShares.NVDA)} NVDA standalone`}
             color="var(--pc-magenta)"
           />
           <p className="od-note">
@@ -725,7 +725,7 @@ function Collateral({ desk }: { desk: VaultController }) {
                     <td className="num">{qty(g.shares)}</td>
                     <td className="num">
                       {usd(g.counterpartyCash)}
-                      <small>{qty(g.counterpartyShares)} NVDA</small>
+                      <small>{qty(g.counterpartyShares)} {g.symbol}</small>
                     </td>
                   </tr>
                 ))}

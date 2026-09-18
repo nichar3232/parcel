@@ -1,11 +1,13 @@
-import { marketRows } from './market';
+import { historyOf, marketRows } from './market';
+import { DEFAULT_UNDERLYING } from './universe';
 import { add, mul } from './math';
 import type { VaultBook } from './types';
 
 export interface ValuePoint {
   date: string;
   cash: number;
-  shares: number;
+  /** Shares held per underlying at that session's close. */
+  shares: Record<string, number>;
   value: number;
 }
 
@@ -25,7 +27,7 @@ export const RANGES: { id: Range; label: string; sessions: number }[] = [
  * already in the ledger as a signed delta against the vault, so the
  * balance at the end of any past session is the balance now with every
  * later delta unwound. Valuing each of those balances at that session's
- * committed close gives the line.
+ * committed close, per underlying, gives the line.
  *
  * Two things this deliberately does not do. It does not value the open
  * contracts: the headline is cash plus stock, and a line that included
@@ -37,26 +39,36 @@ export const RANGES: { id: Range; label: string; sessions: number }[] = [
  */
 export function valueSeries(book: VaultBook): ValuePoint[] {
   const today = book.date.slice(0, 10);
-  const deltas = new Map<string, { cash: number; shares: number }>();
+  type Delta = { cash: number; shares: Record<string, number> };
+  const deltas = new Map<string, Delta>();
   for (const e of book.events) {
     const day = e.date.slice(0, 10);
-    const at = deltas.get(day) ?? { cash: 0, shares: 0 };
-    deltas.set(day, {
-      cash: add(at.cash, e.cash),
-      shares: add(at.shares, e.shares),
-    });
+    const at = deltas.get(day) ?? { cash: 0, shares: {} };
+    const symbol = e.symbol ?? DEFAULT_UNDERLYING;
+    at.cash = add(at.cash, e.cash);
+    at.shares[symbol] = add(at.shares[symbol] ?? 0, e.shares);
+    deltas.set(day, at);
   }
 
   // Unwind to the balance the vault opened its first session on, then
   // replay forward. Backwards would produce the same numbers in the
   // wrong order and leave the rounding on the oldest point.
-  let cash = book.vault.USDC,
-    shares = book.vault.NVDA;
+  let cash = book.vault.USDC;
+  const shares: Record<string, number> = {};
+  for (const [symbol, amount] of Object.entries(book.vault))
+    if (symbol !== 'USDC' && amount) shares[symbol] = amount;
   for (const d of deltas.values()) {
     cash = add(cash, -d.cash);
-    shares = add(shares, -d.shares);
+    for (const [symbol, n] of Object.entries(d.shares))
+      shares[symbol] = add(shares[symbol] ?? 0, -n);
   }
 
+  const closes = new Map(
+    Object.keys(shares).map((symbol) => [
+      symbol,
+      new Map(historyOf(symbol).map((r) => [r.date, r.close])),
+    ]),
+  );
   const first = [...deltas.keys()].sort()[0] ?? today;
   const points: ValuePoint[] = [];
   for (const row of marketRows) {
@@ -64,14 +76,16 @@ export function valueSeries(book: VaultBook): ValuePoint[] {
     const d = deltas.get(row.date);
     if (d) {
       cash = add(cash, d.cash);
-      shares = add(shares, d.shares);
+      for (const [symbol, n] of Object.entries(d.shares))
+        shares[symbol] = add(shares[symbol] ?? 0, n);
     }
-    points.push({
-      date: row.date,
-      cash,
-      shares,
-      value: add(cash, mul(shares, row.close)),
-    });
+    let value = cash;
+    for (const [symbol, n] of Object.entries(shares)) {
+      if (!n) continue;
+      const close = closes.get(symbol)?.get(row.date);
+      if (close != null) value = add(value, mul(n, close));
+    }
+    points.push({ date: row.date, cash, shares: { ...shares }, value });
   }
   return points;
 }

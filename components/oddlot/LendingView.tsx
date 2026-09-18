@@ -399,7 +399,7 @@ function Borrow({
         <div className="od-panel-body">
           <Field
             label="Shares"
-            hint={`Available ${qty(s.risk.freeShares)} NVDA`}
+            hint={`Available ${qty(s.risk.freeShares.NVDA)} NVDA`}
           >
             <input
               type="number"

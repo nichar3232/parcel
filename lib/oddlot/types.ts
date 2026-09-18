@@ -1,10 +1,9 @@
-export type Asset = 'USDC' | 'NVDA';
+/** 'USDC', or the symbol of any underlying in the universe. */
+export type Asset = string;
 export type Side = 'buy' | 'sell';
 export type OptionKind = 'call' | 'put';
-export interface Balances {
-  USDC: number;
-  NVDA: number;
-}
+/** Amounts per asset. USDC is always present; underlyings default to 0. */
+export type Balances = Record<string, number>;
 export interface Leg {
   kind: OptionKind;
   side: Side;
@@ -21,6 +20,8 @@ export interface CurveTerms {
 }
 export interface OrderTerms {
   curve?: CurveTerms;
+  /** The underlying the contract is written on. */
+  symbol: string;
   name: string;
   quantity: number;
   expiry: string;
@@ -40,6 +41,7 @@ export interface OptionPosition {
 export interface LendingPosition {
   productive?: { entry: number; cap: number; premium: number };
   id: string;
+  symbol: string;
   quantity: number;
   opened: string;
   expiry: string;
@@ -51,6 +53,7 @@ export interface LendingPosition {
 }
 export interface ShortPosition {
   id: string;
+  symbol: string;
   quantity: number;
   entry: number;
   cap: number;
@@ -69,10 +72,12 @@ export interface LedgerEvent {
   detail: string;
   cash: number;
   shares: number;
+  /** Which underlying the share movement was in. */
+  symbol?: string;
   reference?: string;
 }
 export interface VaultBook {
-  version: 2;
+  version: 3;
   date: string;
   margin: 'cross' | 'isolated';
   wallet: Balances;
@@ -88,6 +93,7 @@ export interface CollateralGroup {
   cashMinimum: number;
   cashMaximum: number;
   key: string;
+  symbol: string;
   expiry: string;
   settlement: string;
   positions: number;
@@ -96,20 +102,22 @@ export interface CollateralGroup {
   counterpartyCash: number;
   counterpartyShares: number;
 }
+/** Share figures are per underlying; cash and values are one book. */
+export type PerSymbol = Record<string, number>;
 export interface RiskSummary {
   cash: number;
-  shares: number;
+  shares: PerSymbol;
   grossCash: number;
-  grossShares: number;
+  grossShares: PerSymbol;
   freeCash: number;
-  freeShares: number;
+  freeShares: PerSymbol;
   releasedValue: number;
   collateralValue: number;
   availableValue: number;
   utilization: number;
   counterpartyCash: number;
-  counterpartyShares: number;
-  marketShares: number;
+  counterpartyShares: PerSymbol;
+  marketShares: PerSymbol;
   groups: CollateralGroup[];
 }
 export interface Greeks {
@@ -145,13 +153,16 @@ export interface VaultSnapshot {
   risk: RiskSummary;
   market: {
     clock: 'daily-close-with-hourly-test-clock';
-    symbol: 'NVDA';
+    /** The default underlying; its price and volatility are below. */
+    symbol: string;
     price: number;
     date: string;
     dates: string[];
     volatility: number;
     dividend: number;
     dividendDate: string;
+    /** Every underlying the desk can write on, priced at this session. */
+    underlyings: MarketUnderlying[];
   };
   serverTime: number;
   mode: 'sandbox' | 'localnet';
@@ -163,6 +174,14 @@ export interface VaultSnapshot {
     revision: number;
   };
 }
+export interface MarketUnderlying {
+  symbol: string;
+  name: string;
+  provider: 'equity' | 'tessera' | 'prestocks';
+  price: number;
+  volatility: number;
+  simulated: boolean;
+}
 export type VaultAction =
   | {
       type: 'transfer';
@@ -170,12 +189,18 @@ export type VaultAction =
       asset: Asset;
       amount: number;
     }
-  | { type: 'stock'; side: Side; quantity: number }
+  | { type: 'stock'; side: Side; quantity: number; symbol?: string }
   | { type: 'execute'; quoteId: string }
   | { type: 'margin'; mode: 'cross' | 'isolated' }
-  | { type: 'lend'; quantity: number; expiry: string }
+  | { type: 'lend'; quantity: number; expiry: string; symbol?: string }
   | { type: 'recall'; id: string }
-  | { type: 'short'; quantity: number; cap: number; expiry: string }
+  | {
+      type: 'short';
+      quantity: number;
+      cap: number;
+      expiry: string;
+      symbol?: string;
+    }
   | { type: 'close-short'; id: string }
   | { type: 'advance'; date: string }
   | { type: 'restart' };
@@ -187,6 +212,7 @@ export interface ContractIndication {
 }
 export interface ChainCatalog {
   revision: number;
+  symbol: string;
   expiry: string;
   quantity: number;
   spot: number;

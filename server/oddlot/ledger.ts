@@ -3,9 +3,12 @@ import { units } from '../../lib/engine';
 import {
   DIVIDEND,
   DIVIDEND_DATE,
+  clockDates,
   expiries,
   mark,
+  volatility,
 } from '../../lib/oddlot/market';
+import { DEFAULT_UNDERLYING, UNDERLYINGS } from '../../lib/oddlot/universe';
 import {
   add,
   days,
@@ -30,20 +33,58 @@ import type {
   ShortPosition,
   VaultBook,
 } from '../../lib/oddlot/types';
+/**
+ * What the test wallet, counterparty and market hold of each underlying.
+ *
+ * The wallet is a faucet: 25 NVDA and a handful of every token, so a
+ * reader can deposit and write on any of them. The counterparty and
+ * the market are deep in all of them, so a contract never fails for
+ * want of the other side's inventory.
+ */
+const WALLET_SEED: Record<string, number> = { NVDA: 25 };
+const TOKEN_SEED = 5;
+const OTHER_SIDE = 10000;
+const balances = (cash: number, of: (symbol: string) => number): Balances =>
+  Object.fromEntries([
+    ['USDC', cash],
+    ...UNDERLYINGS.map((u) => [u.symbol, of(u.symbol)]),
+  ]);
 export function initialVault(): VaultBook {
   return {
-    version: 2,
+    version: 3,
     date: '2025-01-24',
     margin: 'cross',
-    wallet: { USDC: 10000, NVDA: 25 },
-    vault: { USDC: 0, NVDA: 0 },
-    counterparty: { USDC: 2000000, NVDA: 10000 },
-    market: { USDC: 2000000, NVDA: 10000 },
+    wallet: balances(10000, (s) => WALLET_SEED[s] ?? TOKEN_SEED),
+    vault: balances(0, () => 0),
+    counterparty: balances(2000000, () => OTHER_SIDE),
+    market: balances(2000000, () => OTHER_SIDE),
     options: [],
     loans: [],
     shorts: [],
     events: [],
   };
+}
+/**
+ * Bring a stored book up to the current shape.
+ *
+ * A version 2 book knew one underlying, so everything in it is NVDA:
+ * its positions gain that symbol and its balances gain a zero, or the
+ * seed, for every underlying that has arrived since. Conservation
+ * holds because the seeds land on the wallet, counterparty and market
+ * together, the way a fresh book starts.
+ */
+export function migrate(book: VaultBook & { version: number }): VaultBook {
+  if (book.version >= 3) return book;
+  const fresh = initialVault();
+  for (const side of ['wallet', 'vault', 'counterparty', 'market'] as const)
+    for (const u of UNDERLYINGS)
+      book[side][u.symbol] ??= side === 'vault' ? 0 : fresh[side][u.symbol];
+  for (const p of book.options) p.terms.symbol ??= DEFAULT_UNDERLYING;
+  for (const p of book.loans) p.symbol ??= DEFAULT_UNDERLYING;
+  for (const p of book.shorts) p.symbol ??= DEFAULT_UNDERLYING;
+  for (const e of book.events) e.symbol ??= DEFAULT_UNDERLYING;
+  book.version = 3;
+  return book;
 }
 /**
  * The same vault with a position in it, for demonstrating the desk.
@@ -89,9 +130,10 @@ export function transfer(
   amount: number,
 ) {
   units(amount);
-  if (amount > from[asset]) throw Error(`Insufficient ${asset} balance.`);
-  from[asset] = add(from[asset], -amount);
-  to[asset] = add(to[asset], amount);
+  if (amount > (from[asset] ?? 0))
+    throw Error(`Insufficient ${asset} balance.`);
+  from[asset] = add(from[asset] ?? 0, -amount);
+  to[asset] = add(to[asset] ?? 0, amount);
 }
 export function signedTransfer(
   from: Balances,
@@ -109,6 +151,7 @@ export function emit(
   cash = 0,
   shares = 0,
   reference?: string,
+  symbol = DEFAULT_UNDERLYING,
 ) {
   book.events.unshift({
     id: randomUUID(),
@@ -118,17 +161,19 @@ export function emit(
     detail,
     cash,
     shares,
+    symbol,
     reference,
   });
 }
 export function premium(terms: OrderTerms, book: VaultBook) {
-  const s = terms.reference === 'dividend' ? DIVIDEND : mark(book.date);
+  const s =
+    terms.reference === 'dividend' ? DIVIDEND : mark(terms.symbol, book.date);
   const value = round(
     orderGreeks(
       terms,
       s,
       book.date,
-      terms.reference === 'dividend' ? 0.8 : 0.45,
+      terms.reference === 'dividend' ? 0.8 : volatility(terms.symbol),
     ).price,
   );
   const bounds = payoffBounds(terms);
@@ -160,10 +205,11 @@ export function addOrder(
   emit(
     book,
     'Contract opened',
-    `${terms.name} · ${terms.quantity} share-equivalent${terms.quantity === 1 ? '' : 's'} · ${terms.expiry}`,
+    `${terms.name} · ${terms.quantity} ${terms.symbol} share-equivalent${terms.quantity === 1 ? '' : 's'} · ${terms.expiry}`,
     -cost,
     0,
     id,
+    terms.symbol,
   );
   return id;
 }
@@ -176,10 +222,11 @@ export function closeOrder(book: VaultBook, id: string, quotedValue?: number) {
   p.cashFlow = cost;
   p.stockFlow = 0;
   assertCollateral(book);
-  emit(book, 'Contract closed', p.terms.name, cost, 0, id);
+  emit(book, 'Contract closed', p.terms.name, cost, 0, id, p.terms.symbol);
 }
 export function setMarketDate(book: VaultBook, date: string) {
-  mark(date);
+  if (!clockDates.includes(date))
+    throw Error('Choose an available market session.');
   if (date <= book.date)
     throw Error('The test market can only advance to a later stored session.');
   book.date = date;
@@ -188,20 +235,24 @@ export function setMarketDate(book: VaultBook, date: string) {
   const due = book.options.filter(
     (p) => p.status === 'active' && p.terms.expiry <= date,
   );
+  // One clearing per underlying and expiry: shares of one token never
+  // net against another's, and each settles on its own committed close.
   const byExpiry = new Map<string, typeof due>();
   for (const p of due) {
-    const group = byExpiry.get(p.terms.expiry) || [];
+    const key = `${p.terms.expiry}|${p.terms.symbol}`;
+    const group = byExpiry.get(key) || [];
     group.push(p);
-    byExpiry.set(p.terms.expiry, group);
+    byExpiry.set(key, group);
   }
-  for (const [expiry, positions] of [...byExpiry].sort(([a], [b]) =>
+  for (const [key, positions] of [...byExpiry].sort(([a], [b]) =>
     a.localeCompare(b),
   )) {
+    const [expiry, symbol] = key.split('|');
     let cash = 0,
       shares = 0;
     for (const p of positions) {
       const observation =
-        p.terms.reference === 'dividend' ? DIVIDEND : mark(expiry);
+        p.terms.reference === 'dividend' ? DIVIDEND : mark(symbol, expiry);
       if (p.terms.reference === 'dividend' && date < DIVIDEND_DATE)
         throw Error('The committed dividend observation is not available yet.');
       const d = deliveries(p.terms, observation);
@@ -212,13 +263,15 @@ export function setMarketDate(book: VaultBook, date: string) {
       p.stockFlow = d.shares;
     }
     signedTransfer(book.counterparty, book.vault, 'USDC', cash);
-    signedTransfer(book.counterparty, book.vault, 'NVDA', shares);
+    signedTransfer(book.counterparty, book.vault, symbol, shares);
     emit(
       book,
       'Expiry settled',
-      `${positions.length} contract${positions.length === 1 ? '' : 's'} cleared together · ${expiry}`,
+      `${positions.length} ${symbol} contract${positions.length === 1 ? '' : 's'} cleared together · ${expiry}`,
       cash,
       shares,
+      undefined,
+      symbol,
     );
   }
   for (const p of book.shorts.filter(
@@ -232,19 +285,25 @@ export function setMarketDate(book: VaultBook, date: string) {
   emit(
     book,
     'Market session advanced',
-    `${date} · NVDA $${mark(date).toFixed(2)} historical close`,
+    `${date} · NVDA $${mark(DEFAULT_UNDERLYING, date).toFixed(2)} historical close`,
   );
   assertCollateral(book);
 }
-export function openLoan(book: VaultBook, quantity: number, expiry: string) {
-  if (quantity > risk(book).freeShares)
+export function openLoan(
+  book: VaultBook,
+  quantity: number,
+  expiry: string,
+  symbol = DEFAULT_UNDERLYING,
+) {
+  if (quantity > risk(book).freeShares[symbol])
     throw Error(
       'Shares already committed to another obligation cannot be lent.',
     );
-  const entry = mark(book.date),
+  const entry = mark(symbol, book.date),
     cap = round(entry * 1.5);
   const protection = premium(
     {
+      symbol,
       name: 'Borrower protection',
       quantity,
       expiry,
@@ -260,13 +319,14 @@ export function openLoan(book: VaultBook, quantity: number, expiry: string) {
   const total = add(collateral, prepaidInterest);
   if (book.counterparty.USDC - total < risk(book).counterpartyCash)
     throw Error('Borrower collateral is unavailable.');
-  transfer(book.vault, book.market, 'NVDA', quantity);
+  transfer(book.vault, book.market, symbol, quantity);
   transfer(book.market, book.counterparty, 'USDC', mul(quantity, entry));
   transfer(book.counterparty, book.market, 'USDC', protection);
   book.counterparty.USDC = add(book.counterparty.USDC, -total);
   const p: LendingPosition = {
     productive: { entry, cap, premium: protection },
     id: randomUUID(),
+    symbol,
     quantity,
     opened: book.date,
     expiry,
@@ -281,20 +341,22 @@ export function openLoan(book: VaultBook, quantity: number, expiry: string) {
   emit(
     book,
     'Stock loan funded',
-    `${quantity} NVDA sold by borrower · 150% strike protection and full-term interest funded`,
+    `${quantity} ${symbol} sold by borrower · 150% strike protection and full-term interest funded`,
     0,
     -quantity,
     p.id,
+    symbol,
   );
 }
 export function closeLoan(book: VaultBook, p: LendingPosition, at = book.date) {
   if (p.status !== 'active') throw Error('This stock loan is already closed.');
   const earned = accruedInterest(p.prepaidInterest, p.opened, p.expiry, at);
+  const spot = mark(p.symbol, at);
   if (p.productive) {
-    const repurchase = mul(p.quantity, Math.min(mark(at), p.productive.cap));
+    const repurchase = mul(p.quantity, Math.min(spot, p.productive.cap));
     book.market.USDC = add(book.market.USDC, repurchase);
-    transfer(book.market, book.vault, 'NVDA', p.quantity);
-  } else transfer(book.counterparty, book.vault, 'NVDA', p.quantity);
+    transfer(book.market, book.vault, p.symbol, p.quantity);
+  } else transfer(book.counterparty, book.vault, p.symbol, p.quantity);
   book.vault.USDC = add(book.vault.USDC, earned);
   book.counterparty.USDC = add(
     book.counterparty.USDC,
@@ -302,7 +364,7 @@ export function closeLoan(book: VaultBook, p: LendingPosition, at = book.date) {
       add(
         p.collateral,
         -(p.productive
-          ? mul(p.quantity, Math.min(mark(at), p.productive.cap))
+          ? mul(p.quantity, Math.min(spot, p.productive.cap))
           : 0),
       ),
       add(p.prepaidInterest, -earned),
@@ -313,10 +375,11 @@ export function closeLoan(book: VaultBook, p: LendingPosition, at = book.date) {
   emit(
     book,
     'Lent shares returned',
-    `${p.quantity} NVDA returned; accrued interest credited`,
+    `${p.quantity} ${p.symbol} returned; accrued interest credited`,
     earned,
     p.quantity,
     p.id,
+    p.symbol,
   );
 }
 export function openShort(
@@ -324,13 +387,15 @@ export function openShort(
   quantity: number,
   cap: number,
   expiry: string,
+  symbol = DEFAULT_UNDERLYING,
 ) {
-  const entry = mark(book.date);
+  const entry = mark(symbol, book.date);
   if (cap <= entry || cap > entry * 2)
     throw Error(
       'Choose a protective strike above the reference price and at most twice that price.',
     );
   const terms: OrderTerms = {
+    symbol,
     name: 'Protective call',
     quantity,
     expiry,
@@ -342,11 +407,12 @@ export function openShort(
     maxInterest = termInterest(quantity, entry, book.date, expiry);
   // Borrow stock, sell it to the funded test market and buy a covered call.
   // Sale proceeds stay in the vault; the maximum buyback and term interest lock.
-  transfer(book.counterparty, book.market, 'NVDA', quantity);
+  transfer(book.counterparty, book.market, symbol, quantity);
   transfer(book.market, book.vault, 'USDC', mul(quantity, entry));
   transfer(book.vault, book.counterparty, 'USDC', cost);
   const p: ShortPosition = {
     id: randomUUID(),
+    symbol,
     quantity,
     entry,
     cap,
@@ -361,15 +427,16 @@ export function openShort(
   emit(
     book,
     'Protected short opened',
-    `${quantity} NVDA sold · ${cap} protective call · maximum repayment funded`,
+    `${quantity} ${symbol} sold · ${cap} protective call · maximum repayment funded`,
     add(mul(quantity, entry), -cost),
     0,
     p.id,
+    symbol,
   );
 }
 export function closeShort(book: VaultBook, p: ShortPosition, at = book.date) {
   if (p.status !== 'active') throw Error('This short is already closed.');
-  const spot = mark(at),
+  const spot = mark(p.symbol, at),
     { repurchase: cost, interest, pnl } = shortCloseAmounts(p, spot, at);
   if (spot > p.cap) {
     // Call exercise supplies the shares used to repay the same borrow: the
@@ -377,7 +444,7 @@ export function closeShort(book: VaultBook, p: ShortPosition, at = book.date) {
     transfer(book.vault, book.counterparty, 'USDC', cost);
   } else {
     transfer(book.vault, book.market, 'USDC', cost);
-    transfer(book.market, book.counterparty, 'NVDA', p.quantity);
+    transfer(book.market, book.counterparty, p.symbol, p.quantity);
   }
   transfer(book.vault, book.counterparty, 'USDC', interest);
   p.status = 'closed';
@@ -385,10 +452,11 @@ export function closeShort(book: VaultBook, p: ShortPosition, at = book.date) {
   emit(
     book,
     'Protected short closed',
-    `${p.quantity} NVDA borrow repaid · protective call retired`,
+    `${p.quantity} ${p.symbol} borrow repaid · protective call retired`,
     -add(cost, interest),
     0,
     p.id,
+    p.symbol,
   );
 }
 export function totals(book: VaultBook) {
@@ -396,7 +464,12 @@ export function totals(book: VaultBook) {
   let cash = balances.reduce((s, b) => s + units(b.USDC), 0n);
   for (const p of book.loans.filter((p) => p.status === 'active'))
     cash += units(p.collateral) + units(p.prepaidInterest);
-  const shares = balances.reduce((s, b) => s + units(b.NVDA), 0n);
+  const shares: Record<string, bigint> = {};
+  for (const u of UNDERLYINGS)
+    shares[u.symbol] = balances.reduce(
+      (s, b) => s + units(b[u.symbol] ?? 0),
+      0n,
+    );
   return { cash, shares };
 }
 export function validateLedger(
@@ -410,10 +483,13 @@ export function validateLedger(
     book.market,
   ]) {
     units(balance.USDC);
-    units(balance.NVDA);
+    for (const u of UNDERLYINGS) units(balance[u.symbol] ?? 0);
   }
   const current = totals(book);
-  if (current.cash !== original.cash || current.shares !== original.shares)
+  if (
+    current.cash !== original.cash ||
+    UNDERLYINGS.some((u) => current.shares[u.symbol] !== original.shares[u.symbol])
+  )
     throw Error('Asset conservation failed; transaction rolled back.');
   assertCollateral(book);
 }

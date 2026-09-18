@@ -88,6 +88,7 @@ export function OptionsChain({
   ) => {
     if (!current || !catalog) return;
     onSelect({
+      symbol: catalog.symbol,
       name: `${side === 'buy' ? 'Long' : 'Short'} ${kind} ${strike}`,
       quantity: catalog.quantity,
       expiry: catalog.expiry,

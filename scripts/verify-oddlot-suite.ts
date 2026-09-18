@@ -53,7 +53,7 @@ async function act(action: VaultAction) {
     revision: state.revision,
     chain: state.chain,
     cash: state.risk.cash,
-    shares: state.risk.shares,
+    shares: state.risk.shares.NVDA,
   });
   console.log(action.type, state.revision, state.chain.signature);
 }

@@ -37,7 +37,7 @@ export function ExploreView({
     state.book.vault.USDC + state.book.vault.NVDA * state.market.price;
   const neededShares = Math.max(
     0,
-    (preview?.shares || 0) - state.risk.freeShares,
+    (preview?.shares || 0) - state.risk.freeShares.NVDA,
   );
   return (
     <div className="oc-home">

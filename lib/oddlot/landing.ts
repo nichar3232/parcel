@@ -14,7 +14,7 @@ import type { OrderTerms } from './types';
 
 /** The session the desk opens on. */
 export const OPEN_DATE = '2025-01-24';
-export const SPOT = mark(OPEN_DATE);
+export const SPOT = mark('NVDA', OPEN_DATE);
 
 const EXPIRIES = expiries(OPEN_DATE);
 /** Two weeks out, which is what the desk preselects. */
@@ -34,6 +34,7 @@ import { expiryLabel as dayLabel } from './format';
 const terms = (
   over: Partial<OrderTerms> & Pick<OrderTerms, 'legs'>,
 ): OrderTerms => ({
+  symbol: 'NVDA',
   name: 'example',
   quantity: 1,
   expiry: EXPIRY,

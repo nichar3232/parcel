@@ -72,7 +72,8 @@ void test('vault: deposits and withdrawals conserve exact fractional cash and sh
       asset: 'USDC',
       amount: 0.123456,
     });
-    assert.deepEqual(a.state.book.wallet, { USDC: 10000, NVDA: 25 });
+    assert.equal(a.state.book.wallet.USDC, 10000);
+    assert.equal(a.state.book.wallet.NVDA, 25);
     assert.deepEqual(totals(a.state.book), before);
   } finally {
     a.store.close();
@@ -180,7 +181,7 @@ void test('vault: covered fractional call cannot pledge stock twice; physical as
     terms.quantity = 0.333333;
     terms.legs[0].strike = 100;
     const p = a.execute(terms);
-    assert.equal(a.state.risk.shares, 0.333333);
+    assert.equal(a.state.risk.shares.NVDA, 0.333333);
     const before = a.state.book.vault.USDC;
     assert.throws(
       () =>
@@ -207,7 +208,7 @@ void test('vault: covered fractional call cannot pledge stock twice; physical as
       a.state.book.options.find((x) => x.id === p.id)?.status,
       'settled',
     );
-    assert.equal(a.state.risk.shares, 0);
+    assert.equal(a.state.risk.shares.NVDA, 0);
     validateLedger(a.state.book, totals(initialVault()));
   } finally {
     a.store.close();
@@ -241,7 +242,7 @@ void test('vault: cross collateral only releases matched expiry exposure and pro
     }));
     a.execute(opposite);
     assert.equal(a.state.risk.cash, 0);
-    assert.equal(a.state.risk.shares, 0);
+    assert.equal(a.state.risk.shares.NVDA, 0);
     assert.equal(a.state.risk.releasedValue, 10);
     a.act({
       type: 'transfer',
@@ -334,7 +335,7 @@ void test('vault: protected short covers from sale proceeds and locks maximum lo
     a.act({ type: 'short', quantity: 1, cap: 160, expiry: '2025-01-31' });
     const p = a.state.book.shorts[0];
     assert.equal(a.state.risk.cash, 160 + p.maxInterest);
-    assert.equal(a.state.risk.counterpartyShares, 1);
+    assert.equal(a.state.risk.counterpartyShares.NVDA, 1);
     assert.throws(
       () =>
         a.act({
@@ -371,7 +372,7 @@ void test('vault: short above cap exercises reserved stock and stays within maxi
     a.act({ type: 'advance', date: '2025-01-28' });
     a.act({ type: 'close-short', id: p.id });
     assert.ok(-a.state.book.shorts[0].pnl! <= maxLoss + 0.00001);
-    assert.equal(a.state.risk.counterpartyShares, 0);
+    assert.equal(a.state.risk.counterpartyShares.NVDA, 0);
     validateLedger(a.state.book, totals(initialVault()));
   } finally {
     a.store.close();
@@ -421,7 +422,7 @@ void test('vault: every structure accepts valid collateral and settles before fi
       a.act({ type: 'advance', date: '2025-04-03' });
       assert.equal(a.state.book.options[0].status, 'settled', t.name);
       assert.equal(a.state.risk.cash, 0);
-      assert.equal(a.state.risk.shares, 0);
+      assert.equal(a.state.risk.shares.NVDA, 0);
       validateLedger(a.state.book, totals(initialVault()));
     } finally {
       a.store.close();

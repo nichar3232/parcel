@@ -6,12 +6,19 @@ import {
   mark,
   clockDates,
   VOLATILITY,
+  volatility,
 } from '../../lib/oddlot/market';
+import {
+  DEFAULT_UNDERLYING,
+  UNDERLYINGS,
+  isUnderlying,
+} from '../../lib/oddlot/universe';
 import { add, mul, orderGreeks } from '../../lib/oddlot/math';
 import {
   amount as parseAmount,
   expiry,
   parseOrderTerms,
+  symbol as parseSymbol,
 } from '../../lib/oddlot/validation';
 import { risk } from '../../lib/oddlot/risk';
 import type {
@@ -30,6 +37,7 @@ import {
   closeShort,
   emit,
   initialVault,
+  migrate,
   seedVault,
   openLoan,
   openShort,
@@ -60,7 +68,7 @@ export class VaultService {
     const row = this.store.db
       .prepare('SELECT revision,book FROM vault_accounts WHERE owner=?')
       .get(session.id) as { revision: number; book: string };
-    return { revision: row.revision, book: JSON.parse(row.book) as VaultBook };
+    return { revision: row.revision, book: migrate(JSON.parse(row.book)) };
   }
   snapshot(session: Session): VaultSnapshot {
     const { revision, book } = this.read(session);
@@ -72,14 +80,22 @@ export class VaultService {
       serverTime: this.clock(),
       mode: 'sandbox',
       market: {
-        symbol: 'NVDA',
-        price: mark(book.date),
+        symbol: DEFAULT_UNDERLYING,
+        price: mark(DEFAULT_UNDERLYING, book.date),
         date: book.date,
         dates: clockDates,
         clock: 'daily-close-with-hourly-test-clock',
         volatility: VOLATILITY,
         dividend: DIVIDEND,
         dividendDate: DIVIDEND_DATE,
+        underlyings: UNDERLYINGS.map((u) => ({
+          symbol: u.symbol,
+          name: u.name,
+          provider: u.provider,
+          price: mark(u.symbol, book.date),
+          volatility: u.volatility,
+          simulated: u.simulated,
+        })),
       },
     };
   }
@@ -178,14 +194,16 @@ export class VaultService {
         expiresAt: this.clock() + 30000,
         greeks: orderGreeks(
           parsed,
-          parsed.reference === 'dividend' ? DIVIDEND : mark(current.book.date),
+          parsed.reference === 'dividend'
+            ? DIVIDEND
+            : mark(parsed.symbol, current.book.date),
           current.book.date,
-          parsed.reference === 'dividend' ? 0.8 : VOLATILITY,
+          parsed.reference === 'dividend' ? 0.8 : volatility(parsed.symbol),
         ),
         cashRequired: after.cash,
-        sharesRequired: after.shares,
+        sharesRequired: after.shares[parsed.symbol],
         cashAfter: after.freeCash,
-        sharesAfter: after.freeShares,
+        sharesAfter: after.freeShares[parsed.symbol],
         releasedValue: after.releasedValue,
         eligible,
         reason,
@@ -209,7 +227,12 @@ export class VaultService {
         revision: current.revision,
         ...(sizing
           ? sizeOrder(current.book, request.terms, request.mode, request.target)
-          : optionsChain(current.book, request.expiry, request.quantity)),
+          : optionsChain(
+              current.book,
+              request.expiry,
+              request.quantity,
+              parseSymbol(request.symbol),
+            )),
       };
     } catch (error) {
       return this.reject(error);
@@ -232,8 +255,8 @@ export class VaultService {
     let quoteId: string | undefined;
     const original = totals(book);
     if (a.type === 'transfer') {
-      if (a.asset !== 'USDC' && a.asset !== 'NVDA')
-        throw Error('Choose USDC or NVDA.');
+      if (a.asset !== 'USDC' && !isUnderlying(a.asset))
+        throw Error('Choose USDC or a supported underlying.');
       if (a.direction !== 'deposit' && a.direction !== 'withdraw')
         throw Error('Choose deposit or withdraw.');
       const amount = parseAmount(
@@ -245,31 +268,38 @@ export class VaultService {
       if (a.direction === 'deposit')
         transfer(book.wallet, book.vault, asset, amount);
       else transfer(book.vault, book.wallet, asset, amount);
+      const signed = a.direction === 'deposit' ? amount : -amount;
       emit(
         book,
         a.direction === 'deposit' ? 'Vault deposit' : 'Vault withdrawal',
         `${amount} ${asset} ${a.direction === 'deposit' ? 'deposited from' : 'returned to'} test wallet`,
-        asset === 'USDC' ? (a.direction === 'deposit' ? amount : -amount) : 0,
-        asset === 'NVDA' ? (a.direction === 'deposit' ? amount : -amount) : 0,
+        asset === 'USDC' ? signed : 0,
+        asset === 'USDC' ? 0 : signed,
+        undefined,
+        asset === 'USDC' ? DEFAULT_UNDERLYING : asset,
       );
     } else if (a.type === 'stock') {
       if (a.side !== 'buy' && a.side !== 'sell')
         throw Error('Choose buy or sell.');
-      const quantity = parseAmount(a.quantity),
-        cash = mul(quantity, mark(book.date));
+      const on = parseSymbol(a.symbol),
+        price = mark(on, book.date),
+        quantity = parseAmount(a.quantity),
+        cash = mul(quantity, price);
       if (a.side === 'buy') {
         transfer(book.vault, book.market, 'USDC', cash);
-        transfer(book.market, book.vault, 'NVDA', quantity);
+        transfer(book.market, book.vault, on, quantity);
       } else {
-        transfer(book.vault, book.market, 'NVDA', quantity);
+        transfer(book.vault, book.market, on, quantity);
         transfer(book.market, book.vault, 'USDC', cash);
       }
       emit(
         book,
         a.side === 'buy' ? 'Stock purchased' : 'Stock sold',
-        `${quantity} NVDA at $${mark(book.date)}`,
+        `${quantity} ${on} at $${price}`,
         a.side === 'buy' ? -cash : cash,
         a.side === 'buy' ? quantity : -quantity,
+        undefined,
+        on,
       );
     } else if (a.type === 'execute') {
       if (typeof a.quoteId !== 'string') throw Error('Request a quote first.');
@@ -308,7 +338,12 @@ export class VaultService {
         `${a.mode === 'cross' ? 'Cross' : 'Isolated'} collateral applied to the entire vault`,
       );
     } else if (a.type === 'lend') {
-      openLoan(book, parseAmount(a.quantity), expiry(a.expiry, book.date));
+      openLoan(
+        book,
+        parseAmount(a.quantity),
+        expiry(a.expiry, book.date),
+        parseSymbol(a.symbol),
+      );
     } else if (a.type === 'recall') {
       const p = book.loans.find((p) => p.id === a.id && p.status === 'active');
       if (!p) throw Error('This active loan was not found.');
@@ -319,6 +354,7 @@ export class VaultService {
         parseAmount(a.quantity),
         parseAmount(a.cap, 0.000001, 10000),
         expiry(a.expiry, book.date),
+        parseSymbol(a.symbol),
       );
     } else if (a.type === 'close-short') {
       const p = book.shorts.find((p) => p.id === a.id && p.status === 'active');

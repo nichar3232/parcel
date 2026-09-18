@@ -207,7 +207,7 @@ void test('productive lending sells the borrowed stock, reserves protection, and
       p.productive.premium,
     ),
   );
-  assert.equal(risk(b).marketShares, p.quantity);
+  assert.equal(risk(b).marketShares.NVDA, p.quantity);
   validateLedger(b, original);
   b.date = '2025-01-27';
   closeLoan(b, p);
@@ -219,11 +219,11 @@ void test('productive lending sells the borrowed stock, reserves protection, and
         add(marketCash, -mul(p.quantity, p.productive.entry)),
         p.productive.premium,
       ),
-      mul(p.quantity, mark(b.date)),
+      mul(p.quantity, mark('NVDA', b.date)),
     ),
   );
   assert.ok(b.vault.USDC > 0);
-  assert.equal(risk(b).marketShares, 0);
+  assert.equal(risk(b).marketShares.NVDA, 0);
   validateLedger(b, original);
 });
 void test('market shares pledged to loan protection cannot be sold again', async () => {

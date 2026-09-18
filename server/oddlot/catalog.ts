@@ -1,5 +1,6 @@
 import type { OrderTerms, VaultBook } from '../../lib/oddlot/types';
-import { DIVIDEND, mark } from '../../lib/oddlot/market';
+import { DIVIDEND, mark, volatility } from '../../lib/oddlot/market';
+import { DEFAULT_UNDERLYING } from '../../lib/oddlot/universe';
 import { orderGreeks, round } from '../../lib/oddlot/math';
 import { deliveryBounds, payoffBounds } from '../../lib/oddlot/envelope';
 import { amount, expiry, parseOrderTerms } from '../../lib/oddlot/validation';
@@ -52,15 +53,21 @@ export function strikeLadder(spot: number, reach = 0.32) {
   return [...out].sort((a, b) => a - b);
 }
 
-export function optionsChain(book: VaultBook, end: unknown, quantity: unknown) {
+export function optionsChain(
+  book: VaultBook,
+  end: unknown,
+  quantity: unknown,
+  symbol = DEFAULT_UNDERLYING,
+) {
   const selected = expiry(end, book.date),
     q = amount(quantity),
-    spot = mark(book.date);
+    spot = mark(symbol, book.date);
   const rows = strikeLadder(spot)
     .map((strike) => ({
       strike,
       contracts: (['call', 'put'] as const).map((kind) => {
         const terms: OrderTerms = {
+          symbol,
           name: `${kind === 'call' ? 'Call' : 'Put'} ${strike}`,
           quantity: q,
           expiry: selected,
@@ -76,11 +83,12 @@ export function optionsChain(book: VaultBook, end: unknown, quantity: unknown) {
             { ...valid, legs: [{ ...valid.legs[0], side: 'sell' }] },
             book,
           ),
-          delta: orderGreeks(valid, spot, book.date).delta,
+          delta: orderGreeks(valid, spot, book.date, volatility(symbol)).delta,
         };
       }),
     }));
   return {
+    symbol,
     expiry: selected,
     quantity: q,
     spot,
@@ -123,9 +131,11 @@ export function sizeOrder(
     const delta = Math.abs(
       orderGreeks(
         terms,
-        terms.reference === 'dividend' ? DIVIDEND : mark(book.date),
+        terms.reference === 'dividend'
+          ? DIVIDEND
+          : mark(terms.symbol, book.date),
         book.date,
-        terms.reference === 'dividend' ? 0.8 : 0.45,
+        terms.reference === 'dividend' ? 0.8 : volatility(terms.symbol),
       ).delta,
     );
     if (delta < 1e-9)
@@ -138,9 +148,9 @@ export function sizeOrder(
   const indication = indicative(sized, book);
   const greeks = orderGreeks(
     sized,
-    sized.reference === 'dividend' ? DIVIDEND : mark(book.date),
+    sized.reference === 'dividend' ? DIVIDEND : mark(sized.symbol, book.date),
     book.date,
-    sized.reference === 'dividend' ? 0.8 : 0.45,
+    sized.reference === 'dividend' ? 0.8 : volatility(sized.symbol),
   );
   return {
     terms: sized,
