@@ -75,7 +75,7 @@ export function createApp(
         const health = await chain.adapter.health();
         const parcel = {
           ready: !parcelAdapter,
-          mode: parcelAdapter ? 'localnet' : 'sandbox',
+          mode: parcelAdapter ? parcelAdapter.network : 'sandbox',
           reason: '',
         };
         if (parcelAdapter) {

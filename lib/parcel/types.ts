@@ -195,7 +195,7 @@ export interface VaultSnapshot {
     underlyings: MarketUnderlying[];
   };
   serverTime: number;
-  mode: 'sandbox' | 'localnet';
+  mode: 'sandbox' | 'localnet' | 'devnet';
   chain?: {
     ledger: string;
     signature: string;

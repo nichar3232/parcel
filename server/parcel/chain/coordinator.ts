@@ -35,7 +35,7 @@ export class VaultChainCoordinator {
       .get(session.id) as { proof: string } | undefined;
     return {
       ...this.vault.snapshot(session),
-      mode: 'localnet',
+      mode: this.adapter.network,
       chain: proof ? JSON.parse(proof.proof) : undefined,
     };
   }
@@ -116,7 +116,7 @@ export class VaultChainCoordinator {
           key,
           hash,
         ) as VaultSnapshot;
-        return { ...receipt, mode: 'localnet', chain: JSON.parse(op.proof!) };
+        return { ...receipt, mode: this.adapter.network, chain: JSON.parse(op.proof!) };
       }
       const plan = JSON.parse(op.plan) as VaultPlan;
       if (!op.transaction_json) {
@@ -204,7 +204,7 @@ export class VaultChainCoordinator {
       const proof = {
         ...observed,
         signature: tx.signature,
-        network: 'localnet',
+        network: this.adapter.network,
         revision: plan.revision + 1,
       };
       return this.store.transaction(() => {
@@ -214,7 +214,7 @@ export class VaultChainCoordinator {
             "UPDATE vault_chain_operations SET status='confirmed',proof=? WHERE owner=? AND key=?",
           )
           .run(JSON.stringify(proof), session.id, key);
-        return { ...result, mode: 'localnet', chain: proof };
+        return { ...result, mode: this.adapter.network, chain: proof };
       });
     }
     throw new ApiError(

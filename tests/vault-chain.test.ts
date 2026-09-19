@@ -12,6 +12,7 @@ import { initialVault } from '../server/parcel/ledger';
 import type { VaultBook } from '../lib/parcel/types';
 import { bookBytes } from '../server/parcel/chain/codec';
 class Chain implements VaultChainAdapter {
+  readonly network = 'localnet' as const;
   book = initialVault();
   revision = 0;
   sends = 0;
