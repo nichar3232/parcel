@@ -80,6 +80,9 @@ export async function nav(page: Page, name: string) {
     case 'Activity':
       await navTop(page, 'Portfolio');
       return section(page, 'Activity');
+    case 'Watchlist':
+      await navTop(page, 'Portfolio');
+      return section(page, 'Watchlist');
     // Options opens as a browsable long-call ladder. A named contract is a
     // direct intent, so it opens its own ticket from the product menu.
     case 'Trade':

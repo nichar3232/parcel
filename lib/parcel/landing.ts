@@ -632,7 +632,7 @@ export const EXAMPLES: {
       },
     ],
     rows: [
-      ['Escrow 0.25 T-OpenAI', dayLabel(PREIPO_EXPIRY)],
+      ['Escrow 0.25 OPENAI', dayLabel(PREIPO_EXPIRY)],
       [
         `If exercised above $${(PREIPO.exercise / PREIPO.tokens).toLocaleString('en-US')}`,
         `${(PREIPO.premium + PREIPO.exercise).toFixed(2)} USDC`,
@@ -646,12 +646,12 @@ export const EXAMPLES: {
         {
           when: `Above $${(PREIPO.exercise / PREIPO.tokens).toLocaleString('en-US')}`,
           value: `${(PREIPO.premium + PREIPO.exercise).toFixed(2)} USDC`,
-          note: `You deliver ${PREIPO.tokens} T-OpenAI.`,
+          note: `You deliver ${PREIPO.tokens} OPENAI tokens.`,
         },
         {
           when: 'At or below',
           value: `${PREIPO.premium.toFixed(2)} USDC`,
-          note: `You keep the premium and the ${PREIPO.tokens} T-OpenAI.`,
+          note: `You keep the premium and the ${PREIPO.tokens} OPENAI tokens.`,
         },
       ],
     },

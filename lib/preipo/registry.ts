@@ -4,7 +4,7 @@ export const SPL_TOKEN = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 export const TOKEN_2022 = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 
 /**
- * Curated pre-IPO assets: every token both providers publish.
+ * Curated PreStocks assets.
  *
  * Each issuer's terms are identical across its own line, so they are
  * written once and applied to every mint rather than copied per asset,
@@ -19,20 +19,6 @@ export const TOKEN_2022 = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
  * These are mainnet issuer assets. Nothing in this repository spends
  * them. Automated tests use local test mints (lib/preipo/testMints.ts).
  */
-
-const TESSERA_TERMS = {
-  issuer: 'Tessera',
-  issuerRights: [
-    'Freeze authority is set, so the issuer can freeze any token account including an escrow account.',
-    'A 0.20% (20 bps) transfer fee is withheld on every transfer, with no maximum cap.',
-    'The transfer-fee configuration authority can change that fee for future transfers.',
-  ],
-  restrictions: [
-    'Transfers are subject to the issuer’s own eligibility rules.',
-    'Quantities are denominated in T-Tokens, never in company shares.',
-  ],
-  reference: 'https://docs.tessera.pe',
-};
 
 const PRESTOCKS_TERMS = {
   issuer: 'PreStocks',
@@ -53,31 +39,8 @@ const PRESTOCKS_TERMS = {
   reference: 'https://prestocks.com/products',
 };
 
-/* Tessera's feed carries no image, so its rows borrow the company mark
-   PreStocks publishes for the same company. It is the company's logo
-   either way; only the host differs. */
 const COMPANY_LOGO = (company: string) =>
   `https://www.prestocks.com/logos/${company.toLowerCase().replace(/\s+/g, '')}.png`;
-
-const tessera = (
-  company: string,
-  symbol: string,
-  mint: string,
-): RegistryAsset => ({
-  id: `tessera:${symbol.toLowerCase()}`,
-  provider: 'tessera',
-  network: 'mainnet',
-  mint,
-  displayName: `Tessera ${symbol}`,
-  symbol,
-  logo: COMPANY_LOGO(company),
-  expectedTokenProgram: TOKEN_2022,
-  expectedDecimals: 9,
-  issuerTerms: {
-    ...TESSERA_TERMS,
-    instrument: `A Tessera-issued Token-2022 T-Token tracking ${company} exposure. Holding a token is not holding ${company} stock and confers no shareholder rights.`,
-  },
-});
 
 const prestocks = (
   company: string,
@@ -101,9 +64,6 @@ export const logoOf = (symbol: string) =>
   registry.find((a) => a.symbol === symbol)?.logo ?? null;
 
 export const registry: RegistryAsset[] = [
-  tessera('OpenAI', 'T-OpenAI', 'oPAiAikWTaFj9RYoRFD35ccfwhnMcB3ThgBZRHSkjTZ'),
-  tessera('Kalshi', 'T-Kalshi', 'TKLSidmLVt3cqGaaodG8tyRzoANfQwoh67AccjmubeZ'),
-  tessera('SpaceX', 'T-SpaceX', 'TSPXcLV76s6V2zDiZQ18kBfcbnjaE2ZzNT3ga2Pd99v'),
   prestocks('OpenAI', 'OPENAI', 'PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF'),
   prestocks(
     'Anthropic',

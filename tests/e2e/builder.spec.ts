@@ -77,7 +77,7 @@ test('the shell is four destinations, each with its own sections', async ({
   // nested under it in the rail, and only while it is the open one.
   // Lending owns a single section, so it has no list to open.
   const sections: Record<string, string[]> = {
-    Portfolio: ['Holdings', 'Activity'],
+    Portfolio: ['Holdings', 'Watchlist', 'Activity'],
     Trade: ['Options', 'Structures'],
     'Pre-IPO': ['Market', 'Underwrite'],
     Lending: ['Lend & borrow'],

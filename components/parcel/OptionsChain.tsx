@@ -4,7 +4,7 @@ import type { VaultController } from '@/hooks/parcel/use-vault';
 import type { ChainCatalog } from '@/lib/parcel/types';
 import type { OrderTerms } from '@/lib/parcel/types';
 import { selectableExpiries } from '@/lib/parcel/market';
-import { Button, Panel, qty, usd } from './shared';
+import { Panel, qty, usd } from './shared';
 export function OptionsChain({
   desk,
   quantity,
@@ -175,7 +175,9 @@ export function OptionsChain({
                         </td>
                         <td className="num">{usd(breakeven)}</td>
                         <td
-                          className={`num ${away >= 0 ? 'od-up' : 'od-down'}`}
+                          className={`num od-ladder-distance ${
+                            away >= 0 ? 'above' : 'below'
+                          }`}
                         >
                           {away >= 0 ? '+' : ''}
                           {away.toFixed(2)}%
@@ -188,18 +190,22 @@ export function OptionsChain({
                               : '—'}
                         </td>
                         <td className="num">
-                          <Button
-                            variant="secondary"
+                          <button
+                            type="button"
+                            className="od-ladder-quote"
+                            aria-label={`Select ${side} ${kind} at ${usd(
+                              row.strike,
+                            )}; model premium ${priceLabel(c[side].premium)}`}
                             onClick={() => choose(row.strike, kind, side)}
                           >
                             {priceLabel(c[side].premium)}
-                          </Button>
+                          </button>
                         </td>
                       </tr>
                       {crosses && (
                         <tr className="od-ladder-spot" ref={marker}>
                           <td colSpan={5}>
-                            <b>Share price: {usd(spot)}</b>
+                            <b>Reference {usd(spot)}</b>
                           </td>
                         </tr>
                       )}

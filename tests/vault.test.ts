@@ -415,10 +415,18 @@ void test('vault: cash borrowed against pledged stock is capped at loan-to-value
       /available NVDA/,
     );
     // The borrowed cash itself is free to leave: that is what a loan is for.
-    a.act({ type: 'transfer', asset: 'USDC', direction: 'withdraw', amount: 50 });
+    a.act({
+      type: 'transfer',
+      asset: 'USDC',
+      direction: 'withdraw',
+      amount: 50,
+    });
     a.act({ type: 'advance', date: '2025-01-27' });
     // Repaying needs the principal and the interest in the vault.
-    assert.throws(() => a.act({ type: 'repay', id: p.id }), /Insufficient USDC/);
+    assert.throws(
+      () => a.act({ type: 'repay', id: p.id }),
+      /Insufficient USDC/,
+    );
     a.deposit('USDC', 51);
     const owed = borrowDebt(a.state.book.borrows[0], '2025-01-27');
     assert.ok(owed.interest > 0);
@@ -456,7 +464,12 @@ void test('vault: a fixed-rate loan locks its rate, settles at its term and sell
     assert.equal(p.expiry, '2025-01-31');
     const term = borrowInterest(40, p.apr, '2025-01-24', '2025-01-31');
     // Spend the loan, then let the term run out with nothing to repay it from.
-    a.act({ type: 'transfer', asset: 'USDC', direction: 'withdraw', amount: 40 });
+    a.act({
+      type: 'transfer',
+      asset: 'USDC',
+      direction: 'withdraw',
+      amount: 40,
+    });
     a.act({ type: 'advance', date: '2025-01-27' });
     assert.equal(a.state.book.borrows[0].apr, p.apr);
     a.act({ type: 'advance', date: '2025-01-31' });
@@ -604,6 +617,37 @@ void test('math: share quantity scales premium and dollar theta without changing
     deliveries(templateTerms('covered-call', '2025-02-07'), 160).cash,
     150,
   );
+});
+void test('math: Black-Scholes prices, greeks and parity are analytical at any permitted size', () => {
+  // The standard S=K=100, T=1, r=5%, sigma=20% reference case. Vega is
+  // quoted per one volatility point, and theta per calendar day, matching the
+  // values the ticket displays rather than leaving a hidden unit conversion.
+  const model = { riskFreeRate: 0.05, dividendYield: 0 };
+  const call = optionGreeks('call', 100, 100, 365, 0.2, model);
+  const put = optionGreeks('put', 100, 100, 365, 0.2, model);
+  const close = (actual: number, expected: number, tolerance = 1e-5) =>
+    assert.ok(
+      Math.abs(actual - expected) < tolerance,
+      `expected ${actual} to be within ${tolerance} of ${expected}`,
+    );
+
+  close(call.price, 10.450584);
+  close(put.price, 5.573526);
+  close(call.delta, 0.636831);
+  close(call.gamma, 0.018762);
+  close(call.vega, 0.37524);
+  close(call.theta, -0.017573, 2e-5);
+  close(call.price - put.price, 100 - 100 * Math.exp(-0.05));
+
+  const oneShare = templateTerms('call', '2025-02-07');
+  oneShare.quantity = 1;
+  const microShare = structuredClone(oneShare);
+  microShare.quantity = 0.000001;
+  const full = orderGreeks(oneShare, 142.62, '2025-01-24');
+  const micro = orderGreeks(microShare, 142.62, '2025-01-24');
+  for (const key of ['price', 'delta', 'gamma', 'theta', 'vega'] as const)
+    close(micro[key] * 1_000_000, full[key], 1e-10);
+  assert.equal(cashPayoff(microShare, 160), 0.000015);
 });
 void test('vault: a stored book reopens with its positions and revision intact', () => {
   const a = setup();

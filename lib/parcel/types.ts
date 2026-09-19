@@ -207,7 +207,7 @@ export interface VaultSnapshot {
 export interface MarketUnderlying {
   symbol: string;
   name: string;
-  provider: 'equity' | 'tessera' | 'prestocks';
+  provider: 'equity' | 'prestocks';
   price: number;
   volatility: number;
   simulated: boolean;

@@ -62,7 +62,7 @@ void test('the pre-IPO expiry is one exercise window after the open', () => {
   const rows = Object.fromEntries(
     EXAMPLES.find((e) => e.id === 'pre-ipo')!.rows,
   );
-  assert.equal(rows['Escrow 0.25 T-OpenAI'], dayLabel(PREIPO_EXPIRY));
+  assert.equal(rows['Escrow 0.25 OPENAI'], dayLabel(PREIPO_EXPIRY));
 });
 
 void test('the quoted single-call premium is what the engine prices', () => {

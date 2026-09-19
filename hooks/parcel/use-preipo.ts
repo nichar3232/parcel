@@ -1,12 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
-import type { ResolvedAsset } from '@/lib/preipo/types';
+import type { ProviderQuote, ResolvedAsset } from '@/lib/preipo/types';
 
 export interface AssetsPayload {
   network: string;
   programId: string | null;
   usdcMint: string | null;
   executionEnabled: boolean;
+  /** Full publisher catalog; a listing is not automatically trade-approved. */
+  catalog: ProviderQuote[];
   assets: ResolvedAsset[];
   warnings: string[];
   refreshedAt: string;
@@ -14,15 +16,13 @@ export interface AssetsPayload {
 
 /** The company, without the provider's naming attached to it. */
 export const company = (displayName: string) =>
-  displayName.replace(/^Tessera T-/, '').replace(/ PreStocks$/, '');
+  displayName.replace(/ PreStocks$/, '');
 
 /**
  * The verified pre-IPO registry, as the server serves it.
  *
- * Shared by the Pre-IPO market and the portfolio's market strip, so
- * both read the same list and the same marks. Loading it also seeds
- * each token's mark in the engine, which is why the strip can quote a
- * private company at all.
+ * Shared by the Pre-IPO market and Portfolio Watchlist. Loading it also seeds
+ * each reviewed token's mark in the engine.
  */
 export function usePreIpoAssets() {
   const [data, setData] = useState<AssetsPayload | null>(null);

@@ -92,25 +92,23 @@ void test('loans and shorts carry their symbol through open and close', () => {
   const b = initialVault();
   const original = totals(b);
   transfer(b.wallet, b.vault, 'USDC', 10_000);
-  transfer(b.wallet, b.vault, 'T-OpenAI', 3);
-  openLoan(b, 1, '2025-02-07', 'T-OpenAI');
-  assert.equal(b.loans[0].symbol, 'T-OpenAI');
-  assert.equal(b.vault['T-OpenAI'], 2);
-  const cap = Math.ceil(mark('T-OpenAI', b.date) * 1.2);
-  openShort(b, 1, cap, '2025-02-07', 'T-OpenAI');
-  assert.equal(b.shorts[0].symbol, 'T-OpenAI');
-  assert.equal(risk(b).counterpartyShares['T-OpenAI'], 1);
+  transfer(b.wallet, b.vault, 'OPENAI', 3);
+  openLoan(b, 1, '2025-02-07', 'OPENAI');
+  assert.equal(b.loans[0].symbol, 'OPENAI');
+  assert.equal(b.vault.OPENAI, 2);
+  const cap = Math.ceil(mark('OPENAI', b.date) * 1.2);
+  openShort(b, 1, cap, '2025-02-07', 'OPENAI');
+  assert.equal(b.shorts[0].symbol, 'OPENAI');
+  assert.equal(risk(b).counterpartyShares.OPENAI, 1);
   assert.equal(risk(b).counterpartyShares.NVDA, 0);
   setMarketDate(b, '2025-02-07');
   assert.equal(b.loans[0].status, 'closed');
   assert.equal(b.shorts[0].status, 'closed');
-  assert.equal(b.vault['T-OpenAI'], 3);
+  assert.equal(b.vault.OPENAI, 3);
   validateLedger(b, original);
   // Every event on this book names the token it moved.
   assert.ok(
-    b.events
-      .filter((e) => e.shares !== 0)
-      .every((e) => e.symbol === 'T-OpenAI'),
+    b.events.filter((e) => e.shares !== 0).every((e) => e.symbol === 'OPENAI'),
   );
 });
 

@@ -48,6 +48,7 @@ const TABS = {
   // that states which mode is on.
   Portfolio: [
     { id: 'overview', label: 'Holdings' },
+    { id: 'watchlist', label: 'Watchlist' },
     { id: 'activity', label: 'Activity' },
   ],
   // Buying and writing ran the same ticket with the side flipped, so
@@ -427,10 +428,6 @@ export default function Workspace() {
             tab={current as PortfolioTab}
             navigate={navigate}
             onTransfer={setTransfer}
-            onPick={(next) => {
-              setSymbol(next);
-              navigate('Trade', 'trade');
-            }}
           />
         ) : page === 'Trade' ? (
           /* Keyed on the section and the choice: the ticket's template,

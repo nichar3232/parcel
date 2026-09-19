@@ -1,185 +1,71 @@
-# Pre-IPO covered calls: Tessera and PreStocks
+# PreStocks catalog and asset review
 
-Fractional, physically settled covered calls written against sponsor-issued
-pre-IPO tokens. Quantities are **tokens**, never company shares.
+Parcel uses PreStocks as its sole private-market publisher. A PreStocks token
+is not company stock: it is publisher-issued exposure to an underlying private
+company. The Portfolio Watchlist reads the publisher’s whole public catalog so
+a new listing can be searched and followed immediately. That is deliberately
+separate from Parcel’s reviewed asset registry and from any escrow workflow.
 
-Writing runs through the vault. The mint policy below decides which tokens
-can be written on at all; a token that passes is written the way every other
-product is: the server quotes the premium against the session mark, reserves
-the tokens, and settles the contract at expiry on the token's committed
-replay close (`data/replay`, one path per verified token). The result is
-sandbox or local-validator accounting, never sponsor-token custody: no
-sponsor token moves on chain, and the desk says so on the ticket.
+## Publisher data
 
-## Status, stated plainly
+`GET https://prestocks.com/api/prestocks` returns a JSON array. Parcel retains
+every field the source currently publishes:
 
-| Piece | State |
-|---|---|
-| Provider adapters (Tessera, PreStocks) | Working, verified against the live APIs |
-| Curated asset registry with issuer terms | Working |
-| On-chain mint verification and extension policy | Working against mainnet, read-only |
-| Integer terms math and derived strike | Working, unit tested |
-| Writing, reserving and settling through the vault (sandbox / localnet) | Working, unit and browser tested |
-| `preipo_covered_call` Anchor program | **Written but never compiled or deployed** |
-| Wallet signing and on-chain offers, accept/exercise/expire | **Not implemented** |
+| Field                                         | Use in Parcel                                    |
+| --------------------------------------------- | ------------------------------------------------ |
+| `name`, `symbol`, `description`               | Search and company identification                |
+| `image`, `external_url`                       | Publisher-provided logo and source link          |
+| `contract_address`                            | Token mint identity; never matched by name alone |
+| `markPrice`, `tokenPrice`                     | Current publisher marks, shown separately        |
+| `markValuation`, `impliedValuation`, `supply` | Context for the watchlist                        |
 
-The program is source-only. There is no Rust, Anchor or Solana toolchain on
-this machine (`cargo`, `anchor`, `solana` all absent), so it has not been
-built, tested or deployed, and no program id has been reserved. The
-`declare_id!` value is a placeholder. Treat every claim about on-chain
-behaviour below as *design intent*, not verified behaviour.
+The client calls Parcel’s same-origin `/api/preipo/assets` route, not the
+publisher directly. The server retries transient upstream failures, caches a
+successful response for one minute, and serves the last complete catalog if a
+later refresh fails. A publisher mark is informational only; it never settles
+a Parcel contract or replaces a committed replay close.
 
-Bounty eligibility is not claimed and is not guaranteed.
+## Watchlist behavior
 
-## Verified provider APIs
+The Watchlist tab sits under Portfolio. It initially follows the complete
+current PreStocks catalog and stores removals and additions in the browser.
+Search always queries the full current publisher catalog, so an item removed
+from the view can be restored and a later publisher listing can be added
+without a release.
 
-Both were probed live on 2026-09-16. Schemas were read, not assumed, and they
-differ, which is why each provider has its own parser.
+The watchlist intentionally does not draw price-history charts: the publisher
+API supplies point-in-time fields, not historical observations. It instead
+shows the current mark, token price, implied valuation and token-to-mark
+difference with the publisher’s own company description and source link.
 
-**Tessera** — `GET https://rest-api.tessera.pe/v1/public/token-details` → `200`,
-a bare JSON array. The mint field is **`mint`**.
+## Registry and escrow boundary
 
-```json
-{"id":"T-OpenAI","name":"T-OpenAI","symbol":"T-OpenAI","code":"tOpenAI",
- "sector":"Artificial Intelligence",
- "mint":"oPAiAikWTaFj9RYoRFD35ccfwhnMcB3ThgBZRHSkjTZ",
- "markPrice":812.79,"holders":8259,"markValuation":950000000000}
-```
+Publisher listings are useful to watch, but not automatically safe collateral.
+The pre-IPO registry is a small, human-reviewed set of PreStocks mints. Before
+one can be considered for a contract, Parcel reads its mainnet mint account and
+checks the token program, decimals and Token-2022 extensions. Quotes attach by
+mint address, never by company name or symbol.
 
-**PreStocks** — `GET https://prestocks.com/api/prestocks` → `200`, a bare JSON
-array. The mint field is **`contract_address`**, and there are two distinct
-prices (`markPrice` and `tokenPrice`).
-
-```json
-{"name":"Anthropic PreStocks","symbol":"ANTHROPIC","contract_address":
- "Pren1FvFX6J3E4kXhJuCiAD5aDmGEb7qJRncwA8Lkhw","markPrice":1007.05683324,
- "tokenPrice":956.7206391833798,"supply":7381.972255745}
-```
-
-Neither response carries decimals or a token program, so both are read from
-the chain. Provider prices are informational labels only; contracts settle on
-their own fixed integer USDC totals and never consult these numbers.
-Quotes attach to assets **by mint**, never by symbol, so one issuer's price
-can never be shown against another issuer's token.
-
-## Verified sponsor mints
-
-Read from mainnet via `getAccountInfo … jsonParsed` on 2026-09-16. All four
-are **Token-2022** (`TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`), 9 decimals.
-
-| Token | Mint | Escrowable | Why |
-|---|---|---|---|
-| Tessera T-OpenAI | `oPAiAikWTaFj9RYoRFD35ccfwhnMcB3ThgBZRHSkjTZ` | **Yes** | 20 bps transfer fee, freeze authority set |
-| Tessera T-Kalshi | `TKLSidmLVt3cqGaaodG8tyRzoANfQwoh67AccjmubeZ` | **Yes** | 20 bps transfer fee, freeze authority set |
-| PreStocks ANTHROPIC | `Pren1FvFX6J3E4kXhJuCiAD5aDmGEb7qJRncwA8Lkhw` | **No** | permanent delegate, pausable, transfer hook, scaled UI amount, confidential transfer |
-| PreStocks ANDURIL | `PresTj4Yc2bAR197Er7wz4UUKSfqt6FryBEdAriBoQB` | **No** | same as above |
-
-### Why PreStocks tokens are rejected
-
-This is the central finding, and it is a property of the mints, not a
-limitation we chose:
-
-* **Permanent delegate** (`WV9PJN7…Fti5Wc`) — the issuer can move tokens out
-  of *any* account, including a program escrow. A buyer could pay the exercise
-  amount for collateral that is no longer there.
-* **Pausable** — the issuer can halt all transfers. That would block both
-  exercise and expiry recovery, breaking the promise that a seller can always
-  reclaim collateral without our backend.
-* **Transfer hook** — transfers run issuer-controlled code that can reject
-  them, and every transfer needs extra accounts this version does not resolve.
-* **Scaled UI amount** — the multiplier between displayed amounts and base
-  units is mutable by the issuer, so a strike agreed today may not mean the
-  same thing at expiry.
-* **Confidential transfer** — escrow balances would not be publicly verifiable.
-
-Supporting these safely needs issuer cooperation (a hook allowlist or an
-escrow exemption) and a redesign that does not promise unconditional expiry
-recovery. Until then the registry lists them, prices them, shows their issuer
-terms, and refuses to escrow them, naming every reason in the interface.
-
-Tessera's 20 bps fee is handled rather than rejected: the program sends a
-grossed-up amount and then asserts the escrow balance rose by exactly the
-contracted quantity, so the buyer never silently absorbs the fee.
-
-## Contract design
-
-Terms are immutable and stored as **totals** in base units. The per-token
-strike is derived for display only — deriving it avoids rounding a per-unit
-price and multiplying back to a total the buyer cannot actually pay.
-
-Lifecycle: `create` (seller escrows the whole quantity) → `accept` (buyer pays
-premium, buyer identity fixed) → `exercise` (buyer pays the full exercise
-total and receives every escrowed token atomically) or `expire` (underlying
-returns to the seller). `cancel` is seller-only and only while unaccepted.
-
-Rules enforced in the program: chain time only; acceptance deadline ≤ exercise
-expiry; exercise allowed from acceptance until strictly before expiry; buyer
-funds exercise at exercise time and never prefunds strike cash; `expire` is
-permissionless so recovery never depends on our backend; every pinned account
-is address-checked to prevent substitution; no partial fills, transfers, cash
-settlement, cross-margin or automatic exercise.
+Current PreStocks mints disclose issuer-controlled features such as permanent
+delegate, pausable transfers, transfer hooks and a mutable scaled UI amount.
+Those features prevent Parcel from promising reliable independent escrow and
+expiry recovery, so the desk clearly lists the publisher data and blocks an
+unsupported escrow workflow rather than pretending a watchlist entry is
+trade-ready.
 
 ## Setup
 
-```bash
-# Verification is read-only and needs no keys.
+```sh
+# Read-only verification; no secrets are needed.
 PREIPO_VERIFY_RPC_URL=https://api.mainnet-beta.solana.com
 PREIPO_VERIFY_NETWORK=mainnet
 
-# Leave unset until a program is actually built and deployed.
-# While unset the UI verifies and prices only, and cannot offer to sign.
+# Leave unset until a separate program is built and deployed.
 PREIPO_PROGRAM_ID=
 PREIPO_USDC_MINT=
 ```
 
-`GET /api/preipo/assets` returns the registry joined with chain facts and
-provider prices, plus `executionEnabled`, which is false unless both a program
-id and a USDC mint are configured. It gates on-chain execution only; the
-vault path needs no keys and is what the ticket uses.
-
-The ticket itself calls the vault routes: `POST /api/vault/quote` with a
-one-leg physically settled sell call on the token's symbol, then
-`POST /api/vault/actions` with `{type: 'execute', quoteId}`. The contract
-then appears in the portfolio, is reserved against the token balance, and is
-settled by the same expiry clearing as every other contract.
-
-## Demo script
-
-1. **Show the two providers.** `curl -s https://rest-api.tessera.pe/v1/public/token-details`
-   and `curl -s https://prestocks.com/api/prestocks`. Point out that one calls
-   the mint `mint` and the other calls it `contract_address` — separate
-   adapters, never interchangeable.
-2. **Open Pre-IPO in the app.** Four assets, two issuers, each labelled with
-   its issuer and short mint.
-3. **Select Tessera T-OpenAI.** Escrowable. The panel shows the verified token
-   program, 9 decimals, the network, and discloses the 0.20% transfer fee and
-   the issuer's freeze authority.
-4. **Write a call:** 0.25 tokens at a $900 strike, a week out. The ticket
-   says the tokens are not in the vault yet and offers the deposit; fund it,
-   and the premium line reads the engine's model price.
-5. **Review and confirm.** The server's funded quote: what you receive, the
-   tokens reserved, what is left free. Confirm, and the contract is in the
-   portfolio. Advance the session past expiry from Market controls to watch
-   it settle on the token's committed close.
-6. **Select PreStocks ANTHROPIC.** Not escrowable, with every blocker named
-   from the mint account itself. This is the honest half of the demo: the
-   integration reads the real mint and refuses what it cannot secure.
-7. **State the limits:** this is vault accounting on a replay path. The
-   program is unbuilt, there is no wallet signing, and no sponsor token moves.
-
-## Remaining blockers
-
-1. **No Rust/Anchor/Solana toolchain here** — the program cannot be compiled,
-   tested or deployed from this machine. Needed before any on-chain claim.
-2. **No program id or deployment authorisation.** Nothing has been deployed
-   and nothing may be without explicit approval.
-3. **Wallet signing is not implemented.** The design calls for real wallet
-   signatures; the existing chain service uses server-derived HMAC session
-   keys, which must not be reused here.
-4. **On-chain offer persistence and reconciliation are not implemented.**
-   The vault path is sandbox accounting; for the program, chain state must be
-   authoritative with the database as an index.
-5. **Local test mints for lifecycle tests are not yet created.** Automated
-   lifecycle tests must run against local mints and must never be presented as
-   sponsor-token integration.
-6. **PreStocks support needs issuer cooperation**, as above.
+`GET /api/preipo/assets` returns both `catalog` (every current publisher
+listing) and `assets` (the reviewed registry joined with on-chain mint facts).
+The route also returns any source warning and `refreshedAt`, allowing the UI to
+state exactly what it knows without inventing market history or approval.

@@ -24,7 +24,7 @@ Use Node 22.23.2 from `.nvmrc`. Open `http://localhost:3025`. This single server
 
 ## What works
 
-- **Portfolio:** four sections — overview, positions, collateral and activity. Open contracts are marked to the same model the desk quotes with, and the combined payoff of the whole book is drawn across the price range.
+- **Portfolio:** holdings, a persistent PreStocks watchlist, and activity. Open contracts are marked to the same model the desk quotes with, and the combined payoff of the whole book is drawn across the price range.
 - **Vault:** deposit/withdraw test USDC and NVDA from the app bar; inspect available, reserved and lent assets. Pledged assets cannot be withdrawn, sold or lent again.
 - **Live marks:** a mark engine polls Pyth and Coinbase and walks anything with no fresh observation forward from its last real price. Every mark carries the source that produced it, and the desk shows it. See [pricing](#pricing-and-release-boundaries).
 - **Options chain:** browse calls and puts by strike, daily or hourly expiry, and fractional exposure. Model buy/write indications show physical backing before a funded quote.
@@ -32,7 +32,7 @@ Use Node 22.23.2 from `.nvmrc`. Open `http://localhost:3025`. This single server
 - **Basic / Advanced:** Basic asks which way you think it goes and sizes it. Advanced adds the leg editor, ratios, settlement, the full Greeks, the options chain and the value surface — what the position marks at on every day between now and expiry.
 - **Options:** fractional calls/puts, physical assignment, server-issued 30-second quotes, priced close-out and atomic expiry settlement.
 - **Underwriting:** covered calls lock shares; cash-secured puts lock strike cash. Counterparty obligations are also reserved.
-- **Pre-IPO:** covered calls on sponsor tokens (Tessera, PreStocks). Every mint is read from mainnet and checked against an escrow policy first; a token that passes is written through the same vault quote, reserve and expiry settlement as everything else, on its own precommitted replay path. No sponsor token moves on chain. See [pre-IPO](docs/PREIPO.md).
+- **PreStocks:** the Portfolio watchlist reads the complete publisher catalog, including mark and token price, valuations, supply, description, logo and source link. Its reviewed mints are read from mainnet before the desk ever offers an escrow workflow. Publisher marks are informational; no sponsor token moves on chain. See [PreStocks](docs/PREIPO.md).
 - **Structures:** call/put spreads, straddles, strangles, iron condors, butterflies, collars, and capped dividend-reference contracts. Edit up to four legs and whole-number ratios. Add fixed-payout boxes, capped quadratic/exponential contracts, dividend floors, ranges and convexity.
 - **Money market:** supply and borrow rates are derived from each reserve's utilisation on the two-slope curve, with per-asset loan-to-value and liquidation thresholds, one health factor over the whole book, and the liquidation price of an open short.
 - **Borrow against stock:** pledge tokenized stock and draw USDC from its pool at a variable or fixed rate. The pledge stays in the vault, reserved, up to the asset's loan-to-value. A fixed loan locks the pool's rate and repays itself at term; a variable loan is repriced every session off the same curve and runs until repaid. A pledge that stops covering the debt at the liquidation threshold is sold up at that session's mark.

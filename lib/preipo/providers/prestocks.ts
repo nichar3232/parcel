@@ -5,7 +5,7 @@ export const PRESTOCKS_ENDPOINT = 'https://prestocks.com/api/prestocks';
 export const PRESTOCKS_PRODUCTS = 'https://prestocks.com/products';
 
 /**
- * Verified 2026-09-16 against the live endpoint. The response is a bare
+ * Verified 2026-09-20 against the live endpoint. The response is a bare
  * JSON array; each element looked like:
  *
  * {"name":"Anthropic PreStocks","symbol":"ANTHROPIC","description":"...",
@@ -60,6 +60,8 @@ export function parsePreStocks(
       mint: str(row.contract_address, 'contract_address'),
       markPriceUsd: numOrNull(row.markPrice),
       meta: {
+        description:
+          typeof row.description === 'string' ? row.description : null,
         tokenPrice: numOrNull(row.tokenPrice),
         markValuation: numOrNull(row.markValuation),
         impliedValuation: numOrNull(row.impliedValuation),

@@ -89,27 +89,32 @@ export class PythSource implements Source {
    */
   private async resolve(instruments: Instrument[]) {
     this.resolved = true;
-    for (const i of instruments) {
-      if (!i.pyth) continue;
-      const tail = i.pyth.split('/')[0].split('.').pop() || '';
-      const res = await getJson<FeedRow[]>(
-        `${this.host}/v2/price_feeds?query=${encodeURIComponent(tail)}`,
-        this.headers,
-      );
-      const hit = Array.isArray(res.body)
-        ? res.body.find((r) => r.attributes?.symbol === i.pyth)
-        : null;
-      if (hit) this.ids.set(hit.id.replace(/^0x/, ''), i.symbol);
-    }
+    // Metadata reads are independent. Resolving a seven-stock watchlist in
+    // parallel prevents one slow lookup from holding every other symbol back,
+    // while the exact-symbol filter below still rules out a plausible but
+    // incorrect near match.
+    await Promise.all(
+      instruments
+        .filter((i) => i.pyth)
+        .map(async (i) => {
+          const tail = i.pyth!.split('/')[0].split('.').pop() || '';
+          const res = await getJson<FeedRow[]>(
+            `${this.host}/v2/price_feeds?query=${encodeURIComponent(tail)}`,
+            this.headers,
+          );
+          const hit = Array.isArray(res.body)
+            ? res.body.find((r) => r.attributes?.symbol === i.pyth)
+            : null;
+          if (hit) this.ids.set(hit.id.replace(/^0x/, ''), i.symbol);
+        }),
+    );
   }
 
   async observe(instruments: Instrument[]): Promise<Observation[]> {
     if (!this.enabled) return [];
     if (!this.resolved) await this.resolve(instruments);
     if (!this.ids.size) return [];
-    const query = [...this.ids.keys()]
-      .map((id) => `ids%5B%5D=${id}`)
-      .join('&');
+    const query = [...this.ids.keys()].map((id) => `ids%5B%5D=${id}`).join('&');
     const res = await getJson<{ parsed?: UpdateRow[] }>(
       `${this.host}/v2/updates/price/latest?${query}&parsed=true`,
       this.headers,

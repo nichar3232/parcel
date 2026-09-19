@@ -1,8 +1,8 @@
 /**
- * One retry policy for both provider feeds.
+ * One retry policy for the publisher feed.
  *
- * Tessera and PreStocks are public endpoints we poll on a timer from one
- * address, and both return the occasional 5xx under that. A single blip
+ * PreStocks is a public endpoint we poll on a timer from one address and it
+ * returns the occasional 5xx. A single blip
  * used to travel all the way to a banner across the top of the desk
  * saying the feed was unavailable, which is both alarming and wrong:
  * the endpoint answers on the next attempt, and the prices it serves are

@@ -16,7 +16,7 @@ import type { OrderTerms, VaultAction } from '../lib/parcel/types';
  * reserved, and expiry settles on the token's own committed close in
  * whichever direction it went.
  */
-const SYMBOL = 'T-OpenAI';
+const SYMBOL = 'OPENAI';
 
 function setup() {
   const store = new Store(':memory:'),
@@ -66,8 +66,8 @@ void test('pre-ipo: a covered call on a sponsor token needs the tokens in the va
     )!;
     const q = a.quote(coveredCall(0.25, 900, expiry));
     assert.equal(q.eligible, false);
-    assert.match(q.reason ?? '', /T-OpenAI/);
-    assert.throws(() => a.act({ type: 'execute', quoteId: q.id }), /T-OpenAI/);
+    assert.match(q.reason ?? '', /OPENAI/);
+    assert.throws(() => a.act({ type: 'execute', quoteId: q.id }), /OPENAI/);
   } finally {
     a.store.close();
   }

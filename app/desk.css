@@ -2613,10 +2613,38 @@
 .od-ladder th {
   white-space: nowrap;
 }
-.od-ladder td .od-button {
-  min-width: 78px;
-  justify-content: center;
+.od-ladder-quote {
+  min-width: 82px;
+  height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--pc-line);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--pc-raised) 88%, transparent);
+  color: var(--pc-text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    color 0.14s ease,
+    transform 0.12s ease;
+}
+.od-ladder-quote:hover {
+  border-color: var(--pc-cyan-edge);
+  background: color-mix(in srgb, var(--pc-cyan) 8%, var(--pc-raised));
+  color: var(--pc-cyan);
+}
+.od-ladder-quote:active {
+  transform: translateY(1px);
+}
+.od-ladder-distance.above {
+  color: color-mix(in srgb, var(--pc-cyan) 88%, var(--pc-text));
+}
+.od-ladder-distance.below {
+  color: var(--pc-body);
 }
 /* The ladder scrolls inside the panel rather than the page, so the
    controls above it and the ticket beside it stay put while a reader
@@ -2645,119 +2673,489 @@
   height: 0;
   padding: 0;
   border: 0;
-  border-top: 1.5px solid var(--pc-up);
+  border-top: 1px solid var(--pc-cyan);
 }
 .od-ladder-spot td b {
   position: absolute;
   left: 50%;
   top: 0;
   transform: translate(-50%, -50%);
-  padding: 5px 14px;
-  border-radius: 999px;
-  background: var(--pc-up);
-  color: var(--pc-void);
-  font-size: 13px;
+  padding: 4px 10px;
+  border: 1px solid var(--pc-cyan-edge);
+  border-radius: 4px;
+  background: var(--pc-void);
+  box-shadow: 0 0 0 3px var(--pc-void);
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.04em;
   line-height: 1.3;
   white-space: nowrap;
 }
 
-/* ---------- the market strip ---------- */
+/* ---------- Portfolio watchlist ---------- */
 
-/* One row per underlying under the vault: mark, day, line. A row is a
-   way into that asset's ticket, so it is a button and reads as one. */
-.od-strip {
-  display: flex;
-  flex-direction: column;
-  margin-top: 10px;
+/* The publisher provides marks, token prices and valuations, not a usable
+   intraday history. This is intentionally a compact quote sheet rather than
+   a decorative market strip that invents a chart for each private company. */
+.od-watchlist {
+  width: min(100%, 1180px);
+  margin: 2px auto 0;
 }
-.od-strip-head {
+.od-watchlist-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 4px 0 30px;
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-watchlist-kicker {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.od-watchlist-head h2 {
+  font-size: clamp(28px, 3.2vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+.od-watchlist-head p {
+  max-width: 520px;
+  margin-top: 10px;
+  color: var(--pc-muted);
+  font-size: 14px;
+}
+.od-watchlist-source {
+  flex: none;
+  min-width: 172px;
+  padding-bottom: 3px;
+  text-align: right;
+}
+.od-watchlist-source b,
+.od-watchlist-source span {
+  display: block;
+}
+.od-watchlist-source b {
+  color: var(--pc-body);
+  font-family: var(--pc-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-watchlist-source span {
+  margin-top: 5px;
+  color: var(--pc-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.od-watchlist-search {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0 12px;
+  min-height: 44px;
+  border: 1px solid var(--pc-line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--pc-surface-2) 92%, transparent);
+  color: var(--pc-muted);
+  transition: border-color 0.15s ease;
+}
+.od-watchlist-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 16px;
+}
+.od-watchlist-toolbar .od-watchlist-search {
+  flex: 1 1 360px;
+}
+.od-watchlist-filter {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--pc-line);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--pc-surface-2) 88%, transparent);
+}
+.od-watchlist-filter button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--pc-muted);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease;
+}
+.od-watchlist-filter button:hover {
+  color: var(--pc-body);
+}
+.od-watchlist-filter button.selected {
+  background: var(--pc-raised);
+  box-shadow: inset 0 0 0 1px var(--pc-line-soft);
+  color: var(--pc-text);
+}
+.od-watchlist-search:focus-within {
+  border-color: var(--pc-cyan-edge);
+}
+.od-watchlist-search input {
+  min-width: 0;
+  padding: 10px 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--pc-text);
+  font: inherit;
+  font-size: 13px;
+}
+.od-watchlist-search input::placeholder {
+  color: var(--pc-muted);
+}
+.od-watchlist-search > span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.od-watchlist-results {
+  margin-bottom: 20px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-watchlist-section {
+  margin-top: 26px;
+}
+.od-watchlist-section-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 0 0 6px;
+  gap: 20px;
+  margin-bottom: 8px;
 }
-.od-strip-head h2 {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-.od-strip-head span {
-  color: var(--pc-muted);
+.od-watchlist-section-head b,
+.od-watchlist-section-head span {
   font-family: var(--pc-mono);
   font-size: 10.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.od-strip-row {
+.od-watchlist-section-head b {
+  color: var(--pc-body);
+  font-weight: 600;
+}
+.od-watchlist-section-head span {
+  color: var(--pc-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-align: right;
+}
+.od-watchlist-results-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0 7px;
+}
+.od-watchlist-results-head span,
+.od-watchlist-results-head small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.od-watchlist-results-head small {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.od-watchlist-result {
   display: grid;
-  grid-template-columns: 30px minmax(180px, 1fr) minmax(108px, 132px) minmax(
-      84px,
-      auto
-    );
+  grid-template-columns: minmax(0, 1fr) 110px auto;
   align-items: center;
-  gap: 16px;
-  width: 100%;
-  padding: 12px 6px;
-  border: 0;
+  gap: 20px;
+  padding: 12px 0;
   border-top: 1px solid var(--pc-line-soft);
-  border-radius: 0;
-  background: none;
-  color: inherit;
+}
+.od-watchlist-result > div:not(.od-watchlist-company) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.od-watchlist-result > div:not(.od-watchlist-company) span {
+  display: block;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.od-watchlist-result > div:not(.od-watchlist-company) b {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+}
+.od-watchlist-result button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--pc-cyan-edge);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--pc-cyan) 8%, transparent);
+  color: var(--pc-cyan);
   font: inherit;
-  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
+}
+.od-watchlist-result button:hover {
+  background: color-mix(in srgb, var(--pc-cyan) 15%, transparent);
+}
+.od-watchlist-table {
+  border-top: 1px solid var(--pc-line);
+  border-bottom: 1px solid var(--pc-line);
+}
+.od-watchlist-labels,
+.od-watchlist-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.55fr) repeat(
+      4,
+      minmax(84px, 0.6fr)
+    ) 58px;
+  column-gap: 16px;
+}
+.od-watchlist-equities .od-watchlist-labels,
+.od-watchlist-equities .od-watchlist-equity-row {
+  grid-template-columns: minmax(240px, 1.55fr) repeat(
+      3,
+      minmax(84px, 0.6fr)
+    ) 58px;
+}
+.od-watchlist-labels {
+  align-items: center;
+  min-height: 36px;
+  border-bottom: 1px solid var(--pc-line-soft);
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-watchlist-labels span:not(:first-child) {
+  text-align: right;
+}
+.od-watchlist-row {
+  align-items: center;
+  min-height: 74px;
+  border-top: 1px solid var(--pc-line-soft);
   transition: background 0.15s ease;
 }
-.od-strip-row:hover {
+.od-watchlist-row:first-of-type {
+  border-top: 0;
+}
+.od-watchlist-row:hover {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--pc-surface) 84%, transparent),
-    transparent 62%
+    color-mix(in srgb, var(--pc-surface-2) 68%, transparent),
+    transparent 82%
   );
 }
-.od-strip-what {
+.od-watchlist-company {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
   min-width: 0;
 }
-.od-strip-what b {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
+.od-watchlist-company > div {
+  min-width: 0;
 }
-.od-strip-what small,
-.od-strip-num small {
+.od-watchlist-company b,
+.od-watchlist-company small,
+.od-watchlist-company p {
   display: block;
+}
+.od-watchlist-company b {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.od-watchlist-company small {
+  margin-top: 2px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.025em;
+}
+.od-watchlist-company p {
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--pc-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.od-watchlist-metric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.od-watchlist-metric span {
+  display: none;
+}
+.od-watchlist-metric b {
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+.od-watchlist-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 3px;
+}
+.od-watchlist-actions a,
+.od-watchlist-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  color: var(--pc-muted);
+  cursor: pointer;
+  transition:
+    color 0.14s ease,
+    border-color 0.14s ease,
+    background 0.14s ease;
+}
+.od-watchlist-actions a:hover,
+.od-watchlist-actions button:hover {
+  border-color: var(--pc-line);
+  background: var(--pc-surface-2);
+  color: var(--pc-body);
+}
+.od-watchlist-note {
+  margin-top: 12px;
   color: var(--pc-muted);
   font-size: 11.5px;
 }
-.od-strip-line {
-  height: 36px;
-}
-.od-strip-line .od-spark {
-  height: 100%;
-}
-.od-strip-num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.od-strip-num b {
-  font-size: 13.5px;
-  font-weight: 600;
-}
-.od-strip-num small.od-up {
-  color: var(--pc-up);
-}
-.od-strip-num small.od-down {
-  color: var(--pc-down);
-}
-@media (max-width: 720px) {
-  .od-strip-row {
-    grid-template-columns: 30px minmax(0, 1fr) auto;
+@media (max-width: 900px) {
+  .od-watchlist-labels,
+  .od-watchlist-row {
+    grid-template-columns: minmax(220px, 1.4fr) repeat(
+        2,
+        minmax(80px, 0.6fr)
+      ) 58px;
   }
-  .od-strip-line {
+  .od-watchlist-labels span:nth-child(4),
+  .od-watchlist-labels span:nth-child(5),
+  .od-watchlist-row .od-watchlist-metric:nth-of-type(4),
+  .od-watchlist-row .od-watchlist-metric:nth-of-type(5) {
     display: none;
+  }
+}
+@media (max-width: 620px) {
+  .od-watchlist-head {
+    display: block;
+    padding-bottom: 22px;
+  }
+  .od-watchlist-source {
+    margin-top: 18px;
+    text-align: left;
+  }
+  .od-watchlist-search {
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+  .od-watchlist-toolbar {
+    display: block;
+  }
+  .od-watchlist-filter {
+    margin-top: 10px;
+  }
+  .od-watchlist-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .od-watchlist-section-head span {
+    text-align: left;
+  }
+  .od-watchlist-search > span {
+    display: none;
+  }
+  .od-watchlist-results-head small {
+    display: none;
+  }
+  .od-watchlist-result {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .od-watchlist-result > div:not(.od-watchlist-company) {
+    display: none;
+  }
+  .od-watchlist-labels {
+    display: none;
+  }
+  .od-watchlist-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 12px;
+    padding: 15px 0;
+  }
+  .od-watchlist-company {
+    grid-column: 1 / -1;
+  }
+  .od-watchlist-company p {
+    white-space: normal;
+  }
+  .od-watchlist-metric {
+    display: flex !important;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    text-align: left;
+  }
+  .od-watchlist-metric span {
+    display: block;
+    color: var(--pc-muted);
+    font-family: var(--pc-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .od-watchlist-row .od-watchlist-metric:nth-of-type(4),
+  .od-watchlist-row .od-watchlist-metric:nth-of-type(5) {
+    display: flex;
+  }
+  .od-watchlist-actions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-content: flex-start;
   }
 }
 

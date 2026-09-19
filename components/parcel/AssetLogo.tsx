@@ -17,6 +17,12 @@
 const TILE = {
   USDC: '#2775ca',
   NVDA: '#76b900',
+  AAPL: '#68717f',
+  MSFT: '#2878c5',
+  AMZN: '#e88b15',
+  GOOGL: '#4385f5',
+  META: '#1671d9',
+  TSLA: '#c73a42',
   SOL: '#14f195',
   ETH: '#627eea',
   BTC: '#f7931a',

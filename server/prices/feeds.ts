@@ -14,6 +14,8 @@
  * and says so.
  */
 
+import { PUBLIC_EQUITIES } from '../../lib/parcel/public-equities';
+
 export type Kind = 'equity' | 'crypto' | 'stable' | 'private';
 
 export interface Instrument {
@@ -35,16 +37,7 @@ export interface Instrument {
 }
 
 export const INSTRUMENTS: Instrument[] = [
-  {
-    symbol: 'NVDA',
-    name: 'NVIDIA',
-    kind: 'equity',
-    pyth: 'Equity.US.NVDA/USD',
-    vol: 0.45,
-    seed: 142.62,
-    spreadBps: 6,
-    depth: 24_000_000,
-  },
+  ...PUBLIC_EQUITIES.map((equity) => ({ ...equity, kind: 'equity' as const })),
   {
     symbol: 'SOL',
     name: 'Solana',
@@ -103,9 +96,6 @@ export const INSTRUMENTS: Instrument[] = [
  * the pre-IPO screen.
  */
 export const SPONSOR_SEEDS: Record<string, number> = {
-  'T-OpenAI': 812,
-  'T-Kalshi': 414,
-  'T-SpaceX': 423,
   OPENAI: 966,
   ANTHROPIC: 1007,
   SPACEX: 153,

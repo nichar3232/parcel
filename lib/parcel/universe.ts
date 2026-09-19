@@ -7,9 +7,6 @@ import neuralink from '../../data/replay/neuralink.json';
 import openai from '../../data/replay/openai.json';
 import polymarket from '../../data/replay/polymarket.json';
 import spacex from '../../data/replay/spacex.json';
-import tKalshi from '../../data/replay/t-kalshi.json';
-import tOpenai from '../../data/replay/t-openai.json';
-import tSpacex from '../../data/replay/t-spacex.json';
 
 export interface SessionRow {
   date: string;
@@ -24,7 +21,7 @@ export interface Underlying {
   symbol: string;
   name: string;
   /** Where the token comes from; an equity is its own issuer. */
-  provider: 'equity' | 'tessera' | 'prestocks';
+  provider: 'equity' | 'prestocks';
   /** The model volatility every quote on this underlying is priced at. */
   volatility: number;
   /** True when the replay path was struck rather than printed. */
@@ -45,13 +42,13 @@ export interface Underlying {
  * the same day whichever one it is written on.
  */
 const token = (
-  file: (typeof tOpenai | typeof anthropic) & {
+  file: (typeof openai | typeof anthropic) & {
     provider: string;
   },
 ): Underlying => ({
   symbol: file.symbol,
   name: file.name,
-  provider: file.provider as 'tessera' | 'prestocks',
+  provider: file.provider as 'prestocks',
   volatility: file.volatility,
   simulated: true,
   anchor: file.anchor.price,
@@ -68,9 +65,6 @@ export const UNDERLYINGS: Underlying[] = [
     anchor: null,
     rows: nvda.rows,
   },
-  token(tOpenai),
-  token(tKalshi),
-  token(tSpacex),
   token(openai),
   token(anthropic),
   token(spacex),

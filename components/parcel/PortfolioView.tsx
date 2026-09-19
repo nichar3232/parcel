@@ -26,9 +26,9 @@ import {
 import { QuoteReview } from './QuoteReview';
 import type { Quote, VaultAction } from '@/lib/parcel/types';
 import { AssetLogo } from './AssetLogo';
-import { MarketStrip } from './MarketStrip';
 import { logoOf } from '@/lib/preipo/registry';
 import { Meter, ValueHistory } from './charts';
+import { WatchlistView } from './WatchlistView';
 import type { Transfer } from './TransferDialog';
 import {
   Badge,
@@ -46,7 +46,12 @@ import {
   usd,
 } from './shared';
 
-export type PortfolioTab = 'overview' | 'positions' | 'collateral' | 'activity';
+export type PortfolioTab =
+  | 'overview'
+  | 'watchlist'
+  | 'positions'
+  | 'collateral'
+  | 'activity';
 
 /**
  * The portfolio.
@@ -63,7 +68,6 @@ export function PortfolioView({
   tab,
   navigate,
   onTransfer,
-  onPick,
 }: {
   desk: VaultController;
   feed: MarkFeed;
@@ -74,8 +78,6 @@ export function PortfolioView({
     pick?: string,
   ) => void;
   onTransfer: (t: Transfer) => void;
-  /** Make a symbol the desk's underlying and open the ticket on it. */
-  onPick: (symbol: string) => void;
 }) {
   const s = desk.state!;
   const { book, risk, market } = s;
@@ -124,6 +126,7 @@ export function PortfolioView({
   const drawn = withinRange(series, range);
   const move = changeOver(drawn);
 
+  if (tab === 'watchlist') return <WatchlistView feed={feed} />;
   if (tab === 'collateral') return <Collateral desk={desk} />;
   if (tab === 'activity') return <Activity desk={desk} />;
 
@@ -247,8 +250,6 @@ export function PortfolioView({
             Change
           </Button>
         </div>
-
-        <MarketStrip feed={feed} date={book.date} onPick={onPick} />
       </div>
 
       <aside className="od-open-side">

@@ -147,9 +147,8 @@ export class MarkEngine {
    *
    * The sponsor tokens are the case this exists for. Their symbols and
    * their marks come from the providers at request time, so hardcoding
-   * a guessed symbol here produced a mock token that pegged to nothing
-   * — the pre-IPO screen looked up T-OPENAI and the registry called it
-   * T-OpenAI. The route that reads the providers registers them
+   * a guessed symbol here produced a mock token that pegged to nothing.
+   * The route that reads the publisher registers the reviewed symbols
    * instead, and re-pegs each one whenever the provider's mark moves
    * more than a per-cent, so the walk stays anchored to a real number
    * without snapping on every poll.
@@ -231,7 +230,8 @@ export class MarkEngine {
         } catch {
           rows = [];
         }
-        for (const row of rows) if (!seen.has(row.symbol)) seen.set(row.symbol, row);
+        for (const row of rows)
+          if (!seen.has(row.symbol)) seen.set(row.symbol, row);
       }
       const now = Date.now();
       for (const [symbol, row] of seen) {
@@ -367,7 +367,9 @@ export class MarkEngine {
       ask: round(ask),
       spreadBps: s.spreadBps,
       vol: s.vol,
-      source: fresh ? ((s.realSource as MarkSource) ?? 'simulated') : 'simulated',
+      source: fresh
+        ? ((s.realSource as MarkSource) ?? 'simulated')
+        : 'simulated',
       observedAt: s.lastReal,
       supply: round(s.supply),
       supplied: round(s.supplied),
