@@ -4,11 +4,17 @@
 
 ## V2 compatibility
 
-The product-suite program is `GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx` on the pinned private validator. It adds optional curve terms and hourly clock observations; instruction names are `initialize_v2` / `execute_v2`, and signer derivation retains the fixed version-two domain used by the deployed accounts. Configure this separate deployment with a fresh state directory. The prior V1 program and its active accounts remain intact; no account migration, pending-operation conversion or in-place reinterpretation is supported. The always-on application has not been promoted by this task.
+The product-suite program adds optional curve terms and hourly clock observations; instruction names are `initialize_v2` / `execute_v2`, and signer derivation retains the fixed version-two domain used by the deployed accounts. Configure this separate deployment with a fresh state directory. The prior V1 program and its active accounts remain intact; no account migration, pending-operation conversion or in-place reinterpretation is supported. The always-on application has not been promoted by this task.
+
+It runs as `GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx` on the pinned private validator, where it is deployed and confirmed. Its devnet identity is `A4NTJ45BZT951nYh5xDXUKtyWij3YrYjcngyMigsq9pG`, **deployed on 2026-09-19** (deploy signature `HF7b9nY6dSqMxV3GHSFjdT2LsjkKDDC3wwyJ2Tb8YTJAHe1w21bR7ygcaZqucNFVRydGSxuamheyf6yRXxoTAqE`) with test mints `5wbtrHgkfssqreoTkyQKwgrUWqyV85otjgNkdEoAiETr` (cash) and `HWhEjmFRxXFQPDV6NPcxaX1zbeiRxWP2qAvJ5ud3vC3z` (stock), both six decimals under that operator. The complete 19-action lifecycle and all 14 adversarial rejections have since been **confirmed on devnet**, against a dedicated RPC endpoint; see "Rate limits" below for why the public one will not do. These are two independently keyed programs, not one program on two ledgers: `declare_id!` is compiled in, so the devnet artifact is built with `--features devnet` and is a different binary. The private validator's program keeps the id its recorded audit evidence was produced under, and its deployment key is not held, so it can no longer be upgraded and stands as frozen evidence. A vault book is pinned to the ledger that produced it, and no book is migrated between them.
 
 ## Operator configuration
 
-Set `PARCEL_CHAIN_ENABLED=true`, `PARCEL_PROGRAM_ID`, `PARCEL_CASH_MINT`, and `PARCEL_STOCK_MINT`, alongside the existing `CHAIN_ENABLED=true`, loopback RPC and exact `SOLANA_GENESIS_HASH` pin. Only private localnet is accepted for this release. Mainnet and devnet genesis hashes are refused. Leaving Parcel chain mode unset starts the explicit sandbox; an enabled but unavailable chain never falls back to offchain execution.
+Set `PARCEL_CHAIN_ENABLED=true`, `PARCEL_PROGRAM_ID`, `PARCEL_CASH_MINT`, and `PARCEL_STOCK_MINT`, alongside the existing `CHAIN_ENABLED=true`, an RPC and an exact `SOLANA_GENESIS_HASH` pin.
+
+Two targets are accepted, both no-value test ledgers: the pinned private validator (`SOLANA_NETWORK=localnet`, loopback RPC) and the public test cluster (`SOLANA_NETWORK=devnet`, an HTTPS RPC, genesis `EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG`). **Mainnet is refused by the genesis pin itself and cannot be configured on either.** The pin is required whenever chain execution is enabled, so a misconfigured deployment fails at boot rather than on a user's first contract.
+
+The pin is what makes the target real rather than declared. `SOLANA_NETWORK` states only which cluster the operator meant; the pin states which ledger they actually provisioned. A devnet mode whose pin is not devnet's own genesis is refused as a misconfiguration, and a localnet mode never silently accepts devnet. Leaving Parcel chain mode unset starts the explicit sandbox; an enabled but unavailable chain never falls back to offchain execution.
 
 The dedicated operator key stays at `STRATA_STATE_DIR/deployer.json` on the VPS. Both test mints have six decimals and that operator as mint authority. Session-specific owner and vault-account keys are derived using a domain-separated HMAC. These are service-held **test signers**, not user wallet authentication or self custody. Every program mutation requires both owner and operator signatures.
 
@@ -43,3 +49,31 @@ With the environment configured, run `npm run verify:parcel-chain` and `npm run 
 ## Production boundaries
 
 The operator can price quotes, provision test capital and upgrade this test program. Historical market advancement is a user-controlled replay, not a real-time expiry clock. The program does not implement issuer restrictions, corporate actions, live oracle attestations, user-owned wallet signing or independent liquidity. Donations to escrow are not accounted as user deposits. No production or permissionless custody claim is made.
+
+## Devnet
+
+Devnet is the public test cluster: no-value SOL, a real ledger anyone can read, and an explorer link a reviewer can open. It runs the same program, the same operator-held test signers and the same fail-closed rules as the private validator. It is not a production deployment and makes no custody claim.
+
+Provision it from `trading-01`, which holds the toolchain and the keys:
+
+```sh
+cd programs/parcel
+cargo build-sbf --arch v3 --features devnet
+sudo bash ops/deploy-devnet.sh
+```
+
+The script refuses to proceed unless the RPC's genesis really is devnet's, the artifact and both keys are present, and the deployer is the operator the program has compiled into it. It deploys the program, creates the two six-decimal no-value mints under that operator, seeds a **separate** devnet state directory, and prints the service environment. It never touches the private validator, its ledger, or `/var/lib/stocklana`.
+
+### Funding
+
+Devnet SOL is a no-value faucet token, but it is rationed, and the balance is a running budget rather than a one-off cost.
+
+The deploy itself holds **2.10 SOL** in the program account (the script sizes the program at 115% of the binary rather than the loader's default of 200%, which would lock 3.66 forever to buy upgrade headroom nobody asked for). A transient upload buffer of 1.83 is reclaimed on success, so the peak requirement is about **4.13 SOL**.
+
+After that, **every session that goes onchain allocates a 64 KiB vault account holding 0.3336 SOL of rent**. A public demo therefore spends about a third of a SOL per visitor, and a failed verification run costs the same, because it too opens a session. Budget the operator's balance against the number of sessions expected, and top it up from <https://faucet.solana.com> (GitHub sign-in) before a demo.
+
+### Rate limits
+
+`api.devnet.solana.com` is intended for light use and answers `429` within a handful of calls, which is not enough to complete a lifecycle run or to serve a desk to several readers at once. Point `SOLANA_RPC_URL` at a dedicated devnet endpoint — a free Helius or QuickNode tier is sufficient — before running the verification or demonstrating to anyone. The configuration already requires HTTPS for devnet, so such an endpoint drops straight in.
+
+Two behaviours matter here and are easy to misread. The adapters keep the web3.js rate-limit retry **enabled on devnet and disabled on the private validator**, because a loopback validator answering `429` is a misconfiguration worth surfacing while a public cluster throttling is ordinary. And a throttled RPC is reported as the transport failure it is: only a genuinely absent mint reads as an unprovisioned ledger, so a `429` never sends an operator off to re-provision a ledger that is already correct.

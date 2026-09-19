@@ -15,7 +15,14 @@ mod curves;
 pub mod economics;
 mod market;
 use economics::{Action, Book};
+// Each deployment declares its own id. The private validator's program keeps
+// the id its recorded audit evidence was produced under; the public devnet
+// deployment is a separate, independently keyed program. Build the devnet
+// artifact with `--features devnet`; the two are never the same binary.
+#[cfg(not(feature = "devnet"))]
 declare_id!("GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx");
+#[cfg(feature = "devnet")]
+declare_id!("A4NTJ45BZT951nYh5xDXUKtyWij3YrYjcngyMigsq9pG");
 // Dedicated no-value local-validator operator. This is not a permissionless oracle.
 const OPERATOR: Pubkey = pubkey!("8oheEujy8FS7Nr3bdYT7okWbWeMy3Tp5eM8z4YwRTzfq");
 #[program]

@@ -9,6 +9,8 @@ Read `~/Brain/Infra/vps.md` and run `~/bin/vps free` before adding capacity. Thi
 - `/opt/stocklana/.env`: service configuration, owner stocklana, mode 600
 - `/var/lib/stocklana/strata.sqlite`: durable portfolio/session/chain operation state; WAL/SHM companions
 - `/var/lib/stocklana/deployer.json`: dedicated no-value test authority, mode 600
+- `/var/lib/stocklana/parcel-devnet-program.json`: the devnet program's deployment key, mode 600. Never leaves this box; the repository checks refuse the filename
+- `/var/lib/stocklana-devnet/`: the devnet deployment's own state directory, kept separate from the private validator's
 - `/var/lib/stocklana/localnet-mint.json`: test mint identity
 - `/var/lib/stocklana/proofs/`, `evidence.json`: chain evidence
 - `/var/lib/stocklana/ledger/`: existing validator ledger; never reset as part of an app deploy
@@ -94,3 +96,15 @@ Parcel replaces the UI at `/` and retains the previous desk at `/legacy`. Keep t
 The current release review is under `/var/lib/stocklana/parcel-review` on `trading-01`. It uses a new program deployed additively to the existing private validator. The declared program ID and its test-mint configuration are recorded in `docs/PARCEL_CHAIN.md` and the release evidence. Its private deployment key and temporary review environment stay on the box. The ordinary `stocklana-web` app and existing database have not been switched to this branch.
 
 The review backend runs only for a bounded recording/check session on loopback port 3028, reached through a temporary SSH forward. It is not a new always-on tenant. Promoting this release requires the normal authorized deployment, backups and environment update; keep the existing service names and validator ledger. Future persistent operation still belongs in the existing `stocklana-web` systemd unit with `Restart=always`.
+
+## Devnet
+
+The private validator and devnet are separate deployments with separate state directories and separate program ids; see `docs/PARCEL_CHAIN.md`. Provision devnet with `sudo bash ops/deploy-devnet.sh`, which refuses to do anything until the RPC's genesis really is devnet's and the deployer is the operator compiled into the program.
+
+Provisioned on 2026-09-19: program `A4NTJ45BZT951nYh5xDXUKtyWij3YrYjcngyMigsq9pG`, cash mint `5wbtrHgkfssqreoTkyQKwgrUWqyV85otjgNkdEoAiETr`, stock mint `HWhEjmFRxXFQPDV6NPcxaX1zbeiRxWP2qAvJ5ud3vC3z`, state directory `/var/lib/stocklana-devnet`.
+
+Funding is the one manual step, and it is a running budget rather than a one-off: the deploy holds 2.10 SOL in the program account, and **every onchain session holds a further 0.33 SOL** in its 64 KiB vault account. Top the operator `8oheEujy8FS7Nr3bdYT7okWbWeMy3Tp5eM8z4YwRTzfq` up from <https://faucet.solana.com> (GitHub sign-in) before a demo.
+
+Do not run the verification, or show the desk to anyone, against `api.devnet.solana.com`: it answers `429` within a handful of calls. Set `SOLANA_RPC_URL` to a dedicated devnet endpoint (a free Helius or QuickNode tier is enough).
+
+Running devnet does not retire `stocklana-validator`. The localnet service, its ledger and its recorded evidence stay exactly as they are.

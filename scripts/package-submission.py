@@ -14,7 +14,7 @@ for file in root.rglob('*'):
  if file.name.endswith('-source.zip'):continue
  if file.name in {'parcel-source.zip','SHA256SUMS','source-manifest.json','.DS_Store'} or file.name.endswith('.tsbuildinfo'):continue
  if file.name.startswith('.env') and file.name!='.env.example':continue
- if file.name.endswith('-keypair.json') or file.name in {'deployer.json','maker.json','holder.json','program.json'}:raise RuntimeError(f'Private key filename in source: {rel}')
+ if file.name.endswith('-keypair.json') or file.name in {'deployer.json','maker.json','holder.json','program.json','parcel-devnet-program.json'}:raise RuntimeError(f'Private key filename in source: {rel}')
  selected.append(file)
 selected.sort()
 manifest={str(f.relative_to(root)):hashlib.sha256(f.read_bytes()).hexdigest() for f in selected}

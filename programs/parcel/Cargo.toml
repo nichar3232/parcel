@@ -14,6 +14,8 @@ no-log-ix-name = []
 anchor-debug = []
 custom-heap = []
 custom-panic = []
+# Declares the public devnet program id instead of the private validator's.
+devnet = []
 [dependencies]
 anchor-lang = "=0.32.1"
 anchor-spl = { version = "=0.32.1", default-features = false, features = ["token", "token_2022"] }
