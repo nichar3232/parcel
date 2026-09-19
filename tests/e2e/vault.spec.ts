@@ -171,7 +171,7 @@ test('every workspace view fits desktop and mobile, with accessible forms and no
         )
         .toBe(true);
       await page.screenshot({
-        path: `test-results/audit/oddlot/${name.toLowerCase()}-${width}.png`,
+        path: `test-results/audit/parcel/${name.toLowerCase()}-${width}.png`,
         fullPage: true,
         animations: 'disabled',
       });
@@ -434,7 +434,7 @@ test('a delayed response from an old session cannot replace the new session vaul
     .poll(() =>
       page.evaluate(
         (token) =>
-          sessionStorage.getItem(`oddlot-pending-${token.slice(0, 16)}`),
+          sessionStorage.getItem(`parcel-pending-${token.slice(0, 16)}`),
         csrf,
       ),
     )

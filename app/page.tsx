@@ -1,10 +1,11 @@
 import Link from 'next/link';
+import { LandingNav } from '@/components/brand/LandingNav';
 import { Mark } from '@/components/brand/Mark';
 import { Showcase } from '@/components/brand/Showcase';
 import { Steps } from '@/components/brand/Steps';
 import { StructureHero } from '@/components/brand/StructureHero';
 import { ThemeToggle } from '@/components/brand/Theme';
-import { EXAMPLES, HERO } from '@/lib/oddlot/landing';
+import { EXAMPLES } from '@/lib/parcel/landing';
 import './landing.css';
 
 /** The nav opens each product in the desk; the tabs below preview it. */
@@ -16,18 +17,22 @@ const PRODUCTS = [
   { name: 'Lending', href: '/app?at=lending' },
 ];
 
-/**
- * The desk's own state, printed as a status rail.
- *
- * Four figures the product actually runs on, in the order a trader
- * would read them. It replaces the row of adjectives that used to sit
- * here, which said nothing a reader could check.
- */
-const RAIL = [
-  ['Reference', `NVDA ${HERO.spotLabel}`],
-  ['Session', HERO.openLabel],
-  ['Model vol', '45%'],
-  ['Minimum size', '0.000001 share'],
+const PRINCIPLES = [
+  {
+    title: 'Size to your position',
+    detail:
+      'Open from one-millionth of a share. Premiums and payoffs are quoted per share throughout.',
+  },
+  {
+    title: 'Reserve first',
+    detail:
+      'Cash or stock is committed before a position opens, so the terms remain fully funded.',
+  },
+  {
+    title: 'Settle to the same vault',
+    detail:
+      'Premiums, collateral and expiry proceeds return to the vault that holds the position.',
+  },
 ];
 
 export default function Landing() {
@@ -39,7 +44,7 @@ export default function Landing() {
         <i />
       </div>
 
-      <header className="lp-nav">
+      <LandingNav>
         <Link className="lp-mark" href="/">
           <Mark size={24} />
           <b>PARCEL</b>
@@ -60,7 +65,7 @@ export default function Landing() {
             Open the desk
           </Link>
         </div>
-      </header>
+      </LandingNav>
 
       <main className="lp-main">
         <section className="lp-hero">
@@ -81,23 +86,33 @@ export default function Landing() {
                 Open the desk
                 <span aria-hidden>&rarr;</span>
               </Link>
-              <a className="lp-btn lp-btn-quiet" href="#products">
-                See the five products
-              </a>
             </div>
           </div>
 
           <StructureHero />
         </section>
 
-        <div className="lp-rail">
-          {RAIL.map(([k, v]) => (
-            <div key={k}>
-              <span>{k}</span>
-              <b>{v}</b>
-            </div>
-          ))}
-        </div>
+        <section className="lp-principles" aria-labelledby="principles-title">
+          <div className="lp-principles-intro">
+            <span className="lp-kicker">The Parcel model</span>
+            <h2 id="principles-title">One vault. Defined terms.</h2>
+            <p>
+              The unit, collateral and settlement path stay consistent from
+              quote through expiry.
+            </p>
+          </div>
+          <ol className="lp-principles-list">
+            {PRINCIPLES.map((principle, index) => (
+              <li key={principle.title}>
+                <b>{String(index + 1).padStart(2, '0')}</b>
+                <div>
+                  <strong>{principle.title}</strong>
+                  <p>{principle.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
 
         <section className="lp-section" id="products">
           <div className="lp-section-head">

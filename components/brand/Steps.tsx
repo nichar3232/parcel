@@ -1,5 +1,8 @@
-import { WALKTHROUGH } from '@/lib/oddlot/landing';
-import type { StepFigure } from '@/lib/oddlot/landing';
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { WALKTHROUGH } from '@/lib/parcel/landing';
+import type { StepFigure } from '@/lib/parcel/landing';
 import { PayoffGlyph } from './PayoffGlyph';
 
 /**
@@ -16,7 +19,11 @@ function StepPayoff({
 }) {
   return (
     <>
-      <PayoffGlyph payoff={figure.payoff} className="lp-step-chart" />
+      <PayoffGlyph
+        payoff={figure.payoff}
+        className="lp-step-chart"
+        density="compact"
+      />
       <p className="lp-step-note">{figure.contract}</p>
     </>
   );
@@ -71,19 +78,46 @@ function Figure({ figure }: { figure: StepFigure }) {
 /**
  * How it works.
  *
- * The left column states the claim once and stays put; the right
- * column walks through it. Sticky rather than fixed, so the copy
- * releases at the end of the section instead of following the reader
- * into the footer, and so the whole thing degrades to two stacked
- * columns on a narrow screen without a media query having to undo
- * anything.
+ * The introduction leads a four-step sequence in normal document flow. The
+ * former sticky treatment made the section feel like it was fighting the
+ * reader's scroll; each step now arrives once as it enters the reading area.
  */
 export function Steps({ children }: { children: React.ReactNode }) {
+  const stepsRef = useRef<HTMLOListElement>(null);
+
+  useEffect(() => {
+    if (
+      !stepsRef.current ||
+      !('IntersectionObserver' in window) ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    )
+      return;
+
+    const steps = [...stepsRef.current.querySelectorAll('li')];
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const step = entry.target as HTMLElement;
+          step.classList.add('is-revealed');
+          observer.unobserve(step);
+        }
+      },
+      { rootMargin: '0px 0px -10%', threshold: 0.16 },
+    );
+
+    for (const step of steps) {
+      step.classList.add('is-awaiting');
+      observer.observe(step);
+    }
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="lp-how-grid">
       <div className="lp-how-copy">{children}</div>
 
-      <ol className="lp-how-steps">
+      <ol ref={stepsRef} className="lp-how-steps">
         {WALKTHROUGH.map((step, i) => (
           <li key={step.id}>
             <figure className="lp-step-figure">

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { expiryLabel } from '../lib/oddlot/format';
+import { expiryLabel } from '../lib/parcel/format';
 
 void test('a dated expiry lists as mm/dd/yyyy', () => {
   assert.equal(expiryLabel('2025-02-07'), '02/07/2025');

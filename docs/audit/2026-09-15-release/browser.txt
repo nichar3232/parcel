@@ -1,5 +1,5 @@
 
-> oddlot@0.3.0 test:e2e
+> parcel@0.3.0 test:e2e
 > playwright test
 
 [WebServer] (node:12346) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.

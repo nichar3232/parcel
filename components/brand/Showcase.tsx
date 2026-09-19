@@ -1,7 +1,6 @@
 'use client';
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import type { EXAMPLES, Preview } from '@/lib/oddlot/landing';
+import type { EXAMPLES, Preview } from '@/lib/parcel/landing';
 import { PayoffGlyph } from './PayoffGlyph';
 
 type Product = (typeof EXAMPLES)[number];
@@ -82,6 +81,7 @@ export function Showcase({ products }: { products: Product[] }) {
             id={p.id}
             role="tab"
             aria-selected={p.id === product.id}
+            aria-controls={`product-panel-${p.id}`}
             className={p.id === product.id ? 'selected' : ''}
             onClick={() => setActive(p.id)}
           >
@@ -90,7 +90,13 @@ export function Showcase({ products }: { products: Product[] }) {
         ))}
       </div>
 
-      <div className="lp-panel" role="tabpanel" key={product.id}>
+      <div
+        id={`product-panel-${product.id}`}
+        className="lp-panel"
+        role="tabpanel"
+        aria-labelledby={product.id}
+        key={product.id}
+      >
         <div className="lp-panel-copy">
           <div className="lp-panel-lede">
             <h3>{product.title}</h3>
@@ -100,9 +106,6 @@ export function Showcase({ products }: { products: Product[] }) {
           <div className="lp-panel-pull">
             <b>{product.pull.value}</b>
             <span>{product.pull.label}</span>
-            <Link className="lp-inline-link" href={`/app?at=${product.id}`}>
-              Open in the desk <span aria-hidden>&rarr;</span>
-            </Link>
           </div>
         </div>
 

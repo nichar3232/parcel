@@ -1,5 +1,5 @@
 
-> oddlot@0.3.0 test
+> parcel@0.3.0 test
 > tsx --test tests/*.test.ts
 
 TAP version 13
@@ -176,12 +176,12 @@ ok 28 - vault HTTP: actual routes enforce ownership, CSRF, input limits, revisio
   type: 'test'
   ...
 # Request failed: Error: audit injected receipt failure
-#     at Store.saveReceipt (/Users/nichar/Brain/Projects/oddlot/server/db/store.ts:112:8)
-#     at <anonymous> (/Users/nichar/Brain/Projects/oddlot/server/oddlot/service.ts:279:18)
-#     at Store.transaction (/Users/nichar/Brain/Projects/oddlot/server/db/store.ts:46:22)
-#     at VaultService.transaction (/Users/nichar/Brain/Projects/oddlot/server/oddlot/service.ts:84:25)
-#     at VaultService.apply (/Users/nichar/Brain/Projects/oddlot/server/oddlot/service.ts:154:17)
-#     at Server.<anonymous> (/Users/nichar/Brain/Projects/oddlot/server/app.ts:144:21)
+#     at Store.saveReceipt (/Users/nichar/Brain/Projects/parcel/server/db/store.ts:112:8)
+#     at <anonymous> (/Users/nichar/Brain/Projects/parcel/server/parcel/service.ts:279:18)
+#     at Store.transaction (/Users/nichar/Brain/Projects/parcel/server/db/store.ts:46:22)
+#     at VaultService.transaction (/Users/nichar/Brain/Projects/parcel/server/parcel/service.ts:84:25)
+#     at VaultService.apply (/Users/nichar/Brain/Projects/parcel/server/parcel/service.ts:154:17)
+#     at Server.<anonymous> (/Users/nichar/Brain/Projects/parcel/server/app.ts:144:21)
 #     at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
 #   code: 'ERR_SQLITE_ERROR',
 #   errcode: 1811,

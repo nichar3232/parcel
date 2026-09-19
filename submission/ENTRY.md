@@ -1,6 +1,6 @@
-# Oddlot — options sized to your exposure
+# Parcel — options sized to your exposure
 
-Oddlot brings fractional options, covered underwriting and protected stock borrowing into one collateral-aware equity workspace. A share is the denomination, not a minimum lot. Users choose the exposure they need and see the complete obligation before committing capital.
+Parcel brings fractional options, covered underwriting and protected stock borrowing into one collateral-aware equity workspace. A share is the denomination, not a minimum lot. Users choose the exposure they need and see the complete obligation before committing capital.
 
 ## The gap
 
@@ -14,9 +14,9 @@ Cross collateral nets only matching reference, expiry and settlement groups. Int
 
 ## Why Solana
 
-The new Oddlot Anchor program independently executes the vault's transfers, option deliveries, collateral checks, productive loans, capped shorts and historical settlement. SPL test-token accounts owned by the vault PDA back its claims. The program compares its computed economic state with the backend's prepared projection; a mismatch fails the transaction. SQLite indexes the result only after confirmation. Signed transaction bytes are durably recorded before broadcast.
+The new Parcel Anchor program independently executes the vault's transfers, option deliveries, collateral checks, productive loans, capped shorts and historical settlement. SPL test-token accounts owned by the vault PDA back its claims. The program compares its computed economic state with the backend's prepared projection; a mismatch fails the transaction. SQLite indexes the result only after confirmation. Signed transaction bytes are durably recorded before broadcast.
 
-This is demonstrated on a **pinned private Solana validator**, not devnet or mainnet. The test maker and session wallets use service-held test signers. The original Strata program is retained for historical reference; it is not used as evidence that Oddlot's new rules execute onchain.
+This is demonstrated on a **pinned private Solana validator**, not devnet or mainnet. The test maker and session wallets use service-held test signers. The original Strata program is retained for historical reference; it is not used as evidence that Parcel's new rules execute onchain.
 
 ## Product distinction
 
@@ -29,7 +29,7 @@ Fractionality does not change percentage theta or eliminate exercise funding. Th
 - 19 confirmed current-program actions, including fractional options, closes, productive lending, protected shorts, margin changes, dividend settlement, withdrawals and replay reset.
 - 9 independently constructed adversarial transactions rejected by the program: wrong owner/mint, stale revision, expired authorization, insufficient funds, pledged-share withdrawal, mismatched projection, zero-payoff premium and excessive bounded premium.
 - 65 application regression tests, 25 real-backend browser journeys and 6 native program tests.
-- Current narrated UI recording with a confirmed Oddlot vault account and transaction proof.
+- Current narrated UI recording with a confirmed Parcel vault account and transaction proof.
 
 See [validation](VALIDATION.md) and the [release audit](../docs/audit/2026-09-15-release/REPORT.md).
 
@@ -39,8 +39,8 @@ All counterparties and market inventories are funded test allocations. There is 
 
 ## Submission assets
 
-- Project source: https://github.com/nichar3232/oddlot — private; these release changes await push authorization.
-- Current video: [oddlot-demo.mp4](oddlot-demo.mp4), with [captions](oddlot-demo.vtt).
+- Project source: https://github.com/nichar3232/parcel — private; these release changes await push authorization.
+- Current video: [parcel-demo.mp4](parcel-demo.mp4), with [captions](parcel-demo.vtt).
 - Repeatable walkthrough: [DEMO_SCRIPT.md](DEMO_SCRIPT.md).
 - Public demo/access: pending publication authorization and judge-access setup.
 - Hackathon: [Stocklana](https://hackathons.solana.com/hackathons/stocklana).

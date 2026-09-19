@@ -44,7 +44,7 @@ Borrowing is read-only discovery; stock lending is a product preview. No unverif
 
 - Public demo URL: pending publication authorization
 - Video: `strata-demo.mp4` in this submission folder
-- Repository: https://github.com/nichar3232/oddlot (private; public access remains a submission gate). This entry's code is the root commit `ed73929` — recover it with `git archive ed73929`.
+- Repository: https://github.com/nichar3232/parcel (private; public access remains a submission gate). This entry's code is the root commit `ed73929` — recover it with `git archive ed73929`.
 
 ## Sources and open-source disclosure
 

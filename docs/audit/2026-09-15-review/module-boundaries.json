@@ -4,71 +4,71 @@
   "boundaryViolations": [],
   "newWorkspaceFiles": [
     {
-      "file": "components/oddlot/ActivityView.tsx",
+      "file": "components/parcel/ActivityView.tsx",
       "lines": 113,
       "imports": [
-        "components/oddlot/shared.tsx"
+        "components/parcel/shared.tsx"
       ]
     },
     {
-      "file": "components/oddlot/ContractLegEditor.tsx",
+      "file": "components/parcel/ContractLegEditor.tsx",
       "lines": 138,
       "imports": [
-        "components/oddlot/shared.tsx"
+        "components/parcel/shared.tsx"
       ]
     },
     {
-      "file": "components/oddlot/LendingView.tsx",
+      "file": "components/parcel/LendingView.tsx",
       "lines": 435,
       "imports": [
-        "lib/oddlot/validation.ts",
-        "lib/oddlot/math.ts",
-        "components/oddlot/shared.tsx"
+        "lib/parcel/validation.ts",
+        "lib/parcel/math.ts",
+        "components/parcel/shared.tsx"
       ]
     },
     {
-      "file": "components/oddlot/OptionsView.tsx",
+      "file": "components/parcel/OptionsView.tsx",
       "lines": 484,
       "imports": [
-        "lib/oddlot/math.ts",
-        "lib/oddlot/validation.ts",
-        "lib/oddlot/templates.ts",
-        "components/oddlot/PayoffChart.tsx",
-        "components/oddlot/ContractLegEditor.tsx",
-        "components/oddlot/shared.tsx"
+        "lib/parcel/math.ts",
+        "lib/parcel/validation.ts",
+        "lib/parcel/templates.ts",
+        "components/parcel/PayoffChart.tsx",
+        "components/parcel/ContractLegEditor.tsx",
+        "components/parcel/shared.tsx"
       ]
     },
     {
-      "file": "components/oddlot/PayoffChart.tsx",
+      "file": "components/parcel/PayoffChart.tsx",
       "lines": 137,
       "imports": [
-        "lib/oddlot/math.ts",
-        "components/oddlot/shared.tsx"
+        "lib/parcel/math.ts",
+        "components/parcel/shared.tsx"
       ]
     },
     {
-      "file": "components/oddlot/RiskView.tsx",
+      "file": "components/parcel/RiskView.tsx",
       "lines": 204,
       "imports": [
-        "components/oddlot/shared.tsx"
+        "components/parcel/shared.tsx"
       ]
     },
     {
-      "file": "components/oddlot/VaultView.tsx",
+      "file": "components/parcel/VaultView.tsx",
       "lines": 322,
       "imports": [
-        "components/oddlot/shared.tsx"
+        "components/parcel/shared.tsx"
       ]
     },
     {
-      "file": "components/oddlot/shared.tsx",
+      "file": "components/parcel/shared.tsx",
       "lines": 217,
       "imports": [
         "components/ui/dialog.tsx"
       ]
     },
     {
-      "file": "hooks/oddlot/use-vault.ts",
+      "file": "hooks/parcel/use-vault.ts",
       "lines": 176,
       "imports": [
         "lib/client/api.ts",
@@ -76,67 +76,67 @@
       ]
     },
     {
-      "file": "lib/oddlot/market.ts",
+      "file": "lib/parcel/market.ts",
       "lines": 13,
       "imports": []
     },
     {
-      "file": "lib/oddlot/math.ts",
+      "file": "lib/parcel/math.ts",
       "lines": 127,
       "imports": [
         "lib/engine.ts"
       ]
     },
     {
-      "file": "lib/oddlot/risk.ts",
+      "file": "lib/parcel/risk.ts",
       "lines": 167,
       "imports": [
         "lib/engine.ts",
-        "lib/oddlot/math.ts",
-        "lib/oddlot/market.ts"
+        "lib/parcel/math.ts",
+        "lib/parcel/market.ts"
       ]
     },
     {
-      "file": "lib/oddlot/templates.ts",
+      "file": "lib/parcel/templates.ts",
       "lines": 145,
       "imports": []
     },
     {
-      "file": "lib/oddlot/types.ts",
+      "file": "lib/parcel/types.ts",
       "lines": 156,
       "imports": []
     },
     {
-      "file": "lib/oddlot/validation.ts",
+      "file": "lib/parcel/validation.ts",
       "lines": 71,
       "imports": [
         "lib/engine.ts",
-        "lib/oddlot/market.ts",
-        "lib/oddlot/math.ts"
+        "lib/parcel/market.ts",
+        "lib/parcel/math.ts"
       ]
     },
     {
-      "file": "server/oddlot/ledger.ts",
+      "file": "server/parcel/ledger.ts",
       "lines": 343,
       "imports": [
         "lib/engine.ts",
-        "lib/oddlot/market.ts",
-        "lib/oddlot/math.ts",
-        "lib/oddlot/risk.ts"
+        "lib/parcel/market.ts",
+        "lib/parcel/math.ts",
+        "lib/parcel/risk.ts"
       ]
     },
     {
-      "file": "server/oddlot/service.ts",
+      "file": "server/parcel/service.ts",
       "lines": 283,
       "imports": [
-        "lib/oddlot/market.ts",
-        "lib/oddlot/math.ts",
-        "lib/oddlot/validation.ts",
-        "lib/oddlot/risk.ts",
+        "lib/parcel/market.ts",
+        "lib/parcel/math.ts",
+        "lib/parcel/validation.ts",
+        "lib/parcel/risk.ts",
         "server/db/store.ts",
         "server/http/errors.ts",
         "server/domain/portfolio.ts",
-        "server/oddlot/ledger.ts"
+        "server/parcel/ledger.ts"
       ]
     }
   ]

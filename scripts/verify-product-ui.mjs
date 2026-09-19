@@ -1,6 +1,6 @@
 import { chromium } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
-const output = process.env.ODDLOT_UI_OUTPUT || '/tmp/oddlot-product-ui';
+const output = process.env.PARCEL_UI_OUTPUT || '/tmp/parcel-product-ui';
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({
   executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,
@@ -10,9 +10,9 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 try {
   await page.goto(
-    (process.env.ODDLOT_UI_URL || 'http://127.0.0.1:3030') + '/app',
+    (process.env.PARCEL_UI_URL || 'http://127.0.0.1:3030') + '/app',
   );
-  await page.locator('.oddlot[data-ready="true"]').waitFor();
+  await page.locator('.parcel[data-ready="true"]').waitFor();
   const nav = async (name) => {
     const toggle = page.getByRole('button', { name: 'Open navigation' });
     if (await toggle.isVisible()) await toggle.click();

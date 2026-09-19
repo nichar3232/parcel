@@ -91,6 +91,6 @@ Parcel replaces the UI at `/` and retains the previous desk at `/legacy`. Keep t
 
 ## Parcel release review (not promoted)
 
-The current release review is under `/var/lib/stocklana/oddlot-review` on `trading-01`. It uses a new program deployed additively to the existing private validator. The declared program ID and its test-mint configuration are recorded in `docs/ODDLOT_CHAIN.md` and the release evidence. Its private deployment key and temporary review environment stay on the box. The ordinary `stocklana-web` app and existing database have not been switched to this branch.
+The current release review is under `/var/lib/stocklana/parcel-review` on `trading-01`. It uses a new program deployed additively to the existing private validator. The declared program ID and its test-mint configuration are recorded in `docs/PARCEL_CHAIN.md` and the release evidence. Its private deployment key and temporary review environment stay on the box. The ordinary `stocklana-web` app and existing database have not been switched to this branch.
 
 The review backend runs only for a bounded recording/check session on loopback port 3028, reached through a temporary SSH forward. It is not a new always-on tenant. Promoting this release requires the normal authorized deployment, backups and environment update; keep the existing service names and validator ledger. Future persistent operation still belongs in the existing `stocklana-web` systemd unit with `Restart=always`.

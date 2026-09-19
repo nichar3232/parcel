@@ -1,8 +1,8 @@
 import { MarkEngine } from './prices/engine';
-import { OddlotAdapter } from './oddlot/chain/adapter';
+import { ParcelAdapter } from './parcel/chain/adapter';
 import { loadAssets } from './preipo/assets';
-import { VaultChainCoordinator } from './oddlot/chain/coordinator';
-import { VaultService } from './oddlot/service';
+import { VaultChainCoordinator } from './parcel/chain/coordinator';
+import { VaultService } from './parcel/service';
 import { readFile } from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
@@ -36,12 +36,12 @@ export function createApp(
   const vault = new VaultService(
     store,
     Date.now,
-    config.oddlot ? 64 : 500,
+    config.parcel ? 64 : 500,
     (symbol) => marks.mark(symbol)?.utilisation ?? null,
   );
-  const oddlotAdapter = config.oddlot ? new OddlotAdapter(config) : undefined;
-  const vaultChain = config.oddlot
-    ? new VaultChainCoordinator(store, vault, oddlotAdapter!)
+  const parcelAdapter = config.parcel ? new ParcelAdapter(config) : undefined;
+  const vaultChain = config.parcel
+    ? new VaultChainCoordinator(store, vault, parcelAdapter!)
     : undefined;
   const portfolio = new PortfolioService(store),
     chain = new ChainService(
@@ -73,30 +73,30 @@ export function createApp(
           database = 'unavailable';
         }
         const health = await chain.adapter.health();
-        const oddlot = {
-          ready: !oddlotAdapter,
-          mode: oddlotAdapter ? 'localnet' : 'sandbox',
+        const parcel = {
+          ready: !parcelAdapter,
+          mode: parcelAdapter ? 'localnet' : 'sandbox',
           reason: '',
         };
-        if (oddlotAdapter) {
+        if (parcelAdapter) {
           try {
-            await oddlotAdapter.health();
-            oddlot.ready = true;
+            await parcelAdapter.health();
+            parcel.ready = true;
           } catch (e) {
-            oddlot.reason = (e as Error).message;
+            parcel.reason = (e as Error).message;
           }
         }
         return json(
           res,
           database === 'ready' &&
             (url.pathname !== '/api/ready' ||
-              (oddlot.ready && (oddlotAdapter || health.ready)))
+              (parcel.ready && (parcelAdapter || health.ready)))
             ? 200
             : 503,
           {
             ok: database === 'ready',
-            app: 'oddlot',
-            oddlot,
+            app: 'parcel',
+            parcel,
             database,
             chain: health,
             serverTime: Date.now(),

@@ -8,7 +8,7 @@ A unified equity workspace for granular options, covered underwriting, stock len
 
 Parcel is a working **private test-asset product**. The same-origin Node API supports a persistent keyless sandbox and **Parcel program execution on a pinned private Solana validator**. In localnet mode, SPL test tokens back the vault and the program independently executes transfers, option deliveries, lending, protected shorts and cross collateral; SQLite indexes confirmed results. Both modes use funded test counterparties and historical prices. This is not a live brokerage or a source of external liquidity. The original Strata spread desk remains at `/legacy`.
 
-![Parcel vault workspace](docs/audit/oddlot/overview.png)
+![Parcel vault workspace](docs/audit/parcel/overview.png)
 
 ## Start
 
@@ -49,16 +49,16 @@ Start by depositing one NVDA share, choose **Underwrite → Covered call**, revi
 |---|---|
 | `app/tokens.css` | The palette. Every colour in the product resolves through it |
 | `app/page.tsx`, `components/brand/` | Landing page and the payoff viewer it opens on |
-| `app/desk.css`, `components/oddlot/` | Workspace, views, contract editor, charts and the value surface |
-| `hooks/oddlot/use-vault.ts` | Same-origin requests, revisions, recovery and UI state |
-| `hooks/oddlot/use-marks.ts` | The live mark feed, as the desk sees it |
+| `app/desk.css`, `components/parcel/` | Workspace, views, contract editor, charts and the value surface |
+| `hooks/parcel/use-vault.ts` | Same-origin requests, revisions, recovery and UI state |
+| `hooks/parcel/use-marks.ts` | The live mark feed, as the desk sees it |
 | `server/prices/` | Mark engine, its two sources, and the simulated maker |
-| `lib/oddlot/lending.ts` | Reserve parameters, the rate curve and the health factor |
-| `lib/oddlot/` | Types, six-decimal arithmetic, Greeks, templates and collateral envelopes |
-| `server/oddlot/service.ts` | Session ownership, quote lifecycle, atomic actions and receipts |
-| `server/oddlot/ledger.ts` | Asset transfers, loans, protected shorts and net expiry settlement |
+| `lib/parcel/lending.ts` | Reserve parameters, the rate curve and the health factor |
+| `lib/parcel/` | Types, six-decimal arithmetic, Greeks, templates and collateral envelopes |
+| `server/parcel/service.ts` | Session ownership, quote lifecycle, atomic actions and receipts |
+| `server/parcel/ledger.ts` | Asset transfers, loans, protected shorts and net expiry settlement |
 | `server/db/002-vaults.sql`, `003-vault-chain.sql` | Vaults, quotes and recoverable onchain operations |
-| `server/oddlot/chain/`, `programs/oddlot/` | Durable execution coordinator, binary codec and new vault program |
+| `server/parcel/chain/`, `programs/parcel/` | Durable execution coordinator, binary codec and new vault program |
 | `app/legacy/`, `server/domain/`, `server/solana/` | Retained historical desk and durable Solana execution |
 | `programs/strata/` | Audited original Anchor escrow program |
 | `tests/`, `.github/workflows/` | Domain/API regression tests and real-backend browser CI |
@@ -93,4 +93,4 @@ The [original engineering audit](docs/audit/REPORT.md) records the legacy execut
 
 ## Review the current product
 
-The [product-suite verification](docs/audit/2026-09-15-product-suite/REPORT.md) covers this extension. The [Parcel submission](submission/ENTRY.md), [demo script](submission/DEMO_SCRIPT.md), and [narrated video](submission/oddlot-demo.mp4) remain the prior 0.3 release materials; video/live-provider work is outside this product extension. Previous Bellwether/Strata materials are retained in `submission/legacy/` as historical evidence. A fresh keyless clone starts in sandbox mode. See [Parcel localnet setup](docs/ODDLOT_CHAIN.md) to enable the new program; execution never silently falls back to SQLite.
+The [product-suite verification](docs/audit/2026-09-15-product-suite/REPORT.md) covers this extension. The [Parcel submission](submission/ENTRY.md), [demo script](submission/DEMO_SCRIPT.md), and [narrated video](submission/parcel-demo.mp4) remain the prior 0.3 release materials; video/live-provider work is outside this product extension. Previous Bellwether/Strata materials are retained in `submission/legacy/` as historical evidence. A fresh keyless clone starts in sandbox mode. See [Parcel localnet setup](docs/PARCEL_CHAIN.md) to enable the new program; execution never silently falls back to SQLite.

@@ -11,13 +11,13 @@ import {
   totals,
   transfer,
   validateLedger,
-} from '../server/oddlot/ledger';
-import { historyOf, mark, marketRows } from '../lib/oddlot/market';
-import { risk } from '../lib/oddlot/risk';
-import { parseOrderTerms } from '../lib/oddlot/validation';
-import { UNDERLYINGS, underlying } from '../lib/oddlot/universe';
-import { valueSeries } from '../lib/oddlot/value';
-import type { OrderTerms, VaultBook } from '../lib/oddlot/types';
+} from '../server/parcel/ledger';
+import { historyOf, mark, marketRows } from '../lib/parcel/market';
+import { risk } from '../lib/parcel/risk';
+import { parseOrderTerms } from '../lib/parcel/validation';
+import { UNDERLYINGS, underlying } from '../lib/parcel/universe';
+import { valueSeries } from '../lib/parcel/value';
+import type { OrderTerms, VaultBook } from '../lib/parcel/types';
 
 void test('every underlying shares one session calendar', () => {
   const dates = marketRows.map((r) => r.date);

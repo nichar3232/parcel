@@ -12,7 +12,7 @@ The current vault is a persistent test-asset ledger, with separate funding walle
 
 Every action is owner-filtered and runs inside one SQLite transaction. Before commit, the engine recomputes collateral and compares the total USDC and NVDA base units with the pre-action totals. Loan collateral/interest escrow is included in the USDC total. A failure rolls back balances, positions, quote consumption and receipts together. All mutations require CSRF, an idempotency key and the reviewed revision.
 
-Keyless sandbox custody is backend accounting. Configured localnet vaults use the new `programs/oddlot` program and real SPL test-token escrow. The program computes every transition and collateral reserve; it rejects a result that differs from the backend plan. Signed bytes are saved before sending, and SQLite commits the indexed book only after signature confirmation and an account-state comparison. The older `/legacy` spread program remains separate and unchanged.
+Keyless sandbox custody is backend accounting. Configured localnet vaults use the new `programs/parcel` program and real SPL test-token escrow. The program computes every transition and collateral reserve; it rejects a result that differs from the backend plan. Signed bytes are saved before sending, and SQLite commits the indexed book only after signature confirmation and an account-state comparison. The older `/legacy` spread program remains separate and unchanged.
 
 ## Physical and cash settlement
 
@@ -69,7 +69,7 @@ Exposure sizing sets share-equivalents directly. Premium-budget sizing binary-se
 
 ## Hourly test clock
 
-The original daily dates retain their observation indices. Twenty-three hourly ticks are appended for each daily observation except the final window endpoint. Each tick carries that day's committed historical close forward; these are explicitly test-clock observations, not recorded intraday prices or future-close interpolation. Pricing, interest and settlement use actual elapsed hours. Expiry eligibility and all clearing order use chronological time, never the appended observation index. Jumping several days still settles each contract at its own exact expiry observation. The TypeScript table and compiled Rust prices/hours are regression-checked together; regenerate with `npm run generate:oddlot-market` and format the Rust source.
+The original daily dates retain their observation indices. Twenty-three hourly ticks are appended for each daily observation except the final window endpoint. Each tick carries that day's committed historical close forward; these are explicitly test-clock observations, not recorded intraday prices or future-close interpolation. Pricing, interest and settlement use actual elapsed hours. Expiry eligibility and all clearing order use chronological time, never the appended observation index. Jumping several days still settles each contract at its own exact expiry observation. The TypeScript table and compiled Rust prices/hours are regression-checked together; regenerate with `npm run generate:parcel-market` and format the Rust source.
 
 ## Capped quadratic and exponential contracts
 

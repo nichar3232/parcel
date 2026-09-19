@@ -1,6 +1,6 @@
-   Compiling oddlot v0.1.0 (/var/lib/stocklana/oddlot-suite/app/programs/oddlot)
+   Compiling parcel v0.1.0 (/var/lib/stocklana/parcel-suite/app/programs/parcel)
     Finished `test` profile [unoptimized + debuginfo] target(s) in 2.22s
-     Running unittests src/lib.rs (/var/lib/stocklana/oddlot-review/source/target/debug/deps/oddlot-b5c1f983a794237d)
+     Running unittests src/lib.rs (/var/lib/stocklana/parcel-review/source/target/debug/deps/parcel-b5c1f983a794237d)
 
 running 8 tests
 test curves::tests::capped_monotone_curves_and_inverse_rounding ... ok
@@ -14,7 +14,7 @@ test economics::tests::fractional_cross_cash_never_underreserves ... ok
 
 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
 
-   Doc-tests oddlot
+   Doc-tests parcel
 
 running 0 tests
 

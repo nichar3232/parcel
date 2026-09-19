@@ -6,11 +6,11 @@ import { tmpdir } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { createApp } from '../server/app';
 import { configFromEnv } from '../server/config';
-import { templateTerms } from '../lib/oddlot/templates';
-import type { Quote, VaultSnapshot } from '../lib/oddlot/types';
+import { templateTerms } from '../lib/parcel/templates';
+import type { Quote, VaultSnapshot } from '../lib/parcel/types';
 
 async function fixture() {
-  const dir = await mkdtemp(`${tmpdir()}/oddlot-http-audit-`);
+  const dir = await mkdtemp(`${tmpdir()}/parcel-http-audit-`);
   await writeFile(`${dir}/index.html`, '<h1>Parcel</h1>');
   await writeFile(`${dir}/legacy.html`, '<h1>Legacy desk</h1>');
   const config = {
@@ -272,7 +272,7 @@ void test('vault HTTP: failed receipt persistence rolls back balances, positions
 });
 void test('static fallback never follows an index symlink outside the public root', async () => {
   const f = await fixture();
-  const secretDir = await mkdtemp(`${tmpdir()}/oddlot-outside-`);
+  const secretDir = await mkdtemp(`${tmpdir()}/parcel-outside-`);
   try {
     await writeFile(`${secretDir}/outside.html`, 'must not be served');
     await rm(`${f.dir}/index.html`);
@@ -288,7 +288,7 @@ void test('static fallback never follows an index symlink outside the public roo
   }
 });
 void test('migration: a real version-one SQLite database upgrades additively and reopens', async () => {
-  const dir = await mkdtemp(`${tmpdir()}/oddlot-migration-`);
+  const dir = await mkdtemp(`${tmpdir()}/parcel-migration-`);
   try {
     const db = new DatabaseSync(`${dir}/strata.sqlite`);
     db.exec(

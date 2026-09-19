@@ -1,10 +1,10 @@
 /* ------------------------------------------------------------------
-   App skin. Loaded after oddlot.css so it wins on the legacy rules.
+   App skin. Loaded after parcel.css so it wins on the legacy rules.
    Same system as the landing: cool grey canvas, white cards, soft
    radii, one green accent. Navigation lives in the top bar.
    ------------------------------------------------------------------ */
 
-.oddlot,
+.parcel,
 .od-dialog {
   --od-ink: #0f1417;
   --od-body: #4d5a61;
@@ -22,7 +22,7 @@
   --od-ring-free: #e9edf5;
   --od-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
-.oddlot {
+.parcel {
   color: var(--od-ink);
   background:
     radial-gradient(
@@ -48,7 +48,7 @@
   background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(8px);
 }
-.oddlot .od-brand {
+.parcel .od-brand {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -83,7 +83,7 @@
 }
 
 /* the nav keeps its .od-sidebar hook but reads as a top-bar row */
-.oddlot .od-sidebar {
+.parcel .od-sidebar {
   position: static;
   inset: auto;
   flex-direction: row;
@@ -95,12 +95,12 @@
   color: var(--od-body);
   z-index: auto;
 }
-.oddlot .od-sidebar nav {
+.parcel .od-sidebar nav {
   display: flex;
   align-items: center;
   gap: 2px;
 }
-.oddlot .od-nav-item {
+.parcel .od-nav-item {
   width: auto;
   height: 34px;
   gap: 8px;
@@ -110,26 +110,26 @@
   color: var(--od-body);
   font-size: 14px;
 }
-.oddlot .od-nav-item svg {
+.parcel .od-nav-item svg {
   opacity: 0.55;
 }
-.oddlot .od-nav-item:hover {
+.parcel .od-nav-item:hover {
   background: #eef3f4;
   color: var(--od-ink);
 }
-.oddlot .od-nav-item.active {
+.parcel .od-nav-item.active {
   background: #e7f7ef;
   color: var(--od-accent-ink);
   font-weight: 600;
 }
-.oddlot .od-nav-item.active svg {
+.parcel .od-nav-item.active svg {
   opacity: 1;
   color: var(--od-accent-ink);
 }
-.oddlot .od-nav-item i {
+.parcel .od-nav-item i {
   display: none;
 }
-.oddlot .od-nav-bottom {
+.parcel .od-nav-bottom {
   display: none;
 }
 
@@ -139,7 +139,7 @@
   align-items: center;
   gap: 10px;
 }
-.oddlot .od-environment {
+.parcel .od-environment {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -152,14 +152,14 @@
   letter-spacing: 0.1em;
   color: var(--od-body);
 }
-.oddlot .od-environment i {
+.parcel .od-environment i {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: #2fb87e;
 }
-.oddlot .od-market-button,
-.oddlot .od-wallet-button {
+.parcel .od-market-button,
+.parcel .od-wallet-button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -172,12 +172,12 @@
   font-size: 13px;
   font-weight: 500;
 }
-.oddlot .od-market-button:hover:not(:disabled),
-.oddlot .od-wallet-button:hover:not(:disabled) {
+.parcel .od-market-button:hover:not(:disabled),
+.parcel .od-wallet-button:hover:not(:disabled) {
   border-color: #c9d3d6;
   color: var(--od-ink);
 }
-.oddlot .od-market-button i {
+.parcel .od-market-button i {
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -185,17 +185,17 @@
 }
 
 /* ---------- workspace shell ---------- */
-.oddlot .od-workspace {
+.parcel .od-workspace {
   margin: 0;
   padding: 0;
   min-height: auto;
 }
-.oddlot .od-main {
+.parcel .od-main {
   max-width: 1240px;
   margin: 0 auto;
   padding: 40px 28px 64px;
 }
-.oddlot .od-footer {
+.parcel .od-footer {
   max-width: 1240px;
   margin: 0 auto;
   padding: 18px 28px 30px;
@@ -204,7 +204,7 @@
 }
 
 /* ---------- surfaces ---------- */
-.oddlot .od-panel,
+.parcel .od-panel,
 .od-dialog {
   border: 1px solid var(--od-line);
   border-radius: 14px;
@@ -216,20 +216,20 @@
 }
 
 /* ---------- controls ---------- */
-.oddlot input,
-.oddlot select,
+.parcel input,
+.parcel select,
 .od-dialog input,
 .od-dialog select {
   border-radius: 8px;
   border: 1px solid var(--od-line);
   color: var(--od-ink);
 }
-.oddlot input:focus,
-.oddlot select:focus {
+.parcel input:focus,
+.parcel select:focus {
   border-color: var(--od-accent);
 }
-.oddlot button:focus-visible,
-.oddlot a:focus-visible,
+.parcel button:focus-visible,
+.parcel a:focus-visible,
 .od-dialog button:focus-visible {
   outline: 2px solid var(--od-accent-ink);
   outline-offset: 2px;
@@ -262,12 +262,12 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
-.oddlot .is-gain,
-.oddlot .od-positive {
+.parcel .is-gain,
+.parcel .od-positive {
   color: var(--od-green);
 }
-.oddlot .is-loss,
-.oddlot .od-negative {
+.parcel .is-loss,
+.parcel .od-negative {
   color: var(--od-red);
 }
 
@@ -277,7 +277,7 @@
     gap: 12px;
     padding: 0 16px;
   }
-  .oddlot .od-sidebar {
+  .parcel .od-sidebar {
     position: fixed;
     inset: 0 auto 0 0;
     width: 260px;
@@ -291,27 +291,27 @@
     transition: transform 0.18s;
     z-index: 40;
   }
-  .oddlot .od-sidebar.open {
+  .parcel .od-sidebar.open {
     transform: none;
   }
-  .oddlot .od-sidebar nav {
+  .parcel .od-sidebar nav {
     flex-direction: column;
     align-items: stretch;
     gap: 2px;
   }
-  .oddlot .od-nav-item {
+  .parcel .od-nav-item {
     width: 100%;
     height: 42px;
   }
-  .oddlot .od-nav-bottom {
+  .parcel .od-nav-bottom {
     display: grid;
     gap: 6px;
     margin-top: auto;
     padding-top: 16px;
     border-top: 1px solid var(--od-line);
   }
-  .oddlot .od-nav-bottom > button,
-  .oddlot .od-nav-bottom > a {
+  .parcel .od-nav-bottom > button,
+  .parcel .od-nav-bottom > a {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -321,68 +321,68 @@
     color: var(--od-body);
     font-size: 13px;
   }
-  .oddlot .od-main {
+  .parcel .od-main {
     padding: 24px 16px 48px;
   }
-  .oddlot .od-environment,
-  .oddlot .od-market-button span {
+  .parcel .od-environment,
+  .parcel .od-market-button span {
     display: none;
   }
 }
 @media (min-width: 901px) {
-  .oddlot .od-mobile-menu,
-  .oddlot .od-mobile-scrim {
+  .parcel .od-mobile-menu,
+  .parcel .od-mobile-scrim {
     display: none;
   }
 }
 
 /* ---------- buttons ---------- */
-.oddlot .od-button,
+.parcel .od-button,
 .od-dialog .od-button {
   border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0;
 }
-.oddlot .od-button.primary,
+.parcel .od-button.primary,
 .od-dialog .od-button.primary {
   background: var(--od-accent);
   border: 1px solid var(--od-accent);
   color: #06311f;
 }
-.oddlot .od-button.primary:hover:not(:disabled),
+.parcel .od-button.primary:hover:not(:disabled),
 .od-dialog .od-button.primary:hover:not(:disabled) {
   background: #5bd29c;
   border-color: #5bd29c;
 }
-.oddlot .od-button.secondary,
+.parcel .od-button.secondary,
 .od-dialog .od-button.secondary {
   background: var(--od-panel);
   border: 1px solid var(--od-line);
   color: var(--od-ink);
 }
-.oddlot .od-button.secondary:hover:not(:disabled),
+.parcel .od-button.secondary:hover:not(:disabled),
 .od-dialog .od-button.secondary:hover:not(:disabled) {
   border-color: #c9d3d6;
 }
 
 /* ---------- shell: keep the footer on the floor ---------- */
-.oddlot {
+.parcel {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
-.oddlot .od-workspace {
+.parcel .od-workspace {
   display: flex;
   flex-direction: column;
   flex: 1;
   width: 100%;
 }
-.oddlot .od-main {
+.parcel .od-main {
   flex: 1;
   width: 100%;
 }
-.oddlot .od-footer {
+.parcel .od-footer {
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -391,7 +391,7 @@
 }
 
 /* the legacy reference-move slider still carried the old accent */
-.oddlot input[type='range'] {
+.parcel input[type='range'] {
   accent-color: #3fc98e;
 }
 
@@ -402,7 +402,7 @@
    ------------------------------------------------------------------ */
 
 /* Helper copy was 10px and shouted down with !important. */
-.oddlot .od-form-note,
+.parcel .od-form-note,
 .od-dialog .od-form-note {
   font-size: 12px !important;
   line-height: 1.6 !important;
@@ -412,7 +412,7 @@
 
 /* The sizing disclosure drew a rule above and below, so collapsing it
    left an empty banded strip in the middle of the form. */
-.oddlot .od-sizing {
+.parcel .od-sizing {
   border-block: 0;
   border: 1px solid var(--od-line);
   border-radius: 12px;
@@ -420,15 +420,15 @@
   margin: 16px 0 20px;
   padding: 14px 16px;
 }
-.oddlot .od-sizing summary {
+.parcel .od-sizing summary {
   color: var(--od-accent-ink);
   font-size: 13px;
   list-style: none;
 }
-.oddlot .od-sizing[open] summary {
+.parcel .od-sizing[open] summary {
   margin-bottom: 18px;
 }
-.oddlot .od-sizing .od-button {
+.parcel .od-sizing .od-button {
   margin-top: 16px;
   font-size: 13px;
   font-weight: 500;
@@ -436,7 +436,7 @@
 }
 
 /* Segmented controls: one treatment everywhere. */
-.oddlot .od-segmented {
+.parcel .od-segmented {
   display: inline-flex;
   gap: 4px;
   padding: 4px;
@@ -444,7 +444,7 @@
   border-radius: 10px;
   background: #f1f5f6;
 }
-.oddlot .od-segmented button {
+.parcel .od-segmented button {
   border: 0;
   border-radius: 7px;
   background: none;
@@ -453,10 +453,10 @@
   font-weight: 500;
   color: var(--od-muted);
 }
-.oddlot .od-segmented button:hover {
+.parcel .od-segmented button:hover {
   color: var(--od-ink);
 }
-.oddlot .od-segmented button.selected {
+.parcel .od-segmented button.selected {
   background: var(--od-panel);
   color: var(--od-ink);
   font-weight: 600;
@@ -464,43 +464,43 @@
 }
 
 /* Template cards: even heights, chevron aligned to the kicker. */
-.oddlot .od-template {
+.parcel .od-template {
   border-radius: 12px;
   padding: 18px 18px 20px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.oddlot .od-template p {
+.parcel .od-template p {
   margin-top: 2px;
 }
-.oddlot .od-template svg {
+.parcel .od-template svg {
   position: absolute;
   top: 18px;
   right: 16px;
   color: var(--od-muted);
 }
-.oddlot .od-template.selected {
+.parcel .od-template.selected {
   border-color: var(--od-accent);
 }
 
 /* Fields and labels. */
-.oddlot .od-field,
+.parcel .od-field,
 .od-dialog .od-field {
   font-size: 12px;
 }
-.oddlot .od-field > span,
+.parcel .od-field > span,
 .od-dialog .od-field > span {
   color: var(--od-body);
 }
-.oddlot .od-legs-label {
+.parcel .od-legs-label {
   font-size: 11px;
   letter-spacing: 0.1em;
   border-top: 1px solid var(--od-line);
   padding-top: 18px;
   margin-bottom: 4px;
 }
-.oddlot .od-basic-leg {
+.parcel .od-basic-leg {
   border-color: var(--od-line);
   padding: 16px;
   gap: 14px;
@@ -508,20 +508,20 @@
 
 /* "Make your next move" cards sat at uneven heights with a floating
    arrow; pin the arrow to the floor so the row reads as one band. */
-.oddlot .od-next-move-card,
-.oddlot .od-cta-card {
+.parcel .od-next-move-card,
+.parcel .od-cta-card {
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
-.oddlot .od-next-move-card > svg:last-child,
-.oddlot .od-cta-card > svg:last-child {
+.parcel .od-next-move-card > svg:last-child,
+.parcel .od-cta-card > svg:last-child {
   margin-top: auto;
 }
 
 /* The buy/sell sign was a bare glyph that sat low and read as an
    underscore on sell rows; make it a deliberate badge. */
-.oddlot .od-leg-side {
+.parcel .od-leg-side {
   width: 22px;
   height: 22px;
   border-radius: 6px;
@@ -533,36 +533,36 @@
   background: #e7f7ef;
   color: var(--od-accent-ink);
 }
-.oddlot .od-leg-side.sell {
+.parcel .od-leg-side.sell {
   background: #fdeeed;
   color: #a33f37;
 }
-.oddlot .od-basic-leg .od-leg-side {
+.parcel .od-basic-leg .od-leg-side {
   margin-top: 0;
 }
 
 /* Empty states reserved 170px plus generous padding, which left large
    dead panels on a fresh vault. */
-.oddlot .od-empty {
+.parcel .od-empty {
   min-height: 0;
   padding: 30px 24px 34px;
   gap: 8px;
 }
-.oddlot .od-empty p {
+.parcel .od-empty p {
   max-width: 46ch;
 }
 
 /* Top bar controls were three different heights and did not share a
    baseline; give them one metric. */
-.oddlot .od-environment,
-.oddlot .od-market-button,
-.oddlot .od-wallet-button {
+.parcel .od-environment,
+.parcel .od-market-button,
+.parcel .od-wallet-button {
   height: 36px;
   padding: 0 14px;
   box-sizing: border-box;
   line-height: 1;
 }
-.oddlot .od-environment {
+.parcel .od-environment {
   /* carried a border-top, padding-top and margin-top from when it sat
      at the foot of the dark sidebar; that pushed it 10px below its
      neighbours in the top bar */
@@ -579,10 +579,10 @@
    globals.css styles bare `input, select` for the retained dark desk
    at /legacy. Those element selectors leak into this app and outrank
    anything scoped with a single class, which is why fields rendered
-   on a near-black fill. Match their specificity from inside .oddlot.
+   on a near-black fill. Match their specificity from inside .parcel.
    ------------------------------------------------------------------ */
-.oddlot input:not([type='range']):not([type='checkbox']),
-.oddlot select,
+.parcel input:not([type='range']):not([type='checkbox']),
+.parcel select,
 .od-dialog input:not([type='range']):not([type='checkbox']),
 .od-dialog select {
   background: var(--od-panel);
@@ -591,15 +591,15 @@
   border-radius: 8px;
   color-scheme: light;
 }
-.oddlot input:not([type='range']):not([type='checkbox']):focus,
-.oddlot select:focus,
+.parcel input:not([type='range']):not([type='checkbox']):focus,
+.parcel select:focus,
 .od-dialog input:not([type='range']):not([type='checkbox']):focus,
 .od-dialog select:focus {
   border-color: var(--od-accent);
   outline: 2px solid #e7f7ef;
   outline-offset: 1px;
 }
-.oddlot input[type='range'] {
+.parcel input[type='range'] {
   accent-color: #3fc98e;
 }
 
@@ -607,7 +607,7 @@
    and accent-color only tints the filled half. Draw it ourselves: a
    light track with a green thumb. The value is shown numerically
    beside every slider, so a filled portion is not load-bearing. */
-.oddlot input[type='range'] {
+.parcel input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -617,12 +617,12 @@
   cursor: pointer;
   color-scheme: light;
 }
-.oddlot input[type='range']::-webkit-slider-runnable-track {
+.parcel input[type='range']::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 999px;
   background: #dfe6e8;
 }
-.oddlot input[type='range']::-webkit-slider-thumb {
+.parcel input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 16px;
@@ -633,12 +633,12 @@
   border: 2px solid #fff;
   box-shadow: 0 1px 3px rgba(15, 20, 23, 0.25);
 }
-.oddlot input[type='range']::-moz-range-track {
+.parcel input[type='range']::-moz-range-track {
   height: 6px;
   border-radius: 999px;
   background: #dfe6e8;
 }
-.oddlot input[type='range']::-moz-range-thumb {
+.parcel input[type='range']::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -754,29 +754,29 @@
    everything after it. Keep one weight and reserve the bold width so
    the row is identical in every state.
    ------------------------------------------------------------------ */
-.oddlot .od-category-tabs button,
-.oddlot .od-nav-item,
-.oddlot .od-segmented button {
+.parcel .od-category-tabs button,
+.parcel .od-nav-item,
+.parcel .od-segmented button {
   font-weight: 500;
   font-synthesis-weight: none;
 }
-.oddlot .od-category-tabs button.selected,
-.oddlot .od-nav-item.active,
-.oddlot .od-segmented button.selected {
+.parcel .od-category-tabs button.selected,
+.parcel .od-nav-item.active,
+.parcel .od-segmented button.selected {
   font-weight: 500;
 }
 /* Distinguish the selected item by colour and fill, not by weight. */
-.oddlot .od-category-tabs button.selected {
+.parcel .od-category-tabs button.selected {
   background: #e7f7ef;
   border-color: var(--od-accent);
   color: var(--od-accent-ink);
 }
 
 /* Template cards keep one width per row whatever the category holds. */
-.oddlot .od-template-grid {
+.parcel .od-template-grid {
   align-items: stretch;
 }
-.oddlot .od-template {
+.parcel .od-template {
   min-height: 132px;
 }
 
@@ -784,17 +784,17 @@
    The card shows the company: its logo, what it costs and how big it
    is. The mint address is verification, not identity, so it lives in
    the ticket's foot rather than on the card. */
-.oddlot .od-preipo-head {
+.parcel .od-preipo-head {
   display: flex;
   align-items: center;
   gap: 11px;
   min-width: 0;
 }
-.oddlot .od-preipo-head > span {
+.parcel .od-preipo-head > span {
   display: grid;
   min-width: 0;
 }
-.oddlot .od-preipo-logo {
+.parcel .od-preipo-logo {
   width: 30px;
   height: 30px;
   flex: none;
@@ -803,7 +803,7 @@
   background: #fff;
   border: 1px solid var(--od-line);
 }
-.oddlot .od-preipo-logo.letter {
+.parcel .od-preipo-logo.letter {
   display: grid;
   place-items: center;
   font-size: 13px;
@@ -812,24 +812,24 @@
   background: rgba(111, 220, 170, 0.16);
   border-color: transparent;
 }
-.oddlot .od-preipo-head strong {
+.parcel .od-preipo-head strong {
   font-size: 15px;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
-.oddlot .od-preipo-figures {
+.parcel .od-preipo-figures {
   display: grid;
   gap: 2px;
   margin-top: 14px;
 }
-.oddlot .od-preipo-figures b {
+.parcel .od-preipo-figures b {
   font-size: 19px;
   font-weight: 550;
   letter-spacing: -0.3px;
   font-variant-numeric: tabular-nums;
   color: var(--od-ink);
 }
-.oddlot .od-preipo-figures > span {
+.parcel .od-preipo-figures > span {
   font-size: 11.5px;
   color: var(--od-muted);
 }
@@ -945,7 +945,7 @@
 }
 
 /* Trade modes: one control, three modes, same metrics in every state. */
-.oddlot .od-trade-modes {
+.parcel .od-trade-modes {
   /* fieldset carries UA margin/padding/min-inline-size; reset them. */
   width: fit-content;
   min-inline-size: 0;
@@ -957,7 +957,7 @@
   border-radius: 10px;
   background: #f1f5f6;
 }
-.oddlot .od-trade-modes button {
+.parcel .od-trade-modes button {
   border: 0;
   border-radius: 7px;
   background: none;
@@ -966,27 +966,27 @@
   font-weight: 500;
   color: var(--od-muted);
 }
-.oddlot .od-trade-modes button:hover {
+.parcel .od-trade-modes button:hover {
   color: var(--od-ink);
 }
-.oddlot .od-trade-modes button.selected {
+.parcel .od-trade-modes button.selected {
   background: var(--od-panel);
   color: var(--od-ink);
   box-shadow: 0 1px 2px rgba(15, 20, 23, 0.08);
 }
 
 /* A section heading for a view embedded inside another. */
-.oddlot .od-section-break {
+.parcel .od-section-break {
   margin: 34px 0 18px;
   padding-top: 26px;
 }
-.oddlot .od-section-break h2 {
+.parcel .od-section-break h2 {
   font-size: 20px;
   letter-spacing: -0.02em;
   font-weight: 600;
   color: var(--od-ink);
 }
-.oddlot .od-section-break p {
+.parcel .od-section-break p {
   margin-top: 6px;
   font-size: 13px;
   color: var(--od-muted);
@@ -1002,7 +1002,7 @@
    overflow:hidden clipped whatever reached the right edge. This is
    that missing wrapper, on the same 24px gutter as every other page.
    ------------------------------------------------------------------ */
-.oddlot .od-panel-body {
+.parcel .od-panel-body {
   display: grid;
   align-content: start;
   gap: 14px;
@@ -1010,34 +1010,34 @@
   padding: 0 24px 22px;
 }
 /* A panel with no heading above it needs its top padding back. */
-.oddlot .od-panel-body.flush {
+.parcel .od-panel-body.flush {
   padding-top: 22px;
 }
-.oddlot .od-panel-body > * {
+.parcel .od-panel-body > * {
   min-width: 0;
 }
 /* The wrapper owns the vertical rhythm; children stop adding their own. */
-.oddlot .od-panel-body > .od-preipo-subhead,
-.oddlot .od-panel-body > .od-preipo-list,
-.oddlot .od-panel-body > .od-preipo-error {
+.parcel .od-panel-body > .od-preipo-subhead,
+.parcel .od-panel-body > .od-preipo-list,
+.parcel .od-panel-body > .od-preipo-error {
   margin: 0;
 }
 /* The blockers keep one gap between their lead-in and the first reason. */
-.oddlot .od-panel-body .od-preipo-blockers ul {
+.parcel .od-panel-body .od-preipo-blockers ul {
   margin: 14px 0 0;
 }
 /* Buttons size to their label rather than stretching across the grid. */
-.oddlot .od-panel-body > .od-button {
+.parcel .od-panel-body > .od-button {
   justify-self: start;
 }
 /* A contiguous run of key/value rows reads as one table, not as
    separately spaced rows, so it opts out of the wrapper's gap. */
-.oddlot .od-review-lines,
+.parcel .od-review-lines,
 .od-dialog .od-review-lines {
   display: grid;
   min-width: 0;
 }
-.oddlot .od-review-lines .od-review-line:last-child,
+.parcel .od-review-lines .od-review-line:last-child,
 .od-dialog .od-review-lines .od-review-line:last-child {
   border-bottom: 0;
 }
@@ -1049,59 +1049,59 @@
 }
 /* Long, unbreakable values (mints, programs) wrap instead of running
    under the panel border. */
-.oddlot .od-panel-body .od-review-line b,
-.oddlot .od-panel-body .od-review-line a,
-.oddlot .od-panel-body .od-review-line span {
+.parcel .od-panel-body .od-review-line b,
+.parcel .od-panel-body .od-review-line a,
+.parcel .od-panel-body .od-review-line span {
   overflow-wrap: anywhere;
 }
 /* Disclosures sit with their icon, like the banner notes above them. */
-.oddlot .od-form-note.disclosure {
+.parcel .od-form-note.disclosure {
   display: flex;
   align-items: flex-start;
   gap: 8px;
 }
-.oddlot .od-form-note.disclosure svg {
+.parcel .od-form-note.disclosure svg {
   flex: none;
   margin-top: 4px;
 }
 
 /* Match the tighter gutter the rest of the desk uses on small screens. */
 @media (max-width: 760px) {
-  .oddlot .od-panel-body {
+  .parcel .od-panel-body {
     padding: 0 20px 20px;
   }
-  .oddlot .od-panel-body.flush {
+  .parcel .od-panel-body.flush {
     padding-top: 20px;
   }
 }
 
 /* A body that hands off to a foot row or a terms strip should not pad
    twice; the container below it owns that space. */
-.oddlot .od-panel-body:has(+ .od-panel-foot),
-.oddlot .od-panel-body:has(+ .od-terms-strip) {
+.parcel .od-panel-body:has(+ .od-panel-foot),
+.parcel .od-panel-body:has(+ .od-terms-strip) {
   padding-bottom: 0;
 }
 /* Inside a body the grid gap sets the rhythm, so the disclosure drops
    the standalone margins it carries in the trade ticket. */
-.oddlot .od-panel-body > .od-sizing {
+.parcel .od-panel-body > .od-sizing {
   margin: 0;
 }
 /* The disclosure's contents keep the same rhythm as a panel body. */
-.oddlot .od-terms-body {
+.parcel .od-terms-body {
   display: grid;
   gap: 14px;
   min-width: 0;
 }
-.oddlot .od-terms-body > .od-preipo-subhead,
-.oddlot .od-terms-body > .od-preipo-list {
+.parcel .od-terms-body > .od-preipo-subhead,
+.parcel .od-terms-body > .od-preipo-list {
   margin: 0;
 }
 /* The summary already separates the first subhead; it needs no rule. */
-.oddlot .od-terms-body > .od-preipo-subhead:first-of-type {
+.parcel .od-terms-body > .od-preipo-subhead:first-of-type {
   border-top: 0;
   padding-top: 0;
 }
-.oddlot .od-terms-body > .od-external {
+.parcel .od-terms-body > .od-external {
   justify-self: start;
   display: inline-flex;
   align-items: center;
@@ -1115,17 +1115,17 @@
    A field is as wide as the value it holds. "1" in a 730px box reads as
    a mistake, so inputs cap at a measure that still fits a long figure.
    ------------------------------------------------------------------ */
-.oddlot .od-form-content .od-field input,
-.oddlot .od-form-content .od-field select {
+.parcel .od-form-content .od-field input,
+.parcel .od-form-content .od-field select {
   max-width: 340px;
 }
-.oddlot .od-form-content .od-form-grid .od-field input,
-.oddlot .od-form-content .od-form-grid .od-field select {
+.parcel .od-form-content .od-form-grid .od-field input,
+.parcel .od-form-content .od-form-grid .od-field select {
   max-width: none;
 }
 
 /* Both outcomes of a covered call, side by side, in the reader's money. */
-.oddlot .od-outcomes {
+.parcel .od-outcomes {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1px;
@@ -1135,39 +1135,39 @@
   border-radius: 11px;
   overflow: hidden;
 }
-.oddlot .od-outcome {
+.parcel .od-outcome {
   display: grid;
   align-content: start;
   gap: 7px;
   padding: 20px;
   background: var(--od-panel);
 }
-.oddlot .od-outcome-when {
+.parcel .od-outcome-when {
   font-size: 11px;
   letter-spacing: 0.04em;
   color: var(--od-muted);
 }
-.oddlot .od-outcome strong {
+.parcel .od-outcome strong {
   font-size: 23px;
   letter-spacing: -0.5px;
   color: var(--od-ink);
 }
-.oddlot .od-outcome.keep strong {
+.parcel .od-outcome.keep strong {
   color: var(--od-accent-ink);
 }
-.oddlot .od-outcome small {
+.parcel .od-outcome small {
   font-size: 12px;
   line-height: 1.6;
   color: var(--od-muted);
 }
 @media (max-width: 1100px) {
-  .oddlot .od-outcomes {
+  .parcel .od-outcomes {
     grid-template-columns: 1fr;
   }
 }
 
 /* Reasons a mint cannot be escrowed: a list to scan, not to read. */
-.oddlot .od-reason-list {
+.parcel .od-reason-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1178,7 +1178,7 @@
   border-radius: 10px;
   overflow: hidden;
 }
-.oddlot .od-reason-list li {
+.parcel .od-reason-list li {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1188,11 +1188,11 @@
   font-size: 13px;
   color: var(--od-body);
 }
-.oddlot .od-reason-list svg {
+.parcel .od-reason-list svg {
   flex: none;
   color: #a33f37;
 }
-.oddlot .od-reason-list code {
+.parcel .od-reason-list code {
   margin-left: auto;
   font-family: var(--od-mono);
   font-size: 10px;
@@ -1201,44 +1201,44 @@
   color: var(--od-muted);
   white-space: nowrap;
 }
-.oddlot .od-terms-strip {
+.parcel .od-terms-strip {
   padding: 0 24px;
 }
-.oddlot .od-terms-strip .od-sizing {
+.parcel .od-terms-strip .od-sizing {
   margin: 14px 0 22px;
 }
 
 /* A one-line status strip. A sentence does not need a panel heading,
    a body and 120px of height to be read. */
-.oddlot .od-notice {
+.parcel .od-notice {
   display: flex;
   align-items: center;
   gap: 11px;
   padding: 13px 18px;
   border-left: 3px solid var(--od-accent);
 }
-.oddlot .od-notice.warn {
+.parcel .od-notice.warn {
   border-left-color: #d9a441;
 }
-.oddlot .od-notice > svg {
+.parcel .od-notice > svg {
   flex: none;
   color: var(--od-muted);
 }
-.oddlot .od-notice p {
+.parcel .od-notice p {
   margin: 0;
   font-size: 12px;
   line-height: 1.6;
   color: var(--od-muted);
 }
-.oddlot .od-notice p b {
+.parcel .od-notice p b {
   font-weight: 550;
   color: var(--od-ink);
 }
-.oddlot .od-notice .od-badge {
+.parcel .od-notice .od-badge {
   margin-left: auto;
 }
 /* Risk notes sit with the outcome they qualify, on the panel's gutter. */
-.oddlot .od-form-note.od-inset {
+.parcel .od-form-note.od-inset {
   padding: 0 24px;
   margin-bottom: 14px !important;
 }
@@ -1252,49 +1252,49 @@
    it belongs — around the chart, above the detail bar — instead of
    below the panel.
    ------------------------------------------------------------------ */
-.oddlot .od-builder-grid {
+.parcel .od-builder-grid {
   align-items: stretch;
 }
-.oddlot .od-builder-insight {
+.parcel .od-builder-insight {
   display: flex;
   flex-direction: column;
   gap: 22px;
 }
-.oddlot .od-builder-insight > .od-panel {
+.parcel .od-builder-insight > .od-panel {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
 }
-.oddlot .od-builder-insight > .od-panel > * {
+.parcel .od-builder-insight > .od-panel > * {
   min-width: 0;
 }
 /* The payoff chart takes the slack and stays centred in it. */
-.oddlot .od-builder-insight .od-payoff {
+.parcel .od-builder-insight .od-payoff {
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 /* An empty state fills its panel rather than sitting in the corner. */
-.oddlot .od-builder-insight > .od-panel > .od-empty {
+.parcel .od-builder-insight > .od-panel > .od-empty {
   flex: 1;
 }
 /* The outcome pair takes the slack, with each card centred in its
    share of it, so the space lands on the numbers rather than in a hole
    above the detail bar. */
-.oddlot .od-builder-insight .od-outcomes {
+.parcel .od-builder-insight .od-outcomes {
   flex: 1;
 }
-.oddlot .od-outcome {
+.parcel .od-outcome {
   align-content: center;
 }
 /* Detail bars pin to the bottom of the panel they describe. */
-.oddlot .od-builder-insight .od-terms-strip {
+.parcel .od-builder-insight .od-terms-strip {
   margin-top: auto;
 }
-.oddlot .od-order-form {
+.parcel .od-order-form {
   display: flex;
   flex-direction: column;
   /* A flex container sizes to its children's min-content unless told
@@ -1302,10 +1302,10 @@
      the column holding it. */
   min-width: 0;
 }
-.oddlot .od-order-form > * {
+.parcel .od-order-form > * {
   min-width: 0;
 }
-.oddlot .od-order-form > .od-form-content {
+.parcel .od-order-form > .od-form-content {
   flex: 1;
 }
 
@@ -1317,39 +1317,39 @@
    border and radius as every other panel; the balance still leads
    because of its size, not because the box around it is black.
    ------------------------------------------------------------------ */
-.oddlot .od-capital-card {
+.parcel .od-capital-card {
   background: var(--od-panel);
   border: 1px solid var(--od-line);
   color: var(--od-ink);
 }
 /* The decorative ring was drawn for a black ground. On white it is a
    pale green loop cutting across the numbers. */
-.oddlot .od-capital-card:after {
+.parcel .od-capital-card:after {
   content: none;
 }
-.oddlot .od-card-top {
+.parcel .od-card-top {
   color: var(--od-muted);
 }
-.oddlot .od-card-top svg {
+.parcel .od-card-top svg {
   color: var(--od-green);
 }
-.oddlot .od-capital-card > strong,
-.oddlot .od-capital-bottom b {
+.parcel .od-capital-card > strong,
+.parcel .od-capital-bottom b {
   color: var(--od-ink);
 }
-.oddlot .od-capital-card > p,
-.oddlot .od-capital-card > small,
-.oddlot .od-capital-bottom small {
+.parcel .od-capital-card > p,
+.parcel .od-capital-card > small,
+.parcel .od-capital-bottom small {
   color: var(--od-muted);
 }
-.oddlot .od-progress {
+.parcel .od-progress {
   background: #eaeff0;
 }
-.oddlot .od-progress i {
+.parcel .od-progress i {
   background: var(--od-green);
 }
 /* Both halves of the vault row end together, like every other row. */
-.oddlot .od-vault-grid {
+.parcel .od-vault-grid {
   align-items: stretch;
 }
 
@@ -1362,144 +1362,144 @@
    whole vertical rhythm by roughly a third; nothing here changes what
    is on the screen, only how much air sits between it.
    ------------------------------------------------------------------ */
-.oddlot .od-main {
+.parcel .od-main {
   gap: 16px;
 }
 @media (min-width: 901px) {
-  .oddlot .od-main {
+  .parcel .od-main {
     padding: 26px 28px 40px;
   }
 }
-.oddlot .od-heading {
+.parcel .od-heading {
   margin-bottom: 0;
 }
-.oddlot .od-heading h1 {
+.parcel .od-heading h1 {
   line-height: 1.15;
 }
-.oddlot .od-heading p {
+.parcel .od-heading p {
   margin-top: 5px;
 }
-.oddlot .od-trade-modes {
+.parcel .od-trade-modes {
   margin: 0 0 4px;
 }
-.oddlot .od-builder-grid,
-.oddlot .od-vault-grid {
+.parcel .od-builder-grid,
+.parcel .od-vault-grid {
   gap: 16px;
 }
-.oddlot .od-builder-insight {
+.parcel .od-builder-insight {
   gap: 16px;
 }
-.oddlot .od-three-grid {
+.parcel .od-three-grid {
   gap: 16px;
 }
-.oddlot .od-panel-heading {
+.parcel .od-panel-heading {
   padding: 18px 24px;
 }
-.oddlot .od-form-content {
+.parcel .od-form-content {
   gap: 16px;
 }
 @media (min-width: 761px) {
-  .oddlot .od-form-content {
+  .parcel .od-form-content {
     padding: 4px 24px 22px;
   }
 }
 @media (max-width: 760px) {
-  .oddlot .od-panel-heading {
+  .parcel .od-panel-heading {
     padding: 16px 20px;
   }
-  .oddlot .od-form-content {
+  .parcel .od-form-content {
     padding: 4px 20px 20px;
   }
 }
-.oddlot .od-panel-body {
+.parcel .od-panel-body {
   gap: 12px;
   padding-bottom: 20px;
 }
 @media (min-width: 761px) {
-  .oddlot .od-segmented {
+  .parcel .od-segmented {
     margin: 0 24px;
   }
 }
 /* A three-way control must be allowed to shrink before its panel grows. */
-.oddlot .od-segmented {
+.parcel .od-segmented {
   min-width: 0;
 }
-.oddlot .od-segmented button {
+.parcel .od-segmented button {
   min-width: 0;
   white-space: normal;
 }
-.oddlot .od-stat {
+.parcel .od-stat {
   padding: 18px 24px;
 }
-.oddlot .od-capital-card {
+.parcel .od-capital-card {
   min-height: 0;
 }
 @media (min-width: 761px) {
-  .oddlot .od-capital-card {
+  .parcel .od-capital-card {
     padding: 20px 24px;
   }
 }
-.oddlot .od-capital-bottom {
+.parcel .od-capital-bottom {
   margin-top: 18px;
 }
-.oddlot .od-progress {
+.parcel .od-progress {
   margin-top: 14px;
 }
 /* An empty state states the fact; it does not need 170px to do it. */
-.oddlot .od-empty {
+.parcel .od-empty {
   min-height: 0;
   padding: 26px 20px 28px;
   gap: 5px;
 }
-.oddlot .od-empty-mark {
+.parcel .od-empty-mark {
   width: 28px;
   height: 28px;
   font-size: 15px;
   margin-bottom: 2px;
 }
-.oddlot .od-outcome {
+.parcel .od-outcome {
   padding: 16px 18px;
 }
-.oddlot .od-outcomes {
+.parcel .od-outcomes {
   margin: 0 20px 20px;
 }
 @media (min-width: 761px) {
-  .oddlot .od-outcomes {
+  .parcel .od-outcomes {
     margin: 0 24px 20px;
   }
 }
-.oddlot .od-reason-list li {
+.parcel .od-reason-list li {
   padding: 9px 14px;
 }
-.oddlot .od-table th,
-.oddlot .od-table td {
+.parcel .od-table th,
+.parcel .od-table td {
   padding-block: 12px;
 }
-.oddlot .od-notice {
+.parcel .od-notice {
   padding: 11px 18px;
 }
-.oddlot .od-terms-strip .od-sizing {
+.parcel .od-terms-strip .od-sizing {
   margin: 10px 0 18px;
 }
 
 /* Two stacked heading rows paid for their padding twice. */
-.oddlot .od-ledger-controls {
+.parcel .od-ledger-controls {
   padding-top: 0;
 }
 /* A section break inside a page, not between two pages. Spacing marks
    it; a rule across the whole page does not. */
-.oddlot .od-section-break {
+.parcel .od-section-break {
   margin: 26px 0 10px;
   padding-top: 0;
 }
 /* The balance card fills the row, so its progress bar sits at the foot
    of the card rather than leaving a band of white beneath it. */
-.oddlot .od-capital-card {
+.parcel .od-capital-card {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
-.oddlot .od-capital-card > .od-progress {
+.parcel .od-capital-card > .od-progress {
   margin-top: auto;
 }
 
@@ -1507,19 +1507,19 @@
    item's min-content, so a panel that cannot shrink widens the whole
    row. Let every desk-row child shrink, and say minmax(0, …) outright
    on the narrow layouts where the row is a single column. */
-.oddlot .od-builder-grid > *,
-.oddlot .od-vault-grid > *,
-.oddlot .od-three-grid > * {
+.parcel .od-builder-grid > *,
+.parcel .od-vault-grid > *,
+.parcel .od-three-grid > * {
   min-width: 0;
 }
 @media (max-width: 1000px) {
-  .oddlot .od-builder-grid {
+  .parcel .od-builder-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
 /* The wordmark is a link home now, not a tab. */
-.oddlot a.od-brand {
+.parcel a.od-brand {
   text-decoration: none;
 }
 
@@ -1534,7 +1534,7 @@
    The canvas is a warm-neutral charcoal rather than pure black: the
    panels have to sit above it, and #000 leaves nowhere to go.
    ------------------------------------------------------------------ */
-[data-theme='dark'] .oddlot,
+[data-theme='dark'] .parcel,
 [data-theme='dark'] .od-dialog {
   --od-ink: #eef3f4;
   --od-body: #c2ced2;
@@ -1552,7 +1552,7 @@
   --od-ring-free: #2a3336;
   color-scheme: dark;
 }
-[data-theme='dark'] .oddlot {
+[data-theme='dark'] .parcel {
   background:
     radial-gradient(
       110% 70% at 88% 0%,
@@ -1563,7 +1563,7 @@
 }
 
 /* The toggle in the desk's app bar. */
-.oddlot .pc-theme {
+.parcel .pc-theme {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1576,114 +1576,114 @@
   color: var(--od-muted);
   cursor: pointer;
 }
-.oddlot .pc-theme:hover {
+.parcel .pc-theme:hover {
   color: var(--od-ink);
 }
 
 /* ------------------------------------------------------------------
    Dark: the legacy sheet's literals.
 
-   oddlot.css predates the tokens and holds ~230 literal colours. The
+   parcel.css predates the tokens and holds ~230 literal colours. The
    ones that actually reach the screen are remapped here. Found by
    walking the rendered DOM in dark mode for light-on-dark boxes and
    text below WCAG AA, not by reading the stylesheet.
    ------------------------------------------------------------------ */
-[data-theme='dark'] .oddlot .od-appbar {
+[data-theme='dark'] .parcel .od-appbar {
   background: rgba(14, 19, 21, 0.82);
 }
-[data-theme='dark'] .oddlot .od-skip {
+[data-theme='dark'] .parcel .od-skip {
   background: var(--od-panel);
   color: var(--od-ink);
 }
-[data-theme='dark'] .oddlot .od-sidebar,
-[data-theme='dark'] .oddlot .od-action-card,
-[data-theme='dark'] .oddlot .od-policy,
-[data-theme='dark'] .oddlot .od-template,
-[data-theme='dark'] .oddlot .od-basic-leg,
-[data-theme='dark'] .oddlot .od-leg,
-[data-theme='dark'] .oddlot .od-quote-premium,
-[data-theme='dark'] .oddlot .od-curve-review {
+[data-theme='dark'] .parcel .od-sidebar,
+[data-theme='dark'] .parcel .od-action-card,
+[data-theme='dark'] .parcel .od-policy,
+[data-theme='dark'] .parcel .od-template,
+[data-theme='dark'] .parcel .od-basic-leg,
+[data-theme='dark'] .parcel .od-leg,
+[data-theme='dark'] .parcel .od-quote-premium,
+[data-theme='dark'] .parcel .od-curve-review {
   background: var(--od-panel);
   border-color: var(--od-line);
 }
-[data-theme='dark'] .oddlot .od-nav-item.active,
-[data-theme='dark'] .oddlot .od-category-tabs button.selected {
+[data-theme='dark'] .parcel .od-nav-item.active,
+[data-theme='dark'] .parcel .od-category-tabs button.selected {
   background: rgba(79, 201, 154, 0.14);
   color: var(--od-accent-ink);
   border-color: rgba(79, 201, 154, 0.3);
 }
-[data-theme='dark'] .oddlot .od-nav-item {
+[data-theme='dark'] .parcel .od-nav-item {
   color: var(--od-body);
 }
 
 /* Chips and pills. */
-[data-theme='dark'] .oddlot .od-badge,
+[data-theme='dark'] .parcel .od-badge,
 [data-theme='dark'] .od-dialog .od-badge {
   background: rgba(79, 201, 154, 0.14);
   color: var(--od-accent-ink);
 }
-[data-theme='dark'] .oddlot .od-badge.neutral {
+[data-theme='dark'] .parcel .od-badge.neutral {
   background: #222b2e;
   color: var(--od-body);
 }
-[data-theme='dark'] .oddlot .od-asset-icon {
+[data-theme='dark'] .parcel .od-asset-icon {
   background: rgba(79, 201, 154, 0.16);
   color: var(--od-accent-ink);
 }
-[data-theme='dark'] .oddlot .od-empty-mark {
+[data-theme='dark'] .parcel .od-empty-mark {
   background: #222b2e;
   color: var(--od-muted);
 }
 
 /* Segmented controls and mode switches. */
-[data-theme='dark'] .oddlot .od-segmented,
-[data-theme='dark'] .oddlot .od-trade-modes,
-[data-theme='dark'] .oddlot .od-tabs {
+[data-theme='dark'] .parcel .od-segmented,
+[data-theme='dark'] .parcel .od-trade-modes,
+[data-theme='dark'] .parcel .od-tabs {
   background: #1d2427;
   border-color: var(--od-line);
 }
-[data-theme='dark'] .oddlot .od-segmented button,
-[data-theme='dark'] .oddlot .od-trade-modes button {
+[data-theme='dark'] .parcel .od-segmented button,
+[data-theme='dark'] .parcel .od-trade-modes button {
   color: var(--od-muted);
 }
-[data-theme='dark'] .oddlot .od-segmented button.selected,
-[data-theme='dark'] .oddlot .od-trade-modes button.selected {
+[data-theme='dark'] .parcel .od-segmented button.selected,
+[data-theme='dark'] .parcel .od-trade-modes button.selected {
   background: var(--od-panel);
   color: var(--od-ink);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 /* Tables and forms. */
-[data-theme='dark'] .oddlot .od-table th {
+[data-theme='dark'] .parcel .od-table th {
   background: #1d2427;
   color: var(--od-body);
 }
-[data-theme='dark'] .oddlot .od-table td,
-[data-theme='dark'] .oddlot .od-table th {
+[data-theme='dark'] .parcel .od-table td,
+[data-theme='dark'] .parcel .od-table th {
   border-color: var(--od-line);
 }
-[data-theme='dark'] .oddlot .od-field input,
-[data-theme='dark'] .oddlot .od-field select,
+[data-theme='dark'] .parcel .od-field input,
+[data-theme='dark'] .parcel .od-field select,
 [data-theme='dark'] .od-dialog .od-field input,
 [data-theme='dark'] .od-dialog .od-field select {
   background: #11171a;
   color: var(--od-ink);
   border-color: var(--od-line);
 }
-[data-theme='dark'] .oddlot .od-sizing {
+[data-theme='dark'] .parcel .od-sizing {
   background: #11171a;
   border-color: var(--od-line);
 }
-[data-theme='dark'] .oddlot .od-progress {
+[data-theme='dark'] .parcel .od-progress {
   background: #2a3336;
 }
-[data-theme='dark'] .oddlot input[type='range'],
-[data-theme='dark'] .oddlot input[type='range']::-webkit-slider-runnable-track,
-[data-theme='dark'] .oddlot input[type='range']::-moz-range-track {
+[data-theme='dark'] .parcel input[type='range'],
+[data-theme='dark'] .parcel input[type='range']::-webkit-slider-runnable-track,
+[data-theme='dark'] .parcel input[type='range']::-moz-range-track {
   background: #2a3336;
 }
-[data-theme='dark'] .oddlot input[type='range']::-webkit-slider-thumb,
-[data-theme='dark'] .oddlot input[type='range']::-moz-range-thumb {
+[data-theme='dark'] .parcel input[type='range']::-webkit-slider-thumb,
+[data-theme='dark'] .parcel input[type='range']::-moz-range-thumb {
   border-color: var(--od-panel);
 }
 
@@ -1700,32 +1700,32 @@
 [data-theme='dark'] .od-main .od-table th,
 [data-theme='dark'] .od-main .od-table td > small,
 [data-theme='dark'] .od-main .od-asset-cell small,
-[data-theme='dark'] .oddlot .od-form-note,
+[data-theme='dark'] .parcel .od-form-note,
 [data-theme='dark'] .od-dialog .od-form-note {
   color: var(--od-muted) !important;
 }
-[data-theme='dark'] .oddlot .od-field > label,
+[data-theme='dark'] .parcel .od-field > label,
 [data-theme='dark'] .od-dialog .od-field > label {
   color: var(--od-body);
 }
 
 /* Pre-IPO surfaces. */
-[data-theme='dark'] .oddlot .od-preipo-asset {
+[data-theme='dark'] .parcel .od-preipo-asset {
   background: var(--od-panel);
 }
-[data-theme='dark'] .oddlot .od-preipo-asset.selected {
+[data-theme='dark'] .parcel .od-preipo-asset.selected {
   background: rgba(79, 201, 154, 0.1);
 }
-[data-theme='dark'] .oddlot .od-preipo-blockers li,
-[data-theme='dark'] .oddlot .od-reason-list li,
-[data-theme='dark'] .oddlot .od-outcome {
+[data-theme='dark'] .parcel .od-preipo-blockers li,
+[data-theme='dark'] .parcel .od-reason-list li,
+[data-theme='dark'] .parcel .od-outcome {
   background: var(--od-panel);
 }
-[data-theme='dark'] .oddlot .od-preipo-error {
+[data-theme='dark'] .parcel .od-preipo-error {
   background: rgba(224, 115, 107, 0.12);
   color: #f0a09a;
 }
-[data-theme='dark'] .oddlot .od-ticket-summary {
+[data-theme='dark'] .parcel .od-ticket-summary {
   background: #11171a;
 }
 
@@ -1735,13 +1735,13 @@
   color: var(--od-ink);
   border-color: var(--od-line);
 }
-[data-theme='dark'] .oddlot .od-toast {
+[data-theme='dark'] .parcel .od-toast {
   background: var(--od-panel);
   color: var(--od-ink);
   border-color: var(--od-line);
 }
-[data-theme='dark'] .oddlot .od-button.secondary,
-[data-theme='dark'] .oddlot .od-button.quiet,
+[data-theme='dark'] .parcel .od-button.secondary,
+[data-theme='dark'] .parcel .od-button.quiet,
 [data-theme='dark'] .od-dialog .od-button.secondary {
   background: #222b2e;
   color: var(--od-ink);
@@ -1749,78 +1749,78 @@
 }
 
 /* Dark: the remaining legacy literals, from a second audit pass. */
-[data-theme='dark'] .oddlot .od-review-line b,
+[data-theme='dark'] .parcel .od-review-line b,
 [data-theme='dark'] .od-dialog .od-review-line b,
-[data-theme='dark'] .oddlot .od-order-summary > div > b,
-[data-theme='dark'] .oddlot .od-external,
-[data-theme='dark'] .oddlot .od-link,
-[data-theme='dark'] .oddlot .od-leg-side,
-[data-theme='dark'] .oddlot .od-positive,
-[data-theme='dark'] .oddlot .od-stat.positive strong {
+[data-theme='dark'] .parcel .od-order-summary > div > b,
+[data-theme='dark'] .parcel .od-external,
+[data-theme='dark'] .parcel .od-link,
+[data-theme='dark'] .parcel .od-leg-side,
+[data-theme='dark'] .parcel .od-positive,
+[data-theme='dark'] .parcel .od-stat.positive strong {
   color: var(--od-accent-ink) !important;
 }
-[data-theme='dark'] .oddlot .od-leg-side.sell,
-[data-theme='dark'] .oddlot .od-negative,
-[data-theme='dark'] .oddlot .od-preipo-asset.blocked .od-preipo-status,
-[data-theme='dark'] .oddlot .od-preipo-blockers li b,
-[data-theme='dark'] .oddlot .od-error {
+[data-theme='dark'] .parcel .od-leg-side.sell,
+[data-theme='dark'] .parcel .od-negative,
+[data-theme='dark'] .parcel .od-preipo-asset.blocked .od-preipo-status,
+[data-theme='dark'] .parcel .od-preipo-blockers li b,
+[data-theme='dark'] .parcel .od-error {
   color: #f0a09a !important;
 }
-[data-theme='dark'] .oddlot .od-preipo-status {
+[data-theme='dark'] .parcel .od-preipo-status {
   color: var(--od-accent-ink);
 }
-[data-theme='dark'] .oddlot h3,
-[data-theme='dark'] .oddlot .od-empty h3,
-[data-theme='dark'] .oddlot .od-action-card h3,
-[data-theme='dark'] .oddlot .od-policy h3,
-[data-theme='dark'] .oddlot .od-template h3,
-[data-theme='dark'] .oddlot .od-capital-bottom b,
-[data-theme='dark'] .oddlot .od-stat strong,
-[data-theme='dark'] .oddlot .od-donut-value,
-[data-theme='dark'] .oddlot .od-chart-slider b,
-[data-theme='dark'] .oddlot .od-legend b {
+[data-theme='dark'] .parcel h3,
+[data-theme='dark'] .parcel .od-empty h3,
+[data-theme='dark'] .parcel .od-action-card h3,
+[data-theme='dark'] .parcel .od-policy h3,
+[data-theme='dark'] .parcel .od-template h3,
+[data-theme='dark'] .parcel .od-capital-bottom b,
+[data-theme='dark'] .parcel .od-stat strong,
+[data-theme='dark'] .parcel .od-donut-value,
+[data-theme='dark'] .parcel .od-chart-slider b,
+[data-theme='dark'] .parcel .od-legend b {
   color: var(--od-ink);
 }
-[data-theme='dark'] .oddlot .od-order-summary > div > span:last-child,
-[data-theme='dark'] .oddlot .od-basis,
-[data-theme='dark'] .oddlot .od-basis > span:last-child,
-[data-theme='dark'] .oddlot .od-chart-caption,
-[data-theme='dark'] .oddlot .od-stat > span,
-[data-theme='dark'] .oddlot .od-stat small,
-[data-theme='dark'] .oddlot .od-empty,
-[data-theme='dark'] .oddlot .od-search {
+[data-theme='dark'] .parcel .od-order-summary > div > span:last-child,
+[data-theme='dark'] .parcel .od-basis,
+[data-theme='dark'] .parcel .od-basis > span:last-child,
+[data-theme='dark'] .parcel .od-chart-caption,
+[data-theme='dark'] .parcel .od-stat > span,
+[data-theme='dark'] .parcel .od-stat small,
+[data-theme='dark'] .parcel .od-empty,
+[data-theme='dark'] .parcel .od-search {
   color: var(--od-body);
 }
 
 /* Dark: the last two surfaces the audit found. */
-[data-theme='dark'] .oddlot .od-donut > div {
+[data-theme='dark'] .parcel .od-donut > div {
   background: var(--od-panel);
 }
-[data-theme='dark'] .oddlot .od-donut strong {
+[data-theme='dark'] .parcel .od-donut strong {
   color: var(--od-ink);
 }
-[data-theme='dark'] .oddlot .od-donut small {
+[data-theme='dark'] .parcel .od-donut small {
   color: var(--od-muted);
 }
-[data-theme='dark'] .oddlot .od-basic-leg .od-leg-side {
+[data-theme='dark'] .parcel .od-basic-leg .od-leg-side {
   background: rgba(79, 201, 154, 0.16);
   color: var(--od-accent-ink);
 }
-[data-theme='dark'] .oddlot .od-basic-leg .od-leg-side.sell {
+[data-theme='dark'] .parcel .od-basic-leg .od-leg-side.sell {
   background: rgba(224, 115, 107, 0.16);
   color: #f0a09a;
 }
 
-[data-theme='dark'] .oddlot .od-preipo-logo {
+[data-theme='dark'] .parcel .od-preipo-logo {
   background: #f4f7f8;
 }
-[data-theme='dark'] .oddlot .od-preipo-logo.letter {
+[data-theme='dark'] .parcel .od-preipo-logo.letter {
   background: rgba(79, 201, 154, 0.16);
 }
 
 /* One line for the issuer and sector; "Artificial Intelligence" wrapped
    and made the cards uneven. */
-.oddlot .od-preipo-head .od-preipo-provider {
+.parcel .od-preipo-head .od-preipo-provider {
   letter-spacing: 0.06em;
   white-space: nowrap;
   overflow: hidden;
@@ -1830,23 +1830,23 @@
 
 /* The rejected group is a finding, not a failure, so it gets a heading
    and one shared reason rather than eight identical red cards. */
-.oddlot .od-preipo-groupline {
+.parcel .od-preipo-groupline {
   padding-top: 20px;
   margin-top: 6px;
   border-top: 1px solid var(--od-line);
 }
-.oddlot .od-preipo-groupline h3 {
+.parcel .od-preipo-groupline h3 {
   font-size: 13px;
   font-weight: 600;
   color: var(--od-ink);
 }
-.oddlot .od-preipo-groupline .od-form-note {
+.parcel .od-preipo-groupline .od-form-note {
   margin-top: 5px !important;
   max-width: 88ch;
 }
-.oddlot .od-preipo-asset.blocked {
+.parcel .od-preipo-asset.blocked {
   opacity: 1;
 }
-.oddlot .od-preipo-asset.blocked .od-preipo-figures b {
+.parcel .od-preipo-asset.blocked .od-preipo-figures b {
   color: var(--od-body);
 }

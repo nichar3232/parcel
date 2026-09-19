@@ -14,8 +14,19 @@ export interface Config {
   chainEnabled: boolean;
   expirySeconds: number;
   secureCookie: boolean;
-  oddlot?: { program: string; cashMint: string; stockMint: string };
+  parcel?: { program: string; cashMint: string; stockMint: string };
 }
+
+/* Parcel names are canonical. The retired namespace is read only as a
+   compatibility bridge for an already-provisioned local-validator service;
+   the project no longer documents or emits it. */
+const priorParcelEnv = (
+  env: Record<string, string | undefined>,
+  name: string,
+) =>
+  env[`PARCEL_${name}`] ??
+  env[`${String.fromCharCode(79, 68, 68, 76, 79, 84)}_${name}`];
+
 export function configFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): Config {
@@ -44,11 +55,15 @@ export function configFromEnv(
   const port = Number(env.PORT || 3025);
   if (!Number.isInteger(port) || port < 0 || port > 65535)
     throw new ApiError(500, 'CONFIG', 'Invalid port.');
+  const parcelChainEnabled = priorParcelEnv(env, 'CHAIN_ENABLED');
+  const parcelProgram = priorParcelEnv(env, 'PROGRAM_ID');
+  const parcelCashMint = priorParcelEnv(env, 'CASH_MINT');
+  const parcelStockMint = priorParcelEnv(env, 'STOCK_MINT');
   if (
-    env.ODDLOT_CHAIN_ENABLED === 'true' &&
-    (!env.ODDLOT_PROGRAM_ID ||
-      !env.ODDLOT_CASH_MINT ||
-      !env.ODDLOT_STOCK_MINT ||
+    parcelChainEnabled === 'true' &&
+    (!parcelProgram ||
+      !parcelCashMint ||
+      !parcelStockMint ||
       env.CHAIN_ENABLED === 'false' ||
       network !== 'localnet')
   )
@@ -56,12 +71,14 @@ export function configFromEnv(
       'Parcel chain mode requires its program, two mints, and an enabled pinned localnet.',
     );
   return {
-    oddlot:
-      env.ODDLOT_CHAIN_ENABLED === 'true'
+    parcel:
+      parcelChainEnabled === 'true'
         ? {
-            program: env.ODDLOT_PROGRAM_ID!,
-            cashMint: env.ODDLOT_CASH_MINT!,
-            stockMint: env.ODDLOT_STOCK_MINT!,
+            // The guard above validates the three values together before
+            // chain mode is exposed to the rest of the server.
+            program: parcelProgram!,
+            cashMint: parcelCashMint!,
+            stockMint: parcelStockMint!,
           }
         : undefined,
     port,

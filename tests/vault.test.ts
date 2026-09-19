@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../server/db/store';
-import { VaultService } from '../server/oddlot/service';
-import { initialVault, totals, validateLedger } from '../server/oddlot/ledger';
+import { VaultService } from '../server/parcel/service';
+import { initialVault, totals, validateLedger } from '../server/parcel/ledger';
 import {
   add,
   cashPayoff,
@@ -11,14 +11,14 @@ import {
   mul,
   optionGreeks,
   orderGreeks,
-} from '../lib/oddlot/math';
+} from '../lib/parcel/math';
 import { units } from '../lib/engine';
-import { borrowDebt, borrowInterest } from '../lib/oddlot/funding';
-import { borrowRate } from '../lib/oddlot/lending';
-import { mark } from '../lib/oddlot/market';
-import { marginGroups } from '../lib/oddlot/risk';
-import { templateTerms, templates } from '../lib/oddlot/templates';
-import type { OrderTerms, VaultAction } from '../lib/oddlot/types';
+import { borrowDebt, borrowInterest } from '../lib/parcel/funding';
+import { borrowRate } from '../lib/parcel/lending';
+import { mark } from '../lib/parcel/market';
+import { marginGroups } from '../lib/parcel/risk';
+import { templateTerms, templates } from '../lib/parcel/templates';
+import type { OrderTerms, VaultAction } from '../lib/parcel/types';
 function setup() {
   const store = new Store(':memory:'),
     { session } = store.createSession();

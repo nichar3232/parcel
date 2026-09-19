@@ -19,14 +19,14 @@
     "check": "npm run typecheck && npm run lint && npm test && npm run build",
     "verify:backend-chain": "tsx scripts/audit-chain.ts",
     "verify:restart": "node scripts/check-restart.mjs",
-    "record:demo": "node scripts/record-oddlot.mjs",
+    "record:demo": "node scripts/record-parcel.mjs",
     "demo": "PARCEL_DEMO=1 CHAIN_ENABLED=false tsx server/index.ts",
     "check:repo": "node scripts/check-repository.mjs",
     "record:legacy": "node scripts/record-demo.mjs",
-    "verify:oddlot-chain": "tsx scripts/verify-oddlot-chain.ts",
-    "verify:oddlot-adversarial": "tsx scripts/verify-oddlot-adversarial.ts",
-    "verify:oddlot-suite": "tsx scripts/verify-oddlot-suite.ts",
-    "generate:oddlot-market": "tsx scripts/generate-oddlot-market.ts"
+    "verify:parcel-chain": "tsx scripts/verify-parcel-chain.ts",
+    "verify:parcel-adversarial": "tsx scripts/verify-parcel-adversarial.ts",
+    "verify:parcel-suite": "tsx scripts/verify-parcel-suite.ts",
+    "generate:parcel-market": "tsx scripts/generate-parcel-market.ts"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

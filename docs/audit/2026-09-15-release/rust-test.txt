@@ -1,6 +1,6 @@
-   Compiling oddlot v0.1.0 (/var/lib/stocklana/oddlot-review/source)
+   Compiling parcel v0.1.0 (/var/lib/stocklana/parcel-review/source)
     Finished `test` profile [unoptimized + debuginfo] target(s) in 2.03s
-     Running unittests src/lib.rs (target/debug/deps/oddlot-b5c1f983a794237d)
+     Running unittests src/lib.rs (target/debug/deps/parcel-b5c1f983a794237d)
 
 running 6 tests
 test economics::tests::productive_loan_and_protected_short_conserve_assets ... ok

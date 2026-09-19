@@ -108,7 +108,7 @@ const result = {
   health,
 };
 await writeFile(
-  'docs/audit/oddlot-deployment-checks.json',
+  'docs/audit/parcel-deployment-checks.json',
   JSON.stringify(result, null, 2) + '\n',
 );
 console.log(result);

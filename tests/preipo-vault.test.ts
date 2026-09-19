@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../server/db/store';
-import { VaultService } from '../server/oddlot/service';
-import { totals } from '../server/oddlot/ledger';
-import { mark, selectableExpiries } from '../lib/oddlot/market';
-import type { OrderTerms, VaultAction } from '../lib/oddlot/types';
+import { VaultService } from '../server/parcel/service';
+import { totals } from '../server/parcel/ledger';
+import { mark, selectableExpiries } from '../lib/parcel/market';
+import type { OrderTerms, VaultAction } from '../lib/parcel/types';
 
 /**
  * A pre-IPO covered call is a vault contract like any other.
