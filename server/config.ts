@@ -59,16 +59,21 @@ export function configFromEnv(
   const parcelProgram = priorParcelEnv(env, 'PROGRAM_ID');
   const parcelCashMint = priorParcelEnv(env, 'CASH_MINT');
   const parcelStockMint = priorParcelEnv(env, 'STOCK_MINT');
+  /* Devnet joins the pinned private validator as an accepted target. Both are
+     no-value test ledgers; mainnet stays refused in the genesis pin itself, so
+     no environment can reach it. The pin is required here rather than at first
+     RPC call, so a misconfigured deployment fails to boot instead of failing
+     the first contract a user opens. */
   if (
     parcelChainEnabled === 'true' &&
     (!parcelProgram ||
       !parcelCashMint ||
       !parcelStockMint ||
-      env.CHAIN_ENABLED === 'false' ||
-      network !== 'localnet')
+      !expectedGenesis ||
+      env.CHAIN_ENABLED === 'false')
   )
     throw Error(
-      'Parcel chain mode requires its program, two mints, and an enabled pinned localnet.',
+      'Parcel chain mode requires its program, two mints, a pinned genesis, and enabled chain execution.',
     );
   return {
     parcel:
