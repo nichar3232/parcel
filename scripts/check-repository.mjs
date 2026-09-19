@@ -7,6 +7,10 @@ const args = stagedOnly
   : ['ls-files', '-z'];
 const files = execFileSync('git', args).toString().split('\0').filter(Boolean);
 const findings = [];
+const pinnedGenesis = [
+  ['mainnet', '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d'],
+  ['devnet', 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG'],
+];
 const credentials = [
   ['private key', /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/],
   [
@@ -40,9 +44,13 @@ for (const file of files) {
     /(?:-keypair\.json|\.(?:pem|key|p12|pfx|seed|sqlite(?:-\w+)?|db(?:-\w+)?))$/.test(
       name,
     ) ||
-    ['deployer.json', 'maker.json', 'holder.json', 'program.json'].includes(
-      name,
-    )
+    [
+      'deployer.json',
+      'maker.json',
+      'holder.json',
+      'program.json',
+      'parcel-devnet-program.json',
+    ].includes(name)
   )
     findings.push(`${file}: runtime, generated or signing material`);
   const data = execFileSync('git', ['show', `:${file}`], {
@@ -52,6 +60,17 @@ for (const file of files) {
   const content = data.toString('utf8');
   for (const [label, pattern] of credentials) {
     if (pattern.test(content)) findings.push(`${file}: ${label}`);
+  }
+  /* A genesis hash truncated to its first 32 characters can never equal a
+     real one, so every guard written against it silently passes whatever
+     it was meant to refuse. That shipped in four files at once, across
+     three languages, and mainnet was the thing being refused. */
+  for (const [cluster, hash] of pinnedGenesis) {
+    const prefix = hash.slice(0, 32);
+    if (content.includes(prefix) && !content.includes(hash))
+      findings.push(
+        `${file}: truncated ${cluster} genesis hash; use the whole ${hash}`,
+      );
   }
   if (file.endsWith('.json')) {
     try {
