@@ -1,5 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
-import { advanced, nav, navTop, openDesk, quoteFor } from './desk-helpers';
+import {
+  advanced,
+  nav,
+  navTop,
+  openDesk,
+  openMenu,
+  payoff,
+  quoteFor,
+} from './desk-helpers';
 
 const errors = new WeakMap<Page, string[]>();
 test.beforeEach(async ({ page }) => {
@@ -66,7 +74,7 @@ for (const [view, template, kind, side] of [
 test('the shell is four destinations, each with its own sections', async ({
   page,
 }) => {
-  await expect(page.locator('.od-side-item')).toHaveText([
+  await expect(page.locator('.od-nav-item')).toHaveText([
     'Portfolio',
     'Trade',
     'Pre-IPO',
@@ -74,18 +82,20 @@ test('the shell is four destinations, each with its own sections', async ({
   ]);
 
   // Every destination names itself, and its sections belong to it —
-  // nested under it in the rail, and only while it is the open one.
-  // Lending owns a single section, so it has no list to open.
+  // in a menu under it, open only while it is the open one. Lending
+  // owns a single section, but that section offers choices, so it
+  // opens a menu like the rest.
   const sections: Record<string, string[]> = {
     Portfolio: ['Holdings', 'Activity'],
     Trade: ['Options', 'Structures'],
     'Pre-IPO': ['Market', 'Underwrite'],
-    Lending: [],
+    Lending: ['Lend & borrow'],
   };
   for (const [name, tabs] of Object.entries(sections)) {
     await navTop(page, name);
     await expect(page.getByRole('heading', { level: 1 })).toContainText(name);
-    await expect(page.locator('.od-side-sub-item')).toHaveText(tabs);
+    await openMenu(page);
+    await expect(page.locator('.od-nav-link')).toHaveText(tabs);
   }
 
   // Underwrite and Structures are sections of Trade, and each opens the
@@ -100,10 +110,16 @@ test('the shell is four destinations, each with its own sections', async ({
   await nav(page, 'Trade');
   // Which contract is the first decision on the screen, above the
   // payoff, not a control inside the ticket below it.
-  await expect(page.locator('.od-kinds .od-segmented')).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Contract kind' })).toBeVisible();
   await expect(page.locator('.od-leg')).toHaveCount(0);
   await advanced(page);
   await expect(page.locator('.od-leg')).toHaveCount(1);
+  // The surface marks a real position, so it needs a sized contract:
+  // an unsized one has no payable obligation and never validates.
+  await page.getByLabel('Contract quantity').fill('1');
+  // Trade opens on the chain, which is the other half of this ticket:
+  // the payoff and its surface are the builder's side of the switch.
+  await payoff(page);
   await expect(page.locator('.od-surface svg')).toBeVisible();
 
   // Collateral is a section of Portfolio rather than its own page.
