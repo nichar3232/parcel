@@ -1,4 +1,5 @@
-// Run against an explicitly pinned private validator, never a public funded chain.
+// Run against an explicitly pinned no-value test ledger: the private validator
+// or devnet. The genesis pin refuses mainnet, so neither can reach a funded chain.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { Keypair } from '@solana/web3.js';
@@ -8,6 +9,7 @@ import {
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import { configFromEnv } from '../server/config';
+import { pinnedGenesisFailure } from '../server/solana/network';
 import { ParcelAdapter } from '../server/parcel/chain/adapter';
 import { VaultChainCoordinator } from '../server/parcel/chain/coordinator';
 import { VaultService } from '../server/parcel/service';
@@ -16,19 +18,13 @@ import { templateTerms } from '../lib/parcel/templates';
 import type { VaultAction, VaultSnapshot } from '../lib/parcel/types';
 import assert from 'node:assert/strict';
 const config = configFromEnv();
-if (!config.parcel || config.network !== 'localnet')
-  throw Error('Explicit Parcel localnet configuration required.');
+if (!config.parcel)
+  throw Error('Explicit Parcel chain configuration required.');
 const adapter = new ParcelAdapter(config);
 if (process.argv.includes('--create-test-mints')) {
   const genesis = await adapter.connection.getGenesisHash();
-  if (
-    genesis !== config.expectedGenesis ||
-    [
-      '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-      'EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
-    ].includes(genesis)
-  )
-    throw Error('Wrong validator.');
+  const failure = pinnedGenesisFailure(genesis, config);
+  if (failure) throw Error(`Wrong ledger. ${failure}`);
   const operator = Keypair.fromSecretKey(
     Uint8Array.from(
       JSON.parse(readFileSync(`${config.stateDir}/deployer.json`, 'utf8')),
@@ -77,7 +73,7 @@ async function act(action: VaultAction) {
       if (n >= 4 || !(e as Error).message.includes('pending')) throw e;
     }
   }
-  assert.equal(state.mode, 'localnet');
+  assert.equal(state.mode, config.network);
   assert.ok(state.chain?.signature);
   const again = await coordinator.apply(session, key, input);
   assert.equal(again.chain!.signature, state.chain!.signature);
@@ -129,7 +125,13 @@ try {
       '/tmp/parcel-capacity.json',
       JSON.stringify(
         {
-          network: 'isolated Solana local validator',
+          // Name the ledger this evidence came from: a file saying "local
+          // validator" while carrying a devnet program id is worse than none.
+          network:
+            config.network === 'devnet'
+              ? 'Solana devnet'
+              : 'isolated Solana local validator',
+          genesis: config.expectedGenesis,
           activePositions: 64,
           legs: 256,
           withdrawAllFreeCash: true,
@@ -219,7 +221,13 @@ try {
   assert.equal(cash.amount, 4_000_000_000_000n);
   assert.equal(stock.amount, 20_000_000_000n);
   const report = {
-    network: 'isolated Solana local validator',
+    // Name the ledger this evidence came from: a file saying "local
+    // validator" while carrying a devnet program id is worse than none.
+    network:
+      config.network === 'devnet'
+        ? 'Solana devnet'
+        : 'isolated Solana local validator',
+    genesis: config.expectedGenesis,
     program: adapter.program.toBase58(),
     generatedAt: new Date().toISOString(),
     checks: evidence.length,
