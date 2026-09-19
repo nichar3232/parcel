@@ -6,7 +6,7 @@
 
 A unified equity workspace for granular options, covered underwriting, stock lending, protected shorts and structured contracts. Size exposure in share-equivalents, including fractional quantities to six decimals; one share is a denomination, not a minimum lot. A contract must have a nonzero payable obligation.
 
-Parcel is a working **private test-asset product**. The same-origin Node API supports a persistent keyless sandbox and **Parcel program execution on a pinned private Solana validator**. In localnet mode, SPL test tokens back the vault and the program independently executes transfers, option deliveries, lending, protected shorts and cross collateral; SQLite indexes confirmed results. Both modes use funded test counterparties and historical prices. This is not a live brokerage or a source of external liquidity. The original Strata spread desk remains at `/legacy`.
+Parcel is a working **private test-asset product**. The same-origin Node API supports a persistent keyless sandbox and **Parcel program execution on a pinned private Solana validator or on devnet**. In either onchain mode, SPL test tokens back the vault and the program independently executes transfers, option deliveries, lending, protected shorts and cross collateral; SQLite indexes confirmed results. Both modes use funded test counterparties and historical prices. This is not a live brokerage or a source of external liquidity. The original Strata spread desk remains at `/legacy`.
 
 ![Parcel vault workspace](docs/audit/parcel/overview.png)
 
@@ -59,6 +59,7 @@ Start by depositing one NVDA share, choose **Underwrite → Covered call**, revi
 | `server/parcel/ledger.ts` | Asset transfers, loans, protected shorts and net expiry settlement |
 | `server/db/002-vaults.sql`, `003-vault-chain.sql` | Vaults, quotes and recoverable onchain operations |
 | `server/parcel/chain/`, `programs/parcel/` | Durable execution coordinator, binary codec and new vault program |
+| `server/solana/network.ts` | The genesis pin: which ledgers are accepted, and the refusal of mainnet |
 | `app/legacy/`, `server/domain/`, `server/solana/` | Retained historical desk and durable Solana execution |
 | `programs/strata/` | Audited original Anchor escrow program |
 | `tests/`, `.github/workflows/` | Domain/API regression tests and real-backend browser CI |
@@ -73,7 +74,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-CI runs this flow on Linux from a clean checkout. The suite is 121 application tests and 40 browser journeys. They cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, cash loans against pledged stock including term settlement and liquidation, capped shorts, dividends, browser recovery, and that no view scrolls sideways on a phone. The 0.4 release audit recorded 65 application tests, 25 browser journeys, 6 native Rust tests, a 19-action confirmed Parcel chain lifecycle and 9 rejected adversarial program transactions. Actual Solana program verification remains an explicit operator command. See the [findings and verification evidence](docs/audit/2026-09-15-release/REPORT.md).
+CI runs this flow on Linux from a clean checkout. The suite is 129 application tests and 43 browser journeys. They cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, cash loans against pledged stock including term settlement and liquidation, capped shorts, dividends, browser recovery, and that no view scrolls sideways on a phone. The 0.4 release audit recorded 65 application tests, 25 browser journeys, 6 native Rust tests, a 19-action confirmed Parcel chain lifecycle and 9 rejected adversarial program transactions. Actual Solana program verification remains an explicit operator command; it runs against the pinned private validator or devnet, and refuses any other ledger. See the [findings and verification evidence](docs/audit/2026-09-15-release/REPORT.md).
 
 ## Pricing and release boundaries
 
@@ -87,7 +88,7 @@ Hourly test-clock ticks carry the committed daily close forward; they are not hi
 
 Dividend contracts reference the issuer's declared $0.01 dividend for the March 12, 2025 record-date event, payable April 2. They do not transfer dividend ownership or model an xStock multiplier as a cash payment. See [product rules and sources](docs/PRODUCT.md).
 
-Sandbox rules are backend-enforced. Configured localnet vaults execute the matching Parcel program with actual SPL escrow and server-held test signers. Production still requires wallet authentication and client signing, external liquidity, live pricing/oracle feeds, issuer/corporate-action handling and independent program review. Onchain mode limits each vault to 64 active positions for account and transaction compute bounds; sandbox mode supports 500. The original Solana evidence remains local-validator evidence; devnet funding is still an open gate. The prior Bellwether repository has been retired; its history is preserved here as this repository's root commit `ed73929`.
+Sandbox rules are backend-enforced. Configured onchain vaults execute the matching Parcel program with actual SPL escrow and server-held test signers, on either the pinned private validator or devnet. Mainnet is refused by the genesis pin and cannot be configured. Production still requires wallet authentication and client signing, external liquidity, live pricing/oracle feeds, issuer/corporate-action handling and independent program review. Onchain mode limits each vault to 64 active positions for account and transaction compute bounds; sandbox mode supports 500. The recorded lifecycle and adversarial evidence is local-validator evidence. The program is **also deployed on devnet** as `A4NTJ45BZT951nYh5xDXUKtyWij3YrYjcngyMigsq9pG`, with its own six-decimal test mints, where the same 19-action lifecycle and all 14 adversarial rejections are confirmed. Devnet needs a dedicated `SOLANA_RPC_URL`: the public endpoint rate limits well below what a complete run, or a desk serving several readers, requires. The prior Bellwether repository has been retired; its history is preserved here as this repository's root commit `ed73929`.
 
 The [original engineering audit](docs/audit/REPORT.md) records the legacy execution review and dependency findings. Two moderate entries remain in an unused upstream streaming parser; there are no critical/high findings in that retained audit. The original audited program artifacts and evidence are preserved. No private keys, runtime databases or real `.env` files belong in this repository.
 
