@@ -27,6 +27,7 @@ import type {
 } from '../../lib/contracts/api';
 import { maximum, units } from '../../lib/engine';
 import type { Config } from '../config';
+import { pinnedGenesisFailure } from './network';
 import { ApiError, friendlyChainError } from '../http/errors';
 import {
   feed,
@@ -60,8 +61,6 @@ export interface ChainAdapter {
   read(position: ChainPosition): Promise<ChainPosition>;
   proof(signature: string): Promise<unknown>;
 }
-const DEVNET_GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1';
-const MAINNET_GENESIS = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 function base58(bytes: Uint8Array) {
   const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
   let n = BigInt('0x' + Buffer.from(bytes).toString('hex'));
@@ -82,7 +81,11 @@ export class SolanaAdapter implements ChainAdapter {
   constructor(private config: Config) {
     this.connection = new Connection(config.rpcUrl, {
       commitment: 'confirmed',
-      disableRetryOnRateLimit: true,
+      /* A private validator that answers 429 is misconfigured, so the
+         retry stays off there and the error surfaces. A shared public
+         cluster rate limits as a matter of course, and refusing to retry
+         turns an ordinary throttle into a failed vault operation. */
+      disableRetryOnRateLimit: config.network === 'localnet',
       fetch: async (input, init) =>
         fetch(input, { ...init, signal: AbortSignal.timeout(12000) }),
     });
@@ -128,16 +131,8 @@ export class SolanaAdapter implements ChainAdapter {
       };
     try {
       const genesis = await this.connection.getGenesisHash();
-      if (
-        genesis === MAINNET_GENESIS ||
-        !this.config.expectedGenesis ||
-        genesis !== this.config.expectedGenesis ||
-        (this.config.network === 'devnet' && genesis !== DEVNET_GENESIS) ||
-        (this.config.network === 'localnet' && genesis === DEVNET_GENESIS)
-      )
-        throw Error(
-          'RPC genesis does not match the explicitly pinned test network.',
-        );
+      const failure = pinnedGenesisFailure(genesis, this.config);
+      if (failure) throw Error(failure);
       const [program, mint, authority, slot, clock] = await Promise.all([
         this.connection.getAccountInfo(this.program),
         this.mint(),
