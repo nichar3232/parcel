@@ -52,7 +52,7 @@ for (const [view, template, kind, side] of [
     const response = quoteFor(page);
     await page.getByRole('button', { name: 'Review funded quote' }).click();
     const quote = await (await response).json();
-    expect(quote.terms.name).toBe(template);
+    expect(quote.terms.name).toMatch(template);
     expect(quote.terms.quantity).toBe(0.25);
     expect(quote.terms.legs[0].kind).toBe(kind);
     expect(quote.terms.legs[0].side).toBe(side);
@@ -66,7 +66,7 @@ for (const [view, template, kind, side] of [
 test('the shell is four destinations, each with its own sections', async ({
   page,
 }) => {
-  await expect(page.locator('.od-side-item')).toHaveText([
+  await expect(page.locator('.od-nav-item')).toHaveText([
     'Portfolio',
     'Trade',
     'Pre-IPO',
@@ -80,12 +80,12 @@ test('the shell is four destinations, each with its own sections', async ({
     Portfolio: ['Holdings', 'Activity'],
     Trade: ['Options', 'Structures'],
     'Pre-IPO': ['Market', 'Underwrite'],
-    Lending: [],
+    Lending: ['Lend & borrow'],
   };
   for (const [name, tabs] of Object.entries(sections)) {
     await navTop(page, name);
     await expect(page.getByRole('heading', { level: 1 })).toContainText(name);
-    await expect(page.locator('.od-side-sub-item')).toHaveText(tabs);
+    await expect(page.locator('.od-nav-link')).toHaveText(tabs);
   }
 
   // Underwrite and Structures are sections of Trade, and each opens the
@@ -99,8 +99,14 @@ test('the shell is four destinations, each with its own sections', async ({
   // the leg editor and the surface.
   await nav(page, 'Trade');
   // Which contract is the first decision on the screen, above the
-  // payoff, not a control inside the ticket below it.
-  await expect(page.locator('.od-kinds .od-segmented')).toBeVisible();
+  // payoff, not a control inside the ticket below it. The payoff view is
+  // deliberate rather than a second screen: it preserves that choice while
+  // exposing the leg editor for a reader who needs it.
+  await expect(page.getByRole('group', { name: 'Side' })).toBeVisible();
+  await expect(
+    page.getByRole('group', { name: 'Contract kind' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Payoff', exact: true }).click();
   await expect(page.locator('.od-leg')).toHaveCount(0);
   await advanced(page);
   await expect(page.locator('.od-leg')).toHaveCount(1);

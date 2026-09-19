@@ -1098,21 +1098,55 @@
 /* ---------- close ---------- */
 
 .lp-close {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 28px;
-  margin: clamp(80px, 11vh, 132px) 0 clamp(60px, 8vh, 96px);
-  padding-top: clamp(40px, 5vw, 56px);
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  min-height: clamp(320px, 42vh, 440px);
+  margin: clamp(88px, 12vh, 148px) 0 clamp(48px, 7vh, 84px);
+  padding: clamp(56px, 8vh, 96px) clamp(20px, 6vw, 80px);
   border-top: 1px solid var(--pc-line-soft);
+  overflow: hidden;
+  text-align: center;
+}
+/* The final action is an endcap, not a card. A narrow, low-contrast field
+   gathers the page's existing cyan atmosphere into the footer without
+   introducing a second visual system or an abrupt section break. */
+.lp-close::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(
+      58% 88% at 50% 100%,
+      color-mix(in srgb, var(--pc-cyan) 11%, transparent) 0%,
+      transparent 72%
+    ),
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      color-mix(in srgb, var(--pc-cyan) 3%, transparent) 100%
+    );
+  content: '';
+  pointer-events: none;
+}
+.lp-close-copy {
+  display: grid;
+  justify-items: center;
+  max-width: 620px;
 }
 .lp-close h2 {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  font-size: clamp(32px, 4.2vw, 52px);
 }
 .lp-close p {
-  max-width: 46ch;
+  max-width: 48ch;
   color: var(--pc-body);
+}
+.lp-close .lp-btn {
+  height: 48px;
+  margin-top: 30px;
+  padding: 0 22px;
 }
 
 /* ---------- footer ---------- */
@@ -1178,6 +1212,11 @@
   }
 }
 @media (max-width: 560px) {
+  .lp-close {
+    min-height: 300px;
+    margin-top: 80px;
+    padding: 52px 20px;
+  }
   .lp-viewer-pips {
     gap: 16px;
   }

@@ -101,7 +101,11 @@ export function TradeView({
    * they picked turns into. Structures and Underwrite have no ladder,
    * so they are always the picture.
    */
-  const [browse, setBrowse] = useState(tab === 'trade');
+  // Entering Options opens the ladder on the plain long call. Selecting a
+  // named contract from the navigation is a more specific intention, so it
+  // opens its ticket and payoff instead of asking the reader to choose it
+  // again from the chain.
+  const [browse, setBrowse] = useState(tab === 'trade' && choice === 'call');
   /** Which ladder the chain shows, steered from the screen's top line. */
   const [chainSide, setChainSide] = useState<'buy' | 'sell'>('buy');
   const [chainKind, setChainKind] = useState<'call' | 'put'>('call');

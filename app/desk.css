@@ -1908,6 +1908,19 @@
   .od-borrow {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* The desktop view explicitly pins the analysis and the ticket to the
+     same grid row. Reset both coordinates when the grid becomes one
+     column; otherwise the two panels occupy an implicit column and can
+     visually sit on top of the strike ladder on a phone. */
+  .od-insight,
+  .od-chain,
+  .od-stack,
+  .od-work > .od-panel:not(.od-ticket),
+  .od-borrow > .od-panel:not(.od-ticket),
+  .od-ticket {
+    grid-column: 1;
+    grid-row: auto;
+  }
   /* Stacked, the divider is the rule above it. */
   .od-ticket {
     position: static;

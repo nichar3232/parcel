@@ -123,12 +123,9 @@ const ENTRY: Record<string, { page: Page; tab?: string }> = {
  *
  * Four views down the left edge, each opening to the sections it owns.
  *
- * Open is its own state, not a reading of which view you are in. Tying
- * the two together meant the rail had a shape you could not change:
- * the view you were in was always open and could not be shut, and no
- * other view could be looked at without leaving the one you were on.
- * Arriving at a view opens it; the chevron shuts it again, and a shut
- * group shows nothing selected inside it.
+ * Open is its own state, not a reading of which view you are in. That lets a
+ * reader inspect another product's choices without leaving the page they are
+ * on, while an explicit action is still required to enter a new section.
  *
  * A view with one section has nothing to open and says so by having no
  * chevron.
@@ -146,43 +143,24 @@ function ProductNav({
 }) {
   const [open, setOpen] = useState<Page | null>(null);
   const nav = useRef<HTMLElement>(null);
-  const leaving = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /**
-   * Hovering a product shows what is under it.
-   *
-   * The close is delayed by a beat so the diagonal from a product to
-   * the far side of its own menu does not pass over a neighbour and
-   * swap the menu out from under the pointer. Click still works, and
-   * still toggles, for touch and for the keyboard.
-   */
-  const show = (name: Page) => {
-    if (leaving.current) clearTimeout(leaving.current);
-    setOpen(name);
-  };
-  const hide = () => {
-    if (leaving.current) clearTimeout(leaving.current);
-    leaving.current = setTimeout(() => setOpen(null), 160);
-  };
-  useEffect(
-    () => () => {
-      if (leaving.current) clearTimeout(leaving.current);
-    },
-    [],
-  );
-
-  // A menu that stays open when you look away from it is a menu you
-  // have to dismiss. Pointer anywhere else, or Escape, closes it.
+  // One explicit click opens a product's choices. Escape or a click beyond
+  // the navigation closes the list; attaching the pointer listener after the
+  // opening gesture completes prevents that same gesture from closing it.
   useEffect(() => {
     if (!open) return;
-    const away = (e: MouseEvent) => {
-      if (!nav.current?.contains(e.target as Node)) setOpen(null);
+    const outside = (event: PointerEvent) => {
+      if (!nav.current?.contains(event.target as Node)) setOpen(null);
     };
     const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(null);
-    document.addEventListener('mousedown', away);
+    const startOutsideClose = window.setTimeout(
+      () => document.addEventListener('pointerdown', outside),
+      0,
+    );
     document.addEventListener('keydown', key);
     return () => {
-      document.removeEventListener('mousedown', away);
+      window.clearTimeout(startOutsideClose);
+      document.removeEventListener('pointerdown', outside);
       document.removeEventListener('keydown', key);
     };
   }, [open]);
@@ -199,29 +177,23 @@ function ProductNav({
         const branching = sections.length > 1 || !!sections[0].choices;
         const here = page === name;
         return (
-          <div
-            key={name}
-            className="od-nav-group"
-            onMouseEnter={() => branching && show(name)}
-            onMouseLeave={hide}
-          >
+          <div key={name} className="od-nav-group">
             <button
               className={`od-nav-item ${here ? 'active' : ''}`}
               aria-current={here ? 'page' : undefined}
               aria-expanded={branching ? open === name : undefined}
               onClick={() => {
-                // A product switch should leave its choices available.
-                // Otherwise the pointer hover that opened the menu first
-                // makes the click immediately close it, which feels like
-                // the navigation ignored the reader's next decision.
+                // A product switch leaves its own choices available so the
+                // next decision is immediately available.
                 if (!here) {
                   navigate(name);
                   setOpen(branching ? name : null);
                   return;
                 }
-                setOpen(branching && open !== name ? name : null);
+                setOpen((currentOpen) =>
+                  branching && currentOpen !== name ? name : null,
+                );
               }}
-              onFocus={() => branching && show(name)}
             >
               <span>{name}</span>
               {branching && <ChevronDown size={13} />}
@@ -326,11 +298,22 @@ export default function Workspace() {
   const navigate = (next: Page, to?: string, pick?: string) => {
     setUi((view) => {
       const section = to ?? view.tab[next] ?? TABS[next][0].id;
+      const pickKey = `${next}:${section}`;
       return {
         ...view,
         page: next,
         tab: to ? { ...view.tab, [next]: to } : view.tab,
-        pick: pick ? { ...view.pick, [`${next}:${section}`]: pick } : view.pick,
+        // A section is the broad, browsable destination; a choice inside it
+        // is a precise contract or workflow. Returning to the section clears
+        // an earlier precise choice instead of silently reopening a stale
+        // ticket from a different task.
+        pick: pick
+          ? { ...view.pick, [pickKey]: pick }
+          : to
+            ? Object.fromEntries(
+                Object.entries(view.pick).filter(([key]) => key !== pickKey),
+              )
+            : view.pick,
       };
     });
     window.scrollTo({

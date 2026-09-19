@@ -138,18 +138,18 @@ export default function Landing() {
           </Steps>
         </section>
 
-        <section className="lp-close">
-          <div>
-            <h2>Open the desk</h2>
+        <section className="lp-close" aria-labelledby="desk-title">
+          <div className="lp-close-copy">
+            <h2 id="desk-title">Open the desk</h2>
             <p>
               A funded vault, live model pricing and the full contract workflow.
               Nothing to install and no wallet to connect.
             </p>
+            <Link className="lp-btn lp-btn-primary" href="/app">
+              Launch Parcel
+              <span aria-hidden>&rarr;</span>
+            </Link>
           </div>
-          <Link className="lp-btn lp-btn-primary" href="/app">
-            Launch Parcel
-            <span aria-hidden>&rarr;</span>
-          </Link>
         </section>
       </main>
 

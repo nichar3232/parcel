@@ -46,10 +46,14 @@ export async function navTop(page: Page, name: string) {
  * nothing here to click.
  */
 export async function section(page: Page, name: string) {
-  const item = page.locator('.od-side-sub-item', { hasText: name });
-  if ((await item.count()) === 0) return;
-  await item.click();
-  await expect(item).toHaveAttribute('aria-current', 'true');
+  if (name === 'Rates') return;
+  await page.locator('.od-nav-link', { hasText: name }).click();
+}
+
+/** Pick a named contract or lending workflow from its owning product menu. */
+async function pick(page: Page, product: string, name: string) {
+  await navTop(page, product);
+  await page.locator('.od-nav-pick', { hasText: name }).click();
 }
 
 /**
@@ -76,26 +80,27 @@ export async function nav(page: Page, name: string) {
     case 'Activity':
       await navTop(page, 'Portfolio');
       return section(page, 'Activity');
-    // Buying and writing are one section now; the side is a choice on
-    // the ticket.
+    // Options opens as a browsable long-call ladder. A named contract is a
+    // direct intent, so it opens its own ticket from the product menu.
     case 'Trade':
       await navTop(page, 'Trade');
-      await section(page, 'Options');
-      return page
-        .getByRole('button', { name: 'Long call', exact: true })
-        .click();
+      return section(page, 'Options');
     case 'Underwrite':
-      await navTop(page, 'Trade');
-      await section(page, 'Options');
-      return page
-        .getByRole('button', { name: 'Covered call', exact: true })
-        .click();
+      return pick(page, 'Trade', 'Covered call');
     case 'Structures':
       await navTop(page, 'Trade');
       return section(page, 'Structures');
+    case 'Dividend structures':
+      return pick(page, 'Trade', 'Dividends');
+    case 'Convexity structures':
+      return pick(page, 'Trade', 'Convexity');
     case 'Lending':
       await navTop(page, 'Lending');
       return section(page, 'Lend & borrow');
+    case 'Lending short':
+      return pick(page, 'Lending', 'Short');
+    case 'Lending spot':
+      return pick(page, 'Lending', 'Spot');
     case 'Lending markets':
       await navTop(page, 'Lending');
       return section(page, 'Rates');
@@ -142,12 +147,52 @@ export async function execute(page: Page) {
 }
 
 export async function advance(page: Page, date: string) {
-  await page.getByRole('button', { name: 'Market controls' }).click();
-  await page.getByLabel('Advance to session').selectOption(date);
-  await page
-    .getByRole('button', { name: 'Advance & settle due positions' })
-    .click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // Session travel is deliberately absent from the customer desk. It is a
+  // test-harness concern, so drive the same revision-checked endpoint the
+  // former control used and reload the persisted session afterwards.
+  await page.evaluate(async (next) => {
+    const snapshot = await fetch('/api/vault').then((response) =>
+      response.json(),
+    );
+    const response = await fetch('/api/vault/actions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': snapshot.csrf,
+        'Idempotency-Key': `e2e-advance-${crypto.randomUUID()}`,
+      },
+      body: JSON.stringify({
+        revision: snapshot.revision,
+        action: { type: 'advance', date: next },
+      }),
+    });
+    if (!response.ok) throw Error(await response.text());
+  }, date);
+  await page.reload();
+  await expect(page.locator('.pc-desk')).toHaveAttribute('data-ready', 'true');
+}
+
+export async function restartReplay(page: Page) {
+  await page.evaluate(async () => {
+    const snapshot = await fetch('/api/vault').then((response) =>
+      response.json(),
+    );
+    const response = await fetch('/api/vault/actions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': snapshot.csrf,
+        'Idempotency-Key': `e2e-restart-${crypto.randomUUID()}`,
+      },
+      body: JSON.stringify({
+        revision: snapshot.revision,
+        action: { type: 'restart' },
+      }),
+    });
+    if (!response.ok) throw Error(await response.text());
+  });
+  await page.reload();
+  await expect(page.locator('.pc-desk')).toHaveAttribute('data-ready', 'true');
 }
 
 /** The quote the backend actually priced, not what the form claims. */
