@@ -26,7 +26,8 @@
     "verify:parcel-chain": "tsx scripts/verify-parcel-chain.ts",
     "verify:parcel-adversarial": "tsx scripts/verify-parcel-adversarial.ts",
     "verify:parcel-suite": "tsx scripts/verify-parcel-suite.ts",
-    "generate:parcel-market": "tsx scripts/generate-parcel-market.ts"
+    "generate:parcel-market": "tsx scripts/generate-parcel-market.ts",
+    "verify:everything": "bash scripts/verify-everything.sh"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
