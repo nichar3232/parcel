@@ -141,7 +141,7 @@ export function OptionsChain({
             <thead>
               <tr>
                 <th>Strike price</th>
-                <th className="num">Breakeven</th>
+                <th className="num od-ladder-breakeven">Breakeven</th>
                 <th className="num">To breakeven</th>
                 <th className="num">
                   {side === 'buy' ? 'Cash to fund' : 'Reserved to write'}
@@ -173,7 +173,7 @@ export function OptionsChain({
                               zeros for the sake of it. */}
                           <b>{usd(row.strike, row.strike % 1 === 0 ? 0 : 2)}</b>
                         </td>
-                        <td className="num">{usd(breakeven)}</td>
+                        <td className="num od-ladder-breakeven">{usd(breakeven)}</td>
                         <td
                           className={`num od-ladder-distance ${
                             away >= 0 ? 'above' : 'below'
