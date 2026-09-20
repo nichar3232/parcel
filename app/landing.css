@@ -71,7 +71,7 @@
    already position themselves: the nav is sticky, and giving it a
    position here would silently replace that. */
 .lp > .lp-main,
-.lp > .lp-foot {
+.lp > .lp-ending {
   position: relative;
   z-index: 1;
 }
@@ -201,12 +201,17 @@
    surface. This keeps the utility of a sticky nav without the "text under
    frosted glass" effect. */
 .lp-nav[data-scrolled]::before {
-  background: color-mix(in srgb, var(--pc-void) 96%, transparent);
-  box-shadow:
-    inset 0 -1px 0 color-mix(in srgb, var(--pc-line) 68%, transparent),
-    0 14px 26px -24px rgba(0, 0, 0, 0.92);
-  -webkit-mask-image: none;
-  mask-image: none;
+  /* Keep the reading surface quiet, but let it dissolve at its lower edge.
+     A solid sticky strip is especially noticeable over the landing fades. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--pc-void) 97%, transparent) 0%,
+    color-mix(in srgb, var(--pc-void) 93%, transparent) 62%,
+    transparent 100%
+  );
+  box-shadow: none;
+  -webkit-mask-image: linear-gradient(#000 0%, #000 70%, transparent 100%);
+  mask-image: linear-gradient(#000 0%, #000 70%, transparent 100%);
 }
 .lp-mark {
   display: inline-flex;
@@ -1097,38 +1102,45 @@
 
 /* ---------- close ---------- */
 
-.lp-close {
+/* The closing action and footer are one continuous endcap. Its colour lives
+   on a full-bleed parent, rather than on the measured text column, so the
+   atmosphere cannot stop in a visible rectangle at either gutter. */
+.lp-ending {
   position: relative;
   isolation: isolate;
-  display: grid;
-  place-items: center;
-  min-height: clamp(320px, 42vh, 440px);
-  margin: clamp(88px, 12vh, 148px) 0 clamp(48px, 7vh, 84px);
-  padding: clamp(56px, 8vh, 96px) clamp(20px, 6vw, 80px);
-  border-top: 1px solid var(--pc-line-soft);
-  overflow: hidden;
-  text-align: center;
+  margin-top: clamp(88px, 12vh, 148px);
+  overflow: clip;
 }
-/* The final action is an endcap, not a card. A narrow, low-contrast field
-   gathers the page's existing cyan atmosphere into the footer without
-   introducing a second visual system or an abrupt section break. */
-.lp-close::before {
+.lp-ending::before {
   position: absolute;
-  inset: 0;
+  inset: -1px 0 0;
   z-index: -1;
   background:
     radial-gradient(
-      58% 88% at 50% 100%,
-      color-mix(in srgb, var(--pc-cyan) 11%, transparent) 0%,
-      transparent 72%
+      56% 54% at 66% 40%,
+      color-mix(in srgb, var(--pc-cyan) 10%, transparent) 0%,
+      transparent 74%
     ),
     linear-gradient(
       180deg,
       transparent 0%,
-      color-mix(in srgb, var(--pc-cyan) 3%, transparent) 100%
+      color-mix(in srgb, var(--pc-cyan) 2.5%, transparent) 54%,
+      transparent 100%
     );
   content: '';
   pointer-events: none;
+}
+
+.lp-close {
+  position: relative;
+  display: grid;
+  place-items: center;
+  max-width: var(--lp-measure);
+  min-height: clamp(320px, 42vh, 440px);
+  margin: 0 auto clamp(48px, 7vh, 84px);
+  padding: clamp(56px, 8vh, 96px) clamp(20px, 6vw, 80px);
+  border-top: 1px solid var(--pc-line-soft);
+  text-align: center;
 }
 .lp-close-copy {
   display: grid;

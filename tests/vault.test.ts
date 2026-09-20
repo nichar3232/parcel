@@ -141,6 +141,39 @@ void test('vault: quote execution is owner-bound, revision-bound, expiring and e
     a.store.close();
   }
 });
+void test('vault: an older idempotent receipt is completed with the current market metadata', () => {
+  const a = setup();
+  try {
+    const key = randomUUID(),
+      request = {
+        revision: a.state.revision,
+        action: {
+          type: 'transfer' as const,
+          asset: 'USDC' as const,
+          direction: 'deposit' as const,
+          amount: 1000,
+        },
+      },
+      first = a.service.apply(a.session, key, request),
+      { underlyings: _underlyings, ...legacyMarket } = first.market,
+      legacyReceipt = { ...first, market: legacyMarket };
+
+    // Simulate a durable receipt created before the market list was added to
+    // the response contract. It must remain idempotent without crashing a
+    // current client that relies on that list for its holdings view.
+    a.store.db
+      .prepare('UPDATE receipts SET response=? WHERE owner=? AND key=?')
+      .run(JSON.stringify(legacyReceipt), a.session.id, key);
+
+    const retried = a.service.apply(a.session, key, request);
+    assert.equal(retried.revision, first.revision);
+    assert.deepEqual(retried.book, first.book);
+    assert.equal(retried.market.underlyings.length, 9);
+    assert.equal(retried.market.underlyings[0]?.symbol, 'NVDA');
+  } finally {
+    a.store.close();
+  }
+});
 void test('vault: stale quote, stale tab and reused key with different action are rejected', () => {
   const a = setup();
   try {

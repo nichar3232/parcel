@@ -137,7 +137,9 @@ export default function Landing() {
             </Link>
           </Steps>
         </section>
+      </main>
 
+      <div className="lp-ending">
         <section className="lp-close" aria-labelledby="desk-title">
           <div className="lp-close-copy">
             <h2 id="desk-title">Open the desk</h2>
@@ -151,25 +153,25 @@ export default function Landing() {
             </Link>
           </div>
         </section>
-      </main>
 
-      <footer className="lp-foot">
-        <Link className="lp-mark" href="/">
-          <Mark size={20} />
-          <b>PARCEL</b>
-        </Link>
-        <nav aria-label="Footer">
-          <Link href="/app">Desk</Link>
-          <a href="#products">Products</a>
-          <a
-            href="https://github.com/nichar3232/parcel"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Repository
-          </a>
-        </nav>
-      </footer>
+        <footer className="lp-foot">
+          <Link className="lp-mark" href="/">
+            <Mark size={20} />
+            <b>PARCEL</b>
+          </Link>
+          <nav aria-label="Footer">
+            <Link href="/app">Desk</Link>
+            <a href="#products">Products</a>
+            <a
+              href="https://github.com/nichar3232/parcel"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Repository
+            </a>
+          </nav>
+        </footer>
+      </div>
     </div>
   );
 }

@@ -112,6 +112,21 @@ export class VaultService {
       },
     };
   }
+  /**
+   * Mutation receipts are intentionally durable for idempotency. Complete a
+   * receipt from an older UI schema with the current market metadata before
+   * returning it; the recorded book and revision remain untouched.
+   */
+  private completeReceipt(session: Session, receipt: VaultSnapshot) {
+    if (Array.isArray(receipt.market?.underlyings)) return receipt;
+    return {
+      ...receipt,
+      market: {
+        ...receipt.market,
+        underlyings: this.snapshot(session).market.underlyings,
+      },
+    };
+  }
   private capacity(book: VaultBook) {
     const active = [
       ...book.options,
@@ -435,7 +450,7 @@ export class VaultService {
     const cached = this.store.receipt(session.id, key, plan.hash) as
       | VaultSnapshot
       | undefined;
-    if (cached) return cached;
+    if (cached) return this.completeReceipt(session, cached);
     const current = this.read(session);
     this.revision({ revision: plan.revision }, current.revision);
     if (plan.quoteId) {
@@ -473,7 +488,7 @@ export class VaultService {
       const cached = this.store.receipt(session.id, key, hash) as
         | VaultSnapshot
         | undefined;
-      if (cached) return cached;
+      if (cached) return this.completeReceipt(session, cached);
       return this.commit(session, key, this.plan(session, value));
     });
   }

@@ -81,15 +81,16 @@ export function PortfolioView({
 }) {
   const s = desk.state!;
   const { book, risk, market } = s;
+  const underlyings = market.underlyings;
 
-  const nav = market.underlyings.reduce(
+  const nav = underlyings.reduce(
     (t, u) => t + (book.vault[u.symbol] ?? 0) * u.price,
     book.vault.USDC,
   );
   // What is held: every underlying with something in the vault, NVDA
   // always so the list never comes up empty. What sits only in the
   // wallet is deposited from the wallet, not listed here as a zero.
-  const held = market.underlyings.filter(
+  const held = underlyings.filter(
     (u) => u.symbol === 'NVDA' || (book.vault[u.symbol] ?? 0) > 0,
   );
   const active = book.options.filter((p) => p.status === 'active');
@@ -105,13 +106,17 @@ export function PortfolioView({
     () =>
       active.map((p) => {
         const on =
-          market.underlyings.find((u) => u.symbol === p.terms.symbol) ??
-          market.underlyings[0];
+          underlyings.find((u) => u.symbol === p.terms.symbol) ??
+          underlyings[0];
         const value = orderGreeks(
           p.terms,
-          p.terms.reference === 'dividend' ? market.dividend : on.price,
+          p.terms.reference === 'dividend'
+            ? market.dividend
+            : (on?.price ?? market.price),
           book.date,
-          p.terms.reference === 'dividend' ? 0.8 : on.volatility,
+          p.terms.reference === 'dividend'
+            ? 0.8
+            : (on?.volatility ?? market.volatility),
         ).price;
         // A contract opened this session marks at what it cost. Left
         // alone, floating point turns that into +$0.000000, which reads
@@ -119,7 +124,7 @@ export function PortfolioView({
         const drift = value - p.premium;
         return { position: p, value, pnl: Math.abs(drift) < 5e-7 ? 0 : drift };
       }),
-    [active, market, book.date],
+    [active, market, book.date, underlyings],
   );
   const [range, setRange] = useState<Range>('1M');
   const series = useMemo(() => valueSeries(book), [book]);

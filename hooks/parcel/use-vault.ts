@@ -15,6 +15,23 @@ import {
   type PendingMutation,
 } from '@/lib/client/pending-vault';
 
+/**
+ * Receipts are durable, while the snapshot shape evolves with the desk. A
+ * retry can therefore return a valid older receipt that predates a newly
+ * added display field. Keep the client-side contract total while the server
+ * refreshes it, rather than allowing one omitted array to take down a view.
+ */
+function completeSnapshot(value: VaultSnapshot): VaultSnapshot {
+  if (Array.isArray(value.market?.underlyings)) return value;
+  return {
+    ...value,
+    market: {
+      ...value.market,
+      underlyings: [],
+    },
+  };
+}
+
 export function useVault() {
   const [state, setState] = useState<VaultSnapshot | null>(null),
     [busy, setBusy] = useState(false),
@@ -26,10 +43,11 @@ export function useVault() {
     pendingRequest = useRef<PendingMutation | null>(null),
     refreshSequence = useRef(0);
   const update = useCallback((value: VaultSnapshot) => {
-    if (current.current && value.csrf !== current.current.csrf) return;
-    if (!current.current || value.revision >= current.current.revision) {
-      current.current = value;
-      setState(value);
+    const snapshot = completeSnapshot(value);
+    if (current.current && snapshot.csrf !== current.current.csrf) return;
+    if (!current.current || snapshot.revision >= current.current.revision) {
+      current.current = snapshot;
+      setState(snapshot);
     }
     setError('');
   }, []);
