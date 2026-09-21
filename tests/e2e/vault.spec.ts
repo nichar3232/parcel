@@ -20,6 +20,37 @@ test.afterEach(({ page }) => {
   expect(errors.get(page)).toEqual([]);
 });
 
+test('vault keeps its live value line and positions in one responsive flow', async ({
+  page,
+}) => {
+  const chart = page.getByLabel(/Vault value across/);
+  const positions = page.getByRole('region', { name: 'Positions' });
+
+  await expect(chart).toBeVisible();
+  await expect(positions).toBeVisible();
+  await expect(page.locator('.od-open-side')).toHaveCount(0);
+
+  const [chartBox, positionsBox] = await Promise.all([
+    chart.boundingBox(),
+    positions.boundingBox(),
+  ]);
+  expect(chartBox).not.toBeNull();
+  expect(positionsBox).not.toBeNull();
+  expect(positionsBox!.y).toBeGreaterThan(chartBox!.y + chartBox!.height);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(chart).toBeVisible();
+  await expect(positions).toBeVisible();
+  const mobileColumns = await page
+    .locator('.od-open-positions-grid')
+    .evaluate(
+      (element) =>
+        getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/)
+          .length,
+    );
+  expect(mobileColumns).toBe(1);
+});
+
 test('vault deposits, fractional covered underwriting, blocked withdrawal and expiry persist through reload', async ({
   page,
 }) => {
@@ -107,7 +138,9 @@ test('lending, recall and a protected short complete through the real API', asyn
   await expect(page.getByRole('dialog')).toContainText('Interest you receive');
   await page.getByRole('button', { name: 'Confirm transaction' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Recall', exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Recall', exact: true }),
+  ).toHaveCount(0);
   await nav(page, 'Lending short');
   await page.getByLabel('Protective call strike').fill('120');
   await page.getByRole('button', { name: 'Review protected short' }).click();
@@ -121,7 +154,9 @@ test('lending, recall and a protected short complete through the real API', asyn
   );
   await page.getByRole('button', { name: 'Confirm transaction' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Cover', exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Cover', exact: true }),
+  ).toHaveCount(0);
   await nav(page, 'Activity');
   await expect(
     page.getByText('Protected short closed', { exact: true }),

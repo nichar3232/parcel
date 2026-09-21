@@ -4,7 +4,7 @@ import { ArrowRight, LockKeyhole } from 'lucide-react';
 import type { VaultController } from '@/hooks/parcel/use-vault';
 import type { OrderTerms, Quote } from '@/lib/parcel/types';
 import { deliveryBounds } from '@/lib/parcel/envelope';
-import { bounded, orderGreeks } from '@/lib/parcel/math';
+import { bounded, DEFAULT_BLACK_SCHOLES, orderGreeks } from '@/lib/parcel/math';
 import { parseOrderTerms } from '@/lib/parcel/validation';
 import {
   CATEGORIES,
@@ -400,6 +400,19 @@ export function TradeView({
                       {usd(
                         reference,
                         effective.reference === 'dividend' ? 4 : 2,
+                      )}
+                      {effective.reference === 'stock' && (
+                        <>
+                          {', '}
+                          {(DEFAULT_BLACK_SCHOLES.riskFreeRate * 100).toFixed(
+                            2,
+                          )}
+                          %{' rate, '}
+                          {(DEFAULT_BLACK_SCHOLES.dividendYield * 100).toFixed(
+                            2,
+                          )}
+                          %{' yield'}
+                        </>
                       )}
                     </span>
                   </div>

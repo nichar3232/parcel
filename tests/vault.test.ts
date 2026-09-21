@@ -12,12 +12,13 @@ import {
   optionGreeks,
   orderGreeks,
 } from '../lib/parcel/math';
+import { curveCash } from '../lib/parcel/curves';
 import { units } from '../lib/engine';
 import { borrowDebt, borrowInterest } from '../lib/parcel/funding';
 import { borrowRate } from '../lib/parcel/lending';
 import { mark } from '../lib/parcel/market';
 import { marginGroups } from '../lib/parcel/risk';
-import { templateTerms, templates } from '../lib/parcel/templates';
+import { strikeStep, templateTerms, templates } from '../lib/parcel/templates';
 import type { OrderTerms, VaultAction } from '../lib/parcel/types';
 function setup() {
   const store = new Store(':memory:'),
@@ -672,6 +673,15 @@ void test('math: Black-Scholes prices, greeks and parity are analytical at any p
   close(call.theta, -0.017573, 2e-5);
   close(call.price - put.price, 100 - 100 * Math.exp(-0.05));
 
+  const carryModel = { riskFreeRate: 0.04, dividendYield: 0.015 };
+  const carryCall = optionGreeks('call', 100, 105, 180, 0.35, carryModel);
+  const carryPut = optionGreeks('put', 100, 105, 180, 0.35, carryModel);
+  close(
+    carryCall.price - carryPut.price,
+    100 * Math.exp(-0.015 * (180 / 365)) - 105 * Math.exp(-0.04 * (180 / 365)),
+    1e-8,
+  );
+
   const oneShare = templateTerms('call', '2025-02-07');
   oneShare.quantity = 1;
   const microShare = structuredClone(oneShare);
@@ -681,6 +691,180 @@ void test('math: Black-Scholes prices, greeks and parity are analytical at any p
   for (const key of ['price', 'delta', 'gamma', 'theta', 'vega'] as const)
     close(micro[key] * 1_000_000, full[key], 1e-10);
   assert.equal(cashPayoff(microShare, 160), 0.000015);
+});
+void test('math: every template uses signed Black-Scholes legs and its expiry delivery exactly reproduces payoff', () => {
+  const close = (actual: number, expected: number, label: string) =>
+    assert.ok(
+      Math.abs(actual - expected) < 1e-6,
+      `${label}: expected ${actual} to equal ${expected}`,
+    );
+  const model = { riskFreeRate: 0.031, dividendYield: 0.012 };
+
+  for (const template of templates) {
+    const terms = templateTerms(template.id, '2025-02-07');
+    const spot = terms.reference === 'dividend' ? 0.01 : 142.62;
+    const vol = terms.reference === 'dividend' ? 0.8 : 0.45;
+
+    if (terms.curve) {
+      const base = orderGreeks(terms, spot, '2025-01-24', vol, model);
+      const higherRate = orderGreeks(terms, spot, '2025-01-24', vol, {
+        ...model,
+        riskFreeRate: 0.08,
+      });
+      assert.notEqual(
+        base.price,
+        higherRate.price,
+        `${template.id} curve must use the shared Black-Scholes rate`,
+      );
+      continue;
+    }
+
+    const greeks = orderGreeks(terms, spot, '2025-01-24', vol, model);
+    const independentlyPriced = terms.legs.reduce((total, leg) => {
+      const side = leg.side === 'buy' ? 1 : -1;
+      return (
+        total +
+        optionGreeks(
+          leg.kind,
+          spot,
+          leg.strike,
+          (Date.parse(terms.expiry) - Date.parse('2025-01-24')) / 86400000,
+          vol,
+          model,
+        ).price *
+          terms.quantity *
+          leg.ratio *
+          side
+      );
+    }, 0);
+    close(greeks.price, independentlyPriced, `${template.id} model price`);
+
+    const strikes = terms.legs.map((leg) => leg.strike);
+    const points = [
+      0,
+      ...strikes.flatMap((strike) => [
+        Math.max(0, strike - 0.000001),
+        strike,
+        strike + 0.000001,
+      ]),
+      Math.max(...strikes) * 2,
+    ];
+    for (const settlement of points) {
+      const expected = terms.legs.reduce((total, leg) => {
+        const intrinsic = Math.max(
+          0,
+          leg.kind === 'call'
+            ? settlement - leg.strike
+            : leg.strike - settlement,
+        );
+        return (
+          total +
+          intrinsic * terms.quantity * leg.ratio * (leg.side === 'buy' ? 1 : -1)
+        );
+      }, 0);
+      close(
+        cashPayoff(terms, settlement),
+        expected,
+        `${template.id} cash payoff at ${settlement}`,
+      );
+      if (terms.settlement === 'physical') {
+        const delivery = deliveries(terms, settlement);
+        close(
+          delivery.cash + delivery.shares * settlement,
+          cashPayoff(terms, settlement),
+          `${template.id} physical delivery at ${settlement}`,
+        );
+      }
+    }
+  }
+});
+void test('math: curve templates scale with the selected underlying and keep their full payout envelope', () => {
+  const baseSpot = 142.62;
+  const targetSpot = 1_017.5;
+  const ratio = targetSpot / baseSpot;
+  const step = strikeStep(targetSpot);
+  const close = (actual: number, expected: number, label: string) =>
+    assert.ok(
+      Math.abs(actual - expected) < 0.000002,
+      `${label}: expected ${actual} to equal ${expected}`,
+    );
+
+  for (const template of templates.filter((candidate) => candidate.curve)) {
+    const nvda = templateTerms(template.id, '2025-02-07');
+    const scaled = templateTerms(template.id, '2025-02-07', 'MSFT', targetSpot);
+    assert.ok(nvda.curve && scaled.curve, `${template.id} must retain a curve`);
+    if (nvda.reference === 'stock') {
+      close(
+        scaled.curve.lower,
+        Math.round((nvda.curve.lower * ratio) / step) * step,
+        `${template.id} lower strike scales`,
+      );
+      close(
+        scaled.curve.upper,
+        Math.round((nvda.curve.upper * ratio) / step) * step,
+        `${template.id} upper strike scales`,
+      );
+      close(
+        scaled.curve.cap,
+        nvda.curve.cap * ratio,
+        `${template.id} cap scales`,
+      );
+    } else {
+      assert.deepEqual(scaled.curve, nvda.curve);
+    }
+
+    const curve = scaled.curve;
+    const points = [
+      0,
+      curve.lower,
+      (curve.lower + curve.upper) / 2,
+      curve.upper,
+      curve.upper * 2,
+    ];
+    for (const settlement of points) {
+      const expected = Number(curveCash(scaled, settlement)) / 1e6;
+      close(
+        cashPayoff(scaled, settlement),
+        expected,
+        `${template.id} curve payoff at ${settlement}`,
+      );
+    }
+    assert.equal(
+      cashPayoff(scaled, 0),
+      0,
+      `${template.id} has no low-tail payout`,
+    );
+    close(
+      cashPayoff(scaled, curve.upper * 2),
+      curve.cap,
+      `${template.id} reaches its disclosed cap`,
+    );
+  }
+});
+void test('math: every nonlinear ticket equals its integer settlement curve at expiry', () => {
+  const close = (actual: number, expected: number, label: string) =>
+    assert.ok(
+      Math.abs(actual - expected) < 1e-9,
+      `${label}: expected ${actual} to equal ${expected}`,
+    );
+  for (const template of templates.filter((candidate) => candidate.curve)) {
+    const terms = templateTerms(template.id, '2025-02-07');
+    const curve = terms.curve!;
+    for (const spot of [
+      0,
+      curve.lower - 0.000001,
+      curve.lower,
+      (curve.lower + curve.upper) / 2,
+      curve.upper,
+      curve.upper + 0.000001,
+      curve.upper * 2,
+    ])
+      close(
+        orderGreeks(terms, Math.max(0.000001, spot), terms.expiry).price,
+        cashPayoff(terms, Math.max(0.000001, spot)),
+        `${template.id} at ${spot}`,
+      );
+  }
 });
 void test('vault: a stored book reopens with its positions and revision intact', () => {
   const a = setup();

@@ -1,6 +1,11 @@
 import { curveCash, curveGreeks } from './curves';
+import {
+  resolveBlackScholesModel,
+  type BlackScholesModel,
+} from './black-scholes';
 import { units } from '../engine';
 import type { Greeks, Leg, OrderTerms } from './types';
+export { DEFAULT_BLACK_SCHOLES, type BlackScholesModel } from './black-scholes';
 export const round = (n: number) => Math.round(n * 1e6) / 1e6;
 export const signedUnits = (n: number) => (n < 0 ? -units(-n) : units(n));
 export const add = (a: number, b: number) =>
@@ -9,23 +14,6 @@ export const mul = (a: number, b: number) =>
   Number((signedUnits(a) * signedUnits(b)) / 1_000_000n) / 1e6;
 export const days = (from: string, to: string) =>
   (Date.parse(to) - Date.parse(from)) / 86400000;
-/** Assumptions supplied to the option model. Rates are annual decimals. */
-export interface BlackScholesModel {
-  riskFreeRate: number;
-  dividendYield: number;
-}
-
-/**
- * Model inputs are explicit rather than hidden inside a pricing expression.
- * The current desk uses a 4% continuously-compounded rate and no dividend
- * yield; callers may supply a different curve without changing scale or
- * greeks semantics.
- */
-export const DEFAULT_BLACK_SCHOLES: BlackScholesModel = Object.freeze({
-  riskFreeRate: 0.04,
-  dividendYield: 0,
-});
-
 const normal = (x: number) => {
   const t = 1 / (1 + 0.2316419 * Math.abs(x));
   const d = 0.3989422804014327 * Math.exp((-x * x) / 2);
@@ -108,15 +96,7 @@ export function optionGreeks(
   overrides: Partial<BlackScholesModel> = {},
 ): Greeks {
   assertModelInputs(s, k, v);
-  const model: BlackScholesModel = {
-    ...DEFAULT_BLACK_SCHOLES,
-    ...overrides,
-  };
-  if (
-    !Number.isFinite(model.riskFreeRate) ||
-    !Number.isFinite(model.dividendYield)
-  )
-    throw new RangeError('Black-Scholes rates must be finite numbers.');
+  const model = resolveBlackScholesModel(overrides);
   const t = Math.max(0, dayCount) / 365;
   if (t === 0 || v === 0) return deterministicGreeks(kind, s, k, t, model);
 
@@ -154,8 +134,10 @@ export function orderGreeks(
   s: number,
   date: string,
   vol = 0.45,
+  overrides: Partial<BlackScholesModel> = {},
 ): Greeks {
-  if (terms.curve) return curveGreeks(terms, s, days(date, terms.expiry), vol);
+  if (terms.curve)
+    return curveGreeks(terms, s, days(date, terms.expiry), vol, overrides);
   const result: Greeks = { price: 0, delta: 0, gamma: 0, theta: 0, vega: 0 };
   for (const leg of terms.legs) {
     const g = optionGreeks(
@@ -164,6 +146,7 @@ export function orderGreeks(
       leg.strike,
       days(date, terms.expiry),
       vol,
+      overrides,
     );
     const q = terms.quantity * leg.ratio * (leg.side === 'buy' ? 1 : -1);
     for (const key of Object.keys(result) as (keyof Greeks)[])

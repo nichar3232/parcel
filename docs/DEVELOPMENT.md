@@ -35,20 +35,24 @@ node --env-file=.env --import tsx server/index.ts
 
 On the VPS, systemd loads the protected `EnvironmentFile`; see `ops/README.md`.
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `PORT` | `3025` | UI and API listen together |
-| `HOST` | `0.0.0.0` | Listener address |
-| `STRATA_STATE_DIR` | `.state` | SQLite and test configuration directory |
-| `STRATA_PUBLIC_DIR` | `dist/client` | Built public assets |
-| `CHAIN_ENABLED` | enabled unless `false` | Set `false` for keyless historical demo |
-| `SOLANA_NETWORK` | `localnet` | Explicit `localnet` or `devnet` |
-| `SOLANA_RPC_URL` | `http://127.0.0.1:8899` | Pinned test RPC; localnet must be loopback |
-| `SOLANA_GENESIS_HASH` | empty | Required chain identity pin before execution |
-| `REPLAY_EXPIRY_SECONDS` | `90` | Actual-chain demo observation delay |
-| `COOKIE_SECURE` | `false` | Set `true` behind HTTPS |
-| `ALLOWED_ORIGINS` | empty | Optional comma-separated trusted mutation origins |
-| `SITE_ORIGIN` | private host fallback | Build-time origin for social metadata |
+| Variable                | Default                         | Meaning                                                                                                                  |
+| ----------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `PORT`                  | `3025`                          | UI and API listen together                                                                                               |
+| `HOST`                  | `0.0.0.0`                       | Listener address                                                                                                         |
+| `STRATA_STATE_DIR`      | `.state`                        | SQLite and test configuration directory                                                                                  |
+| `STRATA_PUBLIC_DIR`     | `dist/client`                   | Built public assets                                                                                                      |
+| `CHAIN_ENABLED`         | enabled unless `false`          | Set `false` for keyless historical demo                                                                                  |
+| `SOLANA_NETWORK`        | `localnet`                      | Explicit `localnet` or `devnet`                                                                                          |
+| `SOLANA_RPC_URL`        | `http://127.0.0.1:8899`         | Pinned test RPC; localnet must be loopback                                                                               |
+| `SOLANA_GENESIS_HASH`   | empty                           | Required chain identity pin before execution                                                                             |
+| `REPLAY_EXPIRY_SECONDS` | `90`                            | Actual-chain demo observation delay                                                                                      |
+| `COOKIE_SECURE`         | `false`                         | Set `true` behind HTTPS                                                                                                  |
+| `ALLOWED_ORIGINS`       | empty                           | Optional comma-separated trusted mutation origins                                                                        |
+| `SITE_ORIGIN`           | private host fallback           | Build-time origin for social metadata                                                                                    |
+| `XSTOCKS_API_URL`       | `https://api.xstocks.fi/api/v2` | Public issuer catalog and indicative quote API for the Solana xStocks watchlist                                          |
+| `SUPERSTATE_API_URL`    | `https://api.superstate.com`    | Public Opening Bell registry and direct price API; only completed Solana equity deployments are shown                    |
+| `ONDO_API_URL`          | `https://api.gm.ondo.finance`   | Ondo Stocks issuer API base URL; used only with `ONDO_API_KEY`                                                           |
+| `ONDO_API_KEY`          | empty                           | Optional Ondo issuer credential. Without it the UI explicitly marks Ondo as not configured and shows no substitute quote |
 
 Advanced dedicated deployments may configure `STRATA_PROGRAM_ID` and `STRATA_AUTHORITY`; the compiled program constants and provisioned keys must agree. The existing VPS is already configured. Do not copy its keys into a clone.
 
@@ -68,7 +72,6 @@ The route table and chain state machine are in [ARCHITECTURE.md](ARCHITECTURE.md
 - Chain unavailable in keyless mode: expected. `GET /api/health` checks app/database liveness. `/api/ready` also requires the configured chain and returns 503 while chain execution is disabled.
 - A static-only hosting deployment cannot run this backend. Keep UI and API together on the VPS, or provision an equivalent Node service with persistent storage.
 
-
 ## Parcel vault API
 
 After `GET /api/session`, `GET /api/vault` returns the vault book, its independent revision, risk summary and the stored market session. `POST /api/vault/quote` accepts `{revision, terms}` and returns a 30-second owner-bound quote. `POST /api/vault/actions` accepts `{revision, action}`. All POST routes require the same cookie, `X-CSRF-Token` and `Idempotency-Key`. The quote cannot be reused under another key, account or revised portfolio.
@@ -76,7 +79,6 @@ After `GET /api/session`, `GET /api/vault` returns the vault book, its independe
 `VaultAction` in `lib/parcel/types.ts` defines transfers, stock trades, quote execution, option close, margin policy, lend/recall, protected short/close and market advancement. The client never supplies a settlement price, reserve, loan interest amount, counterparty balance or replacement book. New routes share the same authentication and static-serving process as the original backend. `/legacy` serves the retained Strata desk with its original API and independent practice balances.
 
 Migration `002-vaults.sql` adds accounts and quotes without rewriting old sessions or portfolios. Fresh and existing databases run both idempotent migrations on startup. The new client uses only relative API URLs. `npm run demo` enables the entire vault ledger with the separate chain service disabled; `/api/ready` can therefore return 503 while the keyless vault is fully operable. Production operator checks should inspect the returned chain reason as well as liveness.
-
 
 ## Recovering a vault mutation
 

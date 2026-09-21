@@ -9,14 +9,13 @@ import type { Instrument } from './feeds';
  * failing switches itself off rather than retrying forever against a
  * wall. Whatever they do not cover, the engine walks.
  *
- * Pyth is first because it is the only one of the two that publishes
- * equities, which is what a desk written on NVDA actually needs. Its
- * price endpoint now wants an API key even though its metadata
- * endpoint is still open, so without PYTH_API_KEY set it resolves feed
- * ids, gets a 401 on the first poll, and stands down. Coinbase needs
- * no key and covers the crypto collateral, so out of the box the
- * blue-chip side of the desk is genuinely live and the equity side is
- * an explicitly labelled simulation.
+ * Pyth is first because it can publish the sandbox's crypto references. Its
+ * price endpoint now wants an API key even though its metadata endpoint is
+ * still open, so without PYTH_API_KEY set it resolves feed ids, gets a 401 on
+ * the first poll, and stands down. Coinbase needs no key and covers the
+ * crypto collateral. Issuer-priced Solana xStocks are intentionally handled
+ * by the separate xStocks service; they are never silently passed into this
+ * simulation fallback.
  */
 
 const TIMEOUT = 4000;

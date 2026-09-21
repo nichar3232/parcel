@@ -312,8 +312,8 @@ export function PayoffChart({
 
       {stockQuantity > 0 && (
         <p className="od-note">
-          Includes {stockQuantity} NVDA acquired at {usd(spot)}. Stock losses
-          below the protected range remain yours.
+          Includes {stockQuantity} {terms.symbol} acquired at {usd(spot)}. Stock
+          losses below the protected range remain yours.
         </p>
       )}
     </div>

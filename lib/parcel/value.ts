@@ -102,7 +102,7 @@ export function withinRange(points: ValuePoint[], range: Range) {
  * Measured over the drawn window rather than always against yesterday,
  * so the number under the balance is the move the line shows.
  */
-export function changeOver(points: ValuePoint[]) {
+export function changeOver(points: readonly Pick<ValuePoint, 'value'>[]) {
   if (points.length < 2) return null;
   const from = points[0].value,
     to = points.at(-1)!.value;

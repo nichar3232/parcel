@@ -256,8 +256,33 @@ export function templateTerms(
           strike: Math.max(step, Math.round((l.strike * ratio) / step) * step),
         },
   );
+  const scaledCurve = () => {
+    const lower = Math.max(
+      step,
+      Math.round((t.curve!.lower * ratio) / step) * step,
+    );
+    const upper = Math.max(
+      lower + step,
+      Math.round((t.curve!.upper * ratio) / step) * step,
+    );
+    return {
+      lower,
+      upper,
+      cap: Math.round(t.curve!.cap * ratio * 1e6) / 1e6,
+    };
+  };
+  // A curve's boundaries are strikes in another form. Keep its range and
+  // maximum share-equivalent payment proportional when a template moves from
+  // the NVDA reference to a different underlying, just as ordinary legs do.
+  // Without this, a $1,000 underlying would inherit a $130–$160 payout band.
+  const curve = t.curve
+    ? {
+        ...structuredClone(t.curve),
+        ...(ratio === 1 || t.reference === 'dividend' ? {} : scaledCurve()),
+      }
+    : undefined;
   return {
-    ...(t.curve ? { curve: structuredClone(t.curve) } : {}),
+    ...(curve ? { curve } : {}),
     symbol,
     name: t.name,
     legs,

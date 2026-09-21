@@ -1,4 +1,6 @@
 import { MarkEngine } from './prices/engine';
+import { TokenizedEquitiesService } from './tokenized-equities/service';
+import { XStocksService } from './xstocks/service';
 import { ParcelAdapter } from './parcel/chain/adapter';
 import { loadAssets } from './preipo/assets';
 import { VaultChainCoordinator } from './parcel/chain/coordinator';
@@ -21,7 +23,12 @@ import {
 import { SolanaAdapter, type ChainAdapter } from './solana/adapter';
 export function createApp(
   config: Config,
-  options: { store?: Store; adapter?: ChainAdapter } = {},
+  options: {
+    store?: Store;
+    adapter?: ChainAdapter;
+    xstocks?: XStocksService;
+    tokenizedEquities?: TokenizedEquitiesService;
+  } = {},
 ) {
   const store =
     options.store || new Store(path.join(config.stateDir, 'strata.sqlite'));
@@ -33,6 +40,12 @@ export function createApp(
   // is priced, and the rate that produces is stored on the loan.
   const marks = new MarkEngine();
   marks.start();
+  // xStocks has its own issuer registry and quote endpoint. It is not a
+  // MarkEngine instrument: a missing issuer quote must read as unavailable,
+  // never as the sandbox engine's modelled walk.
+  const xstocks = options.xstocks || new XStocksService();
+  const tokenizedEquities =
+    options.tokenizedEquities || new TokenizedEquitiesService(xstocks);
   const vault = new VaultService(
     store,
     Date.now,
@@ -105,6 +118,28 @@ export function createApp(
       }
       if (url.pathname === '/api/marks' && method === 'GET')
         return json(res, 200, marks.snapshot());
+      if (url.pathname === '/api/xstocks' && method === 'GET')
+        return json(res, 200, await xstocks.catalog());
+      if (url.pathname === '/api/xstocks/quotes' && method === 'GET') {
+        const symbols = (url.searchParams.get('symbols') || '')
+          .split(',')
+          .map((symbol) => symbol.trim())
+          .filter(Boolean);
+        return json(res, 200, { quotes: await xstocks.quotes(symbols) });
+      }
+      if (url.pathname === '/api/tokenized-equities' && method === 'GET')
+        return json(res, 200, await tokenizedEquities.catalog());
+      if (
+        url.pathname === '/api/tokenized-equities/quotes' &&
+        method === 'GET'
+      ) {
+        const ids = (url.searchParams.get('ids') || '')
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean)
+          .slice(0, 50);
+        return json(res, 200, { quotes: await tokenizedEquities.quotes(ids) });
+      }
       if (url.pathname === '/api/evidence' && method === 'GET') {
         try {
           return json(
@@ -168,15 +203,15 @@ export function createApp(
         );
       if (url.pathname === '/api/preipo/assets' && method === 'GET') {
         const assets = await loadAssets({
-            verifyRpcUrl:
-              process.env.PREIPO_VERIFY_RPC_URL ||
-              'https://api.mainnet-beta.solana.com',
-            verifyNetwork: (process.env.PREIPO_VERIFY_NETWORK || 'mainnet') as
-              | 'mainnet'
-              | 'devnet'
-              | 'localnet',
-            programId: process.env.PREIPO_PROGRAM_ID || null,
-            usdcMint: process.env.PREIPO_USDC_MINT || null,
+          verifyRpcUrl:
+            process.env.PREIPO_VERIFY_RPC_URL ||
+            'https://api.mainnet-beta.solana.com',
+          verifyNetwork: (process.env.PREIPO_VERIFY_NETWORK || 'mainnet') as
+            | 'mainnet'
+            | 'devnet'
+            | 'localnet',
+          programId: process.env.PREIPO_PROGRAM_ID || null,
+          usdcMint: process.env.PREIPO_USDC_MINT || null,
         });
         // Peg a mock token to each sponsor's published mark. Nobody
         // publishes a live feed for a private company, so the engine
@@ -267,5 +302,14 @@ export function createApp(
   server.requestTimeout = 15000;
   server.headersTimeout = 10000;
   server.keepAliveTimeout = 5000;
-  return { server, store, chain, portfolio, vault, marks };
+  return {
+    server,
+    store,
+    chain,
+    portfolio,
+    vault,
+    marks,
+    xstocks,
+    tokenizedEquities,
+  };
 }

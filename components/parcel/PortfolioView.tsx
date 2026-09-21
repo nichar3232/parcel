@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -83,10 +83,32 @@ export function PortfolioView({
   const { book, risk, market } = s;
   const underlyings = market.underlyings;
 
+  /* The ledger's session price is the source of the stored balance
+     history. The headline is deliberately different: once the mark feed
+     is ready it is the cash in the vault plus the shares at their most
+     recent observable mark. This keeps a live quote from rewriting a
+     past close, while still making the number a desk user sees now react
+     to the market. */
+  const liveSpots = useMemo(
+    () =>
+      Object.fromEntries(
+        underlyings.map((u) => [
+          u.symbol,
+          feed.marks[u.symbol]?.price ?? u.price,
+        ]),
+      ),
+    [feed.marks, underlyings],
+  );
   const nav = underlyings.reduce(
     (t, u) => t + (book.vault[u.symbol] ?? 0) * u.price,
     book.vault.USDC,
   );
+  const liveNav = underlyings.reduce(
+    (t, u) => t + (book.vault[u.symbol] ?? 0) * liveSpots[u.symbol],
+    book.vault.USDC,
+  );
+  const hasLiveMark = underlyings.some((u) => !!feed.marks[u.symbol]);
+  const displayedNav = hasLiveMark ? liveNav : nav;
   // What is held: every underlying with something in the vault, NVDA
   // always so the list never comes up empty. What sits only in the
   // wallet is deposited from the wallet, not listed here as a zero.
@@ -112,7 +134,7 @@ export function PortfolioView({
           p.terms,
           p.terms.reference === 'dividend'
             ? market.dividend
-            : (on?.price ?? market.price),
+            : (liveSpots[p.terms.symbol] ?? on?.price ?? market.price),
           book.date,
           p.terms.reference === 'dividend'
             ? 0.8
@@ -124,14 +146,26 @@ export function PortfolioView({
         const drift = value - p.premium;
         return { position: p, value, pnl: Math.abs(drift) < 5e-7 ? 0 : drift };
       }),
-    [active, market, book.date, underlyings],
+    [active, market, book.date, underlyings, liveSpots],
   );
   const [range, setRange] = useState<Range>('1M');
   const series = useMemo(() => valueSeries(book), [book]);
   const drawn = withinRange(series, range);
-  const move = changeOver(drawn);
+  const liveSamples = useLiveValueSamples(feed, displayedNav, s.revision);
+  /* The persistent series is session-close accounting. The small tail is
+     made only of real marks received during this browser session. It
+     never invents an intraday history merely to fill the chart. */
+  const chartPoints = useMemo(() => {
+    const base = drawn.length ? drawn : [{ date: book.date, value: nav }];
+    return [...base, ...liveSamples];
+  }, [book.date, drawn, liveSamples, nav]);
+  const move = changeOver(chartPoints);
+  /* Formatting a zero move as a green +$0.00 is a small lie of tone.
+     Keep a cent threshold for the directional treatment, the same
+     precision the balance itself is shown at. */
+  const directionalMove = move && Math.abs(move.amount) >= 0.005 ? move : null;
 
-  if (tab === 'watchlist') return <WatchlistView feed={feed} />;
+  if (tab === 'watchlist') return <WatchlistView />;
   if (tab === 'collateral') return <Collateral desk={desk} />;
   if (tab === 'activity') return <Activity desk={desk} />;
 
@@ -155,44 +189,60 @@ export function PortfolioView({
         <div className="od-open-head">
           <span>Vault value</span>
           <strong>
-            <Money value={nav} />
+            <Money value={displayedNav} />
           </strong>
-          {move ? (
-            <div className={`od-open-move ${move.amount >= 0 ? 'up' : 'down'}`}>
-              {move.amount >= 0 ? (
+          {directionalMove ? (
+            <div
+              className={`od-open-move ${directionalMove.amount >= 0 ? 'up' : 'down'}`}
+            >
+              {directionalMove.amount >= 0 ? (
                 <TrendingUp size={15} />
               ) : (
                 <TrendingDown size={15} />
               )}
               <b>
-                <Money value={move.amount} sign />
+                <Money value={directionalMove.amount} sign />
               </b>
-              <span>({(move.percent * 100).toFixed(2)}%)</span>
-              <em>{RANGES.find((r) => r.id === range)?.label}</em>
+              <span>({(directionalMove.percent * 100).toFixed(2)}%)</span>
+              <em>
+                {drawn.length > 1
+                  ? RANGES.find((r) => r.id === range)?.label
+                  : 'Since open'}
+              </em>
             </div>
           ) : (
             <div className="od-open-move flat">
-              Cash and stock. Open contracts are marked separately below.
+              {hasLiveMark
+                ? 'No change from the opening mark. Open contracts are marked separately below.'
+                : 'Cash and stock. Open contracts are marked separately below.'}
             </div>
           )}
+          <div className={`od-open-feed ${hasLiveMark ? 'live' : ''}`}>
+            <i aria-hidden />
+            <span>
+              {hasLiveMark
+                ? 'Live mark'
+                : feed.ready
+                  ? 'Session mark'
+                  : 'Connecting to marks'}
+            </span>
+            {hasLiveMark && feed.asOf > 0 && (
+              <time dateTime={new Date(feed.asOf).toISOString()}>
+                Updated{' '}
+                {new Intl.DateTimeFormat('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                }).format(feed.asOf)}
+              </time>
+            )}
+          </div>
         </div>
 
-        {drawn.length > 1 ? (
-          <ValueHistory
-            points={drawn}
-            label={`Vault value across ${drawn.length} sessions, ending ${usd(nav)}`}
-          />
-        ) : (
-          /* One session is a dot, and a dot stretched across 760px is a
-             flat line implying a day of no movement. The vault opened
-             this session; say so rather than draw it. */
-          <div className="od-open-blank">
-            <p>
-              Your vault opened this session. The value line starts once the
-              market clock moves on.
-            </p>
-          </div>
-        )}
+        <ValueHistory
+          points={chartPoints}
+          label={`Vault value across ${drawn.length} completed session${drawn.length === 1 ? '' : 's'}${hasLiveMark ? ' with a live mark' : ''}, ending ${usd(displayedNav)}`}
+        />
 
         <div className="od-range">
           {RANGES.map((r) => (
@@ -207,6 +257,126 @@ export function PortfolioView({
             </button>
           ))}
         </div>
+
+        <section
+          className="od-open-positions"
+          aria-labelledby="positions-title"
+        >
+          <div className="od-open-positions-head">
+            <div>
+              <span>Portfolio</span>
+              <h2 id="positions-title">Positions</h2>
+              <p>Assets, contracts and financing held in this vault.</p>
+            </div>
+            <Badge
+              tone={
+                active.length +
+                book.loans.filter((p) => p.status === 'active').length +
+                book.shorts.filter((p) => p.status === 'active').length +
+                (book.borrows ?? []).filter((p) => p.status === 'active').length
+                  ? 'accent'
+                  : 'neutral'
+              }
+            >
+              {active.length +
+                book.loans.filter((p) => p.status === 'active').length +
+                book.shorts.filter((p) => p.status === 'active').length +
+                (book.borrows ?? []).filter((p) => p.status === 'active')
+                  .length}{' '}
+              open
+            </Badge>
+          </div>
+
+          <div className="od-open-positions-grid">
+            {/* The stock is a position, so it belongs with contracts and
+                financing rather than in a detached sidebar. Cash remains
+                in buying power below: it is spendable capital, not a long
+                position. */}
+            <Panel>
+              <PanelHead
+                title={held.length > 1 ? 'Your holdings' : 'Your stock'}
+              />
+              <div className="od-pos">
+                {held.map((u) => {
+                  const live = feed.marks[u.symbol];
+                  return (
+                    <Fragment key={u.symbol}>
+                      <div className="od-pos-row od-pos-asset">
+                        <AssetLogo
+                          symbol={u.symbol}
+                          src={logoOf(u.symbol)}
+                          size={30}
+                        />
+                        <div className="od-pos-what">
+                          <b>{u.name}</b>
+                          <small>
+                            {qty(book.vault[u.symbol] ?? 0)} {u.symbol}
+                            {(risk.shares[u.symbol] ?? 0) > 0
+                              ? `, ${qty(risk.shares[u.symbol])} reserved`
+                              : ''}
+                            {(book.wallet[u.symbol] ?? 0) > 0
+                              ? `, ${qty(book.wallet[u.symbol])} in wallet`
+                              : ''}
+                          </small>
+                        </div>
+                        <div className="od-pos-num">
+                          <b>
+                            {usd(
+                              (book.vault[u.symbol] ?? 0) * liveSpots[u.symbol],
+                            )}
+                          </b>
+                          {live && (
+                            <small
+                              className={live.change >= 0 ? 'od-up' : 'od-down'}
+                            >
+                              {live.change >= 0 ? '+' : ''}
+                              {(live.change * 100).toFixed(2)}%
+                            </small>
+                          )}
+                        </div>
+                      </div>
+                      <div className="od-pos-row od-pos-actions">
+                        <div className="od-row-actions">
+                          <button
+                            onClick={() =>
+                              onTransfer({
+                                asset: u.symbol,
+                                direction: 'deposit',
+                              })
+                            }
+                            aria-label={`Deposit ${u.symbol}`}
+                          >
+                            <ArrowDownLeft size={14} />
+                            Deposit
+                          </button>
+                          <button
+                            onClick={() =>
+                              onTransfer({
+                                asset: u.symbol,
+                                direction: 'withdraw',
+                              })
+                            }
+                            aria-label={`Withdraw ${u.symbol}`}
+                          >
+                            <ArrowUpRight size={14} />
+                            Withdraw
+                          </button>
+                        </div>
+                      </div>
+                    </Fragment>
+                  );
+                })}
+              </div>
+            </Panel>
+
+            <Positions
+              marked={marked}
+              desk={desk}
+              navigate={navigate}
+              liveSpots={liveSpots}
+            />
+          </div>
+        </section>
 
         {/* USDC had a row in the table beside NVDA, which framed the
             cash as a holding you are long rather than as the thing you
@@ -256,81 +426,37 @@ export function PortfolioView({
           </Button>
         </div>
       </div>
-
-      <aside className="od-open-side">
-        {/* The stock is a position, so it is listed with the rest of
-            them rather than kept in a table of its own on the other
-            side of the screen. Cash is not: it is the buying power
-            line under the chart, because it is what you spend. */}
-        <Panel>
-          <PanelHead title={held.length > 1 ? 'Your holdings' : 'Your stock'} />
-          <div className="od-pos">
-            {held.map((u) => {
-              const live = feed.marks[u.symbol];
-              return (
-                <Fragment key={u.symbol}>
-                  <div className="od-pos-row od-pos-asset">
-                    <AssetLogo
-                      symbol={u.symbol}
-                      src={logoOf(u.symbol)}
-                      size={30}
-                    />
-                    <div className="od-pos-what">
-                      <b>{u.name}</b>
-                      <small>
-                        {qty(book.vault[u.symbol] ?? 0)} {u.symbol}
-                        {(risk.shares[u.symbol] ?? 0) > 0
-                          ? `, ${qty(risk.shares[u.symbol])} reserved`
-                          : ''}
-                        {(book.wallet[u.symbol] ?? 0) > 0
-                          ? `, ${qty(book.wallet[u.symbol])} in wallet`
-                          : ''}
-                      </small>
-                    </div>
-                    <div className="od-pos-num">
-                      <b>{usd((book.vault[u.symbol] ?? 0) * u.price)}</b>
-                      {live && (
-                        <small
-                          className={live.change >= 0 ? 'od-up' : 'od-down'}
-                        >
-                          {live.change >= 0 ? '+' : ''}
-                          {(live.change * 100).toFixed(2)}%
-                        </small>
-                      )}
-                    </div>
-                  </div>
-                  <div className="od-pos-row od-pos-actions">
-                    <div className="od-row-actions">
-                      <button
-                        onClick={() =>
-                          onTransfer({ asset: u.symbol, direction: 'deposit' })
-                        }
-                        aria-label={`Deposit ${u.symbol}`}
-                      >
-                        <ArrowDownLeft size={14} />
-                        Deposit
-                      </button>
-                      <button
-                        onClick={() =>
-                          onTransfer({ asset: u.symbol, direction: 'withdraw' })
-                        }
-                        aria-label={`Withdraw ${u.symbol}`}
-                      >
-                        <ArrowUpRight size={14} />
-                        Withdraw
-                      </button>
-                    </div>
-                  </div>
-                </Fragment>
-              );
-            })}
-          </div>
-        </Panel>
-
-        <Positions marked={marked} desk={desk} navigate={navigate} />
-      </aside>
     </div>
   );
+}
+
+/**
+ * Keep only actual marks received in this browser session. A quote
+ * refresh can be flat; that is still a useful observation, and it makes
+ * the chart's cadence match the feed rather than an animation timer.
+ */
+function useLiveValueSamples(feed: MarkFeed, value: number, revision: number) {
+  const [samples, setSamples] = useState<{ date: string; value: number }[]>([]);
+  const lastAsOf = useRef(0);
+  const lastRevision = useRef(revision);
+
+  useEffect(() => {
+    /* A deposit, exercise or close changes the number being charted.
+       Previous browser-session samples belonged to the prior balance,
+       so begin a fresh live tail at the new balance. */
+    if (lastRevision.current !== revision) {
+      lastRevision.current = revision;
+      lastAsOf.current = 0;
+      setSamples([]);
+    }
+    if (!feed.ready || !feed.asOf || !Number.isFinite(value)) return;
+    if (feed.asOf === lastAsOf.current) return;
+    lastAsOf.current = feed.asOf;
+    const point = { date: new Date(feed.asOf).toISOString(), value };
+    setSamples((previous) => [...previous.slice(-47), point]);
+  }, [feed.asOf, feed.ready, revision, value]);
+
+  return samples;
 }
 
 /* ---------------------------------------------------------------- */
@@ -339,6 +465,7 @@ function Positions({
   marked,
   desk,
   navigate,
+  liveSpots,
 }: {
   marked: {
     position: import('@/lib/parcel/types').OptionPosition;
@@ -350,6 +477,7 @@ function Positions({
     page: 'Portfolio' | 'Trade' | 'Pre-IPO' | 'Lending',
     to?: string,
   ) => void;
+  liveSpots: Record<string, number>;
 }) {
   const s = desk.state!;
   const loans = s.book.loans.filter((p) => p.status === 'active');
@@ -613,7 +741,10 @@ function Positions({
         ) : (
           <div className="od-pos">
             {shorts.map((p) => {
-              const pnl = p.quantity * (p.entry - s.market.price) - p.premium;
+              const pnl =
+                p.quantity *
+                  (p.entry - (liveSpots[p.symbol] ?? s.market.price)) -
+                p.premium;
               return (
                 <div key={p.id} className="od-pos-row">
                   <div className="od-pos-what">
@@ -639,7 +770,7 @@ function Positions({
                     onClick={() => {
                       const close = shortCloseAmounts(
                         p,
-                        s.market.price,
+                        liveSpots[p.symbol] ?? s.market.price,
                         s.book.date,
                       );
                       setReview({

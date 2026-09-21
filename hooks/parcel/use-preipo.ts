@@ -35,7 +35,14 @@ export function usePreIpoAssets() {
         .then((r) =>
           r.ok ? r.json() : Promise.reject(new Error(`${r.status}`)),
         )
-        .then((d: AssetsPayload) => live && setData(d))
+        .then((d: AssetsPayload) => {
+          if (!live) return;
+          setData(d);
+          // A transient publisher or verification timeout must not leave the
+          // watchlist permanently labelled unavailable after a later refresh
+          // has recovered valid publisher data.
+          setError('');
+        })
         .catch((e) => live && setError((e as Error).message));
     void load();
     // The providers republish a mark on their own clock; re-reading keeps

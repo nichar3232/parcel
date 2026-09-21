@@ -24,9 +24,9 @@ Use Node 22.23.2 from `.nvmrc`. Open `http://localhost:3025`. This single server
 
 ## What works
 
-- **Portfolio:** holdings, a persistent PreStocks watchlist, and activity. Open contracts are marked to the same model the desk quotes with, and the combined payoff of the whole book is drawn across the price range.
+- **Portfolio:** holdings, a persistent multi-issuer tokenized-equities/PreStocks watchlist, and activity. The watchlist reads the configured issuers’ declared Solana deployments — currently public xStocks and Superstate Opening Bell, plus Ondo Stocks when its issuer API credential is configured — and only their direct indicative quotes. An unavailable quote is never replaced with a model price. Open contracts are marked to the same model the desk quotes with, and the combined payoff of the whole book is drawn across the price range.
 - **Vault:** deposit/withdraw test USDC and NVDA from the app bar; inspect available, reserved and lent assets. Pledged assets cannot be withdrawn, sold or lent again.
-- **Live marks:** a mark engine polls Pyth and Coinbase and walks anything with no fresh observation forward from its last real price. Every mark carries the source that produced it, and the desk shows it. See [pricing](#pricing-and-release-boundaries).
+- **Live marks:** the sandbox tape polls Pyth and Coinbase and walks any sandbox asset with no fresh observation forward from its last real price. Every mark carries the source that produced it, and the desk shows it. Solana tokenized equities use their separate issuer catalogs and quote feeds rather than this simulated path. See [pricing](#pricing-and-release-boundaries).
 - **Options chain:** browse calls and puts by strike, daily or hourly expiry, and fractional exposure. Model buy/write indications show physical backing before a funded quote.
 - **Sizing:** direct share-equivalents, premium budgets, and dollar sensitivity per one-cent reference move; exercise funding stays explicit.
 - **Basic / Advanced:** Basic asks which way you think it goes and sizes it. Advanced adds the leg editor, ratios, settlement, the full Greeks, the options chain and the value surface — what the position marks at on every day between now and expiry.
@@ -45,24 +45,24 @@ Start by depositing one NVDA share, choose **Underwrite → Covered call**, revi
 
 ## Code organization
 
-| Area | Responsibility |
-|---|---|
-| `app/tokens.css` | The palette. Every colour in the product resolves through it |
-| `app/page.tsx`, `components/brand/` | Landing page and the payoff viewer it opens on |
-| `app/desk.css`, `components/parcel/` | Workspace, views, contract editor, charts and the value surface |
-| `hooks/parcel/use-vault.ts` | Same-origin requests, revisions, recovery and UI state |
-| `hooks/parcel/use-marks.ts` | The live mark feed, as the desk sees it |
-| `server/prices/` | Mark engine, its two sources, and the simulated maker |
-| `lib/parcel/lending.ts` | Reserve parameters, the rate curve and the health factor |
-| `lib/parcel/` | Types, six-decimal arithmetic, Greeks, templates and collateral envelopes |
-| `server/parcel/service.ts` | Session ownership, quote lifecycle, atomic actions and receipts |
-| `server/parcel/ledger.ts` | Asset transfers, loans, protected shorts and net expiry settlement |
-| `server/db/002-vaults.sql`, `003-vault-chain.sql` | Vaults, quotes and recoverable onchain operations |
-| `server/parcel/chain/`, `programs/parcel/` | Durable execution coordinator, binary codec and new vault program |
-| `app/legacy/`, `server/domain/`, `server/solana/` | Retained historical desk and durable Solana execution |
-| `programs/strata/` | Audited original Anchor escrow program |
-| `tests/`, `.github/workflows/` | Domain/API regression tests and real-backend browser CI |
-| `ops/` | VPS deployment, backup, rollback and restart verification |
+| Area                                              | Responsibility                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------- |
+| `app/tokens.css`                                  | The palette. Every colour in the product resolves through it              |
+| `app/page.tsx`, `components/brand/`               | Landing page and the payoff viewer it opens on                            |
+| `app/desk.css`, `components/parcel/`              | Workspace, views, contract editor, charts and the value surface           |
+| `hooks/parcel/use-vault.ts`                       | Same-origin requests, revisions, recovery and UI state                    |
+| `hooks/parcel/use-marks.ts`                       | The live mark feed, as the desk sees it                                   |
+| `server/prices/`                                  | Mark engine, its two sources, and the simulated maker                     |
+| `lib/parcel/lending.ts`                           | Reserve parameters, the rate curve and the health factor                  |
+| `lib/parcel/`                                     | Types, six-decimal arithmetic, Greeks, templates and collateral envelopes |
+| `server/parcel/service.ts`                        | Session ownership, quote lifecycle, atomic actions and receipts           |
+| `server/parcel/ledger.ts`                         | Asset transfers, loans, protected shorts and net expiry settlement        |
+| `server/db/002-vaults.sql`, `003-vault-chain.sql` | Vaults, quotes and recoverable onchain operations                         |
+| `server/parcel/chain/`, `programs/parcel/`        | Durable execution coordinator, binary codec and new vault program         |
+| `app/legacy/`, `server/domain/`, `server/solana/` | Retained historical desk and durable Solana execution                     |
+| `programs/strata/`                                | Audited original Anchor escrow program                                    |
+| `tests/`, `.github/workflows/`                    | Domain/API regression tests and real-backend browser CI                   |
+| `ops/`                                            | VPS deployment, backup, rollback and restart verification                 |
 
 ## Verify
 
@@ -79,11 +79,13 @@ CI runs this flow on Linux from a clean checkout. The suite is 121 application t
 
 **Live marks are display and indicative pricing only.** The vault's own accounting stays on the stored session clock, so a contract's premium and its settlement can be reproduced from the ledger. The live feed drives the tape, the markets tables, the pre-IPO valuations and the header.
 
-Marks come from Pyth first and Coinbase second, and anything with no fresh observation is walked forward from its last real price by a geometric Brownian motion. Pyth is the only one of the two that publishes US equities, and its price endpoint now requires a key: without `PYTH_API_KEY` it resolves its feed ids, takes one 401 and stands down, which leaves NVDA and every sponsor token on the walk. Coinbase needs no key, so the crypto collateral is genuinely live out of the box. Every mark carries its source and the time of its last real observation, and the UI shows both — a simulated tick is never presented as a market price.
+The sandbox tape marks come from Pyth first and Coinbase second; any sandbox asset with no fresh observation is walked forward from its last real price by a geometric Brownian motion. Coinbase needs no key, so the crypto collateral is genuinely live out of the box. Every mark carries its source and the time of its last real observation, and the UI shows both — a simulated tick is never presented as a market price.
+
+The portfolio watchlist separately refreshes the complete current Solana registry for each configured issuer: public xStocks, public Superstate Opening Bell, and optional credentialed Ondo Stocks. It requests issuer quotes only for followed symbols. It never synthesizes a token quote from a traditional ticker, previous close, or the sandbox walk. The view preserves source-qualified identity and the Solana mint; xStocks use Solana's Token-2022 scaled-UI mechanism for corporate actions. These informational records do not settle the sandbox ledger, and they are not a claim to enumerate every arbitrary SPL token carrying an equity-like name.
 
 Sponsor tokens are mock tokens pegged to whatever their provider publishes, re-anchored whenever that mark moves more than a per cent. The simulated maker prints two or three fills a second across the book, minting on a buy and burning on a sell, which is what moves pool utilisation and therefore the lending rates.
 
-Hourly test-clock ticks carry the committed daily close forward; they are not historical intraday data. NVDA closes are retained historical observations from January–April 2025. Options use an explicitly labeled Black–Scholes test model with 45% volatility and 4% annual interest; dividend-reference pricing uses an illustrative 80% input. These are not live quotes or historical option premiums. Dollar theta scales with quantity; shrinking a contract does not change percentage decay per share.
+Hourly test-clock ticks carry the committed daily close forward; they are not historical intraday data. NVDA closes are retained historical observations from January–April 2025. Options use one explicitly labeled Black–Scholes test model across vanilla legs and nonlinear curves: 45% volatility and 4% continuously compounded annual interest, with zero dividend yield; dividend-reference pricing uses an illustrative 80% input. These are not live quotes or historical option premiums. Dollar theta scales with quantity; shrinking a contract does not change percentage decay per share.
 
 Dividend contracts reference the issuer's declared $0.01 dividend for the March 12, 2025 record-date event, payable April 2. They do not transfer dividend ownership or model an xStock multiplier as a cash payment. See [product rules and sources](docs/PRODUCT.md).
 
