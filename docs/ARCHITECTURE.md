@@ -80,7 +80,9 @@ Every browser session derives independent holder and maker **test** keys with HM
 | `GET /api/evidence`                          | Saved adversarial verification report                                                    |
 | `GET /api/chain/tx/:signature`               | Live or explicitly archived transaction proof                                            |
 | `GET /api/health`                            | HTTP/database liveness plus detailed chain status                                        |
-| `GET /api/ready`                             | 200 only when database and configured chain are ready                                    |
+| `GET /api/ready`                             | 200 only when database/chain are ready and, if required, real-time NBBO is authenticated |
+| `GET /api/marks`                             | Current display-mark snapshot with source, timestamp and bid/ask provenance              |
+| `GET /api/marks/stream`                      | Same-origin coalesced Server-Sent Event mark stream; vendor credentials never leave Node |
 | `GET /api/xstocks`                           | Current issuer xStocks catalog filtered to Solana deployments; public, cached read       |
 | `GET /api/xstocks/quotes?symbols=...`        | Current issuer indicative quotes for at most 50 catalog symbols; public, never simulated |
 | `GET /api/tokenized-equities`                | Source-qualified declared Solana equity-token registries across configured issuers       |

@@ -581,13 +581,14 @@ test('options chain selects a contract into the same funded quote workflow', asy
 }) => {
   await deposit(page, 'USDC', '1000');
   await nav(page, 'Trade');
-  await page.getByLabel('Chain expiration').selectOption('2025-02-07');
+  await page.getByLabel('Chain expiration').click();
+  await page.getByRole('button', { name: /02\/07\/2025/ }).click();
   await expect(page.locator('.od-ladder tbody tr')).not.toHaveCount(0);
   const row = page
     .locator('.od-ladder tbody tr')
     .filter({ hasText: /^\$145\b/ });
   await row.getByRole('button').click();
-  await page.getByRole('button', { name: 'Payoff', exact: true }).click();
+  await expect(page.getByText('Position simulation')).toBeVisible();
   await advanced(page);
   await expect(page.getByLabel('Leg 1 strike', { exact: true })).toHaveValue(
     '145',

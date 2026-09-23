@@ -111,8 +111,30 @@ export function PortfolioView({
     (t, u) => t + (book.vault[u.symbol] ?? 0) * liveSpots[u.symbol],
     book.vault.USDC,
   );
-  const hasLiveMark = underlyings.some((u) => !!feed.marks[u.symbol]);
-  const displayedNav = hasLiveMark ? liveNav : nav;
+  // A portfolio should be marked by assets it holds, not by an unrelated
+  // ticker that happens to be in the global feed. That former check made an
+  // NVDA-only vault claim a "live" mark whenever a simulated private-company
+  // path ticked, while its own value stayed flat.
+  const heldFeedMarks = underlyings
+    .filter((u) => (book.vault[u.symbol] ?? 0) > 0)
+    .map((u) => feed.marks[u.symbol])
+    .filter((mark): mark is NonNullable<typeof mark> => !!mark);
+  const hasFeedMark = heldFeedMarks.length > 0;
+  const hasLiveMark = heldFeedMarks.some((mark) => mark.source !== 'simulated');
+  const hasSimulatedMark =
+    !hasLiveMark && heldFeedMarks.some((mark) => mark.source === 'simulated');
+  const liveMark = heldFeedMarks.find((mark) => mark.source !== 'simulated');
+  const liveMarkLabel =
+    liveMark?.source === 'massive-nbbo'
+      ? 'NBBO mark'
+      : liveMark?.source === 'massive-delayed-nbbo'
+        ? 'Delayed NBBO mark'
+        : liveMark?.quoteKind === 'venue-bbo'
+          ? 'Venue BBO mark'
+          : liveMark?.source === 'pyth'
+            ? 'Oracle mark'
+            : 'Live mark';
+  const displayedNav = hasFeedMark ? liveNav : nav;
   // What is held: every underlying with something in the vault, NVDA
   // always so the list never comes up empty. What sits only in the
   // wallet is deposited from the wallet, not listed here as a zero.
@@ -154,15 +176,28 @@ export function PortfolioView({
   );
   const [range, setRange] = useState<Range>('1M');
   const series = useMemo(() => valueSeries(book), [book]);
-  const drawn = withinRange(series, range);
-  const liveSamples = useLiveValueSamples(feed, displayedNav, s.revision);
+  const liveSamples = useLiveValueSamples(
+    feed,
+    displayedNav,
+    s.revision,
+    // The balance headline receives every mark. The plot holds the final
+    // observation in a small time bucket so a high-rate quote stream is not
+    // redrawn as a jagged succession of cents. Simulated marks are sampled
+    // more slowly; actual venue marks get a one-second history.
+    hasLiveMark ? 1_000 : 5_000,
+  );
   /* The persistent series is session-close accounting. The small tail is
      made only of real marks received during this browser session. It
      never invents an intraday history merely to fill the chart. */
-  const chartPoints = useMemo(() => {
-    const base = drawn.length ? drawn : [{ date: book.date, value: nav }];
+  const completeSeries = useMemo(() => {
+    const base = series.length ? series : [{ date: book.date, value: nav }];
     return [...base, ...liveSamples];
-  }, [book.date, drawn, liveSamples, nav]);
+  }, [book.date, liveSamples, nav, series]);
+  const chartPoints = useMemo(
+    () => withinRange(completeSeries, range),
+    [completeSeries, range],
+  );
+  const completedPoints = withinRange(series, range);
   const move = changeOver(chartPoints);
   /* Formatting a zero move as a green +$0.00 is a small lie of tone.
      Keep a cent threshold for the directional treatment, the same
@@ -209,22 +244,34 @@ export function PortfolioView({
               </b>
               <span>({(directionalMove.percent * 100).toFixed(2)}%)</span>
               <em>
-                {drawn.length > 1
+                {completedPoints.length > 1
                   ? RANGES.find((r) => r.id === range)?.label
-                  : 'Since open'}
+                  : hasFeedMark
+                    ? 'Since first mark'
+                    : 'Session mark'}
               </em>
             </div>
           ) : (
             <div className="od-open-move flat">
               {hasLiveMark
                 ? 'No change from the opening mark. Open contracts are marked separately below.'
+                : hasSimulatedMark
+                  ? 'Indicative simulation for held assets. Open contracts are marked separately below.'
                 : 'Cash and stock. Open contracts are marked separately below.'}
             </div>
           )}
-          <div className={`od-open-feed ${hasLiveMark ? 'live' : ''}`}>
+          <div
+            className={`od-open-feed ${hasLiveMark ? 'live' : hasSimulatedMark ? 'simulated' : ''}`}
+          >
             <i aria-hidden />
-            <span>{hasLiveMark ? 'Live mark' : 'Session mark'}</span>
-            {hasLiveMark && feed.asOf > 0 && (
+            <span>
+              {hasLiveMark
+                ? liveMarkLabel
+                : hasSimulatedMark
+                  ? 'Simulated mark'
+                  : 'Session mark'}
+            </span>
+            {hasFeedMark && feed.asOf > 0 && (
               <time dateTime={new Date(feed.asOf).toISOString()}>
                 Updated{' '}
                 {new Intl.DateTimeFormat('en-US', {
@@ -239,7 +286,7 @@ export function PortfolioView({
 
         <ValueHistory
           points={chartPoints}
-          label={`Vault value across ${drawn.length} completed session${drawn.length === 1 ? '' : 's'}${hasLiveMark ? ' with a live mark' : ''}, ending ${usd(displayedNav)}`}
+          label={`Vault value across ${completedPoints.length} completed session${completedPoints.length === 1 ? '' : 's'}${hasFeedMark ? ` with ${hasLiveMark ? 'live' : 'simulated'} marks received in this browser session` : ''}, ending ${usd(displayedNav)}`}
         />
 
         <div className="od-range">
@@ -248,7 +295,6 @@ export function PortfolioView({
               key={r.id}
               className={range === r.id ? 'active' : ''}
               aria-pressed={range === r.id}
-              disabled={series.length < 2}
               onClick={() => setRange(r.id)}
             >
               {r.label}
@@ -429,11 +475,17 @@ export function PortfolioView({
 }
 
 /**
- * Keep only actual marks received in this browser session. A quote
- * refresh can be flat; that is still a useful observation, and it makes
- * the chart's cadence match the feed rather than an animation timer.
+ * Keep actual marks received in this browser session, retaining the final
+ * observation in each short time bucket. The headline still receives every
+ * mark; bucketing only prevents a high-frequency transport from making a
+ * balance chart look noisier than the underlying portfolio movement.
  */
-function useLiveValueSamples(feed: MarkFeed, value: number, revision: number) {
+function useLiveValueSamples(
+  feed: MarkFeed,
+  value: number,
+  revision: number,
+  sampleWindowMs: number,
+) {
   const [samples, setSamples] = useState<{ date: string; value: number }[]>([]);
   const lastAsOf = useRef(0);
   const lastRevision = useRef(revision);
@@ -451,8 +503,17 @@ function useLiveValueSamples(feed: MarkFeed, value: number, revision: number) {
     if (feed.asOf === lastAsOf.current) return;
     lastAsOf.current = feed.asOf;
     const point = { date: new Date(feed.asOf).toISOString(), value };
-    setSamples((previous) => [...previous.slice(-47), point]);
-  }, [feed.asOf, feed.ready, revision, value]);
+    const bucket = Math.floor(feed.asOf / sampleWindowMs);
+    setSamples((previous) => {
+      const last = previous.at(-1);
+      if (
+        last &&
+        Math.floor(Date.parse(last.date) / sampleWindowMs) === bucket
+      )
+        return [...previous.slice(0, -1), point];
+      return [...previous.slice(-47), point];
+    });
+  }, [feed.asOf, feed.ready, revision, sampleWindowMs, value]);
 
   return samples;
 }

@@ -329,7 +329,10 @@ void test('HTTP: secure sessions, CSRF, malformed requests, concurrency, static 
   await writeFile(`${dir}/demo.mp4`, '0123456789');
   const app = createApp(
     {
-      ...configFromEnv({ CHAIN_ENABLED: 'false' }),
+      ...configFromEnv({
+        CHAIN_ENABLED: 'false',
+        MARKET_DATA_REQUIRED: 'true',
+      }),
       stateDir: dir,
       publicDir: dir,
       port: 0,
@@ -426,11 +429,22 @@ void test('HTTP: secure sessions, CSRF, malformed requests, concurrency, static 
       416,
     );
     assert.equal((await fetch(`${base}/api/health`)).status, 200);
+    assert.equal((await fetch(`${base}/api/ready`)).status, 503);
     adapter.unavailable = true;
     const health = (await (await fetch(`${base}/api/health`)).json()) as {
       chain: { ready: boolean };
+      marketData: {
+        required: boolean;
+        sources: Array<{ name: string; enabled: boolean }>;
+      };
     };
     assert.equal(health.chain.ready, false);
+    assert.equal(health.marketData.required, true);
+    assert.equal(
+      health.marketData.sources.find((source) => source.name === 'massive-nbbo')
+        ?.enabled,
+      false,
+    );
   } finally {
     await new Promise<void>((resolve, reject) =>
       app.server.close((e) => (e ? reject(e) : resolve())),

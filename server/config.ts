@@ -12,6 +12,8 @@ export interface Config {
   authority: string;
   allowedOrigins: string[];
   chainEnabled: boolean;
+  /** Fail the deployment readiness probe if no real-time listed NBBO feed is up. */
+  marketDataRequired: boolean;
   expirySeconds: number;
   secureCookie: boolean;
   parcel?: { program: string; cashMint: string; stockMint: string };
@@ -99,6 +101,7 @@ export function configFromEnv(
       env.STRATA_AUTHORITY || '8oheEujy8FS7Nr3bdYT7okWbWeMy3Tp5eM8z4YwRTzfq',
     allowedOrigins: (env.ALLOWED_ORIGINS || '').split(',').filter(Boolean),
     chainEnabled: env.CHAIN_ENABLED !== 'false',
+    marketDataRequired: env.MARKET_DATA_REQUIRED === 'true',
     expirySeconds,
     secureCookie: env.COOKIE_SECURE === 'true',
   };

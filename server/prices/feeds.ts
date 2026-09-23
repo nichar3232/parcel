@@ -36,6 +36,18 @@ export interface Instrument {
 
 export const INSTRUMENTS: Instrument[] = [
   {
+    symbol: 'NVDA',
+    name: 'NVIDIA',
+    kind: 'equity',
+    // Exact Hermes metadata symbol. The resolver intentionally rejects
+    // NVDAX, NVDAON and the index feed returned by a loose NVDA search.
+    pyth: 'Equity.US.NVDA/USD',
+    vol: 0.45,
+    seed: 142.62,
+    spreadBps: 12,
+    depth: 90_000_000,
+  },
+  {
     symbol: 'SOL',
     name: 'Solana',
     kind: 'crypto',

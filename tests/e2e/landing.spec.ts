@@ -19,7 +19,9 @@ test('the landing page shows the products and routes into the desk', async ({
   const viewer = page.locator('.lp-viewer');
   for (const k of ['Net premium', 'Max loss', 'Max gain', 'Break-even'])
     await expect(viewer.locator('.lp-viewer-stats')).toContainText(k);
-  await expect(viewer.locator('.lp-viewer-contract')).toContainText('$');
+  // The viewer retains hidden copies to reserve the longest structure's
+  // height. Assert against the caption the reader can actually see.
+  await expect(viewer.locator('.lp-viewer-contract:visible')).toContainText('$');
   await expect(viewer.getByRole('link')).toHaveCount(0);
 
   // No stat label may wrap: a two-line label pushes its value off the
@@ -28,12 +30,12 @@ test('the landing page shows the products and routes into the desk', async ({
     .locator('.lp-viewer-stats > div')
     .evaluateAll((ds) =>
       ds.map((d) => {
-        const label = d.querySelector('dt') as HTMLElement;
+        const label = d.querySelector('dt > .on span') as HTMLElement;
         const line = parseFloat(getComputedStyle(label).lineHeight) || 16;
         return {
           lines: Math.round(label.getBoundingClientRect().height / line),
           valueTop: Math.round(
-            (d.querySelector('dd') as HTMLElement).getBoundingClientRect().top,
+            (d.querySelector('dd > .on span') as HTMLElement).getBoundingClientRect().top,
           ),
         };
       }),
@@ -77,19 +79,30 @@ test('the landing page shows the products and routes into the desk', async ({
   await expect(viewer.locator('.lp-viewer-stats')).toContainText('∞');
 
   // Picking another structure changes the shape and the figures.
-  const first = await viewer.locator('h2').textContent();
+  const heading = viewer.locator('h2:visible');
+  const first = await heading.textContent();
   await viewer.locator('.lp-viewer-pips button').nth(3).click();
-  await expect(viewer.locator('h2')).not.toHaveText(first!);
+  await expect(heading).not.toHaveText(first!);
 
   // The landing states its operating model instead of a frozen market-data rail.
   await expect(page.locator('.lp-rail')).toHaveCount(0);
-  await expect(page.locator('.lp-principles-list > li')).toHaveCount(3);
-  await expect(page.locator('.lp-principles')).toContainText('Reserve first');
+  const principles = page
+    .locator('section.lp-principles')
+    .filter({ has: page.getByRole('heading', { name: 'One vault. Defined terms.' }) });
+  await expect(principles.locator('.lp-principles-list > li')).toHaveCount(3);
+  await expect(principles).toContainText('Reserve first');
   expect(
     await page
       .locator('.lp-how-copy')
       .evaluate((node) => getComputedStyle(node).position),
   ).toBe('static');
+
+  // Agent access is a first-class section, not hidden product copy. It
+  // documents the local MCP entrypoint without changing the core model list.
+  const agents = page.locator('#agents');
+  await expect(agents).toContainText('An agent can run the desk');
+  await expect(agents.locator('.lp-principles-list > li')).toHaveCount(3);
+  await expect(agents.locator('code')).toContainText('mcp/parcel.ts');
 
   // one product at a time: five tabs, exactly one open panel
   const tabs = ['Options', 'Underwriting', 'Structures', 'Pre-IPO', 'Lending'];

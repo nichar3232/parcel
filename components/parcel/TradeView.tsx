@@ -1,6 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
-import { ArrowRight, LockKeyhole } from 'lucide-react';
+import { ArrowLeft, ArrowRight, LockKeyhole } from 'lucide-react';
 import type { VaultController } from '@/hooks/parcel/use-vault';
 import type { MarketUnderlying, OrderTerms, Quote } from '@/lib/parcel/types';
 import { deliveryBounds } from '@/lib/parcel/envelope';
@@ -18,6 +18,7 @@ import { selectableExpiries } from '@/lib/parcel/market';
 import { CurveEditor } from './CurveEditor';
 import { SizingControl } from './SizingControl';
 import { OptionsChain } from './OptionsChain';
+import { ExpiryPicker } from './ExpiryPicker';
 import { PayoffChart } from './PayoffChart';
 import { QuoteReview } from './QuoteReview';
 import { ContractLegEditor } from './ContractLegEditor';
@@ -33,6 +34,7 @@ import {
   Segmented,
   Stat,
   expiryLabel,
+  qty,
   usd,
 } from './shared';
 
@@ -169,7 +171,13 @@ export function TradeView({
     effective.reference === 'stock'
       ? effective.quantity
       : 0;
-  const cashBound = !invalid ? deliveryBounds([effective]).cashMin : 0n;
+  const delivery = !invalid ? deliveryBounds([effective]) : null;
+  const cashReserve = Number(
+    delivery && delivery.cashMin < 0n ? -delivery.cashMin : 0n,
+  ) / 1e6;
+  const sharesReserve = Number(
+    delivery && delivery.sharesMin < 0n ? -delivery.sharesMin : 0n,
+  ) / 1e6;
 
   /**
    * The worst and best the position can do, sampled over the same
@@ -269,18 +277,12 @@ export function TradeView({
                 { id: 'put', label: 'Put' },
               ]}
             />
-            <select
-              aria-label="Chain expiration"
-              className="od-chain-expiry"
+            <ExpiryPicker
+              dates={future}
               value={chainDate}
-              onChange={(e) => setChainExpiry(e.target.value)}
-            >
-              {future.map((d) => (
-                <option key={d} value={d}>
-                  Expiring {expiryLabel(d)}
-                </option>
-              ))}
-            </select>
+              asOf={session}
+              onChange={setChainExpiry}
+            />
           </div>
         )}
         {tab === 'trade' && (
@@ -337,11 +339,35 @@ export function TradeView({
               setDraft({ ...terms, quantity: effective.quantity });
               setQuote(null);
               setError('');
+              // A chain row is an indication. Its next destination is the
+              // payoff simulator, with the exact strike and side carried
+              // into the ticket — not a second, disconnected quote flow.
+              setBrowse(false);
             }}
           />
         ) : (
           // What it pays, for whoever wants to see it.
           <div className="od-insight">
+            {tab === 'trade' && (
+              <div className="od-simulation-cue">
+                <div>
+                  <span>Position simulation</span>
+                  <b>
+                    {effective.legs.length === 1
+                      ? `${effective.legs[0].side === 'buy' ? 'Long' : 'Short'} ${effective.legs[0].kind} · ${usd(effective.legs[0].strike, effective.legs[0].strike % 1 === 0 ? 0 : 2)} strike`
+                      : effective.name}
+                  </b>
+                </div>
+                <Button
+                  variant="quiet"
+                  size="sm"
+                  onClick={() => setBrowse(true)}
+                >
+                  <ArrowLeft size={14} />
+                  Back to chain
+                </Button>
+              </div>
+            )}
             <Panel>
               {!invalid ? (
                 <PayoffChart
@@ -588,14 +614,29 @@ export function TradeView({
 
             <div className="od-lines">
               <Line
-                label="Cash to fund it standalone"
+                label={g.price < 0 ? 'Model premium credit' : 'Model premium debit'}
+                value={
+                  invalid ? '—' : usd(Math.abs(g.price))
+                }
+                tone={g.price < 0 ? 'up' : undefined}
+              />
+              {(cashReserve > 0 || sharesReserve > 0) && (
+                <Line
+                  label="Exercise reserve"
+                  value={
+                    cashReserve > 0
+                      ? `${usd(cashReserve)} USDC`
+                      : `${qty(sharesReserve)} ${symbol}`
+                  }
+                  tone="muted"
+                />
+              )}
+              <Line
+                label="Cash held at open"
                 value={
                   invalid
                     ? '—'
-                    : usd(
-                        Math.max(0, g.price) +
-                          Number(cashBound < 0n ? -cashBound : 0n) / 1e6,
-                      )
+                    : usd(Math.max(0, g.price) + cashReserve)
                 }
               />
               {/* Settlement convention and collateral mode are

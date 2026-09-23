@@ -7,16 +7,19 @@ import {
 } from './feeds';
 import {
   CoinbaseSource,
+  MassiveStocksSource,
   PythSource,
   type Observation,
   type Source,
+  type SourceHealth,
 } from './sources';
 
 /**
  * The live mark engine.
  *
- * Two sources, one number. Pyth is polled for every sandbox instrument that
- * has a feed; anything without a fresh observation is walked forward by a
+ * A source priority chain, one number. A configured Massive stream applies
+ * NBBO updates as they arrive; Pyth and Coinbase remain resilient polling
+ * sources. Anything without a fresh observation is walked forward by a
  * geometric Brownian motion seeded from the last real mark it had. No feed
  * exists for a sponsor token, so without the walk the simulated maker would
  * be frozen most of the time.
@@ -33,7 +36,12 @@ const POLL_MS = 3000;
 const YEAR_SECONDS = 365 * 24 * 3600;
 const TAPE_LENGTH = 48;
 
-export type MarkSource = 'pyth' | 'coinbase' | 'simulated';
+export type MarkSource =
+  | 'massive-nbbo'
+  | 'massive-delayed-nbbo'
+  | 'pyth'
+  | 'coinbase'
+  | 'simulated';
 
 export interface Mark {
   symbol: string;
@@ -45,6 +53,8 @@ export interface Mark {
   change: number;
   bid: number;
   ask: number;
+  /** Whether the displayed bid/ask is an NBBO, one venue's BBO, or a model. */
+  quoteKind: 'nbbo' | 'venue-bbo' | 'modelled';
   spreadBps: number;
   vol: number;
   source: MarkSource;
@@ -78,6 +88,7 @@ interface State extends Instrument {
   realSource: string | null;
   realBid: number | null;
   realAsk: number | null;
+  realQuoteKind: Observation['quoteKind'] | null;
   supply: number;
   supplied: number;
   borrowed: number;
@@ -98,12 +109,22 @@ export class MarkEngine {
   private state = new Map<string, State>();
   private tape: Print[] = [];
   private seq = 0;
-  private sources: Source[] = [new PythSource(), new CoinbaseSource()];
+  private sources: Source[];
   private timers: NodeJS.Timeout[] = [];
+  private sourceStops: (() => void)[] = [];
+  private listeners = new Set<(snapshot: MarkSnapshot) => void>();
   private lastTick = Date.now();
   private started = false;
 
-  constructor(now = Date.now()) {
+  constructor(
+    now = Date.now(),
+    sources: Source[] = [
+      new MassiveStocksSource(),
+      new PythSource(),
+      new CoinbaseSource(),
+    ],
+  ) {
+    this.sources = sources;
     const seed = (i: Instrument, price: number): State => ({
       ...i,
       price,
@@ -114,6 +135,7 @@ export class MarkEngine {
       realSource: null,
       realBid: null,
       realAsk: null,
+      realQuoteKind: null,
       // Depth is a dollar figure, so units come from dividing by the
       // mark. Seeding units directly meant a pool's size scaled with
       // the price of its asset, and the desk reported a five-trillion
@@ -188,6 +210,13 @@ export class MarkEngine {
   start() {
     if (this.started) return;
     this.started = true;
+    for (const source of this.sources) {
+      if (!source.subscribe) continue;
+      const stop = source.subscribe([...this.state.values()], (rows) => {
+        this.accept(rows);
+      });
+      this.sourceStops.push(stop);
+    }
     void this.poll();
     const every = (ms: number, fn: () => void) => {
       const t = setInterval(fn, ms);
@@ -201,6 +230,8 @@ export class MarkEngine {
   stop() {
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
+    for (const stop of this.sourceStops) stop();
+    this.sourceStops = [];
     this.started = false;
   }
 
@@ -221,6 +252,7 @@ export class MarkEngine {
     try {
       const instruments = [...this.state.values()];
       const seen = new Map<string, Observation>();
+      const now = Date.now();
       for (const source of this.sources) {
         if (!source.enabled) continue;
         let rows: Observation[] = [];
@@ -229,33 +261,50 @@ export class MarkEngine {
         } catch {
           rows = [];
         }
-        for (const row of rows)
-          if (!seen.has(row.symbol)) seen.set(row.symbol, row);
-      }
-      const now = Date.now();
-      for (const [symbol, row] of seen) {
-        const s = this.state.get(symbol);
-        if (!s || now - row.at > FRESH_MS) continue;
-        s.price = row.price;
-        s.realBid = row.bid ?? null;
-        s.realAsk = row.ask ?? null;
-        s.lastReal = now;
-        s.realSource = row.source;
-        // The baseline the change column is measured from has to come
-        // from the venue, or at worst from the first real mark. Left on
-        // the boot seed it reports a 40% move on a flat day.
-        if (row.open) {
-          s.open = row.open;
-          s.openIsReal = true;
-        } else if (!s.openIsReal) {
-          s.open = row.price;
-          s.openIsReal = true;
+        for (const row of rows) {
+          // A stale high-priority snapshot must not suppress a fresh lower
+          // priority source. Check age before inserting into the priority map.
+          if (now - row.at <= FRESH_MS && !seen.has(row.symbol))
+            seen.set(row.symbol, row);
         }
-        s.openDay = day(now);
       }
+      this.accept([...seen.values()]);
     } finally {
       this.polling = false;
     }
+  }
+
+  /** Apply direct stream events and recovered polling observations alike. */
+  private accept(rows: Observation[]) {
+    const now = Date.now();
+    let changed = false;
+    for (const row of rows) {
+      const s = this.state.get(row.symbol);
+      if (!s || now - row.at > FRESH_MS) continue;
+      // Recovering a cached event after the streaming source has already
+      // delivered a newer one must not move a quote backwards.
+      if (s.lastReal && s.realSource === row.source && row.at < s.lastReal)
+        continue;
+      s.price = row.price;
+      s.realBid = row.bid ?? null;
+      s.realAsk = row.ask ?? null;
+      s.realQuoteKind = row.quoteKind ?? null;
+      s.lastReal = row.at;
+      s.realSource = row.source;
+      // The baseline the change column is measured from has to come
+      // from the venue, or at worst from the first real mark. Left on
+      // the boot seed it reports a 40% move on a flat day.
+      if (row.open) {
+        s.open = row.open;
+        s.openIsReal = true;
+      } else if (!s.openIsReal) {
+        s.open = row.price;
+        s.openIsReal = true;
+      }
+      s.openDay = day(now);
+      changed = true;
+    }
+    if (changed) this.broadcast();
   }
 
   private rollDay(s: State, now: number) {
@@ -285,6 +334,7 @@ export class MarkEngine {
       s.price = Math.max(0.0001, s.price * Math.exp(drift + shock));
     }
     this.makeMarket(now);
+    this.broadcast();
   }
 
   /**
@@ -353,8 +403,18 @@ export class MarkEngine {
     const half = (s.price * s.spreadBps) / 10_000;
     const round = (n: number) => Math.round(n * 1e6) / 1e6;
     // A venue's own book beats a modelled spread whenever we have one.
-    const bid = fresh && s.realBid ? s.realBid : s.price - half;
-    const ask = fresh && s.realAsk ? s.realAsk : s.price + half;
+    const hasVenueBook =
+      fresh &&
+      s.realBid !== null &&
+      s.realAsk !== null &&
+      (s.realQuoteKind === 'nbbo' || s.realQuoteKind === 'venue-bbo');
+    const bid = hasVenueBook ? s.realBid! : s.price - half;
+    const ask = hasVenueBook ? s.realAsk! : s.price + half;
+    const quoteKind = hasVenueBook
+      ? s.realQuoteKind === 'nbbo'
+        ? 'nbbo'
+        : 'venue-bbo'
+      : 'modelled';
     return {
       symbol: s.symbol,
       name: s.name,
@@ -364,11 +424,10 @@ export class MarkEngine {
       change: s.open ? (s.price - s.open) / s.open : 0,
       bid: round(bid),
       ask: round(ask),
+      quoteKind,
       spreadBps: s.spreadBps,
       vol: s.vol,
-      source: fresh
-        ? ((s.realSource as MarkSource) ?? 'simulated')
-        : 'simulated',
+      source: fresh ? this.markSource(s.realSource) : 'simulated',
       observedAt: s.lastReal,
       supply: round(s.supply),
       supplied: round(s.supplied),
@@ -377,18 +436,46 @@ export class MarkEngine {
     };
   }
 
+  private markSource(source: string | null): MarkSource {
+    return source === 'massive-nbbo' ||
+      source === 'massive-delayed-nbbo' ||
+      source === 'pyth' ||
+      source === 'coinbase'
+      ? source
+      : 'simulated';
+  }
+
   snapshot() {
     const marks = [...this.state.values()].map((s) => this.project(s));
     return {
       asOf: Date.now(),
       /** True once any feed has ever answered, so the UI can say why. */
       connected: [...this.state.values()].some((s) => s.lastReal !== null),
-      sources: this.sources.map((x) => ({ name: x.name, enabled: x.enabled })),
+      sources: this.sources.map((x): SourceHealth =>
+        x.health?.() ?? {
+          name: x.name,
+          enabled: x.enabled,
+          state: x.enabled ? 'live' : 'disabled',
+          detail: x.enabled ? 'Polling source enabled' : 'Polling source disabled',
+        },
+      ),
       marks,
       tape: this.tape.slice(0, 24),
       minted: [...this.state.values()].reduce((t, s) => t + s.minted, 0),
       burned: [...this.state.values()].reduce((t, s) => t + s.burned, 0),
     };
+  }
+
+  /** Subscribe to source/tick updates for the same-origin SSE endpoint. */
+  subscribe(listener: (snapshot: MarkSnapshot) => void) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private broadcast() {
+    if (!this.listeners.size) return;
+    const snapshot = this.snapshot();
+    for (const listener of this.listeners) listener(snapshot);
   }
 }
 

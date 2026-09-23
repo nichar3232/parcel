@@ -91,7 +91,7 @@ export function valueSeries(book: VaultBook): ValuePoint[] {
 }
 
 /** The tail of the series a range asks for. */
-export function withinRange(points: ValuePoint[], range: Range) {
+export function withinRange<T>(points: T[], range: Range): T[] {
   const n = RANGES.find((r) => r.id === range)?.sessions ?? Infinity;
   return n === Infinity ? points : points.slice(-Math.max(2, n));
 }
@@ -107,4 +107,30 @@ export function changeOver(points: readonly Pick<ValuePoint, 'value'>[]) {
   const from = points[0].value,
     to = points.at(-1)!.value;
   return { amount: to - from, percent: from === 0 ? 0 : (to - from) / from };
+}
+
+/**
+ * A stable vertical domain for the live vault chart.
+ *
+ * A balance can move by a few cents between two NBBO updates. Scaling those
+ * cents to the whole panel makes ordinary quote noise look like a dramatic
+ * selloff. Keep the observed extremes, but never give a portfolio less than
+ * a 25 bp viewing window (or $5 for very small accounts). That preserves the
+ * actual marks without turning a sub-basis-point update into chart theatre.
+ */
+export function valueChartDomain(
+  points: readonly Pick<ValuePoint, 'value'>[],
+): { lo: number; hi: number } {
+  const values = points.map((point) => point.value).filter(Number.isFinite);
+  if (!values.length) return { lo: 0, hi: 1 };
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const centre = (min + max) / 2;
+  const observedSpan = max - min;
+  // 25 bp keeps ordinary ticks visually proportionate on a large vault.
+  const floorSpan = Math.max(Math.abs(centre) * 0.0025, 5);
+  const span = Math.max(observedSpan, floorSpan);
+  const pad = span * 0.1;
+  return { lo: centre - span / 2 - pad, hi: centre + span / 2 + pad };
 }

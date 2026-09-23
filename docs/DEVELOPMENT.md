@@ -49,6 +49,13 @@ On the VPS, systemd loads the protected `EnvironmentFile`; see `ops/README.md`.
 | `COOKIE_SECURE`         | `false`                         | Set `true` behind HTTPS                                                                                                  |
 | `ALLOWED_ORIGINS`       | empty                           | Optional comma-separated trusted mutation origins                                                                        |
 | `SITE_ORIGIN`           | private host fallback           | Build-time origin for social metadata                                                                                    |
+| `MASSIVE_STOCKS_API_KEY` | empty                          | Server-only Massive market-data credential; required for listed-equity NBBO                                             |
+| `MASSIVE_STOCKS_FEED`    | `realtime`                     | `realtime` or explicit `delayed`; delayed provenance remains visible in the API                                          |
+| `MASSIVE_STOCKS_WS_URL`  | `wss://socket.massive.com/stocks` | Massive stock WebSocket endpoint; use the protected production value                                                     |
+| `MARKET_DATA_REQUIRED`   | `false`                        | Set `true` in monitored deployments to make `/api/ready` require authenticated real-time listed-equity NBBO            |
+| `PYTH_HERMES_URL`        | `https://pyth.dourolabs.app/hermes` | Authenticated Pyth oracle endpoint; its confidence interval is never treated as a bid/ask                            |
+| `PYTH_API_KEY`           | empty                          | Optional server-only Pyth credential; oracle marks are not executable quotes                                             |
+| `COINBASE_API_URL`       | `https://api.exchange.coinbase.com` | Read-only crypto venue price/BBO endpoint; it is a venue BBO, not cross-venue NBBO                                   |
 | `XSTOCKS_API_URL`       | `https://api.xstocks.fi/api/v2` | Public issuer catalog and indicative quote API for the Solana xStocks watchlist                                          |
 | `SUPERSTATE_API_URL`    | `https://api.superstate.com`    | Public Opening Bell registry and direct price API; only completed Solana equity deployments are shown                    |
 | `ONDO_API_URL`          | `https://api.gm.ondo.finance`   | Ondo Stocks issuer API base URL; used only with `ONDO_API_KEY`                                                           |
@@ -69,7 +76,7 @@ The route table and chain state machine are in [ARCHITECTURE.md](ARCHITECTURE.md
 - Empty or missing page: run `npm run build`; a backend without `dist/client` cannot serve the desk.
 - Connection error: start the backend and confirm the dev proxy targets its port. Do not bypass the API with local browser balances.
 - HTTP 409: refresh the authoritative portfolio; another tab may have changed the revision.
-- Chain unavailable in keyless mode: expected. `GET /api/health` checks app/database liveness. `/api/ready` also requires the configured chain and returns 503 while chain execution is disabled.
+- Chain unavailable in keyless mode: expected. `GET /api/health` checks app/database liveness and reports source-by-source market-data state. `/api/ready` also requires the configured chain and, when `MARKET_DATA_REQUIRED=true`, an authenticated real-time listed-equity NBBO stream.
 - A static-only hosting deployment cannot run this backend. Keep UI and API together on the VPS, or provision an equivalent Node service with persistent storage.
 
 ## Parcel vault API

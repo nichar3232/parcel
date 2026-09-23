@@ -4,14 +4,17 @@ import { useEffect, useRef, useState } from 'react';
 /**
  * The live mark feed, as the desk sees it.
  *
- * Polling rather than a socket: the payload is two kilobytes, the
- * server is same-origin, and a poll survives a sleeping laptop and a
- * restarted backend without any reconnect logic to get wrong. The
- * interval stops while the tab is hidden, so a desk left open in a
- * background tab is not asking for a price four times a second.
+ * The browser consumes a same-origin Server-Sent Event stream. The server,
+ * not every tab, owns the credentialed vendor connection; a slow polling
+ * fallback remains for proxies that cannot carry streamed responses.
  */
 
-export type MarkSource = 'pyth' | 'coinbase' | 'simulated';
+export type MarkSource =
+  | 'massive-nbbo'
+  | 'massive-delayed-nbbo'
+  | 'pyth'
+  | 'coinbase'
+  | 'simulated';
 
 export interface Mark {
   symbol: string;
@@ -22,6 +25,7 @@ export interface Mark {
   change: number;
   bid: number;
   ask: number;
+  quoteKind: 'nbbo' | 'venue-bbo' | 'modelled';
   spreadBps: number;
   vol: number;
   source: MarkSource;
@@ -52,6 +56,12 @@ export interface MarkFeed {
   tape: Print[];
   minted: number;
   burned: number;
+  sources: Array<{
+    name: string;
+    enabled: boolean;
+    state: 'disabled' | 'connecting' | 'live' | 'degraded';
+    detail: string;
+  }>;
   /** Set once a poll has completed, so the UI can hold its shape. */
   ready: boolean;
 }
@@ -64,10 +74,11 @@ const EMPTY: MarkFeed = {
   tape: [],
   minted: 0,
   burned: 0,
+  sources: [],
   ready: false,
 };
 
-const POLL_MS = 2000;
+const FALLBACK_POLL_MS = 5000;
 
 export function useMarks(): MarkFeed {
   const [feed, setFeed] = useState<MarkFeed>(EMPTY);
@@ -75,59 +86,100 @@ export function useMarks(): MarkFeed {
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let stream: EventSource | null = null;
     let loaded = false;
+    let polling = false;
+
+    type Payload = {
+      asOf: number;
+      connected: boolean;
+      marks: Mark[];
+      tape: Print[];
+      minted: number;
+      burned: number;
+      sources?: MarkFeed['sources'];
+    };
+
+    const accept = (body: Payload) => {
+      if (!alive || !Array.isArray(body.marks)) return;
+      loaded = true;
+      setFeed({
+        asOf: body.asOf,
+        connected: body.connected,
+        marks: Object.fromEntries(body.marks.map((m) => [m.symbol, m])),
+        list: body.marks,
+        tape: body.tape,
+        minted: body.minted,
+        burned: body.burned,
+        sources: body.sources ?? [],
+        ready: true,
+      });
+    };
 
     const poll = async () => {
       try {
         const res = await fetch('/api/marks', { cache: 'no-store' });
         if (!res.ok || !alive) return;
-        const body = (await res.json()) as {
-          asOf: number;
-          connected: boolean;
-          marks: Mark[];
-          tape: Print[];
-          minted: number;
-          burned: number;
-        };
-        if (!alive) return;
-        loaded = true;
-        setFeed({
-          asOf: body.asOf,
-          connected: body.connected,
-          marks: Object.fromEntries(body.marks.map((m) => [m.symbol, m])),
-          list: body.marks,
-          tape: body.tape,
-          minted: body.minted,
-          burned: body.burned,
-          ready: true,
-        });
+        accept((await res.json()) as Payload);
       } catch {
         /* a missed poll is a missed frame, not an error state */
       }
     };
 
-    /**
-     * Polling pauses while the tab is hidden, but the first read always
-     * happens. A desk restored into a background tab used to render
-     * with no marks at all and stay that way until it was clicked,
-     * because the very first poll was skipped along with the rest.
-     */
-    const tick = async () => {
-      if (!document.hidden || !loaded) await poll();
-      if (alive) timer = setTimeout(() => void tick(), POLL_MS);
-    };
-
-    const wake = () => {
-      if (document.hidden) return;
-      if (timer) clearTimeout(timer);
+    const startPolling = () => {
+      if (polling || !alive) return;
+      polling = true;
+      const tick = async () => {
+        if (!document.hidden || !loaded) await poll();
+        if (alive && polling)
+          timer = setTimeout(() => void tick(), FALLBACK_POLL_MS);
+      };
       void tick();
     };
 
-    void tick();
+    /**
+     * The server owns one upstream connection and fans marks out through SSE.
+     * EventSource reconnects on brief network interruptions; a deliberately
+     * slower polling fallback keeps the desk usable behind a proxy that does
+     * not support streaming responses.
+     */
+    if (typeof EventSource !== 'undefined') {
+      stream = new EventSource('/api/marks/stream');
+      stream.addEventListener('marks', (event) => {
+        try {
+          accept(JSON.parse((event as MessageEvent<string>).data) as Payload);
+        } catch {
+          /* Wait for the next complete snapshot. */
+        }
+      });
+      stream.onerror = () => {
+        // Native EventSource attempts to reconnect itself. Keep the fallback
+        // available only until a stream event arrives, avoiding duplicate
+        // traffic while a healthy stream is running.
+        if (!loaded) startPolling();
+      };
+      // A middlebox can leave a stream half-open without sending its opening
+      // snapshot. Do not leave the first render empty in that case.
+      timer = setTimeout(() => {
+        if (!loaded) startPolling();
+      }, 1500);
+    } else {
+      startPolling();
+    }
+
+    const wake = () => {
+      if (document.hidden) return;
+      // A fallback poll may be waiting for a hidden tab's next interval.
+      // Read once on focus without cancelling its existing schedule.
+      if (polling) void poll();
+    };
+
     document.addEventListener('visibilitychange', wake);
     return () => {
       alive = false;
+      polling = false;
       if (timer) clearTimeout(timer);
+      stream?.close();
       document.removeEventListener('visibilitychange', wake);
     };
   }, []);

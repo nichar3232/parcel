@@ -2680,28 +2680,227 @@
   gap: 8px;
   margin-right: auto;
 }
-/* Fixed width, and specific enough to beat the full-width form
-   select it would otherwise inherit: the hourly test-clock entries
-   are three times the length of a date and were sizing the control
-   to their own longest option.
-
-   38px is the segmented controls' outer height — button 30, padding 3
-   either side, border 1 — so the whole line sits on one baseline. */
-.pc-desk select.od-chain-expiry {
-  width: 210px;
+/* Expiry is a chain dimension, not a generic form select. The trigger
+   carries a short label, and its menu is deliberately bounded: a real
+   daily chain may have dozens of available sessions but should never
+   borrow the entire viewport when it opens. */
+.od-expiry-picker {
+  position: relative;
+  z-index: 4;
+}
+.od-expiry-trigger {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 196px;
   height: 38px;
-  /* The form select carries a 9px top margin for the label that
-     normally sits above it. On a control line there is no label, and
-     the margin was pushing it half that far below the two segmented
-     controls beside it. */
-  margin: 0;
-  padding: 0 32px 0 12px;
-  font-size: 13px;
-  /* The chevron is drawn at a fixed offset tuned for the 42px form
-     select; at 38px it has to come up with the box. */
-  background-position:
-    calc(100% - 17px) 17px,
-    calc(100% - 12px) 17px;
+  padding: 0 10px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-surface);
+  color: var(--pc-body);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    color 0.14s ease;
+}
+.od-expiry-trigger:hover,
+.od-expiry-trigger[aria-expanded='true'] {
+  border-color: var(--pc-faint);
+  background: var(--pc-raised);
+  color: var(--pc-text);
+}
+.od-expiry-trigger > svg:first-child {
+  color: var(--pc-cyan);
+}
+.od-expiry-trigger > svg:last-child {
+  color: var(--pc-muted);
+  transition: transform 0.14s ease;
+}
+.od-expiry-trigger[aria-expanded='true'] > svg:last-child {
+  transform: rotate(180deg);
+}
+.od-expiry-trigger span {
+  min-width: 0;
+}
+.od-expiry-trigger small,
+.od-expiry-trigger b {
+  display: block;
+}
+.od-expiry-trigger small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 8.5px;
+  font-weight: 500;
+  letter-spacing: 0.11em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.od-expiry-trigger b {
+  overflow: hidden;
+  color: var(--pc-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.od-expiry-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  width: 276px;
+  overflow: hidden;
+  border: 1px solid var(--pc-faint);
+  border-radius: var(--pc-r);
+  background: color-mix(in srgb, var(--pc-surface) 96%, var(--pc-void));
+  box-shadow: 0 16px 40px color-mix(in srgb, #000 42%, transparent);
+}
+.od-expiry-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 12px 10px;
+  border-bottom: 1px solid var(--pc-line-soft);
+  color: var(--pc-body);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.od-expiry-menu-head small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+}
+.od-expiry-menu-scroll {
+  max-height: min(352px, calc(100vh - var(--dk-bar) - 72px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 5px;
+}
+.od-expiry-group + .od-expiry-group {
+  margin-top: 5px;
+  padding-top: 6px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-expiry-group > span {
+  display: block;
+  padding: 5px 7px 4px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.od-expiry-group button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--pc-body);
+  font: inherit;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+}
+.od-expiry-group button:hover {
+  background: var(--pc-hover);
+  color: var(--pc-text);
+}
+.od-expiry-group button.selected {
+  background: var(--pc-cyan-wash);
+  color: var(--pc-text);
+}
+.od-expiry-group button small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+}
+.od-expiry-group button.selected small {
+  color: var(--pc-cyan);
+}
+
+.od-simulation-cue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-simulation-cue span,
+.od-simulation-cue b {
+  display: block;
+}
+.od-simulation-cue span {
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.od-simulation-cue b {
+  margin-top: 4px;
+  color: var(--pc-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.od-simulation-cue .od-button {
+  flex: none;
+}
+
+.od-chain-summary {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-chain-summary > div:first-child > span,
+.od-chain-summary > div:first-child > b {
+  display: block;
+}
+.od-chain-summary > div:first-child > span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+.od-chain-summary > div:first-child > b {
+  margin-top: 5px;
+  color: var(--pc-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.od-chain-assumptions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.od-chain-guidance {
+  margin: 10px 0 12px;
+  color: var(--pc-body);
+  font-size: 12px;
+  line-height: 1.45;
 }
 .od-ladder td,
 .od-ladder th {

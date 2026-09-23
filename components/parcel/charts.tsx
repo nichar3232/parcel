@@ -1,6 +1,7 @@
 'use client';
 import { useMemo } from 'react';
 import { strategyPnl } from '@/lib/parcel/math';
+import { valueChartDomain } from '@/lib/parcel/value';
 import type { OptionPosition } from '@/lib/parcel/types';
 import { usd } from './shared';
 
@@ -208,11 +209,7 @@ export function ValueHistory({
 }) {
   const plot = useMemo(() => {
     const values = points.map((p) => p.value);
-    const min = Math.min(...values),
-      max = Math.max(...values);
-    const pad = (max - min) * 0.12 || Math.abs(max) * 0.02 || 1;
-    const lo = min - pad,
-      hi = max + pad;
+    const { lo, hi } = valueChartDomain(points);
     const x = (i: number) =>
       V.x0 + (i / Math.max(1, points.length - 1)) * (V.x1 - V.x0);
     const y = (v: number) => V.y0 + ((hi - v) / (hi - lo)) * (V.y1 - V.y0);

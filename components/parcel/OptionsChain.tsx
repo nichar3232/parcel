@@ -103,8 +103,11 @@ export function OptionsChain({
     return v > 0 && v < 0.005 ? '<$0.01' : chainPrice.format(v);
   };
   const spot =
-    state.market.underlyings.find((u) => u.symbol === symbol)?.price ??
+    state.market.underlyings?.find((u) => u.symbol === symbol)?.price ??
     state.market.price;
+  const volatility =
+    state.market.underlyings?.find((u) => u.symbol === symbol)?.volatility ??
+    state.market.volatility;
 
   /**
    * Open the ladder on the money.
@@ -136,17 +139,35 @@ export function OptionsChain({
       )}
 
       {current && catalog && (
-        <div className="od-table-wrap od-ladder-scroll" ref={scroller}>
-          <table className="od-table od-ladder">
+        <>
+          <div className="od-chain-summary">
+            <div>
+              <span>Model indication</span>
+              <b>
+                {side === 'buy' ? 'Buy' : 'Write'} {kind} · {qty(catalog.quantity)} {catalog.symbol}
+              </b>
+            </div>
+            <div className="od-chain-assumptions" aria-label="Pricing assumptions">
+              <span>Spot {usd(catalog.spot)}</span>
+              <span>{(volatility * 100).toFixed(0)}% IV</span>
+              <span>4.00% rate</span>
+              <span>Per selected size</span>
+            </div>
+          </div>
+          <p className="od-chain-guidance">
+            Select a premium to open the position simulator. Premiums are Black–Scholes model indications, not executable market quotes.
+          </p>
+          <div className="od-table-wrap od-ladder-scroll" ref={scroller}>
+            <table className="od-table od-ladder">
             <thead>
               <tr>
-                <th>Strike price</th>
-                <th className="num od-ladder-breakeven">Breakeven</th>
-                <th className="num">To breakeven</th>
+                <th>Strike</th>
+                <th className="num od-ladder-breakeven">Break-even</th>
+                <th className="num">Move to B/E</th>
                 <th className="num">
-                  {side === 'buy' ? 'Cash to fund' : 'Reserved to write'}
+                  {side === 'buy' ? 'At exercise' : 'Max reserve'}
                 </th>
-                <th className="num">Premium</th>
+                <th className="num">Model premium</th>
               </tr>
             </thead>
             <tbody>
@@ -213,8 +234,9 @@ export function OptionsChain({
                   );
                 })}
             </tbody>
-          </table>
-        </div>
+            </table>
+          </div>
+        </>
       )}
     </Panel>
   );

@@ -93,6 +93,17 @@ export function createApp(
           database = 'unavailable';
         }
         const health = await chain.adapter.health();
+        const markSnapshot = marks.snapshot();
+        const nbbo = markSnapshot.sources.find(
+          (source) => source.name === 'massive-nbbo',
+        );
+        const marketData = {
+          ready:
+            !config.marketDataRequired ||
+            (nbbo?.enabled === true && nbbo.state === 'live'),
+          required: config.marketDataRequired,
+          sources: markSnapshot.sources,
+        };
         const parcel = {
           ready: !parcelAdapter,
           mode: parcelAdapter ? parcelAdapter.network : 'sandbox',
@@ -110,7 +121,9 @@ export function createApp(
           res,
           database === 'ready' &&
             (url.pathname !== '/api/ready' ||
-              (parcel.ready && (parcelAdapter || health.ready)))
+              (parcel.ready &&
+                (parcelAdapter || health.ready) &&
+                marketData.ready))
             ? 200
             : 503,
           {
@@ -119,9 +132,51 @@ export function createApp(
             parcel,
             database,
             chain: health,
+            marketData,
             serverTime: Date.now(),
           },
         );
+      }
+      if (url.pathname === '/api/marks/stream' && method === 'GET') {
+        // Market-data credentials stay server-side. Browser clients receive a
+        // coalesced same-origin event stream instead of each opening its own
+        // vendor socket (or, worse, receiving a credential in the bundle).
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          Connection: 'keep-alive',
+          'X-Accel-Buffering': 'no',
+        });
+        let ended = false;
+        let timer: NodeJS.Timeout | null = null;
+        const write = () => {
+          if (ended || res.writableEnded) return;
+          res.write(`event: marks\ndata: ${JSON.stringify(marks.snapshot())}\n\n`);
+        };
+        const flush = () => {
+          if (timer) clearTimeout(timer);
+          timer = null;
+          write();
+        };
+        // The upstream feed can burst hundreds of events together. Preserve
+        // the newest complete NBBO state but keep a browser frame bounded to
+        // ten updates a second; its `observedAt` remains the provider time.
+        const schedule = () => {
+          if (!timer) timer = setTimeout(flush, 100);
+        };
+        const unsubscribe = marks.subscribe(schedule);
+        const close = () => {
+          if (ended) return;
+          ended = true;
+          unsubscribe();
+          if (timer) clearTimeout(timer);
+          timer = null;
+          if (!res.writableEnded) res.end();
+        };
+        req.once('close', close);
+        res.once('error', close);
+        write();
+        return;
       }
       if (url.pathname === '/api/marks' && method === 'GET')
         return json(res, 200, marks.snapshot());

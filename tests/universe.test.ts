@@ -16,7 +16,7 @@ import { historyOf, mark, marketRows } from '../lib/parcel/market';
 import { risk } from '../lib/parcel/risk';
 import { parseOrderTerms } from '../lib/parcel/validation';
 import { UNDERLYINGS, underlying } from '../lib/parcel/universe';
-import { valueSeries } from '../lib/parcel/value';
+import { valueChartDomain, valueSeries } from '../lib/parcel/value';
 import type { OrderTerms, VaultBook } from '../lib/parcel/types';
 
 void test('every underlying shares one session calendar', () => {
@@ -27,6 +27,18 @@ void test('every underlying shares one session calendar', () => {
       dates,
       `${u.symbol} sessions`,
     );
+});
+
+void test('vault chart domains do not magnify sub-basis-point mark noise', () => {
+  const domain = valueChartDomain([
+    { value: 13_279.02 },
+    { value: 13_279.86 },
+  ]);
+  // At least 25 bp, plus a small visual cushion: pennies stay visible in the
+  // number but do not consume an entire 200px chart.
+  assert.ok(domain.hi - domain.lo > 13_279.44 * 0.0025 * 1.19);
+  assert.ok(domain.lo < 13_279.02);
+  assert.ok(domain.hi > 13_279.86);
 });
 
 void test('a simulated path opens at the mark it was struck from', () => {

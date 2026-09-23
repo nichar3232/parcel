@@ -488,7 +488,10 @@ export default function Workspace() {
         <span>Parcel — precision for every position</span>
         <span>
           {feed.connected
-            ? 'Live marks from Coinbase and Pyth, simulated where no venue publishes'
+            ? `${feed.sources
+                .filter((source) => source.enabled && source.state === 'live')
+                .map((source) => source.name)
+                .join(', ') || 'Venue'} marks; simulated where no venue publishes`
             : 'Simulated marks, no venue reachable'}
         </span>
       </footer>
