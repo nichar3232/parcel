@@ -144,7 +144,11 @@ async function act(action: Record<string, unknown>) {
     throw Error(
       'An earlier action is still unconfirmed. Call resolve_pending first.',
     );
-  const p = { key: randomUUID(), body: JSON.stringify({ revision, action }) };
+  // source marks the receipts as the agent's in the desk's activity.
+  const p = {
+    key: randomUUID(),
+    body: JSON.stringify({ revision, source: 'agent', action }),
+  };
   writeFileSync(slot(), JSON.stringify(p));
   return receipt(await send(p));
 }

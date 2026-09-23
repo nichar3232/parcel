@@ -827,3 +827,35 @@ void test('vault: fractional cross collateral settles after all free cash is wit
     a.store.close();
   }
 });
+
+void test('agent-placed actions mark only their own receipts, and no other source is accepted', () => {
+  const store = new Store(':memory:'),
+    { session } = store.createSession(),
+    service = new VaultService(store);
+  const apply = (revision: number, action: VaultAction, source?: string) =>
+    service.apply(session, randomUUID(), { revision, action, source });
+  let state = apply(0, {
+    type: 'transfer',
+    asset: 'USDC',
+    amount: 1000,
+    direction: 'deposit',
+  });
+  assert.equal(state.book.events[0].via, undefined);
+  state = apply(
+    state.revision,
+    { type: 'stock', side: 'buy', symbol: 'NVDA', quantity: 1 },
+    'agent',
+  );
+  assert.equal(state.book.events[0].via, 'agent');
+  assert.equal(state.book.events.filter((e) => e.via === 'agent').length, 1);
+  assert.throws(
+    () =>
+      apply(
+        state.revision,
+        { type: 'stock', side: 'buy', symbol: 'NVDA', quantity: 1 },
+        'robot',
+      ),
+    /Unsupported request source/,
+  );
+  store.close();
+});

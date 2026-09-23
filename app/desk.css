@@ -804,10 +804,17 @@
 }
 .od-panel-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   padding: 0 0 14px;
+}
+/* On a phone the actions drop below the title instead of squeezing the
+   description to a word per line and running off the edge. */
+.od-panel-head > div:first-child {
+  flex: 1 1 220px;
+  min-width: 0;
 }
 .od-panel-head h2 {
   font-size: 15px;
@@ -1280,6 +1287,16 @@
 }
 .od-table td b {
   font-weight: 600;
+}
+/* Marks receipts an agent placed through MCP. Text only, no box, and the
+   brand accent rather than green, which means a gain on this desk. */
+.od-table .od-agent-tag {
+  margin-left: 8px;
+  color: var(--pc-cyan);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .od-table td small {
   display: block;
@@ -2317,8 +2334,10 @@
 
 .od-panel-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 .od-search {
   display: inline-flex;

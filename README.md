@@ -43,6 +43,14 @@ Use Node 22.23.2 from `.nvmrc`. Open `http://localhost:3025`. This single server
 
 Start by depositing one NVDA share, choose **Underwrite → Covered call**, review the actual premium and reserve, and confirm. Use **Market controls** to advance historical sessions; due positions settle at their exact stored expiry observation. The UI does not fabricate balances after an API failure.
 
+## Agent access
+
+`mcp/parcel.ts` is an MCP server that lets Claude, or any MCP client, use the vault through the same HTTP API as the desk, so accounting, risk checks and signing stay on the server. It exposes quotes, options (including spreads and curves), stock, lending, protected shorts, collateral mode and the market replay. Cash borrowing is sandbox-only, and chain mode refuses it.
+
+Start the app, then run Claude from the repository root; `.mcp.json` registers the server. Set `PARCEL_SESSION` to a browser's `strata_session` cookie to share that desk's vault. Receipts an agent places carry an **Agent** label in Activity.
+
+On devnet, every agent action returns its signature and an Explorer link. An agent placed these: [deposit](https://explorer.solana.com/tx/4C6a3zaujC6sZ5N3tjNDU8fYjkLLhWecnbei3YUUuqEWgPbFJqwNEvu6iD4kx4dVV8nv6dmRexxhh5yKnfxEmqPx?cluster=devnet), [stock purchase](https://explorer.solana.com/tx/5fRoLSmoXDXu77iiMMe6JVH7T5gq9ZCxT1cGyya4ooyCXLYexefuGvwQtHhdKP978v6Dq3PZSwgVvHeajZoahuS5?cluster=devnet), [call option](https://explorer.solana.com/tx/62ZVnc9ot1pXPAGLsNU7MdPycWowZsmw7KtKXhSLmXRDJPfd1WqRysxXfTLoM1w3UyXW83hy7PvCnYT1ht974S9N?cluster=devnet). A request whose response is lost is saved and resent with the same idempotency key, so it executes exactly once.
+
 ## Code organization
 
 | Area | Responsibility |

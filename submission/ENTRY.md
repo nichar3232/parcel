@@ -26,6 +26,10 @@ The thesis is precise exposure plus explicit funding: fractional quantity, edita
 
 Fractionality does not change percentage theta or eliminate exercise funding. The default physical call prefunds $145 of strike cash plus approximately $4.04 premium. Bounded cash-settled spreads have a different funding model and payoff.
 
+## Agents
+
+An agent can run the desk. Parcel ships an MCP server (`mcp/parcel.ts`) that gives Claude, or any MCP client, the vault's trading actions as tools, behind the same server-side checks the desk uses. On devnet an agent placed a [deposit](https://explorer.solana.com/tx/4C6a3zaujC6sZ5N3tjNDU8fYjkLLhWecnbei3YUUuqEWgPbFJqwNEvu6iD4kx4dVV8nv6dmRexxhh5yKnfxEmqPx?cluster=devnet), a [stock purchase](https://explorer.solana.com/tx/5fRoLSmoXDXu77iiMMe6JVH7T5gq9ZCxT1cGyya4ooyCXLYexefuGvwQtHhdKP978v6Dq3PZSwgVvHeajZoahuS5?cluster=devnet) and a [call option](https://explorer.solana.com/tx/62ZVnc9ot1pXPAGLsNU7MdPycWowZsmw7KtKXhSLmXRDJPfd1WqRysxXfTLoM1w3UyXW83hy7PvCnYT1ht974S9N?cluster=devnet), each signed and publicly checkable. Receipts an agent places are labelled **Agent** in the desk's Activity.
+
 ## Demonstrated evidence
 
 - 19 confirmed current-program actions, including fractional options, closes, productive lending, protected shorts, margin changes, dividend settlement, withdrawals and replay reset.

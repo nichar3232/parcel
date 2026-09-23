@@ -436,6 +436,15 @@ export class VaultService {
       throw Error('Account position limit reached.');
     this.capacity(book);
     validateLedger(book, original);
+    if (request.source !== undefined && request.source !== 'agent')
+      throw Error('Unsupported request source.');
+    // Events the action emitted are unshifted ahead of the ones it started with.
+    if (request.source === 'agent')
+      for (const e of book.events.slice(
+        0,
+        book.events.length - before.events.length,
+      ))
+        e.via = 'agent';
 
     return {
       revision,

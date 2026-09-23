@@ -878,14 +878,14 @@ function Activity({ desk }: { desk: VaultController }) {
   const s = desk.state!;
   const [query, setQuery] = useState('');
   const events = s.book.events.filter((e) =>
-    `${e.title} ${e.detail} ${e.date}`
+    `${e.title} ${e.detail} ${e.date} ${e.via ?? ''}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
 
   const download = () => {
     const rows = [
-      ['date', 'title', 'detail', 'cash', 'shares', 'reference'],
+      ['date', 'title', 'detail', 'cash', 'shares', 'reference', 'via'],
       ...s.book.events.map((e) => [
         e.date,
         e.title,
@@ -893,6 +893,7 @@ function Activity({ desk }: { desk: VaultController }) {
         String(e.cash),
         String(e.shares),
         e.reference || '',
+        e.via || '',
       ]),
     ];
     const csv = rows
@@ -945,7 +946,12 @@ function Activity({ desk }: { desk: VaultController }) {
               {events.slice(0, 120).map((e) => (
                 <tr key={e.id}>
                   <td>
-                    <b>{e.title}</b>
+                    <b>
+                      {e.title}
+                      {e.via === 'agent' && (
+                        <span className="od-agent-tag">Agent</span>
+                      )}
+                    </b>
                     <small>{e.detail}</small>
                   </td>
                   <td>{e.date}</td>
