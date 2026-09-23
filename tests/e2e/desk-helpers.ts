@@ -98,8 +98,7 @@ export async function nav(page: Page, name: string) {
     case 'Convexity structures':
       return pick(page, 'Trade', 'Convexity');
     case 'Lending':
-      await navTop(page, 'Lending');
-      return section(page, 'Lend & borrow');
+      return pick(page, 'Lending', 'Lend');
     case 'Lending short':
       return pick(page, 'Lending', 'Short');
     case 'Lending spot':

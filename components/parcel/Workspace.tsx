@@ -204,14 +204,18 @@ function ProductNav({
               <div className="od-nav-menu">
                 {sections.map((section) => (
                   <div key={section.id} className="od-nav-section">
-                    <button
-                      className={`od-nav-link ${
-                        here && current === section.id ? 'active' : ''
-                      }`}
-                      onClick={() => go(name, section.id)}
-                    >
-                      {section.label}
-                    </button>
+                    {/* A lone section only repeats the view's own name
+                        above its choices, so the choices stand alone. */}
+                    {sections.length > 1 && (
+                      <button
+                        className={`od-nav-link ${
+                          here && current === section.id ? 'active' : ''
+                        }`}
+                        onClick={() => go(name, section.id)}
+                      >
+                        {section.label}
+                      </button>
+                    )}
                     {!!section.choices && (
                       <div className="od-nav-picks">
                         {section.choices.map((pick) => (
