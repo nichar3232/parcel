@@ -2,27 +2,42 @@
 
 import { ExternalLink, Plus, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { Mark, MarkFeed } from '@/hooks/parcel/use-marks';
 import { company, usePreIpoAssets } from '@/hooks/parcel/use-preipo';
-import { PUBLIC_EQUITIES } from '@/lib/parcel/public-equities';
+import {
+  useTokenizedEquities,
+  useTokenizedEquityQuotes,
+  type TokenizedEquityAsset,
+  type TokenizedEquityQuote,
+} from '@/hooks/parcel/use-tokenized-equities';
 import type { ProviderQuote } from '@/lib/preipo/types';
 import { AssetLogo } from './AssetLogo';
 import { Empty } from './shared';
 import { compact, pct, usd } from './shared';
 
-const STORAGE_KEY = 'parcel.watchlist.v2';
-const LEGACY_STORAGE_KEY = 'parcel.watchlist.prestocks.v1';
+const STORAGE_KEY = 'parcel.watchlist.v4';
+const LEGACY_STORAGE_KEYS = [
+  'parcel.watchlist.v3',
+  'parcel.watchlist.v2',
+  'parcel.watchlist.prestocks.v1',
+];
+const DEFAULT_XSTOCKS = [
+  'NVDAx',
+  'AAPLx',
+  'MSFTx',
+  'AMZNx',
+  'GOOGLx',
+  'METAx',
+  'TSLAx',
+];
 
-type Scope = 'all' | 'equities' | 'prestocks';
-type WatchId = `equity:${string}` | `prestocks:${string}`;
-type Equity = (typeof PUBLIC_EQUITIES)[number];
+type Scope = 'all' | 'tokenized' | 'prestocks';
+type WatchId = `tokenized:${string}` | `prestocks:${string}`;
 interface WatchPreference {
-  /** null follows the changing catalog, minus explicit exclusions. */
-  included: WatchId[] | null;
-  excluded: WatchId[];
+  included: WatchId[];
 }
 
-const equityId = (symbol: string): WatchId => `equity:${symbol}`;
+const tokenizedId = (id: string): WatchId => `tokenized:${id}`;
+const xstockId = (symbol: string): WatchId => tokenizedId(`xstocks:${symbol}`);
 const prestocksId = (mint: string): WatchId => `prestocks:${mint}`;
 
 const number = (value: unknown) =>
@@ -49,50 +64,44 @@ const matchesPreStocks = (quote: ProviderQuote, query: string) => {
   return haystack.includes(query.trim().toLowerCase());
 };
 
-const matchesEquity = (equity: Equity, query: string) =>
-  `${equity.name} ${equity.symbol}`
+const matchesTokenized = (asset: TokenizedEquityAsset, query: string) =>
+  `${asset.name} ${asset.symbol} ${asset.underlyingSymbol} ${asset.providerName} ${asset.description ?? ''}`
     .toLowerCase()
     .includes(query.trim().toLowerCase());
-
-const sourceLabel = (mark: Mark | undefined) => {
-  if (!mark) return 'Awaiting mark';
-  return mark.source === 'simulated' ? 'Modeled fallback' : 'Pyth live';
-};
-
-const sourceDetail = (mark: Mark | undefined) => {
-  if (!mark) return '—';
-  return mark.source === 'simulated' ? 'Modeled' : 'Pyth';
-};
 
 const asWatchIds = (values: unknown[]): WatchId[] =>
   values.flatMap((value) => {
     if (typeof value !== 'string') return [];
-    if (value.startsWith('equity:') || value.startsWith('prestocks:'))
+    if (value.startsWith('tokenized:') || value.startsWith('prestocks:'))
       return [value as WatchId];
-    // Watchlists saved before public equities were added held raw mints.
+    if (value.startsWith('xstock:')) return [xstockId(value.slice(7))];
+    // Version two represented traditional-ticker stand-ins as equities.
+    // Keep a person's follows when a matching issuer xStock exists, without
+    // keeping the old modelled-equity identity in the product.
+    if (value.startsWith('equity:')) return [xstockId(`${value.slice(7)}x`)];
+    // The oldest watchlist stored raw publisher mints.
     return [prestocksId(value)];
   });
 
 const readSaved = (): WatchPreference | null => {
   if (typeof window === 'undefined') return null;
   try {
-    const parsed = JSON.parse(
+    const raw =
       localStorage.getItem(STORAGE_KEY) ??
-        localStorage.getItem(LEGACY_STORAGE_KEY) ??
-        'null',
-    );
-    if (Array.isArray(parsed))
-      return { included: asWatchIds(parsed), excluded: [] };
+      LEGACY_STORAGE_KEYS.map((key) => localStorage.getItem(key)).find(
+        Boolean,
+      ) ??
+      'null';
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return { included: asWatchIds(parsed) };
     if (!parsed || typeof parsed !== 'object') return null;
     const record = parsed as Record<string, unknown>;
-    return {
-      included: Array.isArray(record.included)
-        ? asWatchIds(record.included)
-        : null,
-      excluded: Array.isArray(record.excluded)
-        ? asWatchIds(record.excluded)
-        : [],
-    };
+    // `included: null` was the old “show every item in the catalog” mode.
+    // A live issuer catalog can contain hundreds of assets, so use a compact
+    // practical default rather than turning a migration into a 900-row page.
+    return Array.isArray(record.included)
+      ? { included: asWatchIds(record.included) }
+      : null;
   } catch {
     return null;
   }
@@ -116,14 +125,15 @@ function PreStocksIdentity({ quote }: { quote: ProviderQuote }) {
   );
 }
 
-function EquityIdentity({ equity, mark }: { equity: Equity; mark?: Mark }) {
+function TokenizedIdentity({ asset }: { asset: TokenizedEquityAsset }) {
   return (
     <div className="od-watchlist-company">
-      <AssetLogo symbol={equity.symbol} size={34} />
+      <AssetLogo symbol={asset.underlyingSymbol} src={asset.logo} size={34} />
       <div>
-        <b>{equity.name}</b>
+        <b>{asset.name}</b>
         <small>
-          {equity.symbol} · Public equity · {sourceLabel(mark)}
+          {asset.symbol} · {asset.underlyingSymbol} · {asset.providerName} ·
+          Solana
         </small>
       </div>
     </div>
@@ -134,62 +144,78 @@ function Price({ value }: { value: number | null | undefined }) {
   return <b>{value == null ? '—' : usd(value)}</b>;
 }
 
-function RemoveButton({
-  label,
-  onRemove,
-}: {
-  label: string;
-  onRemove: () => void;
-}) {
-  return (
-    <div className="od-watchlist-actions">
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={`Remove ${label} from watchlist`}
-        title="Remove from watchlist"
-      >
-        <X size={15} />
-      </button>
-    </div>
-  );
+function quoteState(
+  quote: TokenizedEquityQuote | undefined,
+  asset: TokenizedEquityAsset,
+) {
+  if (!quote || quote.state === 'pending') return 'Refreshing';
+  if (asset.isTradingHalted) return 'Halted';
+  if (quote.state === 'unavailable')
+    return asset.marketOpen === false ? 'Market closed' : 'Quote unavailable';
+  return asset.marketOpen === true ? 'Market open' : 'Issuer quote';
 }
 
-function EquityRow({
-  equity,
-  mark,
+function quoteTime(quote: TokenizedEquityQuote | undefined) {
+  if (!quote?.observedAt) return '—';
+  return new Date(quote.observedAt).toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: 'UTC',
+  });
+}
+
+function TokenizedRow({
+  asset,
+  quote,
   onRemove,
 }: {
-  equity: Equity;
-  mark?: Mark;
+  asset: TokenizedEquityAsset;
+  quote?: TokenizedEquityQuote;
   onRemove: () => void;
 }) {
+  const state = quoteState(quote, asset);
   return (
-    <article className="od-watchlist-row od-watchlist-equity-row">
-      <EquityIdentity equity={equity} mark={mark} />
+    <article className="od-watchlist-row od-watchlist-tokenized-row">
+      <TokenizedIdentity asset={asset} />
       <div className="od-watchlist-metric">
-        <span>Last</span>
-        <Price value={mark?.price} />
+        <span>Issuer quote</span>
+        <Price value={quote?.quote} />
       </div>
       <div className="od-watchlist-metric">
-        <span>Day</span>
+        <span>Status</span>
         <b
           className={
-            mark && mark.change !== 0
-              ? mark.change > 0
-                ? 'od-up'
-                : 'od-down'
-              : ''
+            quote?.state === 'live' && !asset.isTradingHalted ? 'od-up' : ''
           }
         >
-          {mark ? pct(mark.change) : '—'}
+          {state}
         </b>
       </div>
       <div className="od-watchlist-metric od-watchlist-source-cell">
-        <span>Source</span>
-        <b>{sourceDetail(mark)}</b>
+        <span>Updated</span>
+        <b>{quote?.observedAt ? `${quoteTime(quote)} UTC` : '—'}</b>
       </div>
-      <RemoveButton label={equity.name} onRemove={onRemove} />
+      <div className="od-watchlist-actions">
+        <a
+          href={`https://solscan.io/token/${asset.mint}`}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Inspect ${asset.symbol} mint on Solscan`}
+          title="Inspect Solana mint"
+        >
+          <ExternalLink size={15} />
+        </a>
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${asset.name} from watchlist`}
+          title="Remove from watchlist"
+        >
+          <X size={15} />
+        </button>
+      </div>
     </article>
   );
 }
@@ -252,19 +278,19 @@ function PreStocksRow({
   );
 }
 
-function EquityResult({
-  equity,
+function TokenizedResult({
+  asset,
   onAdd,
 }: {
-  equity: Equity;
+  asset: TokenizedEquityAsset;
   onAdd: () => void;
 }) {
   return (
     <article className="od-watchlist-result">
-      <EquityIdentity equity={equity} />
+      <TokenizedIdentity asset={asset} />
       <div>
-        <span>Universe</span>
-        <b>Public equity</b>
+        <span>{asset.providerName}</span>
+        <b>{asset.underlyingType ?? 'Tokenized asset'}</b>
       </div>
       <button type="button" onClick={onAdd}>
         <Plus size={14} /> Add
@@ -312,105 +338,115 @@ function SectionHead({
 }
 
 /**
- * A reader-controlled watchlist across two truthfully distinct sources.
- *
- * Public equities use the desk's live-mark pipeline and identify a modeled
- * fallback per row. PreStocks remains a publisher quote sheet: its token and
- * valuation fields are shown as published rather than forced into an equity
- * quote convention they do not share.
+ * A reader-controlled watchlist with distinct issuer and publisher sources.
+ * Issuer entries are sourced from their declared Solana registries. Their
+ * prices remain blank during a halt, closure, or provider outage rather than
+ * being filled with a related equity or simulated mark.
  */
-export function WatchlistView({ feed }: { feed: MarkFeed }) {
-  const { data, error } = usePreIpoAssets();
+export function WatchlistView() {
+  const { data: tokenized, error: tokenizedError } = useTokenizedEquities();
+  const { data: preipo, error: preipoError } = usePreIpoAssets();
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<Scope>('all');
   const [preference, setPreference] = useState<WatchPreference | null>(
     readSaved,
   );
 
-  const catalog = useMemo(
+  const tokenizedCatalog = useMemo(() => tokenized?.assets ?? [], [tokenized]);
+  const preStocksCatalog = useMemo(
     () =>
-      [...(data?.catalog ?? [])].sort((a, b) =>
+      [...(preipo?.catalog ?? [])].sort((a, b) =>
         company(a.displayName).localeCompare(company(b.displayName)),
       ),
-    [data],
+    [preipo],
   );
-  const allIds = useMemo<WatchId[]>(
+  const defaultIds = useMemo<WatchId[]>(
     () => [
-      ...PUBLIC_EQUITIES.map((equity) => equityId(equity.symbol)),
-      ...catalog.map((quote) => prestocksId(quote.mint)),
+      ...DEFAULT_XSTOCKS.filter((symbol) =>
+        tokenizedCatalog.some((asset) => asset.id === `xstocks:${symbol}`),
+      ).map(xstockId),
+      ...['superstate:FWDI', 'superstate:GLXY']
+        .filter((id) => tokenizedCatalog.some((asset) => asset.id === id))
+        .map(tokenizedId),
+      ...preStocksCatalog.map((quote) => prestocksId(quote.mint)),
     ],
-    [catalog],
+    [tokenizedCatalog, preStocksCatalog],
   );
-
-  useEffect(() => {
-    if (preference !== null)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(preference));
-  }, [preference]);
-
-  const savedIds = preference
-    ? (preference.included ??
-      allIds.filter((id) => !preference.excluded.includes(id)))
-    : allIds;
-  const selected = new Set(savedIds);
-  const showEquities = scope !== 'prestocks';
-  const showPreStocks = scope !== 'equities';
-  const watchedEquities = savedIds
-    .filter((id) => id.startsWith('equity:'))
-    .map((id) =>
-      PUBLIC_EQUITIES.find((equity) => equityId(equity.symbol) === id),
-    )
-    .filter((equity): equity is Equity => Boolean(equity))
-    .filter((equity) => matchesEquity(equity, query));
-  const watchedPreStocks = savedIds
-    .filter((id) => id.startsWith('prestocks:'))
-    .map((id) => catalog.find((quote) => prestocksId(quote.mint) === id))
-    .filter((quote): quote is ProviderQuote => Boolean(quote))
-    .filter((quote) => matchesPreStocks(quote, query));
-  const equityAdditions = PUBLIC_EQUITIES.filter(
-    (equity) =>
-      !selected.has(equityId(equity.symbol)) &&
+  const savedIds = preference?.included ?? defaultIds;
+  const selected = useMemo(() => new Set(savedIds), [savedIds]);
+  const watchedTokenized = useMemo(
+    () =>
+      savedIds
+        .filter((id) => id.startsWith('tokenized:'))
+        .map((id) =>
+          tokenizedCatalog.find((asset) => tokenizedId(asset.id) === id),
+        )
+        .filter((asset): asset is TokenizedEquityAsset => Boolean(asset))
+        .filter((asset) => matchesTokenized(asset, query)),
+    [savedIds, tokenizedCatalog, query],
+  );
+  const quotes = useTokenizedEquityQuotes(
+    watchedTokenized.map((asset) => asset.id),
+  );
+  const watchedPreStocks = useMemo(
+    () =>
+      savedIds
+        .filter((id) => id.startsWith('prestocks:'))
+        .map((id) =>
+          preStocksCatalog.find((quote) => prestocksId(quote.mint) === id),
+        )
+        .filter((quote): quote is ProviderQuote => Boolean(quote))
+        .filter((quote) => matchesPreStocks(quote, query)),
+    [savedIds, preStocksCatalog, query],
+  );
+  const tokenizedAdditions = tokenizedCatalog.filter(
+    (asset) =>
+      !selected.has(tokenizedId(asset.id)) &&
       query.trim() &&
-      matchesEquity(equity, query),
+      matchesTokenized(asset, query),
   );
-  const preStocksAdditions = catalog.filter(
+  const preStocksAdditions = preStocksCatalog.filter(
     (quote) =>
       !selected.has(prestocksId(quote.mint)) &&
       query.trim() &&
       matchesPreStocks(quote, query),
   );
-  const refreshed = data
-    ? new Date(data.refreshedAt).toLocaleTimeString('en-US', {
+  const refreshed = preipo
+    ? new Date(preipo.refreshedAt).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
         timeZone: 'UTC',
       })
     : null;
+  const liveQuotes = Object.values(quotes).filter(
+    (quote) => quote.state === 'live',
+  ).length;
+
+  useEffect(() => {
+    if (preference !== null)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(preference));
+  }, [preference]);
+
   const remove = (id: WatchId) =>
-    setPreference((current) => {
-      const next = current ?? { included: null, excluded: [] };
-      if (next.included === null)
-        return next.excluded.includes(id)
-          ? next
-          : { ...next, excluded: [...next.excluded, id] };
-      return { ...next, included: next.included.filter((item) => item !== id) };
-    });
+    setPreference((current) => ({
+      included: (current?.included ?? defaultIds).filter((item) => item !== id),
+    }));
   const add = (id: WatchId) =>
     setPreference((current) => {
-      const next = current ?? { included: null, excluded: [] };
-      if (next.included === null)
-        return {
-          ...next,
-          excluded: next.excluded.filter((item) => item !== id),
-        };
-      return next.included.includes(id)
-        ? next
-        : { ...next, included: [...next.included, id] };
+      const included = current?.included ?? defaultIds;
+      return included.includes(id)
+        ? { included }
+        : { included: [...included, id] };
     });
-  const sourceLive = PUBLIC_EQUITIES.filter(
-    (equity) => feed.marks[equity.symbol]?.source === 'pyth',
-  ).length;
-  const totalListed = PUBLIC_EQUITIES.length + catalog.length;
+  const showTokenized = scope !== 'prestocks';
+  const showPreStocks = scope !== 'tokenized';
+  const totalListed = tokenizedCatalog.length + preStocksCatalog.length;
+  const liveSources =
+    tokenized?.sources.filter((source) => source.state === 'live') ?? [];
+  const sourceSummary = liveSources
+    .map((source) => `${source.name} ${source.assets}`)
+    .join(' · ');
 
   return (
     <section className="od-watchlist" aria-labelledby="watchlist-title">
@@ -419,15 +455,15 @@ export function WatchlistView({ feed }: { feed: MarkFeed }) {
           <span className="od-watchlist-kicker">Portfolio</span>
           <h2 id="watchlist-title">Watchlist</h2>
           <p>
-            Public equities and current publisher marks for the instruments you
-            follow.
+            Public tokenized equities and publisher marks for the instruments
+            you follow.
           </p>
         </div>
         <div className="od-watchlist-source">
           <b>Equities + PreStocks</b>
           <span>
-            {PUBLIC_EQUITIES.length} public · {catalog.length} PreStocks
-            {refreshed ? ` · publisher updated ${refreshed} UTC` : ''}
+            {sourceSummary || 'Reading issuer registries'} ·{' '}
+            {preStocksCatalog.length} PreStocks
           </span>
         </div>
       </header>
@@ -438,10 +474,10 @@ export function WatchlistView({ feed }: { feed: MarkFeed }) {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search public equities and PreStocks"
-            aria-label="Search public equities and PreStocks"
+            placeholder="Search tokenized equities and PreStocks"
+            aria-label="Search tokenized equities and PreStocks"
           />
-          <span>{totalListed} instruments</span>
+          <span>{totalListed || '—'} instruments</span>
         </label>
         <div
           className="od-watchlist-filter"
@@ -451,7 +487,7 @@ export function WatchlistView({ feed }: { feed: MarkFeed }) {
           {(
             [
               ['all', 'All'],
-              ['equities', 'Equities'],
+              ['tokenized', 'Tokenized equities'],
               ['prestocks', 'PreStocks'],
             ] as const
           ).map(([id, label]) => (
@@ -469,20 +505,20 @@ export function WatchlistView({ feed }: { feed: MarkFeed }) {
         </div>
       </div>
 
-      {(equityAdditions.length > 0 || preStocksAdditions.length > 0) && (
+      {(tokenizedAdditions.length > 0 || preStocksAdditions.length > 0) && (
         <section className="od-watchlist-results" aria-label="Add to watchlist">
           <div className="od-watchlist-results-head">
             <span>Catalog matches</span>
             <small>Add an instrument to this browser’s watchlist.</small>
           </div>
-          {equityAdditions.map((equity) => (
-            <EquityResult
-              key={equity.symbol}
-              equity={equity}
-              onAdd={() => add(equityId(equity.symbol))}
+          {tokenizedAdditions.slice(0, 12).map((asset) => (
+            <TokenizedResult
+              key={asset.id}
+              asset={asset}
+              onAdd={() => add(tokenizedId(asset.id))}
             />
           ))}
-          {preStocksAdditions.map((quote) => (
+          {preStocksAdditions.slice(0, 12).map((quote) => (
             <PreStocksResult
               key={quote.mint}
               quote={quote}
@@ -492,45 +528,58 @@ export function WatchlistView({ feed }: { feed: MarkFeed }) {
         </section>
       )}
 
-      {showEquities && (
+      {showTokenized && (
         <section
           className="od-watchlist-section"
-          aria-labelledby="watchlist-equities"
+          aria-labelledby="watchlist-tokenized"
         >
           <SectionHead
-            id="watchlist-equities"
-            title="Public equities"
+            id="watchlist-tokenized"
+            title="Solana tokenized equities"
             detail={
-              feed.ready
-                ? `${sourceLive} Pyth live · modeled fallback is labeled`
-                : 'Connecting to price sources'
+              tokenizedError
+                ? 'Issuer catalog temporarily unavailable'
+                : tokenized
+                  ? `${tokenizedCatalog.length} issuer assets · ${liveQuotes}/${watchedTokenized.length} current quotes`
+                  : 'Reading issuer registries'
             }
           />
-          <div className="od-watchlist-table od-watchlist-equities">
+          {tokenized && (
+            <p className="od-watchlist-provider-status">
+              {tokenized.sources
+                .map((source) =>
+                  source.state === 'live'
+                    ? `${source.name}: ${source.assets} listed`
+                    : `${source.name}: ${source.detail.toLowerCase()}`,
+                )
+                .join(' · ')}
+            </p>
+          )}
+          <div className="od-watchlist-table od-watchlist-tokenized">
             <div className="od-watchlist-labels" aria-hidden="true">
               <span>Instrument</span>
-              <span>Last</span>
-              <span>Day</span>
-              <span>Source</span>
+              <span>Issuer quote</span>
+              <span>Status</span>
+              <span>Updated</span>
               <span />
             </div>
-            {watchedEquities.length ? (
-              watchedEquities.map((equity) => (
-                <EquityRow
-                  key={equity.symbol}
-                  equity={equity}
-                  mark={feed.marks[equity.symbol]}
-                  onRemove={() => remove(equityId(equity.symbol))}
+            {watchedTokenized.length ? (
+              watchedTokenized.map((asset) => (
+                <TokenizedRow
+                  key={asset.id}
+                  asset={asset}
+                  quote={quotes[asset.id]}
+                  onRemove={() => remove(tokenizedId(asset.id))}
                 />
               ))
             ) : (
               <Empty
                 title={
                   query
-                    ? 'No watched equities match'
-                    : 'No public equities watched'
+                    ? 'No watched tokenized equities match'
+                    : 'No tokenized equities watched'
                 }
-                description="Search the public-equity universe above to add a symbol."
+                description="Search the issuer registries above to add a Solana tokenized equity."
               />
             )}
           </div>
@@ -546,10 +595,10 @@ export function WatchlistView({ feed }: { feed: MarkFeed }) {
             id="watchlist-prestocks"
             title="PreStocks"
             detail={
-              error
+              preipoError
                 ? 'Publisher data temporarily unavailable'
-                : data
-                  ? `${catalog.length} listed · updated ${refreshed} UTC`
+                : preipo
+                  ? `${preStocksCatalog.length} listed · updated ${refreshed} UTC`
                   : 'Reading publisher catalog'
             }
           />
@@ -562,7 +611,7 @@ export function WatchlistView({ feed }: { feed: MarkFeed }) {
               <span>Token vs mark</span>
               <span />
             </div>
-            {data && watchedPreStocks.length ? (
+            {preipo && watchedPreStocks.length ? (
               watchedPreStocks.map((quote) => (
                 <PreStocksRow
                   key={quote.mint}
@@ -573,14 +622,14 @@ export function WatchlistView({ feed }: { feed: MarkFeed }) {
             ) : (
               <Empty
                 title={
-                  error
+                  preipoError
                     ? 'PreStocks catalog unavailable'
                     : query
                       ? 'No watched PreStocks match'
                       : 'No PreStocks watched'
                 }
                 description={
-                  error
+                  preipoError
                     ? 'The next publisher refresh will restore your saved instruments.'
                     : query
                       ? 'Try another company name or symbol, then add a catalog match.'
@@ -593,9 +642,10 @@ export function WatchlistView({ feed }: { feed: MarkFeed }) {
       )}
 
       <p className="od-watchlist-note">
-        Equity marks come from Pyth when available and otherwise show a labeled
-        model fallback. PreStocks mark, token price and valuation are publisher
-        data. Neither source settles Parcel contracts.
+        Tokenized-equity quotes are issuer data for the named Solana token and
+        are never replaced with a modeled or related-stock price. PreStocks
+        mark, token price and valuation are publisher data. Neither source
+        settles Parcel’s deterministic sandbox contracts.
       </p>
     </section>
   );

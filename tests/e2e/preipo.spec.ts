@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   await openDesk(page);
 });
 
-test('the unified watchlist searches, removes and restores public and PreStocks listings', async ({
+test('the unified watchlist searches, removes and restores PreStocks listings', async ({
   page,
 }) => {
   await nav(page, 'Watchlist');
@@ -13,30 +13,19 @@ test('the unified watchlist searches, removes and restores public and PreStocks 
     page.getByRole('heading', { name: 'Watchlist', exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText('Public equities', { exact: true }),
+    page.getByText('Solana tokenized equities', { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText('PreStocks', { exact: true }).last(),
   ).toBeVisible();
-  const search = page.getByLabel('Search public equities and PreStocks');
+  const search = page.getByLabel('Search tokenized equities and PreStocks');
   await expect(search).toBeVisible();
-  // The public universe renders immediately; wait for the independently
-  // fetched publisher catalog before exercising a unified default list.
+  // The publisher catalog is independently fetched before exercising the
+  // saved PreStocks portion of the unified list.
   await expect(
     page.getByRole('button', { name: 'Remove OpenAI from watchlist' }),
   ).toBeVisible();
 
-  await page
-    .getByRole('button', { name: 'Remove Tesla from watchlist' })
-    .click();
-  await search.fill('tesla');
-  await expect(page.getByText('Catalog matches')).toBeVisible();
-  await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await expect(
-    page.getByRole('button', { name: 'Remove Tesla from watchlist' }),
-  ).toBeVisible();
-
-  await search.fill('');
   await page
     .getByRole('button', { name: 'Remove OpenAI from watchlist' })
     .click();

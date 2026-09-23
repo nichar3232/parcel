@@ -156,3 +156,28 @@ test('the landing page fits a phone without horizontal scroll', async ({
     ),
   ).toBe(true);
 });
+
+test('the landing mark responds to scroll without compromising navigation', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const nav = page.locator('.lp-nav');
+  const mark = nav.locator('.pc-mark');
+
+  await expect(mark).toBeVisible();
+  await page.evaluate(() => window.scrollTo({ top: 900, behavior: 'instant' }));
+  await expect(nav).toHaveAttribute('data-scrolled', '');
+
+  // The mark rotates with reader input rather than running as a decorative
+  // loader. Its transform is supplied by the scroll position on the header.
+  await expect
+    .poll(() =>
+      nav.evaluate((node) =>
+        node.style.getPropertyValue('--lp-mark-scroll-rotation'),
+      ),
+    )
+    .not.toBe('');
+  expect(
+    await mark.evaluate((node) => getComputedStyle(node).transform),
+  ).not.toBe('none');
+});

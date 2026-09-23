@@ -1,11 +1,11 @@
 /**
  * The instruments the desk quotes, and where their marks come from.
  *
- * Pyth publishes crypto around the clock and US equities only while the
- * cash market is open, and nobody publishes a pre-IPO sponsor token at
- * all. So every instrument carries the volatility to walk it with when
- * no fresh observation exists, and the engine is honest in the payload
- * about which of the two the reader is looking at.
+ * Pyth publishes crypto around the clock, while nobody publishes a
+ * continuously tradable price for a pre-IPO sponsor token at all. So every
+ * sandbox instrument carries the volatility to walk it with when no fresh
+ * observation exists, and the engine is honest in the payload about which
+ * of the two the reader is looking at.
  *
  * Feed ids are resolved from Hermes by symbol at boot rather than
  * pasted in here. A hardcoded id that is subtly wrong produces a
@@ -13,8 +13,6 @@
  * available; a lookup that fails just leaves the instrument simulated
  * and says so.
  */
-
-import { PUBLIC_EQUITIES } from '../../lib/parcel/public-equities';
 
 export type Kind = 'equity' | 'crypto' | 'stable' | 'private';
 
@@ -37,7 +35,6 @@ export interface Instrument {
 }
 
 export const INSTRUMENTS: Instrument[] = [
-  ...PUBLIC_EQUITIES.map((equity) => ({ ...equity, kind: 'equity' as const })),
   {
     symbol: 'SOL',
     name: 'Solana',

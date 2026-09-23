@@ -15,12 +15,11 @@ import {
 /**
  * The live mark engine.
  *
- * Two sources, one number. Pyth is polled for every instrument that has
- * a feed; anything without a fresh observation is walked forward by a
- * geometric Brownian motion seeded from the last real mark it had. The
- * equity feeds stop publishing when the cash market closes and no feed
- * exists for a sponsor token at all, so without the walk most of the
- * desk would be frozen most of the time.
+ * Two sources, one number. Pyth is polled for every sandbox instrument that
+ * has a feed; anything without a fresh observation is walked forward by a
+ * geometric Brownian motion seeded from the last real mark it had. No feed
+ * exists for a sponsor token, so without the walk the simulated maker would
+ * be frozen most of the time.
  *
  * The distinction is never hidden. Every mark carries the source that
  * produced it and the time of the last real observation, and the UI is

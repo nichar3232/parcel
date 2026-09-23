@@ -80,7 +80,8 @@ test('the shell is four destinations, each with its own sections', async ({
     Portfolio: ['Holdings', 'Watchlist', 'Activity'],
     Trade: ['Options', 'Structures'],
     'Pre-IPO': ['Market', 'Underwrite'],
-    Lending: ['Lend & borrow'],
+    // Lending's one section is unnamed in the menu; its choices stand alone.
+    Lending: [],
   };
   for (const [name, tabs] of Object.entries(sections)) {
     await navTop(page, name);

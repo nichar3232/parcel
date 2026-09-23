@@ -154,14 +154,19 @@
 
 /* The products run across the top of the dashboard, each opening to
    the sections and choices it owns. */
+/* The row fills the bar's height so each group's bottom edge is the
+   bar's, and a menu hung from it opens below the bar, not across it. */
 .od-nav {
   display: flex;
-  align-items: center;
+  align-self: stretch;
+  align-items: stretch;
   gap: 4px;
   margin-right: auto;
 }
 .od-nav-group {
   position: relative;
+  display: flex;
+  align-items: center;
 }
 .od-nav-item {
   display: inline-flex;
@@ -212,16 +217,12 @@
   opacity: 0.9;
 }
 
-/* Sits flush under the item with the offset drawn as a transparent
-   border, so the pointer travelling from the product to its menu never
-   crosses a gap that would count as leaving. */
+/* Opens just below the bar. Menus open on click, not hover, so the
+   gap between the bar and the menu is never read as leaving it. */
 .od-nav-menu {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 6px);
   left: 0;
-  margin-top: 0;
-  border-top: 6px solid transparent;
-  background-clip: padding-box;
   z-index: 60;
   display: flex;
   gap: 26px;
@@ -1307,20 +1308,29 @@
   text-align: center;
 }
 .od-empty-mark {
-  display: grid;
-  grid-template-columns: repeat(2, 9px);
-  gap: 3px;
+  display: block;
+  width: 36px;
+  height: 36px;
   margin-bottom: 10px;
-  transform: rotate(-12deg);
+  transform-origin: center;
+  animation: od-parcel-mark-spin 3.2s linear infinite;
 }
-.od-empty-mark i {
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-  background: var(--pc-line);
+.od-empty-mark .pc-mark {
+  display: block;
 }
-.od-empty-mark i:first-child {
-  background: var(--pc-faint);
+@keyframes od-parcel-mark-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .od-empty-mark {
+    animation: none;
+    transform: none;
+  }
 }
 .od-empty h3 {
   font-size: 14.5px;
@@ -1667,31 +1677,13 @@
    ================================================================== */
 
 .od-open {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  align-items: start;
-  gap: 28px;
+  min-width: 0;
 }
 .od-open-main {
   display: flex;
   flex-direction: column;
   gap: 18px;
   min-width: 0;
-}
-.od-open-side {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-}
-/* A rail of headings is a list, not five separate panels, so the
-   sections carry their own rule instead of a gutter each. */
-.od-open-side > .od-panel + .od-panel {
-  padding-top: 10px;
-  border-top: 1px solid var(--pc-line-soft);
-}
-.od-open-side .od-panel-head {
-  padding-bottom: 6px;
 }
 
 .od-open-head > span {
@@ -1731,6 +1723,33 @@
   color: var(--pc-muted);
   font-style: normal;
 }
+.od-open-feed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.od-open-feed i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--pc-muted);
+}
+.od-open-feed.live i {
+  background: var(--pc-cyan);
+  box-shadow: 0 0 0 3px var(--pc-cyan-wash);
+}
+.od-open-feed time {
+  margin-left: 4px;
+  color: var(--pc-muted);
+  letter-spacing: 0;
+  text-transform: none;
+}
 
 .od-value {
   display: block;
@@ -1753,20 +1772,6 @@
   stroke: currentColor;
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
-}
-/* The chart's own empty state, at the height the chart would be, so
-   the screen does not jump when the line arrives. */
-.od-open-blank {
-  display: flex;
-  align-items: center;
-  height: 210px;
-  border-top: 1px solid var(--pc-line-soft);
-  border-bottom: 1px solid var(--pc-line-soft);
-}
-.od-open-blank p {
-  max-width: 34ch;
-  color: var(--pc-muted);
-  font-size: 13.5px;
 }
 
 .od-range {
@@ -1799,6 +1804,54 @@
   cursor: default;
 }
 
+/* The value chart is the portfolio's primary read. Holdings and every
+   obligation now continue beneath it in one field, so a reader does not
+   have to scan a detached rail to reconcile the headline. The thin rules
+   keep the cards grouped without turning the desk into a grid of boxes. */
+.od-open-positions {
+  padding-top: 10px;
+}
+.od-open-positions-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 0;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-open-positions-head > div > span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.od-open-positions-head h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.od-open-positions-head p {
+  margin-top: 4px;
+  color: var(--pc-muted);
+  font-size: 12.5px;
+}
+.od-open-positions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 30px;
+}
+.od-open-positions-grid > .od-panel {
+  min-width: 0;
+  padding: 16px 0 18px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-open-positions-grid > .od-panel .od-panel-head {
+  padding-bottom: 8px;
+}
+
 .od-power {
   display: flex;
   align-items: center;
@@ -1825,7 +1878,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- the open-position rail ---------- */
+/* ---------- the open-position list ---------- */
 
 .od-pos {
   display: flex;
@@ -1901,8 +1954,8 @@
    ================================================================== */
 
 @media (max-width: 1180px) {
-  .od-open {
-    grid-template-columns: minmax(0, 1fr);
+  .od-open-positions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .od-work,
   .od-borrow {
@@ -1941,6 +1994,9 @@
   .od-grid-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .od-open-positions-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 @media (max-width: 900px) {
   .od-nav {
@@ -1953,6 +2009,25 @@
     height: auto;
     flex-wrap: wrap;
     padding-bottom: 8px;
+  }
+  /* A menu can be wider than the space to the right of the button that
+     opened it — Trade and Portfolio both lay their sections out side by
+     side — and .od-nav scrolls horizontally once the four products no
+     longer fit, which would carry an absolutely-positioned menu along
+     with it. .od-bar is already `position: sticky` and never scrolls,
+     so anchoring every menu there (not .od-nav-group's single button,
+     not the scrolling .od-nav) keeps it on screen no matter which
+     button opened it or how far the row has scrolled. */
+  .od-nav-group {
+    position: static;
+  }
+  .od-nav-menu {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    flex-wrap: wrap;
   }
 }
 @media (max-width: 720px) {
@@ -2970,6 +3045,16 @@
   border-top: 1px solid var(--pc-line);
   border-bottom: 1px solid var(--pc-line);
 }
+.od-watchlist-provider-status {
+  margin: 0;
+  padding: 9px 0;
+  border-top: 1px solid var(--pc-line-soft);
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.025em;
+  line-height: 1.45;
+}
 .od-watchlist-labels,
 .od-watchlist-row {
   display: grid;
@@ -2979,8 +3064,8 @@
     ) 58px;
   column-gap: 16px;
 }
-.od-watchlist-equities .od-watchlist-labels,
-.od-watchlist-equities .od-watchlist-equity-row {
+.od-watchlist-tokenized .od-watchlist-labels,
+.od-watchlist-tokenized .od-watchlist-tokenized-row {
   grid-template-columns: minmax(240px, 1.55fr) repeat(
       3,
       minmax(84px, 0.6fr)
@@ -3113,6 +3198,16 @@
   .od-watchlist-row .od-watchlist-metric:nth-of-type(5) {
     display: none;
   }
+  .od-watchlist-tokenized .od-watchlist-labels,
+  .od-watchlist-tokenized .od-watchlist-tokenized-row {
+    grid-template-columns: minmax(220px, 1.4fr) repeat(
+        2,
+        minmax(80px, 0.6fr)
+      ) 58px;
+  }
+  .od-watchlist-tokenized-row .od-watchlist-metric:nth-of-type(3) {
+    display: none;
+  }
 }
 @media (max-width: 620px) {
   .od-watchlist-head {
@@ -3184,6 +3279,9 @@
   .od-watchlist-row .od-watchlist-metric:nth-of-type(4),
   .od-watchlist-row .od-watchlist-metric:nth-of-type(5) {
     display: flex;
+  }
+  .od-watchlist-tokenized-row .od-watchlist-metric:nth-of-type(3) {
+    display: none !important;
   }
   .od-watchlist-actions {
     grid-column: 1 / -1;

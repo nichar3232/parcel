@@ -118,7 +118,11 @@ export class VaultService {
    * returning it; the recorded book and revision remain untouched.
    */
   private completeReceipt(session: Session, receipt: VaultSnapshot) {
-    if (Array.isArray(receipt.market?.underlyings)) return receipt;
+    if (
+      Array.isArray(receipt.market?.underlyings) &&
+      receipt.market.underlyings.length
+    )
+      return receipt;
     return {
       ...receipt,
       market: {

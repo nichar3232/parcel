@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { ArrowRight, TriangleAlert } from 'lucide-react';
 import type { VaultController } from '@/hooks/parcel/use-vault';
 import type { MarkFeed } from '@/hooks/parcel/use-marks';
-import type { VaultAction } from '@/lib/parcel/types';
+import type { MarketUnderlying, VaultAction } from '@/lib/parcel/types';
 import { amount } from '@/lib/parcel/validation';
 import { add, mul, round } from '@/lib/parcel/math';
 import {
@@ -17,6 +17,7 @@ import {
   health,
   liquidationPrice,
   pledgeLiquidationPrice,
+  RESTING_UTILISATION,
   rates,
   reserveOf,
   type Holding,
@@ -41,6 +42,7 @@ import {
 export type LendingTab = 'borrow';
 type Mode = 'borrow' | 'short' | 'lend' | 'stock';
 const MODES: Mode[] = ['borrow', 'short', 'lend', 'stock'];
+const EMPTY_UNDERLYINGS: MarketUnderlying[] = [];
 
 export function LendingView({
   desk,
@@ -58,6 +60,7 @@ export function LendingView({
   onSymbol: (symbol: string) => void;
 }) {
   const s = desk.state!;
+  const underlyings = s.market.underlyings ?? EMPTY_UNDERLYINGS;
 
   /**
    * The desk's own position, expressed in money-market terms.
@@ -68,10 +71,10 @@ export function LendingView({
    */
   const position = useMemo(() => {
     const priceOf = (of: string) =>
-      s.market.underlyings.find((u) => u.symbol === of)?.price ?? 1;
+      underlyings.find((u) => u.symbol === of)?.price ?? 1;
     const collateral: Holding[] = [
       { symbol: 'USDC', amount: s.book.vault.USDC, price: 1 },
-      ...s.market.underlyings.map((u) => ({
+      ...underlyings.map((u) => ({
         symbol: u.symbol,
         amount: s.book.vault[u.symbol] ?? 0,
         price: u.price,
@@ -116,7 +119,7 @@ export function LendingView({
       weighted,
       liquidation: liquidationPrice(weighted, shorted, otherDebt),
     };
-  }, [s, symbol]);
+  }, [s, symbol, underlyings]);
 
   return (
     <Borrow
@@ -166,10 +169,10 @@ function Borrow({
   onSymbol: (symbol: string) => void;
 }) {
   const s = desk.state!;
-  const under =
-    s.market.underlyings.find((u) => u.symbol === symbol) ??
-    s.market.underlyings[0];
-  const price = under.price;
+  const underlyings = s.market.underlyings ?? EMPTY_UNDERLYINGS;
+  const under = underlyings.find((u) => u.symbol === symbol) ?? underlyings[0];
+  const price = under?.price ?? s.market.price;
+  const volatility = under?.volatility ?? s.market.volatility;
   // Daily closes only. The date list also carries the test clock's
   // hourly ticks, and a loan that ends an hour from now is not a term
   // anyone means to pick. Default to the first close at least two
@@ -182,6 +185,11 @@ function Borrow({
     future.find((d) => d >= fortnight) || future.at(-1) || s.book.date;
 
   const reserve = reserveOf(symbol);
+  // A reserve with no observed pool mark is still executable: the server
+  // quotes it at the same resting utilisation rather than at a fictitious
+  // zero-rate pool. Keep every lending disclosure on that input.
+  const pool = feed.marks[symbol];
+  const utilisation = pool?.utilisation ?? RESTING_UTILISATION;
   const [quantity, setQuantity] = useState('1');
   const [cap, setCap] = useState(String(Math.ceil(price * 1.12)));
   const [expiry, setExpiry] = useState(defaultExpiry);
@@ -208,7 +216,8 @@ function Borrow({
   const k = Number(cap);
   const b = Number(amount_);
   const limit = reserve ? borrowLimit(q || 0, price, reserve) : 0;
-  const termed = mode !== 'stock' && !(mode === 'borrow' && rateKind === 'variable');
+  const termed =
+    mode !== 'stock' && !(mode === 'borrow' && rateKind === 'variable');
 
   let valid = !termed || future.length > 0;
   try {
@@ -228,7 +237,7 @@ function Borrow({
   const interest = valid ? termInterest(q, price, s.book.date, end) : 0;
   const protection =
     valid && mode === 'short'
-      ? protectionPremium(q, price, k, s.book.date, end)
+      ? protectionPremium(q, price, k, s.book.date, end, volatility)
       : 0;
 
   // What this borrow would do to the health factor, before it is taken.
@@ -255,9 +264,7 @@ function Borrow({
    * interest is known now; a variable one's is whatever the sessions
    * bring, so it is shown as the first day's run.
    */
-  const apr = reserve
-    ? rates(feed.marks[symbol]?.utilisation ?? 0, reserve).borrow
-    : 0;
+  const apr = reserve ? rates(utilisation, reserve).borrow : 0;
   const loan = (() => {
     if (mode !== 'borrow' || !valid || !reserve) return null;
     const termCost =
@@ -317,7 +324,12 @@ function Borrow({
                   : `${aprLabel} variable`,
               ],
               ...(rateKind === 'fixed'
-                ? [['Interest', usd(loan?.termCost ?? 0, 4)] as [string, string]]
+                ? [
+                    ['Interest', usd(loan?.termCost ?? 0, 4)] as [
+                      string,
+                      string,
+                    ],
+                  ]
                 : []),
               [
                 'Pledge sold below',
@@ -325,44 +337,45 @@ function Borrow({
               ],
             ]
           : mode === 'stock'
-          ? [
-              [
-                'Direction',
-                side === 'buy' ? 'Buy owned stock' : 'Sell owned stock',
-              ],
-              ['Settlement', 'Immediate stock and USDC exchange'],
-            ]
-          : [
-              ['Term ends', expiryLabel(end)],
-              ['Borrow rate', '3.50% APR'],
-              ['Full-term interest', usd(interest, 6)],
-              ['Stock sale proceeds', usd(mul(q, price), 6)],
-              [
-                'Protective call',
-                `Buy ${qty(q)} ${symbol} call at ${usd(mode === 'lend' ? round(price * 1.5) : k, 2)}`,
-              ],
-              [
-                `Protection premium paid by ${mode === 'lend' ? 'the borrower' : 'you'}`,
-                usd(
+            ? [
+                [
+                  'Direction',
+                  side === 'buy' ? 'Buy owned stock' : 'Sell owned stock',
+                ],
+                ['Settlement', 'Immediate stock and USDC exchange'],
+              ]
+            : [
+                ['Term ends', expiryLabel(end)],
+                ['Borrow rate', '3.50% APR'],
+                ['Full-term interest', usd(interest, 6)],
+                ['Stock sale proceeds', usd(mul(q, price), 6)],
+                [
+                  'Protective call',
+                  `Buy ${qty(q)} ${symbol} call at ${usd(mode === 'lend' ? round(price * 1.5) : k, 2)}`,
+                ],
+                [
+                  `Protection premium paid by ${mode === 'lend' ? 'the borrower' : 'you'}`,
+                  usd(
+                    mode === 'lend'
+                      ? protectionPremium(
+                          q,
+                          price,
+                          round(price * 1.5),
+                          s.book.date,
+                          end,
+                          volatility,
+                        )
+                      : protection,
+                    6,
+                  ),
+                ],
+                [
+                  'Your cash movement now',
                   mode === 'lend'
-                    ? protectionPremium(
-                        q,
-                        price,
-                        round(price * 1.5),
-                        s.book.date,
-                        end,
-                      )
-                    : protection,
-                  6,
-                ),
+                    ? '$0.000000'
+                    : usd(add(mul(q, price), -protection), 6),
+                ],
               ],
-              [
-                'Your cash movement now',
-                mode === 'lend'
-                  ? '$0.000000'
-                  : usd(add(mul(q, price), -protection), 6),
-              ],
-            ],
       value:
         mode === 'lend'
           ? add(mul(q, round(price * 1.5)), interest)
@@ -387,8 +400,6 @@ function Borrow({
    * it is the reserve's own two-slope model, which is what actually
    * prices every loan on this screen.
    */
-  const pool = feed.marks[symbol];
-  const utilisation = pool?.utilisation ?? 0;
   const here = reserve
     ? rates(utilisation, reserve)
     : { borrow: 0, supply: 0, utilisation: 0 };
@@ -435,8 +446,7 @@ function Borrow({
             },
             {
               label: 'Pledge sold at',
-              value:
-                loan?.liquidation != null ? usd(loan.liquidation) : '—',
+              value: loan?.liquidation != null ? usd(loan.liquidation) : '—',
               detail: loan
                 ? `Health ${Number.isFinite(loan.factor) ? loan.factor.toFixed(2) : '∞'}`
                 : undefined,
@@ -444,55 +454,55 @@ function Borrow({
           ],
         }
       : mode === 'short'
-      ? {
-          eyebrow: 'Protected short',
-          label: 'Most this can cost you',
-          value: usd(q * (k - price) + protection + interest),
-          tone: 'down' as const,
-          caption: `Capped at ${usd(k)} a share, protection and interest included.`,
-          figures: [
-            { label: 'You receive now', value: usd(q * price) },
-            { label: 'Protection', value: usd(protection) },
-            {
-              label: 'Liquidates at',
-              value:
-                projected?.liquidation != null
-                  ? usd(projected.liquidation)
-                  : '—',
-              detail: projected
-                ? `Health ${Number.isFinite(projected.factor) ? projected.factor.toFixed(2) : '∞'}`
-                : undefined,
-            },
-          ],
-        }
-      : mode === 'lend'
         ? {
-            eyebrow: 'Stock loan',
-            label: 'You earn, paid at signing',
-            value: usd(interest, 4),
-            tone: 'up' as const,
-            caption: `For lending ${qty(q)} ${symbol} until ${expiryLabel(end)}.`,
+            eyebrow: 'Protected short',
+            label: 'Most this can cost you',
+            value: usd(q * (k - price) + protection + interest),
+            tone: 'down' as const,
+            caption: `Capped at ${usd(k)} a share, protection and interest included.`,
             figures: [
+              { label: 'You receive now', value: usd(q * price) },
+              { label: 'Protection', value: usd(protection) },
               {
-                label: 'Borrower posts',
-                value: usd(q * price * 1.5),
+                label: 'Liquidates at',
+                value:
+                  projected?.liquidation != null
+                    ? usd(projected.liquidation)
+                    : '—',
+                detail: projected
+                  ? `Health ${Number.isFinite(projected.factor) ? projected.factor.toFixed(2) : '∞'}`
+                  : undefined,
               },
-              { label: 'Rate', value: '3.50% APR' },
-              { label: 'Term ends', value: expiryLabel(end) },
             ],
           }
-        : {
-            eyebrow: 'Spot trade',
-            label: side === 'buy' ? 'You pay' : 'You receive',
-            value: usd(q * price),
-            tone: undefined,
-            caption: 'Fully funded from the vault. Settles now.',
-            figures: [
-              { label: 'Price', value: usd(price) },
-              { label: 'Shares', value: qty(q) },
-              { label: 'Direction', value: side === 'buy' ? 'Buy' : 'Sell' },
-            ],
-          };
+        : mode === 'lend'
+          ? {
+              eyebrow: 'Stock loan',
+              label: 'You earn, paid at signing',
+              value: usd(interest, 4),
+              tone: 'up' as const,
+              caption: `For lending ${qty(q)} ${symbol} until ${expiryLabel(end)}.`,
+              figures: [
+                {
+                  label: 'Borrower posts',
+                  value: usd(q * price * 1.5),
+                },
+                { label: 'Rate', value: '3.50% APR' },
+                { label: 'Term ends', value: expiryLabel(end) },
+              ],
+            }
+          : {
+              eyebrow: 'Spot trade',
+              label: side === 'buy' ? 'You pay' : 'You receive',
+              value: usd(q * price),
+              tone: undefined,
+              caption: 'Fully funded from the vault. Settles now.',
+              figures: [
+                { label: 'Price', value: usd(price) },
+                { label: 'Shares', value: qty(q) },
+                { label: 'Direction', value: side === 'buy' ? 'Buy' : 'Sell' },
+              ],
+            };
 
   return (
     <div className="od-borrow">
@@ -566,7 +576,7 @@ function Borrow({
         <PanelHead
           title="Your terms"
           action={
-            <Badge tone={under.simulated ? 'neutral' : 'accent'}>
+            <Badge tone={under?.simulated ? 'neutral' : 'accent'}>
               {symbol} {usd(price)}
             </Badge>
           }
@@ -578,7 +588,7 @@ function Borrow({
               value={symbol}
               onChange={(e) => onSymbol(e.target.value)}
             >
-              {s.market.underlyings.map((u) => (
+              {underlyings.map((u) => (
                 <option key={u.symbol} value={u.symbol}>
                   {u.name} ({u.symbol}) · {usd(u.price)}
                   {u.simulated ? ' · simulated path' : ''}
