@@ -14,9 +14,18 @@ import {
 } from '../lib/parcel/math';
 import { curveCash } from '../lib/parcel/curves';
 import { units } from '../lib/engine';
-import { borrowDebt, borrowInterest } from '../lib/parcel/funding';
-import { borrowRate } from '../lib/parcel/lending';
-import { mark } from '../lib/parcel/market';
+import {
+  borrowDebt,
+  borrowInterest,
+  protectionPremium,
+} from '../lib/parcel/funding';
+import {
+  borrowRate,
+  rates,
+  reserveOf,
+  RESTING_UTILISATION,
+} from '../lib/parcel/lending';
+import { mark, volatility } from '../lib/parcel/market';
 import { marginGroups } from '../lib/parcel/risk';
 import { strikeStep, templateTerms, templates } from '../lib/parcel/templates';
 import type { OrderTerms, VaultAction } from '../lib/parcel/types';
@@ -412,6 +421,50 @@ void test('vault: short above cap exercises reserved stock and stays within maxi
     assert.ok(-a.state.book.shorts[0].pnl! <= maxLoss + 0.00001);
     assert.equal(a.state.risk.counterpartyShares.NVDA, 0);
     validateLedger(a.state.book, totals(initialVault()));
+  } finally {
+    a.store.close();
+  }
+});
+void test('vault: lending previews and execution use the underlying volatility and resting rate', () => {
+  const a = setup();
+  try {
+    const symbol = 'OPENAI',
+      quantity = 0.25,
+      expiry = '2025-01-31',
+      entry = mark(symbol, a.state.book.date),
+      cap = Math.round(entry * 1.5 * 1e6) / 1e6,
+      expectedProtection = protectionPremium(
+        quantity,
+        entry,
+        cap,
+        a.state.book.date,
+        expiry,
+        volatility(symbol),
+      );
+
+    // PreStocks deliberately carries a different model volatility from
+    // NVDA. The displayed protective-call cost must remain the same one
+    // the lender and short ledger actually funds.
+    assert.notEqual(volatility(symbol), 0.45);
+    a.deposit('USDC', 1000);
+    a.act({ type: 'short', quantity, cap, expiry, symbol });
+    assert.equal(a.state.book.shorts[0].premium, expectedProtection);
+
+    a.act({
+      type: 'transfer',
+      direction: 'deposit',
+      asset: symbol,
+      amount: quantity,
+    });
+    a.act({ type: 'lend', quantity, expiry, symbol });
+    assert.equal(a.state.book.loans[0].productive?.premium, expectedProtection);
+
+    const reserve = reserveOf(symbol);
+    assert.ok(reserve);
+    assert.equal(
+      borrowRate(symbol, null),
+      rates(RESTING_UTILISATION, reserve).borrow,
+    );
   } finally {
     a.store.close();
   }

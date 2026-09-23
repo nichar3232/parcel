@@ -38,9 +38,11 @@ export function protectionPremium(
   cap: number,
   from: string,
   to: string,
+  volatility = 0.45,
 ) {
   return round(
-    optionGreeks('call', entry, cap, days(from, to)).price * quantity,
+    optionGreeks('call', entry, cap, days(from, to), volatility).price *
+      quantity,
   );
 }
 export function shortCloseAmounts(p: ShortPosition, spot: number, at: string) {
@@ -74,8 +76,9 @@ export function borrowInterest(
   const rate = BigInt(Math.round(apr * 1e6));
   const denominator = 1_000_000n * 365n * 86_400_000n;
   return (
-    Number((units(principal) * rate * elapsed + denominator / 2n) / denominator) /
-    1e6
+    Number(
+      (units(principal) * rate * elapsed + denominator / 2n) / denominator,
+    ) / 1e6
   );
 }
 /** What a cash loan owes as of a session: interest booked so far plus the run since. */
