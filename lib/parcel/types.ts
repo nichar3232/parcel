@@ -110,6 +110,8 @@ export interface LedgerEvent {
 }
 export interface VaultBook {
   version: 3;
+  /** 'live' when the book runs on the wall clock and live marks; absent on the replay. */
+  clock?: 'live';
   date: string;
   margin: 'cross' | 'isolated';
   wallet: Balances;
@@ -185,7 +187,7 @@ export interface VaultSnapshot {
   book: VaultBook;
   risk: RiskSummary;
   market: {
-    clock: 'daily-close-with-hourly-test-clock';
+    clock: 'daily-close-with-hourly-test-clock' | 'live';
     /** The default underlying; its price and volatility are below. */
     symbol: string;
     price: number;

@@ -1,6 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, LockKeyhole } from 'lucide-react';
+import { ArrowLeft, ArrowRight, LockKeyhole, Minus, Plus } from 'lucide-react';
 import type { VaultController } from '@/hooks/parcel/use-vault';
 import type { MarketUnderlying, OrderTerms, Quote } from '@/lib/parcel/types';
 import { deliveryBounds } from '@/lib/parcel/envelope';
@@ -14,9 +14,10 @@ import {
   type Category,
   strikeStep,
 } from '@/lib/parcel/templates';
-import { selectableExpiries } from '@/lib/parcel/market';
+import { offeredExpiries } from '@/lib/parcel/market';
+import { quoteAround, spreadCost } from '@/lib/parcel/spread';
+import type { MarkFeed } from '@/hooks/parcel/use-marks';
 import { CurveEditor } from './CurveEditor';
-import { SizingControl } from './SizingControl';
 import { OptionsChain } from './OptionsChain';
 import { ExpiryPicker } from './ExpiryPicker';
 import { PayoffChart } from './PayoffChart';
@@ -34,31 +35,36 @@ import {
   Segmented,
   Stat,
   expiryLabel,
+  markOf,
   qty,
   usd,
 } from './shared';
 
 export type TradeTab = 'trade' | 'underwrite' | 'structures';
 
-const SIZES = [0.25, 0.5, 1, 2, 5];
 const EMPTY_UNDERLYINGS: MarketUnderlying[] = [];
 
 export function TradeView({
   desk,
+  feed,
   tab,
   choice,
   symbol,
   onSymbol,
+  symbols,
   advanced,
   onAdvanced,
 }: {
   desk: VaultController;
+  feed?: MarkFeed;
   tab: TradeTab;
   /** The contract, or on Structures the family, chosen in the rail. */
   choice: string;
   /** The underlying the ticket is written on. */
   symbol: string;
   onSymbol: (symbol: string) => void;
+  /** Restrict the underlying picker, as the Pre-IPO page does. */
+  symbols?: string[];
   advanced: boolean;
   onAdvanced: (on: boolean) => void;
 }) {
@@ -68,13 +74,20 @@ export function TradeView({
   // it rather than dereferencing a missing first instrument.
   const underlyings = state.market.underlyings ?? EMPTY_UNDERLYINGS;
   const under = underlyings.find((u) => u.symbol === symbol) ?? underlyings[0];
-  const price = under?.price ?? state.market.price;
+  // The live mark when the feed has one, so every figure built on spot
+  // moves with the market; the snapshot's price until it does.
+  const price =
+    markOf(state, feed, symbol)?.price ?? under?.price ?? state.market.price;
   // Hoisted: a memo keyed on `state.book.date` cannot be preserved
   // through the compiler, because it cannot prove the chain is stable.
   const session = state.book.date;
-  const future = selectableExpiries(session);
+  const future = offeredExpiries(state.market, session);
+  // A fortnight out: long enough that the premium is not all decay.
+  const fortnight = new Date(Date.parse(session) + 14 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
   const defaultExpiry =
-    future.find((d) => d >= '2025-02-07') || future[0] || session;
+    future.find((d) => d >= fortnight) || future[0] || session;
 
   /**
    * What the rail opened this screen on.
@@ -165,19 +178,19 @@ export function TradeView({
     ? { price: 0, delta: 0, gamma: 0, theta: 0, vega: 0 }
     : orderGreeks(effective, reference, session, vol);
 
+  // The market for exactly this contract: a buyer pays the ask, a writer
+  // receives the bid. Zero-width off the live market.
+  const crossing = invalid ? 0 : spreadCost(effective, reference, session, vol);
+  const market = quoteAround(g.price, crossing);
+  const trades = g.price + crossing;
+
   const includedStock =
     !invalid &&
     ['covered-call', 'put', 'collar'].includes(selected) &&
     effective.reference === 'stock'
       ? effective.quantity
       : 0;
-  const delivery = !invalid ? deliveryBounds([effective]) : null;
-  const cashReserve = Number(
-    delivery && delivery.cashMin < 0n ? -delivery.cashMin : 0n,
-  ) / 1e6;
-  const sharesReserve = Number(
-    delivery && delivery.sharesMin < 0n ? -delivery.sharesMin : 0n,
-  ) / 1e6;
+  const cashBound = !invalid ? deliveryBounds([effective]).cashMin : 0n;
 
   /**
    * The worst and best the position can do, sampled over the same
@@ -280,7 +293,7 @@ export function TradeView({
             <ExpiryPicker
               dates={future}
               value={chainDate}
-              asOf={session}
+              asOf={state.book.date}
               onChange={setChainExpiry}
             />
           </div>
@@ -300,19 +313,6 @@ export function TradeView({
             ]}
           />
         )}
-        <Segmented
-          label="Detail level"
-          value={advanced ? 'advanced' : 'basic'}
-          onChange={(v) => onAdvanced(v === 'advanced')}
-          options={[
-            { id: 'basic', label: 'Basic', hint: 'One decision at a time' },
-            {
-              id: 'advanced',
-              label: 'Advanced',
-              hint: 'Legs, Greeks and the full surface',
-            },
-          ]}
-        />
       </div>
 
       <div className="od-work">
@@ -339,9 +339,9 @@ export function TradeView({
               setDraft({ ...terms, quantity: effective.quantity });
               setQuote(null);
               setError('');
-              // A chain row is an indication. Its next destination is the
-              // payoff simulator, with the exact strike and side carried
-              // into the ticket — not a second, disconnected quote flow.
+              // Selecting a model indication opens a single, editable payoff
+              // simulation. The ladder is available again by an explicit
+              // action, instead of leaving a second pricing surface in view.
               setBrowse(false);
             }}
           />
@@ -377,6 +377,8 @@ export function TradeView({
                   spot={reference}
                   shock={shock}
                   onShock={setShock}
+                  date={session}
+                  vol={vol}
                 />
               ) : (
                 <Empty
@@ -424,9 +426,11 @@ export function TradeView({
                     <span>
                       {effective.reference === 'dividend'
                         ? 'Committed dividend event'
-                        : session.includes('T')
-                          ? 'Daily close carried forward'
-                          : 'Stored historical close'}
+                        : state.market.clock === 'live'
+                          ? 'Live mark'
+                          : session.includes('T')
+                            ? 'Daily close carried forward'
+                            : 'Stored historical close'}
                       {' — Black-Scholes at '}
                       {(vol * 100).toFixed(0)}% vol, reference{' '}
                       {usd(
@@ -477,9 +481,15 @@ export function TradeView({
           <PanelHead
             title={tab === 'structures' ? 'Build a structure' : 'Your contract'}
             action={
-              <Badge tone={under?.simulated ? 'neutral' : 'green'}>
-                {symbol} {usd(price)}
-              </Badge>
+              <button
+                type="button"
+                className={`od-switch ${advanced ? 'on' : ''}`}
+                aria-pressed={advanced}
+                onClick={() => onAdvanced(!advanced)}
+              >
+                <i aria-hidden />
+                Advanced
+              </button>
             }
           />
           <div className="od-panel-body">
@@ -489,50 +499,25 @@ export function TradeView({
                 value={symbol}
                 onChange={(e) => onSymbol(e.target.value)}
               >
-                {underlyings.map((u) => (
-                  <option key={u.symbol} value={u.symbol}>
-                    {u.name} ({u.symbol}) · {usd(u.price)}
-                    {u.simulated ? ' · simulated path' : ''}
-                  </option>
-                ))}
+                {underlyings
+                  .filter((u) => !symbols || symbols.includes(u.symbol))
+                  .map((u) => (
+                    <option key={u.symbol} value={u.symbol}>
+                      {u.name} ({u.symbol}){'  '}
+                      {usd(markOf(state, feed, u.symbol)?.price ?? u.price)}
+                      {u.simulated && state.market.clock !== 'live'
+                        ? ', simulated path'
+                        : ''}
+                    </option>
+                  ))}
               </select>
             </Field>
 
-            {/* size */}
-            <div className="od-control">
-              <div className="od-control-top">
-                <label htmlFor="od-size">Size</label>
-                <span>share-equivalents</span>
-              </div>
-              <div className="od-size-row">
-                <input
-                  id="od-size"
-                  aria-label="Contract quantity"
-                  type="number"
-                  min="0.000001"
-                  max="1000"
-                  step="any"
-                  value={Number.isNaN(draft.quantity) ? '' : draft.quantity}
-                  onChange={(e) =>
-                    update({
-                      quantity:
-                        e.target.value === '' ? NaN : Number(e.target.value),
-                    })
-                  }
-                />
-                <div className="od-chips">
-                  {SIZES.map((n) => (
-                    <button
-                      key={n}
-                      className={draft.quantity === n ? 'on' : ''}
-                      onClick={() => update({ quantity: n })}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <SizeField
+              quantity={draft.quantity}
+              unitPremium={invalid ? 0 : Math.abs(trades) / effective.quantity}
+              onChange={(quantity) => update({ quantity })}
+            />
 
             {/* strike, in Basic, for the contracts that have exactly one */}
             {!advanced && single && effective.reference === 'stock' && (
@@ -592,76 +577,43 @@ export function TradeView({
               </select>
             </Field>
 
-            {advanced && (
-              <>
-                <SizingControl
-                  desk={desk}
-                  terms={effective}
-                  onApply={(terms) => update(terms)}
-                />
-                {draft.curve ? (
-                  <CurveEditor draft={draft} update={update} />
-                ) : (
-                  <ContractLegEditor
-                    draft={draft}
-                    update={update}
-                    mode={tab}
-                    advanced
-                  />
-                )}
-              </>
-            )}
+            {advanced &&
+              (draft.curve ? (
+                <CurveEditor draft={draft} update={update} />
+              ) : (
+                <ContractLegEditor draft={draft} update={update} mode={tab} />
+              ))}
 
             <div className="od-lines">
-              <Line
-                label={g.price < 0 ? 'Model premium credit' : 'Model premium debit'}
-                value={
-                  invalid ? '—' : usd(Math.abs(g.price))
-                }
-                tone={g.price < 0 ? 'up' : undefined}
-              />
-              {(cashReserve > 0 || sharesReserve > 0) && (
-                <Line
-                  label="Exercise reserve"
-                  value={
-                    cashReserve > 0
-                      ? `${usd(cashReserve)} USDC`
-                      : `${qty(sharesReserve)} ${symbol}`
-                  }
-                  tone="muted"
-                />
+              {!invalid && crossing > 0 && (
+                <div className="od-bidask">
+                  <span>
+                    Bid{' '}
+                    <b>
+                      {usd(Math.abs(g.price < 0 ? market.ask : market.bid))}
+                    </b>
+                  </span>
+                  <span>
+                    Mid <b>{usd(Math.abs(g.price))}</b>
+                  </span>
+                  <span>
+                    Ask{' '}
+                    <b>
+                      {usd(Math.abs(g.price < 0 ? market.bid : market.ask))}
+                    </b>
+                  </span>
+                </div>
               )}
               <Line
-                label="Cash held at open"
-                value={
-                  invalid
-                    ? '—'
-                    : usd(Math.max(0, g.price) + cashReserve)
-                }
+                label={trades < 0 ? 'You receive' : 'You pay'}
+                value={invalid ? '—' : usd(Math.abs(trades))}
               />
-              {/* Settlement convention and collateral mode are
-                    decisions, and Basic has already made both. Printing
-                    them on the ticket asks a first-time reader to have
-                    an opinion about words they have not met yet; the
-                    quote states them in full before anything is
-                    signed. */}
-              {advanced && (
-                <>
-                  <Line
-                    label="Settlement"
-                    value={
-                      draft.settlement === 'physical'
-                        ? 'Fully funded physical delivery'
-                        : 'Cash, capped obligations'
-                    }
-                    tone="muted"
-                  />
-                  <Line
-                    label="Collateral mode"
-                    value={state.book.margin === 'cross' ? 'Cross' : 'Isolated'}
-                    tone="muted"
-                  />
-                </>
+              {!invalid && cashBound < 0n && (
+                <Line
+                  label="Reserved until expiry"
+                  value={usd(Number(-cashBound) / 1e6)}
+                  tone="muted"
+                />
               )}
             </div>
 
@@ -693,9 +645,7 @@ export function TradeView({
             </Button>
             <p className="od-note">
               <LockKeyhole size={12} />
-              {advanced
-                ? 'Physical buyers prefund exercise cash or shares on top of the premium. The quote shows the full requirement.'
-                : 'Nothing is signed until you review the quote.'}
+              Nothing is signed until you review the quote.
             </p>
           </div>
         </Panel>
@@ -711,5 +661,116 @@ export function TradeView({
         />
       )}
     </>
+  );
+}
+
+/**
+ * How much, in shares or in dollars.
+ *
+ * Five preset chips in a box beside the input read as a toolbar someone
+ * had generated; the budget and sensitivity sizing lived in a separate
+ * disclosure further down. One field now: type a number, or step it,
+ * and say whether the number is shares or dollars of premium. Dollars
+ * are converted at the current model premium, so the size tracks the
+ * market as it moves.
+ */
+function SizeField({
+  quantity,
+  unitPremium,
+  onChange,
+}: {
+  quantity: number;
+  /** Premium per share-equivalent, for sizing in dollars. */
+  unitPremium: number;
+  onChange: (quantity: number) => void;
+}) {
+  const [unit, setUnit] = useState<'shares' | 'usd'>('shares');
+  const [dollars, setDollars] = useState('');
+  const canPrice = unitPremium > 0.000001;
+  const inDollars = unit === 'usd' && canPrice;
+  const round = (n: number) => Math.max(0.000001, Math.round(n * 1e6) / 1e6);
+  const step = (dir: 1 | -1) => {
+    if (inDollars) {
+      const now = Number(dollars) || quantity * unitPremium;
+      const next = Math.max(1, Math.round(now) + dir * (now < 20 ? 1 : 10));
+      setDollars(String(next));
+      onChange(round(next / unitPremium));
+      return;
+    }
+    const q = Number.isNaN(quantity) ? 1 : quantity;
+    const by = q < 1 || (dir < 0 && q <= 1) ? 0.25 : 1;
+    onChange(round(Math.max(by, (Math.round(q / by) + dir) * by)));
+  };
+  const shown = inDollars
+    ? dollars || (quantity * unitPremium).toFixed(2)
+    : Number.isNaN(quantity)
+      ? ''
+      : quantity;
+  return (
+    <div className="od-control">
+      <div className="od-control-top">
+        <label htmlFor="od-size">Size</label>
+        <fieldset className="od-unit" aria-label="Size unit">
+          <button
+            type="button"
+            className={!inDollars ? 'on' : ''}
+            aria-pressed={!inDollars}
+            onClick={() => setUnit('shares')}
+          >
+            Shares
+          </button>
+          <button
+            type="button"
+            className={inDollars ? 'on' : ''}
+            aria-pressed={inDollars}
+            disabled={!canPrice}
+            onClick={() => {
+              setDollars((quantity * unitPremium).toFixed(2));
+              setUnit('usd');
+            }}
+          >
+            USD
+          </button>
+        </fieldset>
+      </div>
+      <div className="od-stepper">
+        <button
+          type="button"
+          aria-label="Decrease size"
+          onClick={() => step(-1)}
+        >
+          <Minus size={14} />
+        </button>
+        <input
+          id="od-size"
+          aria-label={inDollars ? 'Premium budget in USD' : 'Contract quantity'}
+          type="number"
+          min="0.000001"
+          max={inDollars ? undefined : 1000}
+          step="any"
+          value={shown}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (inDollars) {
+              setDollars(v);
+              if (Number(v) > 0) onChange(round(Number(v) / unitPremium));
+            } else onChange(v === '' ? NaN : Number(v));
+          }}
+        />
+        <span>{inDollars ? 'USD' : 'shares'}</span>
+        <button
+          type="button"
+          aria-label="Increase size"
+          onClick={() => step(1)}
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+      {inDollars && (
+        <small>
+          {qty(quantity)} share-equivalents at {usd(unitPremium)} each
+        </small>
+      )}
+    </div>
   );
 }

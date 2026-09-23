@@ -37,8 +37,58 @@ export const DIVIDEND_DATE = '2025-03-12';
 export const DIVIDEND = 0.01;
 export const VOLATILITY = 0.45;
 
+/**
+ * The live market, when the server runs on one.
+ *
+ * The desk was built on a replay of stored 2025 closes: the clock was a
+ * session date, every price was that session's close and every contract
+ * settled at a close already in the file. Live, the clock is now, a price
+ * is the current mark and a contract settles at the close recorded on its
+ * expiry day. The ledger reads both through `mark`: an instant is priced
+ * at the live mark, a calendar date at that day's recorded close.
+ *
+ * Only the server installs one. Without it — the test suite, the browser —
+ * everything here is the replay, unchanged.
+ */
+export interface LiveMarket {
+  /** The current mark, or null if none has been observed yet. */
+  spot(symbol: string): number | null;
+  /** The recorded close on a date, or null until it is final. */
+  close(symbol: string, date: string): number | null;
+  /** The expiry dates a contract can be written to, after `now`. */
+  expiries(now: string): string[];
+  /** The current bid and ask, when a venue or the maker quotes one. */
+  quote?(symbol: string): { bid: number; ask: number } | null;
+}
+let live: LiveMarket | null = null;
+export function setLiveMarket(market: LiveMarket | null) {
+  live = market;
+}
+export const liveMarket = () => live;
+/** An instant rather than a calendar date: a live clock reading. */
+const instant = (date: string) => date.length > 10;
+
 /** The committed close of one underlying at one observation. */
 export function mark(symbol: string, date: string) {
+  if (live) {
+    const price = instant(date) ? live.spot(symbol) : live.close(symbol, date);
+    if (price == null)
+      throw Error(
+        instant(date)
+          ? `No live price for ${symbol} yet. Try again in a moment.`
+          : `The ${symbol} close for ${date} is not final yet.`,
+      );
+    return price;
+  }
+  return storedMark(symbol, date);
+}
+
+/**
+ * A close from the stored replay, whatever market is running. The landing
+ * page's worked examples are fixed figures on the 2025 file; routed through
+ * `mark` they would ask the live market for a 2025 close it never has.
+ */
+export function storedMark(symbol: string, date: string) {
   const rows = clocks.get(symbol);
   if (!rows) throw Error(`Choose a supported underlying, not ${symbol}.`);
   const row = rows.find((r) => r.date === date);
@@ -54,10 +104,16 @@ export const historyOf = (symbol: string) =>
   underlying(symbol).rows.filter((r) => r.date >= WINDOW_OPENS);
 
 export function expiries(date: string) {
-  return marketRows.filter((r) => r.date > date).map((r) => r.date);
+  if (live) return live.expiries(date);
+  return storedExpiries(date);
 }
 
+/** Session dates after `date` in the stored replay. */
+export const storedExpiries = (date: string) =>
+  marketRows.filter((r) => r.date > date).map((r) => r.date);
+
 export function shortExpiries(date: string) {
+  if (live) return [];
   const now = Date.parse(date);
   return clockDates.filter(
     (d) =>
@@ -80,4 +136,16 @@ export function shortExpiries(date: string) {
  */
 export function selectableExpiries(date: string) {
   return expiries(date);
+}
+
+/**
+ * The expiries a snapshot offers, for the browser.
+ *
+ * The server sends its own calendar with every snapshot — the replay's
+ * stored sessions, or the live market's upcoming Fridays — so a view reads
+ * the dates from there rather than from a price file it may not be on.
+ */
+export function offeredExpiries(market: { dates: string[] }, date: string) {
+  const today = date.slice(0, 10);
+  return market.dates.filter((d) => !d.includes('T') && d > today);
 }

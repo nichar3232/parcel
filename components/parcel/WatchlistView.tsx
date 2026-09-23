@@ -640,13 +640,6 @@ export function WatchlistView() {
           </div>
         </section>
       )}
-
-      <p className="od-watchlist-note">
-        Tokenized-equity quotes are issuer data for the named Solana token and
-        are never replaced with a modeled or related-stock price. PreStocks
-        mark, token price and valuation are publisher data. Neither source
-        settles Parcel’s deterministic sandbox contracts.
-      </p>
     </section>
   );
 }

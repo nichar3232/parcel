@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -18,7 +18,6 @@ import {
 } from '@/lib/parcel/funding';
 import {
   RANGES,
-  changeOver,
   valueSeries,
   withinRange,
   type Range,
@@ -27,7 +26,7 @@ import { QuoteReview } from './QuoteReview';
 import type { MarketUnderlying, Quote, VaultAction } from '@/lib/parcel/types';
 import { AssetLogo } from './AssetLogo';
 import { logoOf } from '@/lib/preipo/registry';
-import { Meter, ValueHistory } from './charts';
+import { LiveValueChart, Meter, type ValueTick } from './charts';
 import { WatchlistView } from './WatchlistView';
 import type { Transfer } from './TransferDialog';
 import {
@@ -42,6 +41,7 @@ import {
   Stat,
   dateLabel,
   expiryLabel,
+  markOf,
   qty,
   usd,
 } from './shared';
@@ -82,7 +82,7 @@ export function PortfolioView({
   onTransfer: (t: Transfer) => void;
 }) {
   const s = desk.state!;
-  const { book, risk, market } = s;
+  const { book, market } = s;
   // A receipt can survive an application deploy. Keep every portfolio
   // calculation total if an older response has not yet gained its catalog.
   const underlyings = market.underlyings ?? EMPTY_UNDERLYINGS;
@@ -93,15 +93,16 @@ export function PortfolioView({
      recent observable mark. This keeps a live quote from rewriting a
      past close, while still making the number a desk user sees now react
      to the market. */
+  const liveClock = market.clock === 'live';
   const liveSpots = useMemo(
     () =>
       Object.fromEntries(
         underlyings.map((u) => [
           u.symbol,
-          feed.marks[u.symbol]?.price ?? u.price,
+          (liveClock ? feed.marks[u.symbol]?.price : undefined) ?? u.price,
         ]),
       ),
-    [feed.marks, underlyings],
+    [feed.marks, underlyings, liveClock],
   );
   const nav = underlyings.reduce(
     (t, u) => t + (book.vault[u.symbol] ?? 0) * u.price,
@@ -111,30 +112,8 @@ export function PortfolioView({
     (t, u) => t + (book.vault[u.symbol] ?? 0) * liveSpots[u.symbol],
     book.vault.USDC,
   );
-  // A portfolio should be marked by assets it holds, not by an unrelated
-  // ticker that happens to be in the global feed. That former check made an
-  // NVDA-only vault claim a "live" mark whenever a simulated private-company
-  // path ticked, while its own value stayed flat.
-  const heldFeedMarks = underlyings
-    .filter((u) => (book.vault[u.symbol] ?? 0) > 0)
-    .map((u) => feed.marks[u.symbol])
-    .filter((mark): mark is NonNullable<typeof mark> => !!mark);
-  const hasFeedMark = heldFeedMarks.length > 0;
-  const hasLiveMark = heldFeedMarks.some((mark) => mark.source !== 'simulated');
-  const hasSimulatedMark =
-    !hasLiveMark && heldFeedMarks.some((mark) => mark.source === 'simulated');
-  const liveMark = heldFeedMarks.find((mark) => mark.source !== 'simulated');
-  const liveMarkLabel =
-    liveMark?.source === 'massive-nbbo'
-      ? 'NBBO mark'
-      : liveMark?.source === 'massive-delayed-nbbo'
-        ? 'Delayed NBBO mark'
-        : liveMark?.quoteKind === 'venue-bbo'
-          ? 'Venue BBO mark'
-          : liveMark?.source === 'pyth'
-            ? 'Oracle mark'
-            : 'Live mark';
-  const displayedNav = hasFeedMark ? liveNav : nav;
+  const hasLiveMark = underlyings.some((u) => !!markOf(s, feed, u.symbol));
+  const displayedNav = hasLiveMark ? liveNav : nav;
   // What is held: every underlying with something in the vault, NVDA
   // always so the list never comes up empty. What sits only in the
   // wallet is deposited from the wallet, not listed here as a zero.
@@ -174,35 +153,130 @@ export function PortfolioView({
       }),
     [active, market, book.date, underlyings, liveSpots],
   );
-  const [range, setRange] = useState<Range>('1M');
-  const series = useMemo(() => valueSeries(book), [book]);
-  const liveSamples = useLiveValueSamples(
-    feed,
-    displayedNav,
-    s.revision,
-    // The balance headline receives every mark. The plot holds the final
-    // observation in a small time bucket so a high-rate quote stream is not
-    // redrawn as a jagged succession of cents. Simulated marks are sampled
-    // more slowly; actual venue marks get a one-second history.
-    hasLiveMark ? 1_000 : 5_000,
+  const [range, setRange] = useState<'1D' | Range>('1D');
+  const [scrub, setScrub] = useState<ValueTick | null>(null);
+  const heldSymbols = underlyings
+    .filter((u) => (book.vault[u.symbol] ?? 0) > 0)
+    .map((u) => u.symbol);
+  const dailyCloses = useDailyCloses(liveClock ? heldSymbols : []);
+  const series = useMemo(
+    () =>
+      valueSeries(
+        book,
+        liveClock ? { closes: dailyCloses, spot: liveSpots } : undefined,
+      ),
+    [book, liveClock, dailyCloses, liveSpots],
   );
-  /* The persistent series is session-close accounting. The small tail is
-     made only of real marks received during this browser session. It
-     never invents an intraday history merely to fill the chart. */
-  const completeSeries = useMemo(() => {
-    const base = series.length ? series : [{ date: book.date, value: nav }];
-    return [...base, ...liveSamples];
-  }, [book.date, liveSamples, nav, series]);
-  const chartPoints = useMemo(
-    () => withinRange(completeSeries, range),
-    [completeSeries, range],
+  const drawn = withinRange(series, range === '1D' ? 'ALL' : range);
+  const liveSamples = useLiveValueSamples(feed, displayedNav, s.revision);
+
+  /* Today, from real prints. Every listed stock in the vault is valued at
+     each of today's one-minute bars, everything else at its live mark,
+     plus the cash. The feed's own ticks carry the line on past the last
+     bar, so between minutes it still moves with every print. */
+  const heldEquities = heldSymbols.filter(
+    (symbol) => markOf(s, feed, symbol)?.kind === 'equity',
   );
-  const completedPoints = withinRange(series, range);
-  const move = changeOver(chartPoints);
-  /* Formatting a zero move as a green +$0.00 is a small lie of tone.
-     Keep a cent threshold for the directional treatment, the same
-     precision the balance itself is shown at. */
-  const directionalMove = move && Math.abs(move.amount) >= 0.005 ? move : null;
+  const intraday = useIntraday(heldEquities);
+  const today = useMemo(() => {
+    const days = intraday.filter((d) => d.bars.length);
+    if (!days.length) return null;
+    /* Today alone, unless today is still under an hour and a half old —
+       the first minutes of a pre-market squeezed onto a full-day axis
+       are a vertical scribble, so until then yesterday's session leads
+       into it, the way a broker's 1D view does before the open. */
+    const dayStart = Math.max(...days.map((d) => d.dayStart ?? 0));
+    const lastPrint = Math.max(...days.map((d) => d.bars.at(-1)!.t));
+    const todayOnly = dayStart > 0 && lastPrint - dayStart >= 90 * 60_000;
+    const from = todayOnly ? dayStart : 0;
+    let fixed = book.vault.USDC;
+    for (const u of underlyings)
+      if (!days.some((d) => d.symbol === u.symbol))
+        fixed += (book.vault[u.symbol] ?? 0) * liveSpots[u.symbol];
+    const times = [
+      ...new Set(
+        days.flatMap((d) => d.bars.filter((b) => b.t >= from).map((b) => b.t)),
+      ),
+    ].sort((a, b) => a - b);
+    if (!times.length) return null;
+    const cursor = days.map(() => 0);
+    const points: ValueTick[] = times.map((t) => {
+      let value = fixed;
+      days.forEach((d, k) => {
+        while (cursor[k] + 1 < d.bars.length && d.bars[cursor[k] + 1].t <= t)
+          cursor[k]++;
+        value += (book.vault[d.symbol] ?? 0) * d.bars[cursor[k]].price;
+      });
+      return { t, value };
+    });
+    const lastBar = points.at(-1)!.t;
+    for (const sample of liveSamples) {
+      const t = Date.parse(sample.date);
+      if (t > lastBar) points.push({ t, value: sample.value });
+    }
+    const base = days.every((d) => d.previousClose != null)
+      ? days.reduce(
+          (v, d) => v + (book.vault[d.symbol] ?? 0) * d.previousClose!,
+          fixed,
+        )
+      : null;
+    /* On a time axis within one day, so the line grows toward the
+       close. Across two days the overnight has no prints, so the axis is
+       the prints themselves. */
+    const end = Math.max(
+      points.at(-1)!.t,
+      ...days.map((d) => d.session?.end ?? 0),
+    );
+    return {
+      points: todayOnly ? points : points.map((p, i) => ({ ...p, t: i })),
+      times: points.map((p) => p.t),
+      base,
+      domain: todayOnly ? ([points[0].t, end] as [number, number]) : undefined,
+    };
+  }, [intraday, book.vault, underlyings, liveSpots, liveSamples]);
+
+  /* The longer ranges are session-close accounting, with this browser
+     session's live marks as their tail. Nothing is invented to fill them. */
+  /* A range is daily closes ending on the value right now: one point for
+     the present, not the second-by-second tail the 1D line draws, which
+     would crowd out the days. */
+  const history = useMemo(() => {
+    const base = drawn.length ? drawn : [{ date: book.date, value: nav }];
+    const now = liveSamples.at(-1);
+    return [...base, ...(now ? [now] : [])].map((p, i) => ({
+      t: i,
+      value: p.value,
+    }));
+  }, [book.date, drawn, liveSamples, nav]);
+  const historyDates = [
+    ...(drawn.length ? drawn : [{ date: book.date }]).map((p) => p.date),
+    ...(liveSamples.length ? ['now'] : []),
+  ];
+  const backfilled = drawn.filter((p) => p.backfill).length;
+
+  const onDay = range === '1D' && !!today;
+  const chart = onDay ? today!.points : history;
+  const reference = onDay
+    ? (today!.base ?? today!.points[0].value)
+    : chart[0].value;
+  const shown = scrub?.value ?? displayedNav;
+  const moveAmount = shown - reference;
+  const directionalMove =
+    Math.abs(moveAmount) >= 0.005
+      ? {
+          amount: moveAmount,
+          percent: reference ? moveAmount / reference : 0,
+        }
+      : null;
+  const clock = (t: number) =>
+    new Intl.DateTimeFormat('en-US', {
+      ...(new Date(t).toDateString() !== new Date(feed.asOf).toDateString()
+        ? { weekday: 'short' }
+        : {}),
+      hour: 'numeric',
+      minute: '2-digit',
+      ...(t > feed.asOf - 90_000 ? { second: '2-digit' } : {}),
+    }).format(t);
 
   if (tab === 'watchlist') return <WatchlistView />;
   if (tab === 'collateral') return <Collateral desk={desk} />;
@@ -228,7 +302,7 @@ export function PortfolioView({
         <div className="od-open-head">
           <span>Vault value</span>
           <strong>
-            <Money value={displayedNav} />
+            <Money value={shown} />
           </strong>
           {directionalMove ? (
             <div
@@ -244,57 +318,58 @@ export function PortfolioView({
               </b>
               <span>({(directionalMove.percent * 100).toFixed(2)}%)</span>
               <em>
-                {completedPoints.length > 1
-                  ? RANGES.find((r) => r.id === range)?.label
-                  : hasFeedMark
-                    ? 'Since first mark'
-                    : 'Session mark'}
+                {scrub && onDay
+                  ? clock(today!.domain ? scrub.t : today!.times[scrub.t])
+                  : scrub
+                    ? historyDates[scrub.t] === 'now'
+                      ? 'Now'
+                      : expiryLabel(historyDates[scrub.t] ?? '')
+                    : onDay
+                      ? 'Today'
+                      : drawn.length > 1
+                        ? RANGES.find((r) => r.id === range)?.label
+                        : 'Since open'}
               </em>
             </div>
           ) : (
             <div className="od-open-move flat">
-              {hasLiveMark
-                ? 'No change from the opening mark. Open contracts are marked separately below.'
-                : hasSimulatedMark
-                  ? 'Indicative simulation for held assets. Open contracts are marked separately below.'
-                : 'Cash and stock. Open contracts are marked separately below.'}
+              Unchanged {onDay ? 'today' : 'over this range'}. Open contracts
+              are marked separately below.
             </div>
           )}
-          <div
-            className={`od-open-feed ${hasLiveMark ? 'live' : hasSimulatedMark ? 'simulated' : ''}`}
-          >
+          <div className={`od-open-feed ${hasLiveMark ? 'live' : ''}`}>
             <i aria-hidden />
-            <span>
-              {hasLiveMark
-                ? liveMarkLabel
-                : hasSimulatedMark
-                  ? 'Simulated mark'
-                  : 'Session mark'}
-            </span>
-            {hasFeedMark && feed.asOf > 0 && (
+            <span>{hasLiveMark ? 'Live' : 'Session mark'}</span>
+            {hasLiveMark && feed.asOf > 0 && (
               <time dateTime={new Date(feed.asOf).toISOString()}>
-                Updated{' '}
-                {new Intl.DateTimeFormat('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                }).format(feed.asOf)}
+                {clock(feed.asOf)}
               </time>
             )}
           </div>
         </div>
 
-        <ValueHistory
-          points={chartPoints}
-          label={`Vault value across ${completedPoints.length} completed session${completedPoints.length === 1 ? '' : 's'}${hasFeedMark ? ` with ${hasLiveMark ? 'live' : 'simulated'} marks received in this browser session` : ''}, ending ${usd(displayedNav)}`}
+        <LiveValueChart
+          points={chart}
+          domain={onDay ? today!.domain : undefined}
+          baseline={onDay ? today!.base : null}
+          live={hasLiveMark}
+          onScrub={setScrub}
+          label={`Vault value ${onDay ? 'today' : `across ${drawn.length} sessions`}, now ${usd(displayedNav)}`}
         />
+        {!onDay && backfilled > 0 && (
+          <p className="od-range-note">
+            Before your first deposit the line shows your opening holdings at
+            each day&apos;s close.
+          </p>
+        )}
 
         <div className="od-range">
-          {RANGES.map((r) => (
+          {[{ id: '1D' as const, label: '1D' }, ...RANGES].map((r) => (
             <button
               key={r.id}
               className={range === r.id ? 'active' : ''}
               aria-pressed={range === r.id}
+              disabled={r.id === '1D' ? !today : series.length < 2}
               onClick={() => setRange(r.id)}
             >
               {r.label}
@@ -302,190 +377,107 @@ export function PortfolioView({
           ))}
         </div>
 
-        <section
-          className="od-open-positions"
-          aria-labelledby="positions-title"
-        >
-          <div className="od-open-positions-head">
-            <div>
-              <span>Portfolio</span>
-              <h2 id="positions-title">Positions</h2>
-              <p>Assets, contracts and financing held in this vault.</p>
-            </div>
-            <Badge
-              tone={
-                active.length +
-                book.loans.filter((p) => p.status === 'active').length +
-                book.shorts.filter((p) => p.status === 'active').length +
-                (book.borrows ?? []).filter((p) => p.status === 'active').length
-                  ? 'accent'
-                  : 'neutral'
-              }
-            >
-              {active.length +
-                book.loans.filter((p) => p.status === 'active').length +
-                book.shorts.filter((p) => p.status === 'active').length +
-                (book.borrows ?? []).filter((p) => p.status === 'active')
-                  .length}{' '}
-              open
-            </Badge>
-          </div>
-
-          <div className="od-open-positions-grid">
-            {/* The stock is a position, so it belongs with contracts and
-                financing rather than in a detached sidebar. Cash remains
-                in buying power below: it is spendable capital, not a long
-                position. */}
-            <Panel>
-              <PanelHead
-                title={held.length > 1 ? 'Your holdings' : 'Your stock'}
-              />
-              <div className="od-pos">
-                {held.map((u) => {
-                  const live = feed.marks[u.symbol];
-                  return (
-                    <Fragment key={u.symbol}>
-                      <div className="od-pos-row od-pos-asset">
-                        <AssetLogo
-                          symbol={u.symbol}
-                          src={logoOf(u.symbol)}
-                          size={30}
-                        />
-                        <div className="od-pos-what">
-                          <b>{u.name}</b>
-                          <small>
-                            {qty(book.vault[u.symbol] ?? 0)} {u.symbol}
-                            {(risk.shares[u.symbol] ?? 0) > 0
-                              ? `, ${qty(risk.shares[u.symbol])} reserved`
-                              : ''}
-                            {(book.wallet[u.symbol] ?? 0) > 0
-                              ? `, ${qty(book.wallet[u.symbol])} in wallet`
-                              : ''}
-                          </small>
-                        </div>
-                        <div className="od-pos-num">
-                          <b>
-                            {usd(
-                              (book.vault[u.symbol] ?? 0) * liveSpots[u.symbol],
-                            )}
-                          </b>
-                          {live && (
-                            <small
-                              className={live.change >= 0 ? 'od-up' : 'od-down'}
-                            >
-                              {live.change >= 0 ? '+' : ''}
-                              {(live.change * 100).toFixed(2)}%
-                            </small>
-                          )}
-                        </div>
-                      </div>
-                      <div className="od-pos-row od-pos-actions">
-                        <div className="od-row-actions">
-                          <button
-                            onClick={() =>
-                              onTransfer({
-                                asset: u.symbol,
-                                direction: 'deposit',
-                              })
-                            }
-                            aria-label={`Deposit ${u.symbol}`}
-                          >
-                            <ArrowDownLeft size={14} />
-                            Deposit
-                          </button>
-                          <button
-                            onClick={() =>
-                              onTransfer({
-                                asset: u.symbol,
-                                direction: 'withdraw',
-                              })
-                            }
-                            aria-label={`Withdraw ${u.symbol}`}
-                          >
-                            <ArrowUpRight size={14} />
-                            Withdraw
-                          </button>
-                        </div>
-                      </div>
-                    </Fragment>
-                  );
-                })}
-              </div>
-            </Panel>
-
-            <Positions
-              marked={marked}
-              desk={desk}
-              navigate={navigate}
-              liveSpots={liveSpots}
-            />
-          </div>
-        </section>
-
-        {/* USDC had a row in the table beside NVDA, which framed the
-            cash as a holding you are long rather than as the thing you
-            can spend. It is the balance that decides what you can open
-            next, so it reads as that and keeps its two actions. */}
-        <div className="od-power">
-          <div>
-            <span>Buying power</span>
-            <small>
-              {usd(book.vault.USDC)} USDC in vault
-              {risk.cash > 0 ? `, ${usd(risk.cash)} reserved` : ''}
-            </small>
-          </div>
-          <b>{usd(risk.freeCash)}</b>
-          <div className="od-row-actions">
-            <button
-              onClick={() =>
-                onTransfer({ asset: 'USDC', direction: 'deposit' })
-              }
-              aria-label="Deposit USDC"
-            >
-              <ArrowDownLeft size={14} />
-              Deposit
-            </button>
-            <button
-              onClick={() =>
-                onTransfer({ asset: 'USDC', direction: 'withdraw' })
-              }
-              aria-label="Withdraw USDC"
-            >
-              <ArrowUpRight size={14} />
-              Withdraw
-            </button>
-          </div>
-        </div>
-
-        <div className="od-holdings-foot">
-          <span>
-            Collateral mode {book.margin === 'cross' ? 'cross' : 'isolated'}
-          </span>
-          <Button
-            variant="quiet"
-            size="sm"
-            onClick={() => navigate('Portfolio', 'collateral')}
-          >
-            Change
-          </Button>
-        </div>
+        <Positions
+          marked={marked}
+          desk={desk}
+          feed={feed}
+          held={held}
+          navigate={navigate}
+          liveSpots={liveSpots}
+          onTransfer={onTransfer}
+        />
       </div>
     </div>
   );
 }
 
+interface IntradayDay {
+  symbol: string;
+  previousClose: number | null;
+  bars: { t: number; price: number }[];
+  dayStart: number | null;
+  session: { start: number; end: number } | null;
+}
+
+/** "NVDA $232.50 call" for a single option; the structure's name otherwise. */
+function contractTitle(terms: import('@/lib/parcel/types').OrderTerms) {
+  const [leg] = terms.legs;
+  if (terms.legs.length !== 1 || terms.curve) return terms.name;
+  const strike = usd(leg.strike, leg.strike % 1 === 0 ? 0 : 2);
+  return `${leg.side === 'sell' ? 'Short ' : ''}${terms.symbol} ${strike} ${leg.kind}`;
+}
+
+const NO_CLOSES: Record<string, { date: string; close: number }[]> = {};
+
+/** Recent daily closes for listed stocks, from the live market. */
+function useDailyCloses(symbols: string[]) {
+  const key = symbols.join(',');
+  const [closes, setCloses] = useState<
+    Record<string, { date: string; close: number }[]>
+  >({});
+  useEffect(() => {
+    if (!key) return;
+    let alive = true;
+    void Promise.all(
+      key.split(',').map(async (symbol) => {
+        const res = await fetch(`/api/marks/daily?symbol=${symbol}`);
+        if (!res.ok) return [symbol, []] as const;
+        const body = (await res.json()) as {
+          closes: { date: string; close: number }[];
+        };
+        return [symbol, body.closes ?? []] as const;
+      }),
+    )
+      .then((rows) => {
+        if (alive) setCloses(Object.fromEntries(rows));
+      })
+      .catch(() => {
+        /* the longer ranges wait for the next load */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [key]);
+  return key ? closes : NO_CLOSES;
+}
+
+/** Today's one-minute prints for the listed stocks in the vault. */
+function useIntraday(symbols: string[]) {
+  const key = symbols.join(',');
+  const [days, setDays] = useState<IntradayDay[]>([]);
+  useEffect(() => {
+    if (!key) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/marks/intraday?symbols=${key}`, {
+          cache: 'no-store',
+        });
+        if (!res.ok) return;
+        const body = (await res.json()) as { days: IntradayDay[] };
+        if (alive) setDays(body.days ?? []);
+      } catch {
+        /* the live tail still draws without the day's bars */
+      }
+    };
+    void load();
+    const timer = setInterval(() => {
+      if (!document.hidden) void load();
+    }, 30_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [key]);
+  return key ? days : [];
+}
+
 /**
- * Keep actual marks received in this browser session, retaining the final
- * observation in each short time bucket. The headline still receives every
- * mark; bucketing only prevents a high-frequency transport from making a
- * balance chart look noisier than the underlying portfolio movement.
+ * Keep only actual marks received in this browser session. A quote
+ * refresh can be flat; that is still a useful observation, and it makes
+ * the chart's cadence match the feed rather than an animation timer.
  */
-function useLiveValueSamples(
-  feed: MarkFeed,
-  value: number,
-  revision: number,
-  sampleWindowMs: number,
-) {
+function useLiveValueSamples(feed: MarkFeed, value: number, revision: number) {
   const [samples, setSamples] = useState<{ date: string; value: number }[]>([]);
   const lastAsOf = useRef(0);
   const lastRevision = useRef(revision);
@@ -503,17 +495,8 @@ function useLiveValueSamples(
     if (feed.asOf === lastAsOf.current) return;
     lastAsOf.current = feed.asOf;
     const point = { date: new Date(feed.asOf).toISOString(), value };
-    const bucket = Math.floor(feed.asOf / sampleWindowMs);
-    setSamples((previous) => {
-      const last = previous.at(-1);
-      if (
-        last &&
-        Math.floor(Date.parse(last.date) / sampleWindowMs) === bucket
-      )
-        return [...previous.slice(0, -1), point];
-      return [...previous.slice(-47), point];
-    });
-  }, [feed.asOf, feed.ready, revision, sampleWindowMs, value]);
+    setSamples((previous) => [...previous.slice(-599), point]);
+  }, [feed.asOf, feed.ready, revision, value]);
 
   return samples;
 }
@@ -523,8 +506,11 @@ function useLiveValueSamples(
 function Positions({
   marked,
   desk,
+  feed,
+  held,
   navigate,
   liveSpots,
+  onTransfer,
 }: {
   marked: {
     position: import('@/lib/parcel/types').OptionPosition;
@@ -532,17 +518,19 @@ function Positions({
     pnl: number;
   }[];
   desk: VaultController;
+  feed: MarkFeed;
+  held: { symbol: string; name: string }[];
   navigate: (
     page: 'Portfolio' | 'Trade' | 'Pre-IPO' | 'Lending',
     to?: string,
   ) => void;
   liveSpots: Record<string, number>;
+  onTransfer: (t: Transfer) => void;
 }) {
   const s = desk.state!;
   const loans = s.book.loans.filter((p) => p.status === 'active');
   const shorts = s.book.shorts.filter((p) => p.status === 'active');
   const borrows = (s.book.borrows ?? []).filter((p) => p.status === 'active');
-  const openPnl = marked.reduce((t, m) => t + m.pnl, 0);
 
   /**
    * Closing a loan or a short.
@@ -573,289 +561,322 @@ function Positions({
     if (review && (await desk.act(review.action, s.revision))) setReview(null);
   };
 
+  const book = s.book;
+  const spot = (symbol: string) => liveSpots[symbol] ?? s.market.price;
+  const pnlText = (n: number, dp = 2) =>
+    Math.abs(n) < 0.005 && dp === 2
+      ? usd(0)
+      : `${n > 0 ? '+' : ''}${usd(n, dp)}`;
+  const tone = (n: number) =>
+    n > 0.004 ? 'od-up' : n < -0.004 ? 'od-down' : '';
+  const openCount =
+    marked.length + loans.length + borrows.length + shorts.length;
+
   /**
-   * Every kind of position the vault can hold, listed whether or not
-   * it holds any.
+   * One table, the way a brokerage lists a portfolio.
    *
-   * One blanket "nothing open yet" for the whole rail hid what the
-   * desk is even capable of: a reader with no positions could not tell
-   * from this screen that contracts, stock loans and protected shorts
-   * were three different things they could have. The headings are the
-   * shape of the product, so they stay.
+   * This was five boxed panels — stock, contracts, loans, borrows,
+   * shorts — each with its own count badge and its own "nothing here"
+   * line, so a vault holding one share read as a grid of empty states.
+   * Every row now has the same five columns whatever it is: what, what
+   * kind, what it is worth, what it has made, and the one thing you can
+   * do with it. A category with nothing in it has no row.
    */
   return (
-    <>
-      <Panel>
-        <PanelHead
-          title="Open contracts"
-          description={
-            marked.length
-              ? `Marked to model · ${openPnl > 0 ? '+' : ''}${usd(openPnl)} open`
-              : undefined
-          }
-          action={
-            <Badge tone={marked.length ? 'accent' : 'neutral'}>
-              {marked.length}
-            </Badge>
-          }
-        />
-        {!marked.length ? (
-          <div className="od-pos-none">
-            <p>No contracts open.</p>
-            <Button
-              variant="quiet"
-              size="sm"
-              onClick={() => navigate('Trade', 'trade')}
-            >
-              Write one
-            </Button>
-          </div>
-        ) : (
-          <div className="od-pos">
-            {marked.map(({ position: p, value, pnl }) => {
-              const dp = p.terms.reference === 'dividend' ? 4 : 2;
-              return (
-                <div key={p.id} className="od-pos-row">
-                  <div className="od-pos-what">
-                    <b>{p.terms.name}</b>
-                    <small>
-                      {qty(p.terms.quantity)} × {p.terms.symbol} ·{' '}
-                      {expiryLabel(p.terms.expiry)}
-                    </small>
-                  </div>
-                  <div className="od-pos-num">
-                    <b>{usd(value, dp)}</b>
-                    <small className={pnl >= 0 ? 'od-up' : 'od-down'}>
-                      {pnl > 0 ? '+' : ''}
-                      {usd(pnl, dp)}
-                    </small>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={requesting || desk.busy}
-                    onClick={() => {
-                      setRequesting(true);
-                      void desk
-                        .closeQuote(p.id)
-                        .then(setQuote)
-                        .catch((e) => desk.setToast((e as Error).message))
-                        .finally(() => setRequesting(false));
-                    }}
-                  >
-                    Close
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Panel>
+    <section className="od-positions" aria-labelledby="positions-title">
+      <div className="od-positions-head">
+        <h2 id="positions-title">Positions</h2>
+        <span>{openCount ? `${openCount} open` : 'Stock only'}</span>
+      </div>
 
-      <Panel>
-        <PanelHead
-          title="Stock on loan"
-          action={<Badge>{loans.length}</Badge>}
-        />
-        {!loans.length ? (
-          <div className="od-pos-none">
-            <p>No shares lent out.</p>
-            <Button
-              variant="quiet"
-              size="sm"
-              onClick={() => navigate('Lending')}
-            >
-              Lend some
-            </Button>
+      <div className="od-ptable">
+        <div className="od-ptable-row od-ptable-cols">
+          <span>Asset</span>
+          <span>Type</span>
+          <span>Value</span>
+          <span>Return</span>
+          <span />
+        </div>
+
+        {held.map((u) => {
+          const shares = book.vault[u.symbol] ?? 0;
+          const live = markOf(s, feed, u.symbol);
+          const today = live ? shares * (live.price - live.open) : 0;
+          const reserved = s.risk.shares[u.symbol] ?? 0;
+          return (
+            <div key={u.symbol} className="od-ptable-row">
+              <div className="od-ptable-asset">
+                <AssetLogo symbol={u.symbol} src={logoOf(u.symbol)} size={32} />
+                <div>
+                  <b>{u.name}</b>
+                  <small>
+                    {qty(shares)} {u.symbol}
+                    {reserved > 0 ? `, ${qty(reserved)} reserved` : ''}
+                  </small>
+                </div>
+              </div>
+              <span className="od-ptable-type">Stock</span>
+              <div className="od-ptable-num">
+                <b>{usd(shares * spot(u.symbol))}</b>
+                <small>{usd(spot(u.symbol))} per share</small>
+              </div>
+              <div className="od-ptable-num">
+                <b className={tone(today)}>{pnlText(today)}</b>
+                <small className={tone(live?.change ?? 0)}>
+                  {live
+                    ? `${live.change >= 0 ? '+' : ''}${(live.change * 100).toFixed(2)}% today`
+                    : 'Session mark'}
+                </small>
+              </div>
+              <div className="od-ptable-act">
+                <button
+                  onClick={() =>
+                    onTransfer({ asset: u.symbol, direction: 'deposit' })
+                  }
+                  aria-label={`Deposit ${u.symbol}`}
+                  title="Deposit"
+                >
+                  <ArrowDownLeft size={15} />
+                </button>
+                <button
+                  onClick={() =>
+                    onTransfer({ asset: u.symbol, direction: 'withdraw' })
+                  }
+                  aria-label={`Withdraw ${u.symbol}`}
+                  title="Withdraw"
+                >
+                  <ArrowUpRight size={15} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {marked.map(({ position: p, value, pnl }) => {
+          const dp = p.terms.reference === 'dividend' ? 4 : 2;
+          return (
+            <div key={p.id} className="od-ptable-row">
+              <div className="od-ptable-asset">
+                <AssetLogo
+                  symbol={p.terms.symbol}
+                  src={logoOf(p.terms.symbol)}
+                  size={32}
+                />
+                <div>
+                  <b>{contractTitle(p.terms)}</b>
+                  <small>
+                    {qty(p.terms.quantity)} {p.terms.symbol}, expires{' '}
+                    {expiryLabel(p.terms.expiry)}
+                  </small>
+                </div>
+              </div>
+              <span className="od-ptable-type">Option</span>
+              <div className="od-ptable-num">
+                <b>{usd(value, dp)}</b>
+                <small>{usd(p.premium, dp)} cost</small>
+              </div>
+              <div className="od-ptable-num">
+                <b className={tone(pnl)}>{pnlText(pnl, dp)}</b>
+                <small>Model mark</small>
+              </div>
+              <div className="od-ptable-act">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={requesting || desk.busy}
+                  onClick={() => {
+                    setRequesting(true);
+                    void desk
+                      .closeQuote(p.id)
+                      .then(setQuote)
+                      .catch((e) => desk.setToast((e as Error).message))
+                      .finally(() => setRequesting(false));
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+
+        {loans.map((p) => (
+          <div key={p.id} className="od-ptable-row">
+            <div className="od-ptable-asset">
+              <AssetLogo symbol={p.symbol} src={logoOf(p.symbol)} size={32} />
+              <div>
+                <b>
+                  {qty(p.quantity)} {p.symbol} lent
+                </b>
+                <small>Until {expiryLabel(p.expiry)}</small>
+              </div>
+            </div>
+            <span className="od-ptable-type">Stock loan</span>
+            <div className="od-ptable-num">
+              <b>{usd(p.quantity * spot(p.symbol))}</b>
+              <small>{usd(p.collateral)} collateral held</small>
+            </div>
+            <div className="od-ptable-num">
+              <b className="od-up">+{usd(p.prepaidInterest, 4)}</b>
+              <small>Interest, prepaid</small>
+            </div>
+            <div className="od-ptable-act">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={desk.busy}
+                onClick={() =>
+                  setReview({
+                    action: { type: 'recall', id: p.id },
+                    title: 'Review stock recall',
+                    label: 'Interest you receive',
+                    value: accruedInterest(
+                      p.prepaidInterest,
+                      p.opened,
+                      p.expiry,
+                      book.date,
+                    ),
+                    details: [
+                      ['Shares returned', `${qty(p.quantity)} ${p.symbol}`],
+                      [
+                        'Unused borrower collateral',
+                        'Returned to the borrower after repurchase',
+                      ],
+                    ],
+                  })
+                }
+              >
+                Recall
+              </Button>
+            </div>
           </div>
-        ) : (
-          <div className="od-pos">
-            {loans.map((p) => (
-              <div key={p.id} className="od-pos-row">
-                <div className="od-pos-what">
-                  <b>
-                    {qty(p.quantity)} {p.symbol}
-                  </b>
-                  <small>Until {expiryLabel(p.expiry)}</small>
+        ))}
+
+        {borrows.map((p) => {
+          const debt = borrowDebt(p, book.date);
+          return (
+            <div key={p.id} className="od-ptable-row">
+              <div className="od-ptable-asset">
+                <AssetLogo symbol="USDC" size={32} />
+                <div>
+                  <b>{usd(p.principal)} borrowed</b>
+                  <small>
+                    Against {qty(p.pledged)} {p.symbol},{' '}
+                    {(p.apr * 100).toFixed(2)}%{' '}
+                    {p.expiry
+                      ? `fixed to ${expiryLabel(p.expiry)}`
+                      : 'variable'}
+                  </small>
                 </div>
-                <div className="od-pos-num">
-                  <b>{usd(p.collateral)}</b>
-                  <small>{usd(p.prepaidInterest, 4)} prepaid</small>
-                </div>
+              </div>
+              <span className="od-ptable-type">Cash loan</span>
+              <div className="od-ptable-num">
+                <b>−{usd(debt.total)}</b>
+                <small>Owed</small>
+              </div>
+              <div className="od-ptable-num">
+                <b className={tone(-debt.interest)}>
+                  {pnlText(-debt.interest, 4)}
+                </b>
+                <small>Interest accrued</small>
+              </div>
+              <div className="od-ptable-act">
                 <Button
                   variant="ghost"
                   size="sm"
                   disabled={desk.busy}
                   onClick={() =>
                     setReview({
-                      action: { type: 'recall', id: p.id },
-                      title: 'Review stock recall',
-                      label: 'Interest you receive',
-                      value: accruedInterest(
-                        p.prepaidInterest,
-                        p.opened,
-                        p.expiry,
-                        s.book.date,
-                      ),
+                      action: { type: 'repay', id: p.id },
+                      title: 'Review loan repayment',
+                      label: 'You pay to repay',
+                      value: debt.total,
                       details: [
-                        ['Shares returned', `${qty(p.quantity)} ${p.symbol}`],
+                        ['Principal', usd(p.principal, 6)],
+                        ['Interest accrued', usd(debt.interest, 6)],
                         [
-                          'Unused borrower collateral',
-                          'Returned to the borrower after repurchase',
+                          'Pledge released',
+                          `${qty(p.pledged)} ${p.symbol} back to free collateral`,
                         ],
                       ],
                     })
                   }
                 >
-                  Recall
+                  Repay
                 </Button>
               </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+            </div>
+          );
+        })}
 
-      <Panel>
-        <PanelHead
-          title="Cash borrowed"
-          action={<Badge>{borrows.length}</Badge>}
-        />
-        {!borrows.length ? (
-          <div className="od-pos-none">
-            <p>Nothing borrowed against your stock.</p>
-            <Button
-              variant="quiet"
-              size="sm"
-              onClick={() => navigate('Lending')}
-            >
-              Borrow against stock
-            </Button>
-          </div>
-        ) : (
-          <div className="od-pos">
-            {borrows.map((p) => {
-              const debt = borrowDebt(p, s.book.date);
-              return (
-                <div key={p.id} className="od-pos-row">
-                  <div className="od-pos-what">
-                    <b>{usd(p.principal)} USDC</b>
-                    <small>
-                      Against {qty(p.pledged)} {p.symbol} ·{' '}
-                      {(p.apr * 100).toFixed(2)}%{' '}
-                      {p.expiry
-                        ? `fixed until ${expiryLabel(p.expiry)}`
-                        : 'variable'}
-                    </small>
-                  </div>
-                  <div className="od-pos-num">
-                    <b>{usd(debt.total)}</b>
-                    <small>{usd(debt.interest, 4)} interest owed</small>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={desk.busy}
-                    onClick={() =>
-                      setReview({
-                        action: { type: 'repay', id: p.id },
-                        title: 'Review loan repayment',
-                        label: 'You pay to repay',
-                        value: debt.total,
-                        details: [
-                          ['Principal', usd(p.principal, 6)],
-                          ['Interest accrued', usd(debt.interest, 6)],
-                          [
-                            'Pledge released',
-                            `${qty(p.pledged)} ${p.symbol} back to free collateral`,
-                          ],
-                        ],
-                      })
-                    }
-                  >
-                    Repay
-                  </Button>
+        {shorts.map((p) => {
+          const pnl = p.quantity * (p.entry - spot(p.symbol)) - p.premium;
+          return (
+            <div key={p.id} className="od-ptable-row">
+              <div className="od-ptable-asset">
+                <AssetLogo symbol={p.symbol} src={logoOf(p.symbol)} size={32} />
+                <div>
+                  <b>
+                    {qty(p.quantity)} {p.symbol} short
+                  </b>
+                  <small>
+                    From {usd(p.entry)}, capped at {usd(p.cap)}
+                  </small>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </Panel>
+              </div>
+              <span className="od-ptable-type">Protected short</span>
+              <div className="od-ptable-num">
+                <b>−{usd(p.quantity * spot(p.symbol))}</b>
+                <small>Until {expiryLabel(p.expiry)}</small>
+              </div>
+              <div className="od-ptable-num">
+                <b className={tone(pnl)}>{pnlText(pnl)}</b>
+                <small>After protection</small>
+              </div>
+              <div className="od-ptable-act">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={desk.busy}
+                  onClick={() => {
+                    const close = shortCloseAmounts(
+                      p,
+                      spot(p.symbol),
+                      book.date,
+                    );
+                    setReview({
+                      action: { type: 'close-short', id: p.id },
+                      title: 'Review short close',
+                      label: 'You pay to cover and repay',
+                      value: close.total,
+                      details: [
+                        ['Repurchase cost', usd(close.repurchase, 6)],
+                        ['Accrued borrow cost', usd(close.interest, 6)],
+                        [
+                          'Total P&L including paid protection',
+                          usd(close.pnl, 6),
+                        ],
+                      ],
+                    });
+                  }}
+                >
+                  Cover
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-      <Panel>
-        <PanelHead
-          title="Protected shorts"
-          action={<Badge>{shorts.length}</Badge>}
-        />
-        {!shorts.length ? (
-          <div className="od-pos-none">
-            <p>Nothing sold short.</p>
-            <Button
-              variant="quiet"
-              size="sm"
-              onClick={() => navigate('Lending')}
-            >
-              Open a short
-            </Button>
-          </div>
-        ) : (
-          <div className="od-pos">
-            {shorts.map((p) => {
-              const pnl =
-                p.quantity *
-                  (p.entry - (liveSpots[p.symbol] ?? s.market.price)) -
-                p.premium;
-              return (
-                <div key={p.id} className="od-pos-row">
-                  <div className="od-pos-what">
-                    <b>
-                      {qty(p.quantity)} {p.symbol} short
-                    </b>
-                    <small>
-                      {usd(p.entry)} entry · {usd(p.cap)} cap ·{' '}
-                      {expiryLabel(p.expiry)}
-                    </small>
-                  </div>
-                  <div className="od-pos-num">
-                    <b className={pnl >= 0 ? 'od-up' : 'od-down'}>
-                      {pnl > 0 ? '+' : ''}
-                      {usd(pnl)}
-                    </b>
-                    <small>open</small>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={desk.busy}
-                    onClick={() => {
-                      const close = shortCloseAmounts(
-                        p,
-                        liveSpots[p.symbol] ?? s.market.price,
-                        s.book.date,
-                      );
-                      setReview({
-                        action: { type: 'close-short', id: p.id },
-                        title: 'Review short close',
-                        label: 'You pay to cover and repay',
-                        value: close.total,
-                        details: [
-                          ['Repurchase cost', usd(close.repurchase, 6)],
-                          ['Accrued borrow cost', usd(close.interest, 6)],
-                          [
-                            'Total P&L including paid protection',
-                            usd(close.pnl, 6),
-                          ],
-                        ],
-                      });
-                    }}
-                  >
-                    Cover
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Panel>
+      {openCount === 0 && (
+        <p className="od-positions-start">
+          Nothing open against your stock yet.{' '}
+          <button onClick={() => navigate('Trade', 'trade')}>
+            Trade options
+          </button>
+          <button onClick={() => navigate('Lending')}>Lend or borrow</button>
+        </p>
+      )}
 
       {quote && (
         <QuoteReview
@@ -889,7 +910,7 @@ function Positions({
           </Button>
         </Modal>
       )}
-    </>
+    </section>
   );
 }
 
@@ -1068,14 +1089,14 @@ function Activity({ desk }: { desk: VaultController }) {
   const s = desk.state!;
   const [query, setQuery] = useState('');
   const events = s.book.events.filter((e) =>
-    `${e.title} ${e.detail} ${e.date} ${e.via ?? ''}`
+    `${e.title} ${e.detail} ${e.date}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
 
   const download = () => {
     const rows = [
-      ['date', 'title', 'detail', 'cash', 'shares', 'reference', 'via'],
+      ['date', 'title', 'detail', 'cash', 'shares', 'reference'],
       ...s.book.events.map((e) => [
         e.date,
         e.title,
@@ -1083,7 +1104,6 @@ function Activity({ desk }: { desk: VaultController }) {
         String(e.cash),
         String(e.shares),
         e.reference || '',
-        e.via || '',
       ]),
     ];
     const csv = rows
@@ -1136,12 +1156,7 @@ function Activity({ desk }: { desk: VaultController }) {
               {events.slice(0, 120).map((e) => (
                 <tr key={e.id}>
                   <td>
-                    <b>
-                      {e.title}
-                      {e.via === 'agent' && (
-                        <span className="od-agent-tag">Agent</span>
-                      )}
-                    </b>
+                    <b>{e.title}</b>
                     <small>{e.detail}</small>
                   </td>
                   <td>{e.date}</td>

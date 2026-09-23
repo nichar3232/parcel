@@ -1,128 +1,161 @@
 'use client';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import type { Leg, OrderTerms } from '@/lib/parcel/types';
-import { Button, Field } from './shared';
+
+/**
+ * The legs, one line each.
+ *
+ * This was four labelled, full-width dropdowns per leg — side, type,
+ * strike, ratio — with a trash can and a stray minus sign between legs,
+ * so a two-leg spread was a page of form. A leg is one line now, read
+ * the way a trader says it: buy · call · 230 · 1×. The column names are
+ * said once, above the first line.
+ */
 export function ContractLegEditor({
   draft,
   update,
   mode,
-  advanced = true,
 }: {
   draft: OrderTerms;
   update: (patch: Partial<OrderTerms>) => void;
   mode: 'trade' | 'underwrite' | 'structures';
-  advanced?: boolean;
 }) {
   const change = (i: number, patch: Partial<Leg>) =>
     update({
       legs: draft.legs.map((l, j) => (j === i ? { ...l, ...patch } : l)),
     });
+  const editable = mode === 'structures';
+  const last = draft.legs.at(-1);
   return (
-    <>
-      <div className="od-legs-label">
-        <span>CONTRACT LEGS</span>
-        <span>{draft.legs.length} of 4</span>
+    <div className="od-legs">
+      <div className="od-legs-head">
+        <span>Side</span>
+        <span>Type</span>
+        <span>Strike</span>
+        <span>Ratio</span>
+        <span />
       </div>
       {draft.legs.map((l, i) => (
-        <div key={i} className={advanced ? 'od-leg' : 'od-basic-leg'}>
-          <span className={`od-leg-side ${l.side}`}>
-            {l.side === 'buy' ? '+' : '−'}
-          </span>
-          {advanced ? (
-            <>
-              <Field label={`Leg ${i + 1} side`}>
-                <select
-                  value={l.side}
-                  onChange={(e) =>
-                    change(i, { side: e.target.value as Leg['side'] })
-                  }
-                >
-                  <option value="buy">Buy</option>
-                  <option value="sell">Sell</option>
-                </select>
-              </Field>
-              <Field label={`Leg ${i + 1} type`}>
-                <select
-                  value={l.kind}
-                  onChange={(e) =>
-                    change(i, { kind: e.target.value as Leg['kind'] })
-                  }
-                >
-                  <option value="call">Call</option>
-                  <option value="put">Put</option>
-                </select>
-              </Field>
-            </>
-          ) : (
-            <strong>
-              {l.side === 'buy' ? 'Buy' : 'Sell'} {l.ratio}× {l.kind}
-            </strong>
-          )}
-          <Field label={`Leg ${i + 1} strike`}>
-            <input
-              type="number"
-              step="any"
-              min="0.000001"
-              value={l.strike || ''}
-              onChange={(e) => change(i, { strike: Number(e.target.value) })}
-            />
-          </Field>
-          {advanced && (
-            <Field label={`Leg ${i + 1} ratio`}>
-              <select
-                value={l.ratio}
-                onChange={(e) => change(i, { ratio: Number(e.target.value) })}
-              >
-                {[1, 2, 3, 4].map((n) => (
-                  <option key={n} value={n}>
-                    {n}×
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
-          {advanced && mode === 'structures' && draft.legs.length > 1 && (
+        <div key={i} className="od-legs-row">
+          <Toggle
+            label={`Leg ${i + 1} side`}
+            value={l.side}
+            options={[
+              ['buy', 'Buy'],
+              ['sell', 'Sell'],
+            ]}
+            onChange={(side) => change(i, { side: side as Leg['side'] })}
+          />
+          <Toggle
+            label={`Leg ${i + 1} type`}
+            value={l.kind}
+            options={[
+              ['call', 'Call'],
+              ['put', 'Put'],
+            ]}
+            onChange={(kind) => change(i, { kind: kind as Leg['kind'] })}
+          />
+          <input
+            aria-label={`Leg ${i + 1} strike`}
+            type="number"
+            step="any"
+            min="0.000001"
+            value={l.strike || ''}
+            onChange={(e) => change(i, { strike: Number(e.target.value) })}
+          />
+          <select
+            aria-label={`Leg ${i + 1} ratio`}
+            value={l.ratio}
+            onChange={(e) => change(i, { ratio: Number(e.target.value) })}
+          >
+            {[1, 2, 3, 4].map((n) => (
+              <option key={n} value={n}>
+                {n}×
+              </option>
+            ))}
+          </select>
+          {editable && draft.legs.length > 1 ? (
             <button
-              className="od-icon-button"
+              className="od-legs-remove"
               aria-label={`Remove leg ${i + 1}`}
               onClick={() =>
                 update({ legs: draft.legs.filter((_, j) => j !== i) })
               }
             >
-              <Trash2 size={14} />
+              <X size={14} />
             </button>
+          ) : (
+            <span />
           )}
         </div>
       ))}
-      {advanced && mode === 'structures' && draft.legs.length < 4 && (
-        <Button
-          variant="quiet"
-          onClick={() =>
-            update({
-              legs: [
-                ...draft.legs,
-                { kind: 'call', side: 'buy', strike: 160, ratio: 1 },
-              ],
-            })
-          }
-        >
-          <Plus size={14} />
-          Add leg
-        </Button>
-      )}
-      {advanced && mode === 'structures' && (
-        <Field label="Settlement">
-          <select
+      {editable && (
+        <div className="od-legs-foot">
+          {draft.legs.length < 4 ? (
+            <button
+              className="od-legs-add"
+              onClick={() =>
+                update({
+                  legs: [
+                    ...draft.legs,
+                    {
+                      kind: last?.kind ?? 'call',
+                      side: last?.side === 'buy' ? 'sell' : 'buy',
+                      strike: last?.strike ?? 0,
+                      ratio: 1,
+                    },
+                  ],
+                })
+              }
+            >
+              <Plus size={13} />
+              Add leg
+            </button>
+          ) : (
+            <span />
+          )}
+          <Toggle
+            label="Settlement"
             value={draft.settlement}
-            onChange={(e) =>
-              update({ settlement: e.target.value as OrderTerms['settlement'] })
+            options={[
+              ['physical', 'Physical'],
+              ['cash', 'Cash'],
+            ]}
+            onChange={(settlement) =>
+              update({ settlement: settlement as OrderTerms['settlement'] })
             }
-          >
-            <option value="cash">Cash, bounded payoff required</option>
-            <option value="physical">Physical, shares and strike cash</option>
-          </select>
-        </Field>
+          />
+        </div>
       )}
-    </>
+    </div>
+  );
+}
+
+/** Two choices in one small control, for inside a leg line. */
+function Toggle({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: [string, string][];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <fieldset className="od-toggle" aria-label={label}>
+      {options.map(([id, text]) => (
+        <button
+          key={id}
+          type="button"
+          className={value === id ? 'on' : ''}
+          aria-pressed={value === id}
+          onClick={() => onChange(id)}
+        >
+          {text}
+        </button>
+      ))}
+    </fieldset>
   );
 }

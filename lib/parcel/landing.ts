@@ -5,7 +5,11 @@
  * engine the desk uses, from the same stored history, so the page cannot
  * drift from the product. Nothing on the landing page is a literal.
  */
-import { mark, expiries, VOLATILITY } from './market';
+import {
+  storedExpiries as expiries,
+  storedMark as mark,
+  VOLATILITY,
+} from './market';
 import { registry } from '../preipo/registry';
 import { orderGreeks, strategyPnl, days } from './math';
 import { termInterest } from './funding';

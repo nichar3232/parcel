@@ -9,7 +9,13 @@ export interface ValuePoint {
   /** Shares held per underlying at that session's close. */
   shares: Record<string, number>;
   value: number;
+  /** Before the vault's first movement: its opening holdings at that close. */
+  backfill?: boolean;
 }
+
+/** Venue prices carry float noise; the ledger's arithmetic takes six places. */
+const sixDp = (n: number | undefined) =>
+  n == null || !Number.isFinite(n) ? null : Math.round(n * 1e6) / 1e6;
 
 export type Range = '1W' | '1M' | '3M' | 'ALL';
 
@@ -37,7 +43,17 @@ export const RANGES: { id: Range; label: string; sessions: number }[] = [
  * holdings at January's closes would draw a backtest of a position
  * nobody held, which is not what a balance history is.
  */
-export function valueSeries(book: VaultBook): ValuePoint[] {
+export function valueSeries(
+  book: VaultBook,
+  /**
+   * Daily closes per symbol, on the live market, where the stored price
+   * file is 2025's. A symbol with none is valued at `spot` throughout.
+   */
+  live?: {
+    closes: Record<string, { date: string; close: number }[]>;
+    spot: Record<string, number>;
+  },
+): ValuePoint[] {
   const today = book.date.slice(0, 10);
   type Delta = { cash: number; shares: Record<string, number> };
   const deltas = new Map<string, Delta>();
@@ -66,15 +82,65 @@ export function valueSeries(book: VaultBook): ValuePoint[] {
   const closes = new Map(
     Object.keys(shares).map((symbol) => [
       symbol,
-      new Map(historyOf(symbol).map((r) => [r.date, r.close])),
+      new Map(
+        (live ? (live.closes[symbol] ?? []) : historyOf(symbol)).map((r) => [
+          r.date,
+          r.close,
+        ]),
+      ),
     ]),
   );
   const first = [...deltas.keys()].sort()[0] ?? today;
+  const calendar = live
+    ? [
+        ...new Set(
+          Object.values(live.closes).flatMap((rows) => rows.map((r) => r.date)),
+        ),
+      ]
+        .sort()
+        .map((date) => ({ date }))
+    : marketRows;
   const points: ValuePoint[] = [];
-  for (const row of marketRows) {
+  /* On the live market a vault is days old while its prices go back a
+     year, so a range longer than its life would be one point. Before the
+     first movement the line carries the opening holdings — the vault as it
+     stood at the end of its first day — at each earlier close, and says so
+     per point. The stored replay keeps its strict start. */
+  if (live) {
+    const open = { cash, shares: { ...shares } };
+    for (const [day, d] of deltas)
+      if (day <= first) {
+        open.cash = add(open.cash, d.cash);
+        for (const [symbol, n] of Object.entries(d.shares))
+          open.shares[symbol] = add(open.shares[symbol] ?? 0, n);
+      }
+    for (const row of calendar) {
+      if (row.date >= first) break;
+      let value = open.cash;
+      for (const [symbol, n] of Object.entries(open.shares)) {
+        if (!n) continue;
+        const close = sixDp(
+          closes.get(symbol)?.get(row.date) ?? live.spot[symbol],
+        );
+        if (close != null) value = add(value, mul(n, close));
+      }
+      points.push({
+        date: row.date,
+        cash: open.cash,
+        shares: { ...open.shares },
+        value,
+        backfill: true,
+      });
+    }
+  }
+  // A movement on a day with no close (a weekend deposit, on the live
+  // market) lands on the next session that has one.
+  const pending = [...deltas.entries()].sort(([a], [b]) => a.localeCompare(b));
+  let next = 0;
+  for (const row of calendar) {
     if (row.date < first || row.date > today) continue;
-    const d = deltas.get(row.date);
-    if (d) {
+    while (next < pending.length && pending[next][0] <= row.date) {
+      const d = pending[next++][1];
       cash = add(cash, d.cash);
       for (const [symbol, n] of Object.entries(d.shares))
         shares[symbol] = add(shares[symbol] ?? 0, n);
@@ -82,7 +148,9 @@ export function valueSeries(book: VaultBook): ValuePoint[] {
     let value = cash;
     for (const [symbol, n] of Object.entries(shares)) {
       if (!n) continue;
-      const close = closes.get(symbol)?.get(row.date);
+      const close = sixDp(
+        closes.get(symbol)?.get(row.date) ?? live?.spot[symbol],
+      );
       if (close != null) value = add(value, mul(n, close));
     }
     points.push({ date: row.date, cash, shares: { ...shares }, value });

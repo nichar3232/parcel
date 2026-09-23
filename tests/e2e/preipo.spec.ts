@@ -37,15 +37,27 @@ test('the unified watchlist searches, removes and restores PreStocks listings', 
   ).toBeVisible();
 });
 
-test('Pre-IPO shows publisher listings but refuses unsupported escrow', async ({
+test('Pre-IPO lists each company with a market and opens options on it', async ({
   page,
 }) => {
   await navTop(page, 'Pre-IPO');
-  const row = page.locator('tr.od-market-row').first();
-  await expect(row).toContainText('Blocked');
+  // No escrow gate and no empty holders column: price, bid, ask, move.
+  await expect(page.getByText('Blocked')).toHaveCount(0);
+  const row = page.locator('.od-pm-row:not(.od-pm-cols)').first();
+  await expect(row).toBeVisible();
+  const company = (await row.locator('.od-pm-company b').textContent())!;
   await row.click();
-  await expect(page.getByText('Not escrowable in this version.')).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Review covered call' }),
-  ).toHaveCount(0);
+    page.getByRole('heading', { level: 1, name: company }),
+  ).toBeVisible();
+  // The same chain and ticket as NVDA, written on the company's token.
+  await expect(page.getByRole('group', { name: 'Side' })).toBeVisible();
+  await expect(page.locator('.od-ladder')).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Review funded quote' }),
+  ).toBeEnabled();
+  await page.getByRole('button', { name: 'Pre-IPO market' }).click();
+  await expect(
+    page.locator('.od-pm-row:not(.od-pm-cols)').first(),
+  ).toBeVisible();
 });

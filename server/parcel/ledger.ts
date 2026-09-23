@@ -5,6 +5,7 @@ import {
   DIVIDEND_DATE,
   clockDates,
   expiries,
+  liveMarket,
   mark,
   volatility,
 } from '../../lib/parcel/market';
@@ -53,9 +54,11 @@ const balances = (cash: number, of: (symbol: string) => number): Balances =>
     ...UNDERLYINGS.map((u) => [u.symbol, of(u.symbol)]),
   ]);
 export function initialVault(): VaultBook {
+  const live = !!liveMarket();
   return {
     version: 3,
-    date: '2025-01-24',
+    ...(live ? { clock: 'live' as const } : {}),
+    date: live ? new Date().toISOString() : '2025-01-24',
     margin: 'cross',
     wallet: balances(10000, (s) => WALLET_SEED[s] ?? TOKEN_SEED),
     vault: balances(0, () => 0),
@@ -117,11 +120,11 @@ export function demoVault(): VaultBook {
   transfer(book.wallet, book.vault, 'USDC', 10_000);
   transfer(book.wallet, book.vault, 'NVDA', 25);
 
-  // Four shares out on loan and two sold short against a $160 cap:
-  // enough for both tables to have rows and for the health factor to
-  // be a number rather than an infinity.
+  // Four shares out on loan and two sold short against a cap about 12%
+  // above the price: enough for both tables to have rows and for the
+  // health factor to be a number rather than an infinity.
   openLoan(book, 4, expiry);
-  openShort(book, 2, 160, expiry);
+  openShort(book, 2, Math.round(mark('NVDA', book.date) * 1.12), expiry);
   return book;
 }
 
@@ -242,15 +245,72 @@ export function setMarketDate(
   if (date <= book.date)
     throw Error('The test market can only advance to a later stored session.');
   book.date = date;
-  // All positions expiring together clear atomically. Never remove just one hedge
-  // from a shared collateral set before settling its offsetting obligations.
-  const due = book.options.filter(
-    (p) => p.status === 'active' && p.terms.expiry <= date,
+  settleDue(book, date, (expiry) => expiry <= date, observe);
+  emit(
+    book,
+    'Market session advanced',
+    `${date} · NVDA $${mark(DEFAULT_UNDERLYING, date).toFixed(2)} historical close`,
+  );
+  assertCollateral(book);
+}
+
+/**
+ * Bring a live book up to now.
+ *
+ * The clock is the wall clock. Anything whose expiry close has been
+ * recorded settles at that close, exactly as a replay session would
+ * settle it at a stored one; anything whose close is not final yet waits,
+ * however late it is. Cash loans book their interest and reprice once a
+ * day. Returns whether a position changed, which is when the book has to
+ * be written back.
+ */
+export function syncLive(
+  book: VaultBook,
+  now: string,
+  observe?: (symbol: string) => number,
+) {
+  const live = liveMarket();
+  if (!live) throw Error('The live market is not running.');
+  const state = () =>
+    [book.options, book.loans, book.shorts, book.borrows]
+      .flatMap((list) => list.map((p) => p.status))
+      .join();
+  const before = state();
+  const newDay = book.date.slice(0, 10) !== now.slice(0, 10);
+  book.date = now;
+  const today = now.slice(0, 10);
+  settleDue(
+    book,
+    now,
+    (expiry, symbol) => expiry <= today && live.close(symbol, expiry) != null,
+    newDay ? observe : undefined,
+    newDay,
+  );
+  assertCollateral(book);
+  return state() !== before;
+}
+
+/**
+ * Settle every position that is due, the same way on either clock.
+ *
+ * All positions expiring together clear atomically. Never remove just one
+ * hedge from a shared collateral set before settling its offsetting
+ * obligations.
+ */
+function settleDue(
+  book: VaultBook,
+  date: string,
+  due: (expiry: string, symbol: string) => boolean,
+  observe?: (symbol: string) => number,
+  carry = true,
+) {
+  const settling = book.options.filter(
+    (p) => p.status === 'active' && due(p.terms.expiry, p.terms.symbol),
   );
   // One clearing per underlying and expiry: shares of one token never
   // net against another's, and each settles on its own committed close.
-  const byExpiry = new Map<string, typeof due>();
-  for (const p of due) {
+  const byExpiry = new Map<string, typeof settling>();
+  for (const p of settling) {
     const key = `${p.terms.expiry}|${p.terms.symbol}`;
     const group = byExpiry.get(key) || [];
     group.push(p);
@@ -287,21 +347,16 @@ export function setMarketDate(
     );
   }
   for (const p of book.shorts.filter(
-    (p) => p.status === 'active' && p.expiry <= date,
+    (p) => p.status === 'active' && due(p.expiry, p.symbol),
   ))
     closeShort(book, p, p.expiry);
   for (const p of book.loans.filter(
-    (p) => p.status === 'active' && p.expiry <= date,
+    (p) => p.status === 'active' && due(p.expiry, p.symbol),
   ))
     closeLoan(book, p, p.expiry);
+  if (!carry) return;
   for (const p of book.borrows.filter((p) => p.status === 'active'))
-    carryBorrow(book, p, date, observe);
-  emit(
-    book,
-    'Market session advanced',
-    `${date} · NVDA $${mark(DEFAULT_UNDERLYING, date).toFixed(2)} historical close`,
-  );
-  assertCollateral(book);
+    carryBorrow(book, p, date, due, observe);
 }
 export function openLoan(
   book: VaultBook,
@@ -377,9 +432,7 @@ export function closeLoan(book: VaultBook, p: LendingPosition, at = book.date) {
     add(
       add(
         p.collateral,
-        -(p.productive
-          ? mul(p.quantity, Math.min(spot, p.productive.cap))
-          : 0),
+        -(p.productive ? mul(p.quantity, Math.min(spot, p.productive.cap)) : 0),
       ),
       add(p.prepaidInterest, -earned),
     ),
@@ -604,16 +657,22 @@ function carryBorrow(
   book: VaultBook,
   p: BorrowPosition,
   date: string,
+  due: (expiry: string, symbol: string) => boolean,
   observe?: (symbol: string) => number,
 ) {
-  if (p.expiry && p.expiry <= date) {
+  if (p.expiry && due(p.expiry, p.symbol)) {
     repayBorrow(book, p, p.expiry, 'expired');
     return;
   }
+  // A fixed loan past its date but before its close is final keeps
+  // running at its fixed rate until the close is in.
+  if (p.expiry && p.expiry <= date) return;
   accrueBorrow(p, date);
   if (p.rate === 'variable' && observe) p.apr = observe(p.symbol);
-  const cover = mul(p.pledged, mark(p.symbol, date)) * reserveOf(p.symbol)!.liquidation;
-  if (add(p.principal, p.accrued) > cover) repayBorrow(book, p, date, 'liquidated');
+  const cover =
+    mul(p.pledged, mark(p.symbol, date)) * reserveOf(p.symbol)!.liquidation;
+  if (add(p.principal, p.accrued) > cover)
+    repayBorrow(book, p, date, 'liquidated');
 }
 export function totals(book: VaultBook) {
   const balances = [book.wallet, book.vault, book.counterparty, book.market];
@@ -644,7 +703,9 @@ export function validateLedger(
   const current = totals(book);
   if (
     current.cash !== original.cash ||
-    UNDERLYINGS.some((u) => current.shares[u.symbol] !== original.shares[u.symbol])
+    UNDERLYINGS.some(
+      (u) => current.shares[u.symbol] !== original.shares[u.symbol],
+    )
   )
     throw Error('Asset conservation failed; transaction rolled back.');
   assertCollateral(book);

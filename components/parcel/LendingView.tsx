@@ -1,6 +1,8 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { ArrowRight, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Search, TriangleAlert } from 'lucide-react';
+import { AssetLogo } from './AssetLogo';
+import { logoOf } from '@/lib/preipo/registry';
 import type { VaultController } from '@/hooks/parcel/use-vault';
 import type { MarkFeed } from '@/hooks/parcel/use-marks';
 import type { MarketUnderlying, VaultAction } from '@/lib/parcel/types';
@@ -22,10 +24,10 @@ import {
   reserveOf,
   type Holding,
 } from '@/lib/parcel/lending';
-import { selectableExpiries } from '@/lib/parcel/market';
+import { offeredExpiries } from '@/lib/parcel/market';
 import { RateCurve } from './charts';
 import {
-  Badge,
+  markOf,
   Button,
   Field,
   Line,
@@ -42,6 +44,7 @@ import {
 export type LendingTab = 'borrow';
 type Mode = 'borrow' | 'short' | 'lend' | 'stock';
 const MODES: Mode[] = ['borrow', 'short', 'lend', 'stock'];
+type View = Mode | 'markets';
 const EMPTY_UNDERLYINGS: MarketUnderlying[] = [];
 
 export function LendingView({
@@ -50,14 +53,17 @@ export function LendingView({
   mode,
   symbol,
   onSymbol,
+  onMode,
 }: {
   desk: VaultController;
   feed: MarkFeed;
-  /** Borrow, short, lend or spot — chosen in the rail. */
+  /** Markets, or borrow, short, lend or spot — chosen in the rail. */
   mode: string;
   /** The underlying being lent, shorted or bought. */
   symbol: string;
   onSymbol: (symbol: string) => void;
+  /** Open another view of lending: the markets list or a ticket. */
+  onMode: (mode: View) => void;
 }) {
   const s = desk.state!;
   const underlyings = s.market.underlyings ?? EMPTY_UNDERLYINGS;
@@ -121,17 +127,191 @@ export function LendingView({
     };
   }, [s, symbol, underlyings]);
 
+  if (!MODES.includes(mode as Mode))
+    return (
+      <Markets
+        desk={desk}
+        feed={feed}
+        onOpen={(next, of) => {
+          onSymbol(of);
+          onMode(next);
+        }}
+      />
+    );
   return (
-    <Borrow
-      desk={desk}
-      feed={feed}
-      position={position}
-      mode={MODES.includes(mode as Mode) ? (mode as Mode) : 'borrow'}
-      symbol={symbol}
-      onSymbol={onSymbol}
-    />
+    <>
+      <button className="od-company-back" onClick={() => onMode('markets')}>
+        <ArrowLeft size={14} />
+        Lending markets
+      </button>
+      <Borrow
+        desk={desk}
+        feed={feed}
+        position={position}
+        mode={mode as Mode}
+        symbol={symbol}
+        onSymbol={onSymbol}
+        onMode={onMode}
+      />
+    </>
   );
 }
+
+/**
+ * Every pool the vault can supply to or borrow from, the way a money
+ * market lists them.
+ *
+ * The ticket used to be the whole page: one asset's rates and one form,
+ * with the other eight pools behind a dropdown. A lending venue opens on
+ * the list instead — what is in each pool, what is out, and what it pays
+ * and costs — and a row opens that pool's ticket.
+ */
+function Markets({
+  desk,
+  feed,
+  onOpen,
+}: {
+  desk: VaultController;
+  feed: MarkFeed;
+  onOpen: (mode: Mode, symbol: string) => void;
+}) {
+  const s = desk.state!;
+  const [query, setQuery] = useState('');
+  const pools = [
+    ...(s.market.underlyings ?? EMPTY_UNDERLYINGS).map((u) => ({
+      symbol: u.symbol,
+      name: u.name,
+      cash: false,
+    })),
+    { symbol: 'USDC', name: 'USD Coin', cash: true },
+  ]
+    .map((p) => {
+      const mark = feed.marks[p.symbol];
+      const reserve = reserveOf(p.symbol);
+      const price =
+        mark?.price ??
+        s.market.underlyings.find((u) => u.symbol === p.symbol)?.price ??
+        1;
+      const u = mark?.utilisation ?? RESTING_UTILISATION;
+      const r = reserve ? rates(u, reserve) : null;
+      return {
+        ...p,
+        price,
+        supplied: mark?.supplied ?? 0,
+        borrowed: mark?.borrowed ?? 0,
+        supply: r?.supply ?? 0,
+        borrow: r?.borrow ?? 0,
+        reserve,
+      };
+    })
+    .filter((p) => p.reserve)
+    .filter((p) =>
+      `${p.name} ${p.symbol}`
+        .toLowerCase()
+        .includes(query.trim().toLowerCase()),
+    );
+  const size = pools.reduce((t, p) => t + p.supplied * p.price, 0);
+  const out = pools.reduce((t, p) => t + p.borrowed * p.price, 0);
+  const units = (n: number) =>
+    n >= 1e9
+      ? `${(n / 1e9).toFixed(2)}B`
+      : n >= 1e6
+        ? `${(n / 1e6).toFixed(2)}M`
+        : n >= 1e3
+          ? `${(n / 1e3).toFixed(2)}K`
+          : n.toFixed(2);
+  const pct = (n: number) =>
+    n > 0 && n < 0.0001 ? '< 0.01%' : `${(n * 100).toFixed(2)}%`;
+
+  return (
+    <section className="od-lm" aria-labelledby="lm-title">
+      <div className="od-lm-head">
+        <div>
+          <h2 id="lm-title">Lending markets</h2>
+          <dl>
+            <div>
+              <dt>Total market size</dt>
+              <dd>{compactUsd(size)}</dd>
+            </div>
+            <div>
+              <dt>Total available</dt>
+              <dd>{compactUsd(size - out)}</dd>
+            </div>
+            <div>
+              <dt>Total borrowed</dt>
+              <dd>{compactUsd(out)}</dd>
+            </div>
+          </dl>
+        </div>
+        <label className="od-lm-search">
+          <Search size={15} />
+          <input
+            type="search"
+            placeholder="Search asset name or symbol"
+            aria-label="Search lending markets"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+      </div>
+
+      <div className="od-lm-table">
+        <div className="od-lm-row od-lm-cols">
+          <span>Asset</span>
+          <span>Total supplied</span>
+          <span>Supply APY</span>
+          <span>Total borrowed</span>
+          <span>Borrow APY</span>
+          <span />
+        </div>
+        {pools.map((p) => (
+          <div key={p.symbol} className="od-lm-row">
+            <span className="od-lm-asset">
+              <AssetLogo symbol={p.symbol} src={logoOf(p.symbol)} size={34} />
+              <span>
+                <b>{p.name}</b>
+                <small>{p.symbol}</small>
+              </span>
+            </span>
+            <span className="od-lm-num">
+              <b>{units(p.supplied)}</b>
+              <small>{compactUsd(p.supplied * p.price)}</small>
+            </span>
+            <span className="od-lm-num">
+              <b>{p.cash ? '—' : pct(p.supply)}</b>
+            </span>
+            <span className="od-lm-num">
+              <b>{units(p.borrowed)}</b>
+              <small>{compactUsd(p.borrowed * p.price)}</small>
+            </span>
+            <span className="od-lm-num">
+              <b>{pct(p.borrow)}</b>
+            </span>
+            <span className="od-lm-act">
+              <button
+                onClick={() =>
+                  onOpen(p.cash ? 'borrow' : 'lend', p.cash ? 'NVDA' : p.symbol)
+                }
+              >
+                Details
+              </button>
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** $4.80B, $62.89M, $154.80K — the way a money market prints size. */
+const compactUsd = (n: number) =>
+  n >= 1e9
+    ? `$${(n / 1e9).toFixed(2)}B`
+    : n >= 1e6
+      ? `$${(n / 1e6).toFixed(2)}M`
+      : n >= 1e3
+        ? `$${(n / 1e3).toFixed(2)}K`
+        : usd(n);
 
 type Position = ReturnType<typeof usePositionShape>;
 // Only for the type; the value is built inline above.
@@ -160,6 +340,7 @@ function Borrow({
   mode,
   symbol,
   onSymbol,
+  onMode,
 }: {
   desk: VaultController;
   feed: MarkFeed;
@@ -167,17 +348,22 @@ function Borrow({
   mode: Mode;
   symbol: string;
   onSymbol: (symbol: string) => void;
+  onMode: (mode: View) => void;
 }) {
   const s = desk.state!;
   const underlyings = s.market.underlyings ?? EMPTY_UNDERLYINGS;
   const under = underlyings.find((u) => u.symbol === symbol) ?? underlyings[0];
-  const price = under?.price ?? s.market.price;
+  const price =
+    markOf(s, feed, symbol)?.price ?? under?.price ?? s.market.price;
   const volatility = under?.volatility ?? s.market.volatility;
+  // Spot fills at the ask to buy and the bid to sell, as the server does.
+  const quoteMark = markOf(s, feed, symbol);
+  const live = s.market.clock === 'live';
   // Daily closes only. The date list also carries the test clock's
   // hourly ticks, and a loan that ends an hour from now is not a term
   // anyone means to pick. Default to the first close at least two
   // weeks out, so the figures describe a loan rather than an afternoon.
-  const future = selectableExpiries(s.book.date);
+  const future = offeredExpiries(s.market, s.book.date);
   const fortnight = new Date(Date.parse(s.book.date) + 14 * 86_400_000)
     .toISOString()
     .slice(0, 10);
@@ -194,6 +380,9 @@ function Borrow({
   const [cap, setCap] = useState(String(Math.ceil(price * 1.12)));
   const [expiry, setExpiry] = useState(defaultExpiry);
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
+  const bid = live && quoteMark ? quoteMark.bid : price;
+  const ask = live && quoteMark ? quoteMark.ask : price;
+  const fill = side === 'buy' ? ask : bid;
   // A cash loan: half of what one share can carry, so the first read
   // shows a loan with room in it rather than one at the edge.
   const [amount_, setAmount] = useState(
@@ -383,7 +572,7 @@ function Borrow({
             ? add(mul(q, k), interest)
             : mode === 'borrow'
               ? b
-              : mul(q, price),
+              : mul(q, fill),
     });
 
   const confirm = async () => {
@@ -494,13 +683,13 @@ function Borrow({
           : {
               eyebrow: 'Spot trade',
               label: side === 'buy' ? 'You pay' : 'You receive',
-              value: usd(q * price),
+              value: usd(q * fill),
               tone: undefined,
-              caption: 'Fully funded from the vault. Settles now.',
+              caption: `Fills at the ${side === 'buy' ? 'ask' : 'bid'}, fully funded from the vault. Settles now.`,
               figures: [
-                { label: 'Price', value: usd(price) },
+                { label: 'Bid', value: usd(bid) },
+                { label: 'Ask', value: usd(ask) },
                 { label: 'Shares', value: qty(q) },
-                { label: 'Direction', value: side === 'buy' ? 'Buy' : 'Sell' },
               ],
             };
 
@@ -573,15 +762,19 @@ function Borrow({
       </div>
 
       <Panel className="od-ticket">
-        <PanelHead
-          title="Your terms"
-          action={
-            <Badge tone={under?.simulated ? 'neutral' : 'accent'}>
-              {symbol} {usd(price)}
-            </Badge>
-          }
-        />
+        <PanelHead title="Your terms" />
         <div className="od-panel-body">
+          <Segmented
+            label="Lending action"
+            value={mode}
+            onChange={(m) => onMode(m)}
+            options={[
+              { id: 'lend', label: 'Lend' },
+              { id: 'borrow', label: 'Borrow' },
+              { id: 'short', label: 'Short' },
+              { id: 'stock', label: 'Spot' },
+            ]}
+          />
           <Field label="Underlying">
             <select
               aria-label="Underlying"
@@ -590,8 +783,8 @@ function Borrow({
             >
               {underlyings.map((u) => (
                 <option key={u.symbol} value={u.symbol}>
-                  {u.name} ({u.symbol}) · {usd(u.price)}
-                  {u.simulated ? ' · simulated path' : ''}
+                  {u.name} ({u.symbol}){'  '}
+                  {usd(markOf(s, feed, u.symbol)?.price ?? u.price)}
                 </option>
               ))}
             </select>
@@ -708,7 +901,7 @@ function Borrow({
       {review && (
         <Modal
           title={review.title}
-          description={`${qty(q)} ${symbol} at the ${usd(price)} stored reference`}
+          description={`${qty(q)} ${symbol} at ${usd(mode === 'stock' ? fill : price)}${live ? '' : ', the stored reference'}`}
           onClose={() => setReview(null)}
         >
           <div className="od-lines">

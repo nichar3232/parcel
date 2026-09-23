@@ -13,6 +13,7 @@ import {
   type Source,
   type SourceHealth,
 } from './sources';
+import { YahooSource } from './yahoo';
 
 /**
  * The live mark engine.
@@ -32,7 +33,7 @@ import {
 
 const FRESH_MS = 20_000;
 const TICK_MS = 1000;
-const POLL_MS = 3000;
+const POLL_MS = 2000;
 const YEAR_SECONDS = 365 * 24 * 3600;
 const TAPE_LENGTH = 48;
 
@@ -41,6 +42,7 @@ export type MarkSource =
   | 'massive-delayed-nbbo'
   | 'pyth'
   | 'coinbase'
+  | 'yahoo'
   | 'simulated';
 
 export interface Mark {
@@ -109,6 +111,7 @@ export class MarkEngine {
   private state = new Map<string, State>();
   private tape: Print[] = [];
   private seq = 0;
+  private yahoo: YahooSource;
   private sources: Source[];
   private timers: NodeJS.Timeout[] = [];
   private sourceStops: (() => void)[] = [];
@@ -118,13 +121,19 @@ export class MarkEngine {
 
   constructor(
     now = Date.now(),
-    sources: Source[] = [
+    sources?: Source[],
+  ) {
+    // The keyless Yahoo chart endpoint is a deliberately last-resort
+    // listed-equity print. It gives the desk a delayed price when no direct
+    // quote service is configured; it never displaces Massive NBBO or a Pyth
+    // observation, and its modelled spread remains labelled as such.
+    this.yahoo = new YahooSource();
+    this.sources = sources ?? [
       new MassiveStocksSource(),
       new PythSource(),
       new CoinbaseSource(),
-    ],
-  ) {
-    this.sources = sources;
+      this.yahoo,
+    ];
     const seed = (i: Instrument, price: number): State => ({
       ...i,
       price,
@@ -323,6 +332,9 @@ export class MarkEngine {
     for (const s of this.state.values()) {
       this.rollDay(s, now);
       if (s.lastReal && now - s.lastReal < FRESH_MS) continue;
+      // Never walk a real stock. Between prints it is worth its last
+      // trade, and a random walk would draw moves that did not happen.
+      if (s.kind === 'equity' && s.lastReal) continue;
       // A stablecoin is pulled back to its peg rather than allowed to
       // wander; a random walk on USDC would quote a dollar at $0.94.
       if (s.kind === 'stable') {
@@ -392,6 +404,11 @@ export class MarkEngine {
     if (this.tape.length > TAPE_LENGTH) this.tape.length = TAPE_LENGTH;
   }
 
+  /** Today's real one-minute prints for a listed equity, if observed. */
+  intraday(symbol: string) {
+    return this.yahoo.intraday(symbol);
+  }
+
   /** One instrument's current mark, or null if it is not tracked. */
   mark(symbol: string): Mark | null {
     const s = this.state.get(symbol.toUpperCase());
@@ -399,7 +416,9 @@ export class MarkEngine {
   }
 
   private project(s: State): Mark {
-    const fresh = !!s.lastReal && Date.now() - s.lastReal < FRESH_MS;
+    const fresh =
+      !!s.lastReal &&
+      (s.kind === 'equity' || Date.now() - s.lastReal < FRESH_MS);
     const half = (s.price * s.spreadBps) / 10_000;
     const round = (n: number) => Math.round(n * 1e6) / 1e6;
     // A venue's own book beats a modelled spread whenever we have one.
@@ -440,7 +459,8 @@ export class MarkEngine {
     return source === 'massive-nbbo' ||
       source === 'massive-delayed-nbbo' ||
       source === 'pyth' ||
-      source === 'coinbase'
+      source === 'coinbase' ||
+      source === 'yahoo'
       ? source
       : 'simulated';
   }

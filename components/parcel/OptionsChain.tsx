@@ -3,7 +3,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { VaultController } from '@/hooks/parcel/use-vault';
 import type { ChainCatalog } from '@/lib/parcel/types';
 import type { OrderTerms } from '@/lib/parcel/types';
-import { selectableExpiries } from '@/lib/parcel/market';
+import { offeredExpiries } from '@/lib/parcel/market';
 import { Panel, qty, usd } from './shared';
 export function OptionsChain({
   desk,
@@ -39,7 +39,7 @@ export function OptionsChain({
   onSelect: (terms: OrderTerms) => void;
 }) {
   const state = desk.state!,
-    dates = selectableExpiries(state.book.date);
+    dates = offeredExpiries(state.market, state.book.date);
   const [catalog, setCatalog] = useState<ChainCatalog | null>(null),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(false);
@@ -68,6 +68,27 @@ export function OptionsChain({
       clearTimeout(timer);
     };
   }, [effective, quantity, symbol, state.revision, state.csrf]);
+  /* On the live market the ladder re-prices in place every two seconds:
+     the same request, answered at the current mark, swapped in without
+     clearing the table, so the premiums tick rather than flash. */
+  const live = state.market.clock === 'live';
+  useEffect(() => {
+    if (!live) return;
+    let cancelled = false;
+    const timer = setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const result = await read.current(effective, quantity, symbol);
+        if (!cancelled) setCatalog(result);
+      } catch {
+        /* keep the last good ladder; the next tick tries again */
+      }
+    }, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [live, effective, quantity, symbol, state.revision]);
   const current =
     catalog &&
     catalog.revision === state.revision &&
@@ -103,6 +124,7 @@ export function OptionsChain({
     return v > 0 && v < 0.005 ? '<$0.01' : chainPrice.format(v);
   };
   const spot =
+    catalog?.spot ??
     state.market.underlyings?.find((u) => u.symbol === symbol)?.price ??
     state.market.price;
   const volatility =
@@ -120,12 +142,16 @@ export function OptionsChain({
    */
   const scroller = useRef<HTMLDivElement>(null);
   const marker = useRef<HTMLTableRowElement>(null);
+  // Only when what is listed changes, not on every live re-price.
+  const listing = catalog
+    ? `${catalog.expiry}|${catalog.symbol}|${catalog.quantity}|${kind}|${side}`
+    : '';
   useLayoutEffect(() => {
     const box = scroller.current,
       at = marker.current;
-    if (!box || !at) return;
+    if (!box || !at || !listing) return;
     box.scrollTop = Math.max(0, at.offsetTop - box.clientHeight / 2);
-  }, [catalog, kind, side]);
+  }, [listing]);
 
   return (
     <Panel className="od-chain">
@@ -194,7 +220,9 @@ export function OptionsChain({
                               zeros for the sake of it. */}
                           <b>{usd(row.strike, row.strike % 1 === 0 ? 0 : 2)}</b>
                         </td>
-                        <td className="num od-ladder-breakeven">{usd(breakeven)}</td>
+                        <td className="num od-ladder-breakeven">
+                          {usd(breakeven)}
+                        </td>
                         <td
                           className={`num od-ladder-distance ${
                             away >= 0 ? 'above' : 'below'
@@ -203,25 +231,28 @@ export function OptionsChain({
                           {away >= 0 ? '+' : ''}
                           {away.toFixed(2)}%
                         </td>
-                        <td className="num od-muted">
-                          {c[side].cash > 0
-                            ? usd(c[side].cash)
-                            : c[side].shares > 0
-                              ? `${qty(c[side].shares)} ${symbol}`
-                              : '—'}
-                        </td>
-                        <td className="num">
-                          <button
-                            type="button"
-                            className="od-ladder-quote"
-                            aria-label={`Select ${side} ${kind} at ${usd(
-                              row.strike,
-                            )}; model premium ${priceLabel(c[side].premium)}`}
-                            onClick={() => choose(row.strike, kind, side)}
-                          >
-                            {priceLabel(c[side].premium)}
-                          </button>
-                        </td>
+                        {(['sell', 'buy'] as const).map((at) => {
+                          const price = Math.abs(c[at].premium);
+                          const label = priceLabel(price);
+                          return (
+                            <td key={at} className="num">
+                              {at === side ? (
+                                <button
+                                  type="button"
+                                  className="od-ladder-quote"
+                                  aria-label={`${side === 'buy' ? 'Buy' : 'Write'} ${kind} at ${usd(
+                                    row.strike,
+                                  )} for ${label}`}
+                                  onClick={() => choose(row.strike, kind, side)}
+                                >
+                                  {label}
+                                </button>
+                              ) : (
+                                <span className="od-ladder-other">{label}</span>
+                              )}
+                            </td>
+                          );
+                        })}
                       </tr>
                       {crosses && (
                         <tr className="od-ladder-spot" ref={marker}>

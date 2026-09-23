@@ -42,6 +42,8 @@ On the VPS, systemd loads the protected `EnvironmentFile`; see `ops/README.md`.
 | `STRATA_STATE_DIR`      | `.state`                        | SQLite and test configuration directory                                                                                  |
 | `STRATA_PUBLIC_DIR`     | `dist/client`                   | Built public assets                                                                                                      |
 | `CHAIN_ENABLED`         | enabled unless `false`          | Set `false` for keyless historical demo                                                                                  |
+| `PARCEL_LIVE`           | enabled unless `false`          | Price and settle the sandbox vault on the live market: spot is the live mark (Yahoo Finance for stocks, Coinbase/Pyth for crypto, modeled marks for pre-IPO tokens), expiries are upcoming Fridays, and contracts settle at the recorded expiry-day close. `false` keeps the stored 2025 replay, which the browser tests use |
+| `YAHOO_CHART_URL`       | `https://query1.finance.yahoo.com` | Keyless chart endpoint for listed-stock marks and daily closes |
 | `SOLANA_NETWORK`        | `localnet`                      | Explicit `localnet` or `devnet`                                                                                          |
 | `SOLANA_RPC_URL`        | `http://127.0.0.1:8899`         | Pinned test RPC; localnet must be loopback                                                                               |
 | `SOLANA_GENESIS_HASH`   | empty                           | Required chain identity pin before execution                                                                             |

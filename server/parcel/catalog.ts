@@ -5,9 +5,20 @@ import { orderGreeks, round } from '../../lib/parcel/math';
 import { deliveryBounds, payoffBounds } from '../../lib/parcel/envelope';
 import { amount, expiry, parseOrderTerms } from '../../lib/parcel/validation';
 import { premium } from './ledger';
+import { spreadCost } from '../../lib/parcel/spread';
 
 export function indicative(terms: OrderTerms, book: VaultBook) {
-  const p = premium(terms, book),
+  // The price you would trade at: the ask to buy, the bid to write.
+  const crossing =
+    terms.reference === 'stock'
+      ? spreadCost(
+          terms,
+          mark(terms.symbol, book.date),
+          book.date,
+          volatility(terms.symbol),
+        )
+      : 0;
+  const p = round(premium(terms, book) + crossing),
     b = deliveryBounds([terms]);
   return {
     premium: p,
@@ -62,38 +73,38 @@ export function optionsChain(
   const selected = expiry(end, book.date),
     q = amount(quantity),
     spot = mark(symbol, book.date);
-  const rows = strikeLadder(spot)
-    .map((strike) => ({
-      strike,
-      contracts: (['call', 'put'] as const).map((kind) => {
-        const terms: OrderTerms = {
-          symbol,
-          name: `${kind === 'call' ? 'Call' : 'Put'} ${strike}`,
-          quantity: q,
-          expiry: selected,
-          settlement: 'physical',
-          reference: 'stock',
-          legs: [{ kind, side: 'buy', strike, ratio: 1 }],
-        };
-        const valid = parseOrderTerms(terms, book.date);
-        return {
-          kind,
-          buy: indicative(valid, book),
-          sell: indicative(
-            { ...valid, legs: [{ ...valid.legs[0], side: 'sell' }] },
-            book,
-          ),
-          delta: orderGreeks(valid, spot, book.date, volatility(symbol)).delta,
-        };
-      }),
-    }));
+  const rows = strikeLadder(spot).map((strike) => ({
+    strike,
+    contracts: (['call', 'put'] as const).map((kind) => {
+      const terms: OrderTerms = {
+        symbol,
+        name: `${kind === 'call' ? 'Call' : 'Put'} ${strike}`,
+        quantity: q,
+        expiry: selected,
+        settlement: 'physical',
+        reference: 'stock',
+        legs: [{ kind, side: 'buy', strike, ratio: 1 }],
+      };
+      const valid = parseOrderTerms(terms, book.date);
+      return {
+        kind,
+        buy: indicative(valid, book),
+        sell: indicative(
+          { ...valid, legs: [{ ...valid.legs[0], side: 'sell' }] },
+          book,
+        ),
+        delta: orderGreeks(valid, spot, book.date, volatility(symbol)).delta,
+      };
+    }),
+  }));
   return {
     symbol,
     expiry: selected,
     quantity: q,
     spot,
     rows,
-    pricing: 'Model RFQ · funded test counterparty · zero model spread',
+    pricing:
+      'Model mid, quoted with a bid and an ask · funded test counterparty',
   };
 }
 export function sizeOrder(
