@@ -24,7 +24,7 @@ import {
   type Range,
 } from '@/lib/parcel/value';
 import { QuoteReview } from './QuoteReview';
-import type { Quote, VaultAction } from '@/lib/parcel/types';
+import type { MarketUnderlying, Quote, VaultAction } from '@/lib/parcel/types';
 import { AssetLogo } from './AssetLogo';
 import { logoOf } from '@/lib/preipo/registry';
 import { Meter, ValueHistory } from './charts';
@@ -52,6 +52,8 @@ export type PortfolioTab =
   | 'positions'
   | 'collateral'
   | 'activity';
+
+const EMPTY_UNDERLYINGS: MarketUnderlying[] = [];
 
 /**
  * The portfolio.
@@ -81,7 +83,9 @@ export function PortfolioView({
 }) {
   const s = desk.state!;
   const { book, risk, market } = s;
-  const underlyings = market.underlyings;
+  // A receipt can survive an application deploy. Keep every portfolio
+  // calculation total if an older response has not yet gained its catalog.
+  const underlyings = market.underlyings ?? EMPTY_UNDERLYINGS;
 
   /* The ledger's session price is the source of the stored balance
      history. The headline is deliberately different: once the mark feed
@@ -219,13 +223,7 @@ export function PortfolioView({
           )}
           <div className={`od-open-feed ${hasLiveMark ? 'live' : ''}`}>
             <i aria-hidden />
-            <span>
-              {hasLiveMark
-                ? 'Live mark'
-                : feed.ready
-                  ? 'Session mark'
-                  : 'Connecting to marks'}
-            </span>
+            <span>{hasLiveMark ? 'Live mark' : 'Session mark'}</span>
             {hasLiveMark && feed.asOf > 0 && (
               <time dateTime={new Date(feed.asOf).toISOString()}>
                 Updated{' '}

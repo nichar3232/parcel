@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { ArrowRight, TriangleAlert } from 'lucide-react';
 import type { VaultController } from '@/hooks/parcel/use-vault';
 import type { MarkFeed } from '@/hooks/parcel/use-marks';
-import type { VaultAction } from '@/lib/parcel/types';
+import type { MarketUnderlying, VaultAction } from '@/lib/parcel/types';
 import { amount } from '@/lib/parcel/validation';
 import { add, mul, round } from '@/lib/parcel/math';
 import {
@@ -42,6 +42,7 @@ import {
 export type LendingTab = 'borrow';
 type Mode = 'borrow' | 'short' | 'lend' | 'stock';
 const MODES: Mode[] = ['borrow', 'short', 'lend', 'stock'];
+const EMPTY_UNDERLYINGS: MarketUnderlying[] = [];
 
 export function LendingView({
   desk,
@@ -59,6 +60,7 @@ export function LendingView({
   onSymbol: (symbol: string) => void;
 }) {
   const s = desk.state!;
+  const underlyings = s.market.underlyings ?? EMPTY_UNDERLYINGS;
 
   /**
    * The desk's own position, expressed in money-market terms.
@@ -69,10 +71,10 @@ export function LendingView({
    */
   const position = useMemo(() => {
     const priceOf = (of: string) =>
-      s.market.underlyings.find((u) => u.symbol === of)?.price ?? 1;
+      underlyings.find((u) => u.symbol === of)?.price ?? 1;
     const collateral: Holding[] = [
       { symbol: 'USDC', amount: s.book.vault.USDC, price: 1 },
-      ...s.market.underlyings.map((u) => ({
+      ...underlyings.map((u) => ({
         symbol: u.symbol,
         amount: s.book.vault[u.symbol] ?? 0,
         price: u.price,
@@ -117,7 +119,7 @@ export function LendingView({
       weighted,
       liquidation: liquidationPrice(weighted, shorted, otherDebt),
     };
-  }, [s, symbol]);
+  }, [s, symbol, underlyings]);
 
   return (
     <Borrow
@@ -167,10 +169,10 @@ function Borrow({
   onSymbol: (symbol: string) => void;
 }) {
   const s = desk.state!;
-  const under =
-    s.market.underlyings.find((u) => u.symbol === symbol) ??
-    s.market.underlyings[0];
-  const price = under.price;
+  const underlyings = s.market.underlyings ?? EMPTY_UNDERLYINGS;
+  const under = underlyings.find((u) => u.symbol === symbol) ?? underlyings[0];
+  const price = under?.price ?? s.market.price;
+  const volatility = under?.volatility ?? s.market.volatility;
   // Daily closes only. The date list also carries the test clock's
   // hourly ticks, and a loan that ends an hour from now is not a term
   // anyone means to pick. Default to the first close at least two
@@ -235,7 +237,7 @@ function Borrow({
   const interest = valid ? termInterest(q, price, s.book.date, end) : 0;
   const protection =
     valid && mode === 'short'
-      ? protectionPremium(q, price, k, s.book.date, end, under.volatility)
+      ? protectionPremium(q, price, k, s.book.date, end, volatility)
       : 0;
 
   // What this borrow would do to the health factor, before it is taken.
@@ -361,7 +363,7 @@ function Borrow({
                           round(price * 1.5),
                           s.book.date,
                           end,
-                          under.volatility,
+                          volatility,
                         )
                       : protection,
                     6,
@@ -574,7 +576,7 @@ function Borrow({
         <PanelHead
           title="Your terms"
           action={
-            <Badge tone={under.simulated ? 'neutral' : 'accent'}>
+            <Badge tone={under?.simulated ? 'neutral' : 'accent'}>
               {symbol} {usd(price)}
             </Badge>
           }
@@ -586,7 +588,7 @@ function Borrow({
               value={symbol}
               onChange={(e) => onSymbol(e.target.value)}
             >
-              {s.market.underlyings.map((u) => (
+              {underlyings.map((u) => (
                 <option key={u.symbol} value={u.symbol}>
                   {u.name} ({u.symbol}) · {usd(u.price)}
                   {u.simulated ? ' · simulated path' : ''}

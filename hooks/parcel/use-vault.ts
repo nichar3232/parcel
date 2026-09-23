@@ -21,13 +21,21 @@ import {
  * added display field. Keep the client-side contract total while the server
  * refreshes it, rather than allowing one omitted array to take down a view.
  */
-function completeSnapshot(value: VaultSnapshot): VaultSnapshot {
-  if (Array.isArray(value.market?.underlyings)) return value;
+function completeSnapshot(
+  value: VaultSnapshot,
+  previous: VaultSnapshot['market']['underlyings'] = [],
+): VaultSnapshot {
+  const underlyings = value.market?.underlyings;
+  // Treat an empty legacy list the same as an omitted one. A receipt may
+  // have been persisted during a deploy that knew the field but could not
+  // populate it; retaining the last complete catalog keeps the ticket
+  // usable until the following refresh replaces it with the server truth.
+  if (Array.isArray(underlyings) && underlyings.length) return value;
   return {
     ...value,
     market: {
       ...value.market,
-      underlyings: [],
+      underlyings: previous.length ? previous : (underlyings ?? []),
     },
   };
 }
@@ -43,7 +51,10 @@ export function useVault() {
     pendingRequest = useRef<PendingMutation | null>(null),
     refreshSequence = useRef(0);
   const update = useCallback((value: VaultSnapshot) => {
-    const snapshot = completeSnapshot(value);
+    const snapshot = completeSnapshot(
+      value,
+      current.current?.market.underlyings,
+    );
     if (current.current && snapshot.csrf !== current.current.csrf) return;
     if (!current.current || snapshot.revision >= current.current.revision) {
       current.current = snapshot;

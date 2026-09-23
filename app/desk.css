@@ -1307,34 +1307,28 @@
   text-align: center;
 }
 .od-empty-mark {
-  display: grid;
-  grid-template-columns: repeat(2, 9px);
-  gap: 3px;
+  display: block;
+  width: 36px;
+  height: 36px;
   margin-bottom: 10px;
   transform-origin: center;
   animation: od-parcel-mark-spin 3.2s linear infinite;
 }
-.od-empty-mark i {
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-  background: var(--pc-line);
-}
-.od-empty-mark i:first-child {
-  background: var(--pc-faint);
+.od-empty-mark .pc-mark {
+  display: block;
 }
 @keyframes od-parcel-mark-spin {
   from {
-    transform: rotate(-12deg);
+    transform: rotate(0deg);
   }
   to {
-    transform: rotate(348deg);
+    transform: rotate(360deg);
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .od-empty-mark {
     animation: none;
-    transform: rotate(-12deg);
+    transform: none;
   }
 }
 .od-empty h3 {

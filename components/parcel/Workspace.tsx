@@ -517,7 +517,7 @@ export default function Workspace() {
         >
           <div className="od-lines">
             <Line label="Available USDC" value={usd(s.book.wallet.USDC)} />
-            {s.market.underlyings
+            {(s.market.underlyings ?? [])
               .filter((u) => (s.book.wallet[u.symbol] ?? 0) > 0)
               .map((u) => (
                 <Line
@@ -529,7 +529,7 @@ export default function Workspace() {
             <Line
               label="In the vault"
               value={usd(
-                s.market.underlyings.reduce(
+                (s.market.underlyings ?? []).reduce(
                   (t, u) => t + (s.book.vault[u.symbol] ?? 0) * u.price,
                   s.book.vault.USDC,
                 ),

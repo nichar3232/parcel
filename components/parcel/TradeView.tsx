@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { ArrowRight, LockKeyhole } from 'lucide-react';
 import type { VaultController } from '@/hooks/parcel/use-vault';
-import type { OrderTerms, Quote } from '@/lib/parcel/types';
+import type { MarketUnderlying, OrderTerms, Quote } from '@/lib/parcel/types';
 import { deliveryBounds } from '@/lib/parcel/envelope';
 import { bounded, DEFAULT_BLACK_SCHOLES, orderGreeks } from '@/lib/parcel/math';
 import { parseOrderTerms } from '@/lib/parcel/validation';
@@ -39,6 +39,7 @@ import {
 export type TradeTab = 'trade' | 'underwrite' | 'structures';
 
 const SIZES = [0.25, 0.5, 1, 2, 5];
+const EMPTY_UNDERLYINGS: MarketUnderlying[] = [];
 
 export function TradeView({
   desk,
@@ -60,10 +61,12 @@ export function TradeView({
   onAdvanced: (on: boolean) => void;
 }) {
   const state = desk.state!;
-  const under =
-    state.market.underlyings.find((u) => u.symbol === symbol) ??
-    state.market.underlyings[0];
-  const price = under.price;
+  // An idempotent response from an older deploy can briefly carry no
+  // catalog. Price from the session snapshot while the next refresh fills
+  // it rather than dereferencing a missing first instrument.
+  const underlyings = state.market.underlyings ?? EMPTY_UNDERLYINGS;
+  const under = underlyings.find((u) => u.symbol === symbol) ?? underlyings[0];
+  const price = under?.price ?? state.market.price;
   // Hoisted: a memo keyed on `state.book.date` cannot be preserved
   // through the compiler, because it cannot prove the chain is stable.
   const session = state.book.date;
@@ -151,7 +154,10 @@ export function TradeView({
 
   const reference =
     effective.reference === 'dividend' ? state.market.dividend : price;
-  const vol = effective.reference === 'dividend' ? 0.8 : under.volatility;
+  const vol =
+    effective.reference === 'dividend'
+      ? 0.8
+      : (under?.volatility ?? state.market.volatility);
 
   const g = invalid
     ? { price: 0, delta: 0, gamma: 0, theta: 0, vega: 0 }
@@ -445,7 +451,7 @@ export function TradeView({
           <PanelHead
             title={tab === 'structures' ? 'Build a structure' : 'Your contract'}
             action={
-              <Badge tone={under.simulated ? 'neutral' : 'green'}>
+              <Badge tone={under?.simulated ? 'neutral' : 'green'}>
                 {symbol} {usd(price)}
               </Badge>
             }
@@ -457,7 +463,7 @@ export function TradeView({
                 value={symbol}
                 onChange={(e) => onSymbol(e.target.value)}
               >
-                {state.market.underlyings.map((u) => (
+                {underlyings.map((u) => (
                   <option key={u.symbol} value={u.symbol}>
                     {u.name} ({u.symbol}) · {usd(u.price)}
                     {u.simulated ? ' · simulated path' : ''}

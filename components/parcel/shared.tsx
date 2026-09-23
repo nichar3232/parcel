@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { ArrowUpRight, X } from 'lucide-react';
+import { Mark } from '@/components/brand/Mark';
 export { expiryLabel } from '@/lib/parcel/format';
 import {
   Dialog,
@@ -364,9 +365,7 @@ export function Empty({
   return (
     <div className="od-empty">
       <span className="od-empty-mark" aria-hidden>
-        <i />
-        <i />
-        <i />
+        <Mark size={36} />
       </span>
       <h3>{title}</h3>
       <p>{description}</p>

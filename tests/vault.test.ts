@@ -166,11 +166,14 @@ void test('vault: an older idempotent receipt is completed with the current mark
       },
       first = a.service.apply(a.session, key, request),
       { underlyings: _underlyings, ...legacyMarket } = first.market,
-      legacyReceipt = { ...first, market: legacyMarket };
+      legacyReceipt = {
+        ...first,
+        market: { ...legacyMarket, underlyings: [] },
+      };
 
-    // Simulate a durable receipt created before the market list was added to
-    // the response contract. It must remain idempotent without crashing a
-    // current client that relies on that list for its holdings view.
+    // Simulate a durable receipt from a deploy that knew the market-list
+    // field but persisted it empty. It must remain idempotent without
+    // crashing a current client that relies on the catalog for its ticket.
     a.store.db
       .prepare('UPDATE receipts SET response=? WHERE owner=? AND key=?')
       .run(JSON.stringify(legacyReceipt), a.session.id, key);
