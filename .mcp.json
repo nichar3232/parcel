@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "parcel": {
+      "command": "npx",
+      "args": ["tsx", "mcp/parcel.ts"],
+      "env": { "PARCEL_URL": "http://localhost:3025" }
+    }
+  }
+}
