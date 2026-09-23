@@ -12,8 +12,10 @@ import type { Config } from './config';
 import { Store } from './db/store';
 import { ChainService } from './domain/chain';
 import { PortfolioService, parseKey } from './domain/portfolio';
-import { ApiError } from './http/errors';
+import { ApiError, object } from './http/errors';
+import { handleMcp } from './http/mcp';
 import {
+  bearer,
   body,
   cookie,
   json,
@@ -73,6 +75,11 @@ export function createApp(
     try {
       const url = new URL(req.url || '/', 'http://localhost'),
         method = req.method || 'GET';
+      if (url.pathname === '/mcp')
+        return await handleMcp(req, res, store, () => {
+          const a = server.address();
+          return `http://127.0.0.1:${a && typeof a === 'object' ? a.port : config.port}`;
+        });
       if (!url.pathname.startsWith('/api/'))
         return await staticFile(req, res, url, config.publicDir);
       if (
@@ -183,7 +190,22 @@ export function createApp(
           }
         }
       }
-      let session = store.session(cookie(req));
+      // An agent key stands in for the session cookie. It carries no ambient
+      // browser credential, so its requests need no CSRF token, and every
+      // action it places is marked as the agent's.
+      const agentKey = bearer(req);
+      let session = agentKey
+        ? store.agentSession(agentKey)
+        : store.session(cookie(req));
+      if (agentKey && !session)
+        throw new ApiError(
+          401,
+          'AGENT_KEY_INVALID',
+          'This agent key is not valid or was revoked.',
+        );
+      const guard = () => {
+        if (!agentKey) mutationGuard(req, config, session!.csrf);
+      };
       if (url.pathname === '/api/session' && method === 'GET') {
         if (!session) {
           const created = store.createSession();
@@ -238,9 +260,11 @@ export function createApp(
       ) {
         if (method !== 'POST')
           throw new ApiError(405, 'METHOD', 'POST required.');
-        mutationGuard(req, config, session.csrf);
-        const key = parseKey(req.headers['idempotency-key']),
-          input = await body(req);
+        guard();
+        const key = parseKey(req.headers['idempotency-key']);
+        let input = await body(req);
+        if (agentKey && url.pathname === '/api/vault/actions')
+          input = { ...object(input), source: 'agent' };
         return json(
           res,
           200,
@@ -253,6 +277,29 @@ export function createApp(
                 ? await vaultChain.apply(session, key, input)
                 : vault.apply(session, key, input),
         );
+      }
+      if (url.pathname.startsWith('/api/agent/keys')) {
+        // Keys are managed from the desk only; one key cannot mint another.
+        if (agentKey)
+          throw new ApiError(
+            403,
+            'AGENT_KEY_SCOPE',
+            'Agent keys are managed from the desk.',
+          );
+        if (url.pathname === '/api/agent/keys' && method === 'GET')
+          return json(res, 200, { keys: store.agentKeys(session.id) });
+        if (method !== 'POST')
+          throw new ApiError(405, 'METHOD', 'POST required.');
+        guard();
+        if (url.pathname === '/api/agent/keys')
+          return json(res, 200, store.createAgentKey(session.id));
+        const revoke = url.pathname.match(
+          /^\/api\/agent\/keys\/([0-9a-f-]{36})\/revoke$/,
+        );
+        if (revoke) {
+          store.revokeAgentKey(session.id, revoke[1]);
+          return json(res, 200, { keys: store.agentKeys(session.id) });
+        }
       }
       if (url.pathname === '/api/portfolio' && method === 'GET')
         return json(res, 200, store.portfolio(session));
@@ -269,7 +316,7 @@ export function createApp(
       ) {
         if (method !== 'POST')
           throw new ApiError(405, 'METHOD', 'POST required.');
-        mutationGuard(req, config, session.csrf);
+        guard();
         const key = parseKey(req.headers['idempotency-key']);
         const input = await body(req);
         return json(

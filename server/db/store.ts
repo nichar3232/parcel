@@ -8,6 +8,13 @@ import { ApiError } from '../http/errors';
 export const digest = (value: string) =>
   createHash('sha256').update(value).digest('hex');
 export type Session = { id: string; csrf: string; expires_at: number };
+export interface AgentKey {
+  id: string;
+  /** The key's last four characters, so its owner can tell keys apart. */
+  hint: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+}
 export interface Operation {
   id: string;
   owner: string;
@@ -42,6 +49,9 @@ export class Store {
     this.db.exec(
       readFileSync(new URL('./003-vault-chain.sql', import.meta.url), 'utf8'),
     );
+    this.db.exec(
+      readFileSync(new URL('./004-agent-keys.sql', import.meta.url), 'utf8'),
+    );
   }
   transaction<T>(fn: () => T): T {
     this.db.exec('BEGIN IMMEDIATE');
@@ -61,6 +71,56 @@ export class Store {
         'SELECT id,csrf,expires_at FROM sessions WHERE token_hash=? AND expires_at>?',
       )
       .get(digest(token), now) as Session | undefined;
+  }
+  /** The session an agent key acts for, if the key is live and so is the
+   * session. Using a key records when it was last used. */
+  agentSession(key: string | undefined, now = Date.now()): Session | undefined {
+    if (!key || !/^pk_agent_[a-f0-9]{64}$/.test(key)) return;
+    const row = this.db
+      .prepare(
+        'SELECT s.id,s.csrf,s.expires_at,k.id AS key_id FROM agent_keys k JOIN sessions s ON s.id=k.owner WHERE k.key_hash=? AND k.revoked_at IS NULL AND s.expires_at>?',
+      )
+      .get(digest(key), now) as (Session & { key_id: string }) | undefined;
+    if (!row) return;
+    this.db
+      .prepare('UPDATE agent_keys SET last_used_at=? WHERE id=?')
+      .run(now, row.key_id);
+    return { id: row.id, csrf: row.csrf, expires_at: row.expires_at };
+  }
+  agentKeys(owner: string): AgentKey[] {
+    return this.db
+      .prepare(
+        'SELECT id,hint,created_at AS createdAt,last_used_at AS lastUsedAt FROM agent_keys WHERE owner=? AND revoked_at IS NULL ORDER BY created_at DESC',
+      )
+      .all(owner) as unknown as AgentKey[];
+  }
+  createAgentKey(owner: string, now = Date.now()) {
+    return this.transaction(() => {
+      if (this.agentKeys(owner).length >= 5)
+        throw new ApiError(
+          409,
+          'AGENT_KEY_LIMIT',
+          'This vault already has five agent keys. Revoke one first.',
+        );
+      const key = `pk_agent_${randomBytes(32).toString('hex')}`,
+        id = randomUUID(),
+        hint = key.slice(-4);
+      this.db
+        .prepare(
+          'INSERT INTO agent_keys(id,owner,key_hash,hint,created_at) VALUES(?,?,?,?,?)',
+        )
+        .run(id, owner, digest(key), hint, now);
+      return { key, agentKey: { id, hint, createdAt: now, lastUsedAt: null } };
+    });
+  }
+  revokeAgentKey(owner: string, id: string, now = Date.now()) {
+    const r = this.db
+      .prepare(
+        'UPDATE agent_keys SET revoked_at=? WHERE id=? AND owner=? AND revoked_at IS NULL',
+      )
+      .run(now, id, owner);
+    if (!r.changes)
+      throw new ApiError(404, 'AGENT_KEY', 'That agent key was not found.');
   }
   createSession(now = Date.now()) {
     const token = randomBytes(32).toString('hex'),

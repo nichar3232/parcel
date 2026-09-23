@@ -47,9 +47,9 @@ const AGENT_ABILITIES = [
       'Each onchain action returns its transaction signature and a Solana Explorer link anyone can open.',
   },
   {
-    title: 'Visible in the desk',
+    title: 'Yours to revoke',
     detail:
-      'Receipts an agent placed carry an Agent label in Activity, beside the ones you placed yourself.',
+      'Each key acts for one vault. Its trades carry an Agent label in Activity, and revoking it cuts the agent off at once.',
   },
 ];
 
@@ -77,6 +77,9 @@ export default function Landing() {
         <div className="lp-nav-right">
           <a className="lp-nav-about" href="#how">
             How it works
+          </a>
+          <a className="lp-nav-about" href="#agents">
+            Agents
           </a>
           <ThemeToggle />
           <Link className="lp-cta" href="/app">
@@ -164,11 +167,15 @@ export default function Landing() {
             <span className="lp-kicker">For agents</span>
             <h2 id="agents-title">An agent can run the desk</h2>
             <p>
-              Parcel ships an MCP server, so Claude or any MCP client can use
-              the same vault you do. Add it from a checkout of the repository:
+              Parcel serves MCP, so Claude or any MCP client can use the same
+              vault you do. Open the desk, choose Agents, create a key, and
+              paste the command it gives you:
             </p>
             <pre className="lp-agents-setup">
-              <code>claude mcp add parcel -- npx tsx mcp/parcel.ts</code>
+              <code>
+                claude mcp add --transport http parcel &lt;desk&gt;/mcp --header
+                &quot;Authorization: Bearer &lt;key&gt;&quot;
+              </code>
             </pre>
           </div>
           <ol className="lp-principles-list">

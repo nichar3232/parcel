@@ -3703,6 +3703,35 @@
   gap: 8px;
 }
 
+/* The Agents dialog. The command is plain monospace text, not a box. */
+.od-agent-fresh {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.od-agent-command {
+  overflow-x: auto;
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.od-agent-hint {
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-agent-key > span small {
+  display: block;
+  margin-top: 2px;
+  color: var(--pc-muted);
+  font-size: 11.5px;
+}
+.od-agent-error {
+  color: var(--pc-down);
+}
+
 .od-modal-actions > * {
   flex: 1;
 }

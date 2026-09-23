@@ -42,6 +42,11 @@ export function cookie(req: IncomingMessage) {
     .find((v) => v.startsWith('strata_session='))
     ?.slice(15);
 }
+/** An agent key presented as `Authorization: Bearer …`. */
+export function bearer(req: IncomingMessage) {
+  const h = req.headers.authorization;
+  return h?.startsWith('Bearer ') ? h.slice(7).trim() : undefined;
+}
 export function equal(a: string, b: string) {
   const left = Buffer.from(a),
     right = Buffer.from(b);

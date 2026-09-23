@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowUpRight,
+  Bot,
   ChevronDown,
   CircleHelp,
   ShieldCheck,
@@ -20,6 +21,7 @@ import { LendingView } from './LendingView';
 import { PreIpoView, type PreIpoTab } from './PreIpoView';
 import { DEFAULT_UNDERLYING } from '@/lib/parcel/universe';
 import { TransferDialog, type Transfer } from './TransferDialog';
+import { AgentsDialog } from './AgentsDialog';
 import { Welcome, markWelcomeSeen, welcomeSeen } from './Welcome';
 import { Button, Line, Modal, qty, usd } from './shared';
 import '@/app/desk.css';
@@ -269,7 +271,9 @@ export default function Workspace() {
   /** The underlying every ticket is written on until the reader picks another. */
   const [symbol, setSymbol] = useState(DEFAULT_UNDERLYING);
   const [transfer, setTransfer] = useState<Transfer | null>(null);
-  const [modal, setModal] = useState<'wallet' | 'about' | null>(null);
+  const [modal, setModal] = useState<'wallet' | 'about' | 'agents' | null>(
+    null,
+  );
 
   useEffect(() => {
     const at = new URLSearchParams(window.location.search).get('at');
@@ -359,6 +363,16 @@ export default function Workspace() {
         />
 
         <div className="od-bar-right">
+          <button
+            className="od-bar-btn"
+            aria-label="Connect an agent"
+            onClick={() => setModal('agents')}
+            disabled={!s}
+          >
+            <Bot size={15} />
+            <span className="wide">Agents</span>
+          </button>
+
           <button
             className="od-bar-btn"
             aria-label="About Parcel"
@@ -563,6 +577,14 @@ export default function Workspace() {
         </Modal>
       )}
 
+      {modal === 'agents' && s && (
+        <AgentsDialog
+          csrf={s.csrf}
+          mode={s.mode}
+          onClose={() => setModal(null)}
+        />
+      )}
+
       {modal === 'about' && (
         <Modal
           title="Options, by the share"
@@ -578,9 +600,11 @@ export default function Workspace() {
             and refuses double-pledged assets.
           </p>
           <p className="od-note">
-            {s?.mode === 'localnet'
-              ? 'This session executes against the Parcel Solana program on a private local validator. SPL test-token escrow backs its balances, and the backend indexes confirmed results.'
-              : 'This session executes in the persistent ledger. Onchain vault execution requires the separately configured Parcel local-validator program.'}
+            {s?.mode === 'devnet'
+              ? 'This session executes against the Parcel Solana program on devnet. SPL test-token escrow backs its balances, every action is a public transaction, and the backend indexes confirmed results.'
+              : s?.mode === 'localnet'
+                ? 'This session executes against the Parcel Solana program on a private local validator. SPL test-token escrow backs its balances, and the backend indexes confirmed results.'
+                : 'This session executes in the persistent ledger. Onchain vault execution requires a configured Parcel program on devnet or a local validator.'}
           </p>
           <p className="od-note">
             Liquidity comes from funded test counterparties. No external option
