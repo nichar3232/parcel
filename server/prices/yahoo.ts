@@ -1,5 +1,5 @@
 import type { Instrument } from './feeds';
-import type { Observation, Source } from './sources';
+import type { Observation, Source, SourceHealth } from './sources';
 
 /**
  * Listed equities, from Yahoo Finance's public chart endpoint.
@@ -60,11 +60,22 @@ export class YahooSource implements Source {
   readonly name = 'yahoo';
   enabled = true;
   private failures = 0;
+  private state: SourceHealth['state'] = 'connecting';
+  private detail = 'Reading delayed listed-equity prints';
   private days = new Map<string, Intraday>();
 
   /** Today's prints for a symbol this source has observed, if any. */
   intraday(symbol: string): Intraday | null {
     return this.days.get(symbol.toUpperCase()) ?? null;
+  }
+
+  health(): SourceHealth {
+    return {
+      name: this.name,
+      enabled: this.enabled,
+      state: this.state,
+      detail: this.detail,
+    };
   }
 
   private async chart(ticker: string): Promise<ChartBody | null> {
@@ -133,7 +144,20 @@ export class YahooSource implements Source {
     );
     const out = rows.filter((r): r is Observation => !!r);
     this.failures = out.length || !wanted.length ? 0 : this.failures + 1;
-    if (this.failures >= 10) this.enabled = false;
+    if (out.length) {
+      this.state = 'live';
+      this.detail = `Yahoo delivering ${out.length} delayed listed-equity mark${out.length === 1 ? '' : 's'}`;
+    } else if (!wanted.length) {
+      this.state = 'live';
+      this.detail = 'No listed-equity symbols requested';
+    } else {
+      // Public endpoints are routinely rate limited or briefly unavailable.
+      // Standing down permanently after ten misses turns a transient outage
+      // into a frozen desk until a deploy; stay retryable and tell the UI the
+      // source is degraded instead.
+      this.state = 'degraded';
+      this.detail = `Yahoo returned no current listed-equity marks${this.failures > 1 ? ` (${this.failures} consecutive polls)` : ''}`;
+    }
     return out;
   }
 }

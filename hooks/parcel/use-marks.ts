@@ -14,6 +14,7 @@ export type MarkSource =
   | 'massive-delayed-nbbo'
   | 'pyth'
   | 'coinbase'
+  | 'yahoo'
   | 'simulated';
 
 export interface Mark {
@@ -30,6 +31,8 @@ export interface Mark {
   vol: number;
   source: MarkSource;
   observedAt: number | null;
+  /** The last provider mark is older than the server's live-quote window. */
+  stale: boolean;
   /** Mock-token supply the maker has minted against this instrument. */
   supply: number;
   /** The lending pool the rate curve is derived from. */

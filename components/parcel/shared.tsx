@@ -42,6 +42,9 @@ export function markOf(
             change: number;
             open: number;
             kind: string;
+            source?: string;
+            stale?: boolean;
+            observedAt?: number | null;
           }
         >;
       }
@@ -49,6 +52,22 @@ export function markOf(
   symbol: string,
 ) {
   return state.market.clock === 'live' ? feed?.marks[symbol] : undefined;
+}
+
+/** A quote that is both provider-sourced and inside the server freshness SLA. */
+export function isLiveMark(
+  mark: { source?: string; stale?: boolean } | undefined,
+) {
+  // Yahoo and Massive's explicitly delayed channel remain useful for a
+  // session chart, but never qualify the desk as real-time. That status is
+  // reserved for the current NBBO, oracle, or venue BBO feeds.
+  return (
+    !!mark &&
+    mark.stale !== true &&
+    (mark.source === 'massive-nbbo' ||
+      mark.source === 'pyth' ||
+      mark.source === 'coinbase')
+  );
 }
 
 export const usd = (n: number, d = 2) =>

@@ -187,3 +187,46 @@ void test('marks: stale higher-priority cache cannot mask a fresh lower-priority
   assert.equal(nvda.source, 'pyth');
   assert.equal(nvda.quoteKind, 'modelled');
 });
+
+void test('marks: an old official equity print keeps provenance but cannot claim a live connection', () => {
+  const realNow = Date.now;
+  const base = realNow();
+  let clock = base;
+  Date.now = () => clock;
+  try {
+    const source: Source = {
+      name: 'massive-nbbo',
+      enabled: true,
+      async observe() {
+        return [];
+      },
+      subscribe(_instruments, receive) {
+        receive([
+          {
+            symbol: 'NVDA',
+            price: 142.62,
+            bid: 142.61,
+            ask: 142.63,
+            at: base,
+            source: 'massive-nbbo',
+            quoteKind: 'nbbo',
+          },
+        ]);
+        return () => undefined;
+      },
+    };
+    const engine = new MarkEngine(base, [source]);
+    engine.start();
+    clock += 20_001;
+    const nvda = engine.mark('NVDA')!;
+    const snapshot = engine.snapshot();
+    engine.stop();
+
+    assert.equal(nvda.source, 'massive-nbbo');
+    assert.equal(nvda.stale, true);
+    assert.equal(nvda.quoteKind, 'modelled');
+    assert.equal(snapshot.connected, false);
+  } finally {
+    Date.now = realNow;
+  }
+});

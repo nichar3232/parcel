@@ -41,6 +41,7 @@ import {
   Stat,
   dateLabel,
   expiryLabel,
+  isLiveMark,
   markOf,
   qty,
   usd,
@@ -86,6 +87,9 @@ export function PortfolioView({
   // A receipt can survive an application deploy. Keep every portfolio
   // calculation total if an older response has not yet gained its catalog.
   const underlyings = market.underlyings ?? EMPTY_UNDERLYINGS;
+  const heldSymbols = underlyings
+    .filter((u) => (book.vault[u.symbol] ?? 0) > 0)
+    .map((u) => u.symbol);
 
   /* The ledger's session price is the source of the stored balance
      history. The headline is deliberately different: once the mark feed
@@ -112,8 +116,31 @@ export function PortfolioView({
     (t, u) => t + (book.vault[u.symbol] ?? 0) * liveSpots[u.symbol],
     book.vault.USDC,
   );
-  const hasLiveMark = underlyings.some((u) => !!markOf(s, feed, u.symbol));
-  const displayedNav = hasLiveMark ? liveNav : nav;
+  // The vault is live only when each held market-priced asset has a fresh
+  // execution-grade mark. One fresh crypto feed must not make a stale equity
+  // sleeve look current in the combined portfolio headline.
+  const hasLiveMark =
+    heldSymbols.length > 0 &&
+    heldSymbols.every((symbol) => isLiveMark(markOf(s, feed, symbol)));
+  const hasDelayedMark = heldSymbols.some((symbol) => {
+    const mark = markOf(s, feed, symbol);
+    return (
+      !!mark &&
+      !mark.stale &&
+      (mark.source === 'yahoo' || mark.source === 'massive-delayed-nbbo')
+    );
+  });
+  const lastObservedAt = Math.max(
+    0,
+    ...heldSymbols.map(
+      (symbol) => markOf(s, feed, symbol)?.observedAt ?? 0,
+    ),
+  );
+  // The most recent official mark remains more useful than a boot/session
+  // seed even when the provider is delayed or currently stale. Its status is
+  // shown beside the figure; only its ability to extend the "live" tail is
+  // withheld below.
+  const displayedNav = lastObservedAt ? liveNav : nav;
   // What is held: every underlying with something in the vault, NVDA
   // always so the list never comes up empty. What sits only in the
   // wallet is deposited from the wallet, not listed here as a zero.
@@ -155,9 +182,6 @@ export function PortfolioView({
   );
   const [range, setRange] = useState<'1D' | Range>('1D');
   const [scrub, setScrub] = useState<ValueTick | null>(null);
-  const heldSymbols = underlyings
-    .filter((u) => (book.vault[u.symbol] ?? 0) > 0)
-    .map((u) => u.symbol);
   const dailyCloses = useDailyCloses(liveClock ? heldSymbols : []);
   const series = useMemo(
     () =>
@@ -168,7 +192,13 @@ export function PortfolioView({
     [book, liveClock, dailyCloses, liveSpots],
   );
   const drawn = withinRange(series, range === '1D' ? 'ALL' : range);
-  const liveSamples = useLiveValueSamples(feed, displayedNav, s.revision);
+  const liveSamples = useLiveValueSamples(
+    feed,
+    displayedNav,
+    s.revision,
+    hasLiveMark,
+    heldSymbols,
+  );
 
   /* Today, from real prints. Every listed stock in the vault is valued at
      each of today's one-minute bars, everything else at its live mark,
@@ -339,10 +369,22 @@ export function PortfolioView({
           )}
           <div className={`od-open-feed ${hasLiveMark ? 'live' : ''}`}>
             <i aria-hidden />
-            <span>{hasLiveMark ? 'Live' : 'Session mark'}</span>
-            {hasLiveMark && feed.asOf > 0 && (
-              <time dateTime={new Date(feed.asOf).toISOString()}>
-                {clock(feed.asOf)}
+            <span>
+              {hasLiveMark
+                ? 'Live'
+                : hasDelayedMark
+                  ? 'Delayed mark'
+                  : 'Last mark'}
+            </span>
+            {lastObservedAt > 0 && (
+              <time
+                dateTime={new Date(
+                  hasLiveMark ? feed.asOf : lastObservedAt,
+                ).toISOString()}
+              >
+                {hasLiveMark
+                  ? clock(feed.asOf)
+                  : clock(lastObservedAt)}
               </time>
             )}
           </div>
@@ -477,9 +519,15 @@ function useIntraday(symbols: string[]) {
  * refresh can be flat; that is still a useful observation, and it makes
  * the chart's cadence match the feed rather than an animation timer.
  */
-function useLiveValueSamples(feed: MarkFeed, value: number, revision: number) {
+function useLiveValueSamples(
+  feed: MarkFeed,
+  value: number,
+  revision: number,
+  hasLiveMark: boolean,
+  symbols: string[],
+) {
   const [samples, setSamples] = useState<{ date: string; value: number }[]>([]);
-  const lastAsOf = useRef(0);
+  const lastObservation = useRef(0);
   const lastRevision = useRef(revision);
 
   useEffect(() => {
@@ -488,15 +536,29 @@ function useLiveValueSamples(feed: MarkFeed, value: number, revision: number) {
        so begin a fresh live tail at the new balance. */
     if (lastRevision.current !== revision) {
       lastRevision.current = revision;
-      lastAsOf.current = 0;
+      lastObservation.current = 0;
       setSamples([]);
     }
-    if (!feed.ready || !feed.asOf || !Number.isFinite(value)) return;
-    if (feed.asOf === lastAsOf.current) return;
-    lastAsOf.current = feed.asOf;
-    const point = { date: new Date(feed.asOf).toISOString(), value };
+    // `asOf` advances with the server's heartbeat. It is not a quote. Only
+    // append when an actual, fresh provider observation moves forward; this
+    // prevents a broken feed from drawing a horizontal "live" tail.
+    const observedAt = Math.max(
+      0,
+      ...feed.list
+        .filter(
+          (mark) =>
+            symbols.includes(mark.symbol) &&
+            !mark.stale &&
+            mark.source !== 'simulated',
+        )
+        .map((mark) => mark.observedAt ?? 0),
+    );
+    if (!feed.ready || !hasLiveMark || !observedAt || !Number.isFinite(value)) return;
+    if (observedAt <= lastObservation.current) return;
+    lastObservation.current = observedAt;
+    const point = { date: new Date(observedAt).toISOString(), value };
     setSamples((previous) => [...previous.slice(-599), point]);
-  }, [feed.asOf, feed.ready, revision, value]);
+  }, [feed.list, feed.ready, hasLiveMark, revision, symbols, value]);
 
   return samples;
 }

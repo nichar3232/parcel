@@ -521,19 +521,17 @@ export class CoinbaseSource implements Source {
       }),
     );
     const out = rows.filter((r): r is Observation => !!r);
-    // Ten consecutive empty polls means the venue is unreachable from
-    // wherever this is deployed, not that it is briefly down.
+    // Public venue access can be rate limited or briefly unavailable. Keep
+    // polling so a temporary transport failure cannot freeze crypto marks
+    // until the process is restarted; credentials are the only condition
+    // that should permanently disable a source.
     this.failures = out.length ? 0 : this.failures + 1;
     if (out.length) {
       this.state = 'live';
       this.detail = `Coinbase delivering ${out.length} current venue mark${out.length === 1 ? '' : 's'}`;
-    } else if (this.failures >= 10) {
-      this.enabled = false;
-      this.state = 'disabled';
-      this.detail = 'Coinbase did not return a mark after ten polls';
     } else {
       this.state = 'degraded';
-      this.detail = 'Coinbase returned no current venue marks';
+      this.detail = `Coinbase returned no current venue marks${this.failures > 1 ? ` (${this.failures} consecutive polls)` : ''}`;
     }
     return out;
   }

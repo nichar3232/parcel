@@ -61,6 +61,12 @@ export interface Mark {
   vol: number;
   source: MarkSource;
   observedAt: number | null;
+  /**
+   * The source of the last mark is known, but it has not published within
+   * the desk freshness window. A stale official close is useful context; it
+   * is not a live quote and must never advance a live chart.
+   */
+  stale: boolean;
   /** Mock-token supply the maker has minted against this instrument. */
   supply: number;
   /** The lending pool standing behind this instrument. */
@@ -416,9 +422,11 @@ export class MarkEngine {
   }
 
   private project(s: State): Mark {
-    const fresh =
-      !!s.lastReal &&
-      (s.kind === 'equity' || Date.now() - s.lastReal < FRESH_MS);
+    // A listed equity may reasonably retain its last official print after
+    // the market closes, but it is not "live" forever. Treat every source
+    // the same here: provenance is retained below while freshness drives the
+    // live badge, venue BBO, and browser-session chart tail.
+    const fresh = !!s.lastReal && Date.now() - s.lastReal < FRESH_MS;
     const half = (s.price * s.spreadBps) / 10_000;
     const round = (n: number) => Math.round(n * 1e6) / 1e6;
     // A venue's own book beats a modelled spread whenever we have one.
@@ -446,8 +454,12 @@ export class MarkEngine {
       quoteKind,
       spreadBps: s.spreadBps,
       vol: s.vol,
-      source: fresh ? this.markSource(s.realSource) : 'simulated',
+      // Do not erase the provenance of a stale official mark. Consumers can
+      // show "last observed" accurately instead of calling an old Yahoo or
+      // NBBO print a simulated value. `stale` is the operative state.
+      source: s.lastReal ? this.markSource(s.realSource) : 'simulated',
       observedAt: s.lastReal,
+      stale: !fresh,
       supply: round(s.supply),
       supplied: round(s.supplied),
       borrowed: round(s.borrowed),
@@ -469,8 +481,14 @@ export class MarkEngine {
     const marks = [...this.state.values()].map((s) => this.project(s));
     return {
       asOf: Date.now(),
-      /** True once any feed has ever answered, so the UI can say why. */
-      connected: [...this.state.values()].some((s) => s.lastReal !== null),
+      /** True only while at least one provider observation is fresh. */
+      connected: marks.some(
+        (mark) =>
+          !mark.stale &&
+          mark.source !== 'simulated' &&
+          mark.source !== 'yahoo' &&
+          mark.source !== 'massive-delayed-nbbo',
+      ),
       sources: this.sources.map((x): SourceHealth =>
         x.health?.() ?? {
           name: x.name,
