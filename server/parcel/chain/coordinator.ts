@@ -4,6 +4,7 @@ import { parseKey } from '../../domain/portfolio';
 import { VaultService, type VaultPlan } from '../service';
 import type { VaultSnapshot } from '../../../lib/parcel/types';
 import type { PreparedVaultTransaction, VaultChainAdapter } from './adapter';
+import { ONCHAIN_ACTIONS } from './codec';
 interface Operation {
   owner: string;
   key: string;
@@ -73,6 +74,17 @@ export class VaultChainCoordinator {
           );
         return;
       }
+      // Refused before anything is recorded: an action the program cannot
+      // encode would otherwise stay pending and block the session for good.
+      const type = object(object(request).action).type;
+      if (typeof type !== 'string' || !ONCHAIN_ACTIONS.has(type))
+        throw new ApiError(
+          409,
+          'CHAIN_UNSUPPORTED',
+          type === 'borrow' || type === 'repay'
+            ? 'Cash loans against shares run in sandbox mode only; the onchain vault does not support them.'
+            : 'This action is not available on the onchain vault.',
+        );
       const pending = this.store.db
         .prepare(
           "SELECT key FROM vault_chain_operations WHERE owner=? AND status IN ('preparing','pending')",

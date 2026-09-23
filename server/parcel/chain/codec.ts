@@ -96,6 +96,20 @@ export function bookBytes(b: VaultBook) {
 }
 export const bookHash = (b: VaultBook) =>
   createHash('sha256').update(bookBytes(b)).digest();
+/** The vault actions the Parcel program has an instruction for. Cash loans
+ * against pledged shares (borrow/repay) are sandbox accounting only. */
+export const ONCHAIN_ACTIONS: ReadonlySet<string> = new Set([
+  'transfer',
+  'stock',
+  'execute',
+  'margin',
+  'lend',
+  'recall',
+  'short',
+  'close-short',
+  'advance',
+  'restart',
+]);
 export function actionBytes(p: VaultPlan) {
   const a = p.action,
     b = p.book;

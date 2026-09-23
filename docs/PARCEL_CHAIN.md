@@ -6,7 +6,7 @@
 
 The product-suite program adds optional curve terms and hourly clock observations; instruction names are `initialize_v2` / `execute_v2`, and signer derivation retains the fixed version-two domain used by the deployed accounts. Configure this separate deployment with a fresh state directory. The prior V1 program and its active accounts remain intact; no account migration, pending-operation conversion or in-place reinterpretation is supported. The always-on application has not been promoted by this task.
 
-It runs as `GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx` on the pinned private validator, where it is deployed and confirmed. Its devnet identity is `A4NTJ45BZT951nYh5xDXUKtyWij3YrYjcngyMigsq9pG`, **deployed on 2026-09-19** (deploy signature `HF7b9nY6dSqMxV3GHSFjdT2LsjkKDDC3wwyJ2Tb8YTJAHe1w21bR7ygcaZqucNFVRydGSxuamheyf6yRXxoTAqE`) with test mints `5wbtrHgkfssqreoTkyQKwgrUWqyV85otjgNkdEoAiETr` (cash) and `HWhEjmFRxXFQPDV6NPcxaX1zbeiRxWP2qAvJ5ud3vC3z` (stock), both six decimals under that operator. The complete 19-action lifecycle and all 14 adversarial rejections have since been **confirmed on devnet**, against a dedicated RPC endpoint; see "Rate limits" below for why the public one will not do. These are two independently keyed programs, not one program on two ledgers: `declare_id!` is compiled in, so the devnet artifact is built with `--features devnet` and is a different binary. The private validator's program keeps the id its recorded audit evidence was produced under, and its deployment key is not held, so it can no longer be upgraded and stands as frozen evidence. A vault book is pinned to the ledger that produced it, and no book is migrated between them.
+It runs as `GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx` on the pinned private validator, where it is deployed and confirmed. Its first devnet identity was `A4NTJ45BZT951nYh5xDXUKtyWij3YrYjcngyMigsq9pG`, **deployed on 2026-09-19** (deploy signature `HF7b9nY6dSqMxV3GHSFjdT2LsjkKDDC3wwyJ2Tb8YTJAHe1w21bR7ygcaZqucNFVRydGSxuamheyf6yRXxoTAqE`) with test mints `5wbtrHgkfssqreoTkyQKwgrUWqyV85otjgNkdEoAiETr` (cash) and `HWhEjmFRxXFQPDV6NPcxaX1zbeiRxWP2qAvJ5ud3vC3z` (stock), both six decimals under that operator. The complete 19-action lifecycle and all 14 adversarial rejections have since been **confirmed on devnet**, against a dedicated RPC endpoint; see "Rate limits" below for why the public one will not do. That deployment is now stranded: its operator key was lost with `trading-01` on 2026-09-23, and the operator is compiled into the program. Devnet is redeployed as `FwEY5cM9vP31LwywoJu1XWQ1nvBeNh2aMsVVpbYayRvC` under its own operator `7K12outW8HdaD7McqqGD2nTJW55nd7eYeqxMLVZZiQtS`; see `ops/README.md`. These are independently keyed programs, not one program on two ledgers: `declare_id!` is compiled in, so the devnet artifact is built with `--features devnet` and is a different binary. The private validator's program keeps the id its recorded audit evidence was produced under, and its deployment key is not held, so it can no longer be upgraded and stands as frozen evidence. A vault book is pinned to the ledger that produced it, and no book is migrated between them.
 
 ## Operator configuration
 
@@ -54,21 +54,24 @@ The operator can price quotes, provision test capital and upgrade this test prog
 
 Devnet is the public test cluster: no-value SOL, a real ledger anyone can read, and an explorer link a reviewer can open. It runs the same program, the same operator-held test signers and the same fail-closed rules as the private validator. It is not a production deployment and makes no custody claim.
 
-Provision it from `trading-01`, which holds the toolchain and the keys:
+Provision it from any machine with the Agave 4.3 CLI, Rust and the devnet keys (`~/.parcel-devnet/keys`):
 
 ```sh
 cd programs/parcel
-cargo build-sbf --arch v3 --features devnet
-sudo bash ops/deploy-devnet.sh
+cargo build-sbf --tools-version v1.51.1 --arch v3 --features devnet
+cp target/deploy/parcel.so ../../artifacts/parcel-devnet.so && cd ../..
+KEYS=~/.parcel-devnet/keys STATE=~/.parcel-devnet/state RPC=<dedicated devnet https url> bash ops/deploy-devnet.sh
 ```
 
-The script refuses to proceed unless the RPC's genesis really is devnet's, the artifact and both keys are present, and the deployer is the operator the program has compiled into it. It deploys the program, creates the two six-decimal no-value mints under that operator, seeds a **separate** devnet state directory, and prints the service environment. It never touches the private validator, its ledger, or `/var/lib/stocklana`.
+Build with platform-tools **v1.51.1**, the SBPFv3 compatibility release: devnet now runs the revised SBPFv3 feature (SIMD-0377), and a plain v1.51 binary fails the loader's header check. v1.52 and later dropped the SBPFv3 target altogether. v1.51.1 is Rust 1.84, so `programs/parcel/Cargo.toml` declares `rust-version = "1.84"` and the lockfile holds dependencies that build with it; resolve any lockfile update with `CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS=fallback`. Deploy with the Agave 4.3 CLI: older CLIs do not know devnet's current SBPFv3 feature and refuse the program in their local pre-flight.
+
+The script refuses to proceed unless the RPC's genesis really is devnet's, the artifact and both keys are present, and the deployer is the operator the program has compiled into it. It deploys the program, creates the two six-decimal no-value mints under that operator, seeds a **separate** devnet state directory, and prints the service environment. It never touches the private validator or its ledger. The devnet operator is its own key, compiled in under the `devnet` feature, and is never the validator's.
 
 ### Funding
 
 Devnet SOL is a no-value faucet token, but it is rationed, and the balance is a running budget rather than a one-off cost.
 
-The deploy itself holds **2.10 SOL** in the program account (the script sizes the program at 115% of the binary rather than the loader's default of 200%, which would lock 3.66 forever to buy upgrade headroom nobody asked for). A transient upload buffer of 1.83 is reclaimed on success, so the peak requirement is about **4.13 SOL**.
+The deploy itself holds **2.20 SOL** in the program account (the script sizes the program at 115% of the 377 KB binary rather than the loader's default of 200%, which would lock about 3.8 forever to buy upgrade headroom nobody asked for). A transient upload buffer of 1.91 is reclaimed on success, so the peak requirement is about **4.3 SOL**. These are devnet's rent figures; a default local test validator charges more, so size devnet funding against devnet.
 
 After that, **every session that goes onchain allocates a 64 KiB vault account holding 0.3336 SOL of rent**. A public demo therefore spends about a third of a SOL per visitor, and a failed verification run costs the same, because it too opens a session. Budget the operator's balance against the number of sessions expected, and top it up from <https://faucet.solana.com> (GitHub sign-in) before a demo.
 

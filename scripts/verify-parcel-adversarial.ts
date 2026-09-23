@@ -115,13 +115,23 @@ try {
     const tx = decoded();
     tx.signatures = [];
     tx.sign(...signers);
-    const result = await adapter.connection.simulateTransaction(
-      VersionedTransaction.deserialize(tx.serialize({ requireAllSignatures: false })),
-      { sigVerify: true },
-    );
-    assert.ok(result.value.err, `${name} unexpectedly accepted`);
+    let error: unknown;
+    try {
+      const result = await adapter.connection.simulateTransaction(
+        VersionedTransaction.deserialize(tx.serialize({ requireAllSignatures: false })),
+        { sigVerify: true },
+      );
+      error = result.value.err;
+    } catch (e) {
+      // Agave 3 refuses a missing signature as an RPC error rather than a
+      // simulation result. Either way the transaction never executes; only
+      // that refusal counts, so anything else still fails the run.
+      if (!/signature verification failure/i.test((e as Error).message)) throw e;
+      error = 'SignatureFailure';
+    }
+    assert.ok(error, `${name} unexpectedly accepted`);
     await adapter.verify(s.id, snapshot.book, revision);
-    results.push({ name, error: result.value.err, log: [] });
+    results.push({ name, error, log: [] });
     console.log('Rejected:', name);
   }
   await rejectPartiallySigned('owner signature alone, no operator', owner);

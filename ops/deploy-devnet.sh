@@ -5,13 +5,18 @@
 # Devnet gets its own state directory, as PARCEL_CHAIN.md requires: a vault book
 # is pinned to the ledger that produced it, and the two are not interchangeable.
 #
-# Run on trading-01. Needs a funded deployer; see "Funding" in ops/README.md.
+# Runs anywhere the Agave CLI is installed. Needs a funded deployer; see
+# "Funding" in ops/README.md.
+#
+#   KEYS   directory holding deployer.json and parcel-devnet-program.json
+#   STATE  the devnet state directory the server will run from
+#   RPC    a dedicated devnet endpoint; the public one rate limits
 set -euo pipefail
 
-BIN=/opt/stocklana/tooling/solana-release/bin
+BIN=${BIN:-$(dirname "$(command -v solana || echo /opt/stocklana/tooling/solana-release/bin/solana)")}
 RPC=${RPC:-https://api.devnet.solana.com}
 DEVNET_GENESIS=EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG
-SRC_STATE=/var/lib/stocklana
+SRC_STATE=${KEYS:-/var/lib/stocklana}
 STATE=${STATE:-/var/lib/stocklana-devnet}
 PROGRAM_KEY=$SRC_STATE/parcel-devnet-program.json
 # The checked-in artifact is the one the repository ships and the one the
@@ -43,9 +48,13 @@ echo "program  $program"
 echo "operator $operator"
 
 # The program hardcodes its operator, so a deployer that is not that key would
-# build a vault no instruction will ever accept.
-[ "$operator" = "8oheEujy8FS7Nr3bdYT7okWbWeMy3Tp5eM8z4YwRTzfq" ] || {
-  echo "Refusing: the program's compiled OPERATOR is not this deployer." >&2
+# build a vault no instruction will ever accept. Read the devnet one from the
+# source the artifact is built from.
+compiled=$(awk '/cfg\(feature = "devnet"\)/ { devnet = 1; next }
+  devnet && /const OPERATOR/ { match($0, /"[1-9A-HJ-NP-Za-km-z]+"/); print substr($0, RSTART + 1, RLENGTH - 2); exit }
+  { devnet = 0 }' "$REPO/programs/parcel/src/lib.rs")
+[ "$operator" = "$compiled" ] || {
+  echo "Refusing: the program's compiled devnet OPERATOR ($compiled) is not this deployer." >&2
   exit 1
 }
 
@@ -54,7 +63,7 @@ say "Checking funding"
 # twice the binary: that doubles the rent locked up forever to buy upgrade
 # headroom nobody has asked for. Take a modest margin instead, and let the
 # operator widen it deliberately.
-size=$(stat -c %s "$SO")
+size=$(wc -c < "$SO" | tr -d ' ')
 MAX_LEN=${MAX_LEN:-$(( size * 115 / 100 ))}
 [ "$MAX_LEN" -ge "$size" ] || { echo "MAX_LEN $MAX_LEN is smaller than the program." >&2; exit 1; }
 need=$("$BIN/solana" --url "$RPC" rent "$MAX_LEN" | grep -o '[0-9.]*')
@@ -97,11 +106,12 @@ say "Seeding the devnet state directory"
 # The adapter reads the operator key from its own state directory. The devnet
 # book starts empty; no localnet vault is ever imported into it.
 cp "$SRC_STATE/deployer.json" "$STATE/deployer.json"
-chown -R stocklana:stocklana "$STATE"
+if id stocklana >/dev/null 2>&1; then chown -R stocklana:stocklana "$STATE"; fi
 chmod 600 "$STATE/deployer.json"
 
-say "Done. Service environment:"
-cat <<ENV
+say "Done. Service environment (also saved to $STATE/devnet.env):"
+# Saved beside the state so a local run is `set -a; . $STATE/devnet.env; set +a`.
+tee "$STATE/devnet.env" <<ENV
 STRATA_STATE_DIR=$STATE
 CHAIN_ENABLED=true
 SOLANA_NETWORK=devnet
@@ -111,6 +121,7 @@ PARCEL_CHAIN_ENABLED=true
 PARCEL_PROGRAM_ID=$program
 PARCEL_CASH_MINT=$cash
 PARCEL_STOCK_MINT=$stock
+STRATA_AUTHORITY=$operator
 ENV
 echo
 echo "Verify with: npm run verify:parcel-chain && npm run verify:parcel-adversarial"

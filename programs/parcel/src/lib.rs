@@ -22,9 +22,15 @@ use economics::{Action, Book};
 #[cfg(not(feature = "devnet"))]
 declare_id!("GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx");
 #[cfg(feature = "devnet")]
-declare_id!("A4NTJ45BZT951nYh5xDXUKtyWij3YrYjcngyMigsq9pG");
-// Dedicated no-value local-validator operator. This is not a permissionless oracle.
+declare_id!("FwEY5cM9vP31LwywoJu1XWQ1nvBeNh2aMsVVpbYayRvC");
+// Dedicated no-value test operators, one per ledger. Neither is a permissionless
+// oracle. Devnet's first operator was lost with trading-01 on 2026-09-23, which
+// stranded A4NTJ45B…; the redeploy has its own key rather than sharing the
+// validator's.
+#[cfg(not(feature = "devnet"))]
 const OPERATOR: Pubkey = pubkey!("8oheEujy8FS7Nr3bdYT7okWbWeMy3Tp5eM8z4YwRTzfq");
+#[cfg(feature = "devnet")]
+const OPERATOR: Pubkey = pubkey!("7K12outW8HdaD7McqqGD2nTJW55nd7eYeqxMLVZZiQtS");
 #[program]
 pub mod parcel {
     use super::*;

@@ -2,6 +2,9 @@
 name = "parcel"
 version = "0.1.0"
 edition = "2021"
+# platform-tools v1.51.1 builds devnet's SBPFv3 and ships Rust 1.84; this keeps
+# the lockfile resolvable by it.
+rust-version = "1.84"
 [lib]
 crate-type = ["cdylib", "lib"]
 name = "parcel"

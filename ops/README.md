@@ -99,12 +99,21 @@ The review backend runs only for a bounded recording/check session on loopback p
 
 ## Devnet
 
-The private validator and devnet are separate deployments with separate state directories and separate program ids; see `docs/PARCEL_CHAIN.md`. Provision devnet with `sudo bash ops/deploy-devnet.sh`, which refuses to do anything until the RPC's genesis really is devnet's and the deployer is the operator compiled into the program.
+The private validator and devnet are separate deployments with separate state directories, program ids and operators; see `docs/PARCEL_CHAIN.md`. `ops/deploy-devnet.sh` refuses to do anything until the RPC's genesis really is devnet's and the deployer is the devnet operator compiled into the program.
 
-Provisioned on 2026-09-19: program `A4NTJ45BZT951nYh5xDXUKtyWij3YrYjcngyMigsq9pG`, cash mint `5wbtrHgkfssqreoTkyQKwgrUWqyV85otjgNkdEoAiETr`, stock mint `HWhEjmFRxXFQPDV6NPcxaX1zbeiRxWP2qAvJ5ud3vC3z`, state directory `/var/lib/stocklana-devnet`.
+The first devnet deployment (2026-09-19: program `A4NTJ45BZT951nYh5xDXUKtyWij3YrYjcngyMigsq9pG`, cash mint `5wbtrHgkfssqreoTkyQKwgrUWqyV85otjgNkdEoAiETr`, stock mint `HWhEjmFRxXFQPDV6NPcxaX1zbeiRxWP2qAvJ5ud3vC3z`) is stranded. Its operator key lived only in `/var/lib/stocklana` on `trading-01`, which was destroyed on 2026-09-23 without that directory being archived. The program still exists on devnet and its recorded evidence stands, but nothing can sign for it.
 
-Funding is the one manual step, and it is a running budget rather than a one-off: the deploy holds 2.10 SOL in the program account, and **every onchain session holds a further 0.33 SOL** in its 64 KiB vault account. Top the operator `8oheEujy8FS7Nr3bdYT7okWbWeMy3Tp5eM8z4YwRTzfq` up from <https://faucet.solana.com> (GitHub sign-in) before a demo.
+Redeployed with its own devnet operator `7K12outW8HdaD7McqqGD2nTJW55nd7eYeqxMLVZZiQtS` and program `FwEY5cM9vP31LwywoJu1XWQ1nvBeNh2aMsVVpbYayRvC`, cash mint `2RUteNeqg6AafByCTqQhcYygw88RqKckruLuQQQH4WDw`, stock mint `3KN8iFcCzSDhcDkgS5FDSCJm6x5BqTfLSUuAc3EGH2vh`, on 2026-09-23. The keys live outside every repository, in `~/.parcel-devnet/keys`, and must also be backed up off the machine: losing them strands the deployment again.
+
+Provision from any machine with the Agave 4.3 CLI and Rust:
+
+```sh
+cd programs/parcel && cargo build-sbf --tools-version v1.51.1 --arch v3 --features devnet
+cp target/deploy/parcel.so ../../artifacts/parcel-devnet.so && cd ../..
+KEYS=~/.parcel-devnet/keys STATE=~/.parcel-devnet/state RPC=<dedicated devnet https url> \
+  bash ops/deploy-devnet.sh
+```
+
+Funding is the one manual step, and it is a running budget rather than a one-off: the deploy peaks at about 4.3 SOL and keeps 2.20 SOL in the program account, and **every onchain session holds a further 0.33 SOL** in its 64 KiB vault account. Top the operator up from <https://faucet.solana.com> (GitHub sign-in) before a demo.
 
 Do not run the verification, or show the desk to anyone, against `api.devnet.solana.com`: it answers `429` within a handful of calls. Set `SOLANA_RPC_URL` to a dedicated devnet endpoint (a free Helius or QuickNode tier is enough).
-
-Running devnet does not retire `stocklana-validator`. The localnet service, its ledger and its recorded evidence stay exactly as they are.

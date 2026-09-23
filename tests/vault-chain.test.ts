@@ -184,3 +184,42 @@ void test('a rejected chain-mode intent is a definite conflict and never leaves 
     store.close();
   }
 });
+
+void test('a sandbox-only action is refused in chain mode before it can block the session', async () => {
+  const store = new Store(':memory:');
+  try {
+    const s = store.createSession().session,
+      vault = new VaultService(store),
+      chain = new Chain();
+    const c = new VaultChainCoordinator(store, vault, chain);
+    await assert.rejects(
+      c.apply(s, randomUUID(), {
+        revision: 0,
+        action: {
+          type: 'borrow',
+          symbol: 'NVDA',
+          pledged: 5,
+          amount: 200,
+          rate: 'variable',
+        },
+      }),
+      (e: unknown) =>
+        !!e &&
+        typeof e === 'object' &&
+        'code' in e &&
+        e.code === 'CHAIN_UNSUPPORTED',
+    );
+    assert.equal(
+      store.db.prepare('SELECT count(*) n FROM vault_chain_operations').get()!
+        .n,
+      0,
+    );
+    assert.equal(chain.prepares, 0);
+    assert.equal(
+      (await c.apply(s, randomUUID(), deposit)).book.vault.USDC,
+      100,
+    );
+  } finally {
+    store.close();
+  }
+});
