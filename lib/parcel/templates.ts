@@ -246,7 +246,11 @@ export function templateTerms(
   price = TEMPLATE_SPOT,
 ): OrderTerms {
   const t = templates.find((t) => t.id === id) || templates[0];
-  const ratio = symbol === 'NVDA' ? 1 : price / TEMPLATE_SPOT;
+  // Templates are written around the reference price. On any other price
+  // (another underlying, or NVDA on the live market) their strikes scale
+  // with it, so a call spread opens near the money rather than 35% away.
+  const ratio =
+    Math.abs(price / TEMPLATE_SPOT - 1) < 0.005 ? 1 : price / TEMPLATE_SPOT;
   const step = strikeStep(price);
   const legs = structuredClone(t.legs).map((l) =>
     ratio === 1 || t.reference === 'dividend'

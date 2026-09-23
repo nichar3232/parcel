@@ -1,5 +1,5 @@
 import { units } from '../engine';
-import { DIVIDEND_DATE, clockRows } from './market';
+import { DIVIDEND_DATE, clockRows, liveMarket } from './market';
 import { payoffBounds } from './envelope';
 import { bounded } from './math';
 import type { Leg, OrderTerms } from './types';
@@ -15,6 +15,12 @@ export function amount(value: unknown, min = 0.000001, max = 1000) {
   return Number(units(value)) / 1e6;
 }
 export function expiry(value: unknown, date: string) {
+  const live = liveMarket();
+  if (live) {
+    if (typeof value !== 'string' || !live.expiries(date).includes(value))
+      throw Error('Choose one of the listed expiry dates.');
+    return value;
+  }
   if (
     typeof value !== 'string' ||
     value <= date ||
@@ -67,6 +73,8 @@ export function parseOrderTerms(value: unknown, date: string): OrderTerms {
       'Unbounded cash-settled calls require physical share backing. Use physical settlement or add a cap.',
     );
   const end = expiry(t.expiry, date);
+  if (t.reference === 'dividend' && liveMarket())
+    throw Error('Dividend contracts are not listed on the live market.');
   if (t.reference === 'dividend' && on !== DEFAULT_UNDERLYING)
     throw Error('Dividend contracts are written on NVDA only.');
   if (

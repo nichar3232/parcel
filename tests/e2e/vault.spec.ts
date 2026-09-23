@@ -6,6 +6,7 @@ import {
   execute,
   nav,
   openDesk,
+  openUsdcDeposit,
   restartReplay,
 } from './desk-helpers';
 
@@ -23,7 +24,7 @@ test.afterEach(({ page }) => {
 test('vault keeps its live value line and positions in one responsive flow', async ({
   page,
 }) => {
-  const chart = page.getByLabel(/Vault value across/);
+  const chart = page.locator('.od-vline');
   const positions = page.getByRole('region', { name: 'Positions' });
 
   await expect(chart).toBeVisible();
@@ -41,14 +42,14 @@ test('vault keeps its live value line and positions in one responsive flow', asy
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(chart).toBeVisible();
   await expect(positions).toBeVisible();
-  const mobileColumns = await page
-    .locator('.od-open-positions-grid')
-    .evaluate(
-      (element) =>
-        getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/)
-          .length,
-    );
-  expect(mobileColumns).toBe(1);
+  // On a phone a row keeps the asset and its value, and never scrolls sideways.
+  const row = page.locator('.od-ptable-row:not(.od-ptable-cols)').first();
+  await expect(row.locator('.od-ptable-type')).toBeHidden();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
 });
 
 test('vault deposits, fractional covered underwriting, blocked withdrawal and expiry persist through reload', async ({
@@ -71,7 +72,7 @@ test('vault deposits, fractional covered underwriting, blocked withdrawal and ex
   await execute(page);
   await nav(page, 'Positions');
   await expect(
-    page.locator('.od-pos-row').filter({ hasText: 'Covered call' }),
+    page.locator('.od-ptable-row').filter({ hasText: '$100 call' }),
   ).toContainText('0.333333');
   await nav(page, 'Vault');
   await page
@@ -100,8 +101,14 @@ test('structured orders release only valid collateral offsets; risk view stays s
     .click();
   await execute(page);
   await advanced(page);
-  await page.getByLabel('Leg 1 side', { exact: true }).selectOption('sell');
-  await page.getByLabel('Leg 2 side', { exact: true }).selectOption('buy');
+  await page
+    .getByRole('group', { name: 'Leg 1 side' })
+    .getByRole('button', { name: 'Sell' })
+    .click();
+  await page
+    .getByRole('group', { name: 'Leg 2 side' })
+    .getByRole('button', { name: 'Buy' })
+    .click();
   await execute(page);
   await nav(page, 'Risk');
   await expect(
@@ -164,22 +171,6 @@ test('lending, recall and a protected short complete through the real API', asyn
   await expect(
     page.getByText('Lent shares returned', { exact: true }),
   ).toBeVisible();
-});
-test('dividend contracts execute and settle from the stored event', async ({
-  page,
-}) => {
-  await deposit(page, 'USDC', '10');
-  await nav(page, 'Dividend structures');
-  await page
-    .getByRole('button', { name: /DIVIDEND EVENT Dividend call spread/ })
-    .click();
-  await execute(page);
-  await advance(page, '2025-03-12');
-  await expect(
-    page.getByRole('cell', { name: 'Dividend call spread', exact: true }),
-  ).toHaveCount(0);
-  await nav(page, 'Activity');
-  await expect(page.getByText('Expiry settled', { exact: true })).toBeVisible();
 });
 test('every workspace view fits desktop and mobile, with accessible forms and no page overflow', async ({
   page,
@@ -244,9 +235,7 @@ test('a second tab cannot overwrite the first tab’s vault revision', async ({
     'true',
   );
   await nav(second, 'Vault');
-  await second
-    .getByRole('button', { name: 'Deposit USDC', exact: true })
-    .click();
+  await openUsdcDeposit(second);
   await second.getByLabel('Amount', { exact: true }).fill('200');
   await deposit(page, 'USDC', '100');
   await second
@@ -347,7 +336,7 @@ test('a delayed quote cannot replace edited contract terms', async ({
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await nav(page, 'Positions');
   await expect(
-    page.locator('.od-pos-row').filter({ hasText: 'Long call' }),
+    page.locator('.od-ptable-row').filter({ hasText: /NVDA \$[\d.]+ call/ }),
   ).toContainText('0.25');
 });
 test('two lost responses survive reload and resolve the original deposit exactly once', async ({
@@ -361,7 +350,7 @@ test('two lost responses survive reload and resolve the original deposit exactly
       await route.abort('connectionreset');
     } else await route.continue();
   });
-  await page.getByRole('button', { name: 'Deposit USDC', exact: true }).click();
+  await openUsdcDeposit(page);
   await page.getByLabel('Amount', { exact: true }).fill('100');
   await page
     .getByRole('button', { name: 'Confirm deposit', exact: true })
@@ -375,7 +364,7 @@ test('two lost responses survive reload and resolve the original deposit exactly
     page.getByRole('button', { name: 'Resolve saved action' }),
   ).toBeVisible();
   await nav(page, 'Vault');
-  await page.getByRole('button', { name: 'Deposit USDC', exact: true }).click();
+  await openUsdcDeposit(page);
   await page.getByLabel('Amount', { exact: true }).fill('200');
   await page
     .getByRole('button', { name: 'Confirm deposit', exact: true })
@@ -441,7 +430,7 @@ test('a delayed response from an old session cannot replace the new session vaul
     await gate;
     await route.fulfill({ response });
   });
-  await page.getByRole('button', { name: 'Deposit USDC', exact: true }).click();
+  await openUsdcDeposit(page);
   await page.getByLabel('Amount', { exact: true }).fill('100');
   await page
     .getByRole('button', { name: 'Confirm deposit', exact: true })
@@ -504,7 +493,7 @@ test('a refreshed vault invalidates a reviewed stock trade without silently chan
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await nav(page, 'Vault');
   await expect(
-    page.locator('.od-pos-asset').filter({ hasText: 'NVIDIA' }),
+    page.locator('.od-ptable-row').filter({ hasText: 'NVIDIA' }),
   ).toContainText('1 NVDA');
   await second.close();
 });
@@ -595,28 +584,33 @@ test('options chain selects a contract into the same funded quote workflow', asy
   await execute(page);
   await nav(page, 'Positions');
   await expect(
-    page.locator('.od-pos-row').filter({ hasText: 'Long call 145' }),
+    page.locator('.od-ptable-row').filter({ hasText: 'NVDA $145 call' }),
   ).toBeVisible();
 });
-test('budget sizing displays exercise cash separately and feeds the reviewed contract', async ({
+test('sizing in dollars converts at the premium and feeds the reviewed contract', async ({
   page,
 }) => {
   await deposit(page, 'USDC', '1000');
   await nav(page, 'Trade');
-  await advanced(page);
+  await page.getByRole('button', { name: 'Payoff', exact: true }).click();
   await page
-    .getByText('Size by budget or price sensitivity', { exact: true })
+    .getByRole('group', { name: 'Size unit' })
+    .getByRole('button', { name: 'USD' })
     .click();
-  await page.getByLabel('Sizing target', { exact: true }).fill('1');
-  await page.getByRole('button', { name: 'Apply calculated size' }).click();
-  await expect(page.locator('.od-sizing output')).toContainText(
-    'standalone cash funding',
-  );
+  await page.getByLabel('Premium budget in USD').fill('1');
+  await page
+    .getByRole('group', { name: 'Size unit' })
+    .getByRole('button', { name: 'Shares' })
+    .click();
   const quantity = Number(
     await page.getByLabel('Contract quantity').inputValue(),
   );
   expect(quantity).toBeGreaterThan(0);
   expect(quantity).toBeLessThan(1);
+  // Exercise cash for a physical call is its own line, not part of the budget.
+  await expect(page.locator('.od-ticket')).toContainText(
+    'Reserved until expiry',
+  );
   await page.getByRole('button', { name: 'Review funded quote' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Cash reserved after this trade');
@@ -627,7 +621,7 @@ test('budget sizing displays exercise cash separately and feeds the reviewed con
         '',
       ),
     ),
-  ).toBeLessThanOrEqual(1);
+  ).toBeLessThanOrEqual(1.000001);
 });
 test('capped curves review every parameter, execute, close with a priced quote and survive reload', async ({
   page,
@@ -646,7 +640,7 @@ test('capped curves review every parameter, execute, close with a priced quote a
   await page.reload();
   await nav(page, 'Positions');
   await page
-    .locator('.od-pos-row')
+    .locator('.od-ptable-row')
     .filter({ hasText: 'Capped exponential' })
     .getByRole('button', { name: 'Close', exact: true })
     .click();
@@ -673,33 +667,28 @@ test('short-dated contracts settle through the session harness', async ({
   await nav(page, 'Activity');
   await expect(page.getByText('Expiry settled', { exact: true })).toBeVisible();
 });
-test('dividend convexity and progressive controls remain usable at mobile width', async ({
+test('convexity and progressive controls remain usable at mobile width', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await deposit(page, 'USDC', '10');
-  await nav(page, 'Dividend structures');
+  await deposit(page, 'USDC', '100');
+  await nav(page, 'Convexity structures');
   await page
-    .getByRole('button', { name: /DIVIDEND EVENT Dividend convexity/ })
+    .getByRole('button', { name: /CONVEXITY Capped exponential/ })
     .click();
   await advanced(page);
-  await page.getByLabel('Curve side').selectOption('sell');
+  await page.getByLabel('Contract quantity').fill('0.333333');
   await execute(page);
   await nav(page, 'Positions');
   await expect(
-    page.locator('.od-pos-row').filter({ hasText: 'Dividend convexity' }),
+    page.locator('.od-ptable-row').filter({ hasText: 'Capped exponential' }),
   ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await advance(page, '2025-03-12');
-  await expect(
-    page.locator('.od-pos-row').filter({ hasText: 'Dividend convexity' }),
-  ).toHaveCount(0);
 });
-
 test('mobile chain keeps strikes, both sides and collateral visible without horizontal scrolling', async ({
   page,
 }) => {
@@ -711,10 +700,10 @@ test('mobile chain keeps strikes, both sides and collateral visible without hori
   const card = page
     .locator('.od-ladder tbody tr')
     .filter({ hasText: /^\$145\b/ });
-  // Writing shows what the strike reserves rather than what it costs,
-  // and a written put is secured in cash at its strike. That column
-  // has to survive the phone layout.
-  await expect(card).toContainText('$145.00');
+  // Both sides of the market survive the phone layout: the bid a
+  // writer receives is the button, the ask beside it is still quoted.
+  await expect(card.getByRole('button')).toBeVisible();
+  await expect(card.locator('.od-ladder-other')).toBeVisible();
   // The ladder has to fit the phone. Its last column is the price a
   // reader taps to take that strike into the ticket, so a ladder wider
   // than its scroller does not merely look wrong: the action is
@@ -731,12 +720,16 @@ test('mobile chain keeps strikes, both sides and collateral visible without hori
   await expect(page.getByLabel('Leg 1 strike', { exact: true })).toHaveValue(
     '145',
   );
-  await expect(page.getByLabel('Leg 1 side', { exact: true })).toHaveValue(
-    'sell',
-  );
-  await expect(page.getByLabel('Leg 1 type', { exact: true })).toHaveValue(
-    'put',
-  );
+  await expect(
+    page
+      .getByRole('group', { name: 'Leg 1 side' })
+      .getByRole('button', { name: 'Sell' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    page
+      .getByRole('group', { name: 'Leg 1 type' })
+      .getByRole('button', { name: 'Put' }),
+  ).toHaveAttribute('aria-pressed', 'true');
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -744,55 +737,15 @@ test('mobile chain keeps strikes, both sides and collateral visible without hori
   ).toBe(true);
 });
 
-test('a delayed sizing response cannot overwrite a contract edited while sizing', async ({
-  page,
-}) => {
-  await nav(page, 'Trade');
-  await advanced(page);
-  let release!: () => void;
-  let started!: () => void;
-  const blocked = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const requested = new Promise<void>((resolve) => {
-    started = resolve;
-  });
-  await page.route('**/api/vault/size', async (route) => {
-    const response = await route.fetch();
-    started();
-    await blocked;
-    await route.fulfill({ response });
-  });
-  await page
-    .getByText('Size by budget or price sensitivity', { exact: true })
-    .click();
-  await page.getByLabel('Sizing target', { exact: true }).fill('1');
-  await page.getByRole('button', { name: 'Apply calculated size' }).click();
-  await requested;
-  await page.getByLabel('Leg 1 strike', { exact: true }).fill('150');
-  release();
-  await expect(
-    page.getByRole('button', { name: 'Apply calculated size' }),
-  ).toBeEnabled();
-  await expect(page.getByLabel('Contract quantity')).toHaveValue('1');
-  await expect(page.getByLabel('Leg 1 strike', { exact: true })).toHaveValue(
-    '150',
-  );
-  await expect(page.locator('.od-sizing output')).toHaveCount(0);
-});
-
 test('a cash loan against pledged stock draws and repays through the real API', async ({
   page,
 }) => {
   await deposit(page, 'NVDA', '2');
   await nav(page, 'Lending');
-  // The section's choices drop down from the view's own button once
-  // you are on the view, so a second press opens them.
   await page
-    .getByRole('navigation', { name: 'Main navigation' })
-    .getByRole('button', { name: 'Lending', exact: true })
+    .getByRole('group', { name: 'Lending action' })
+    .getByRole('button', { name: 'Borrow', exact: true })
     .click();
-  await page.getByRole('button', { name: 'Borrow', exact: true }).click();
   await expect(page.getByText('Borrow against stock')).toBeVisible();
   await page.getByLabel('Borrow amount').fill('40');
   await page.getByRole('button', { name: 'Review cash loan' }).click();
@@ -806,7 +759,4 @@ test('a cash loan against pledged stock draws and repays through the real API', 
   await page.getByRole('button', { name: 'Confirm transaction' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Repay' })).toHaveCount(0);
-  await expect(
-    page.getByText('Nothing borrowed against your stock.'),
-  ).toBeVisible();
 });

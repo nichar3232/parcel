@@ -75,8 +75,7 @@ export async function nav(page: Page, name: string) {
     case 'Risk':
     case 'Collateral':
       await navTop(page, 'Portfolio');
-      await section(page, 'Holdings');
-      return page.getByRole('button', { name: 'Change', exact: true }).click();
+      return section(page, 'Collateral');
     case 'Activity':
       await navTop(page, 'Portfolio');
       return section(page, 'Activity');
@@ -93,8 +92,6 @@ export async function nav(page: Page, name: string) {
     case 'Structures':
       await navTop(page, 'Trade');
       return section(page, 'Structures');
-    case 'Dividend structures':
-      return pick(page, 'Trade', 'Dividends');
     case 'Convexity structures':
       return pick(page, 'Trade', 'Convexity');
     case 'Lending':
@@ -104,8 +101,7 @@ export async function nav(page: Page, name: string) {
     case 'Lending spot':
       return pick(page, 'Lending', 'Spot');
     case 'Lending markets':
-      await navTop(page, 'Lending');
-      return section(page, 'Rates');
+      return pick(page, 'Lending', 'Markets');
     case 'Lending positions':
       await navTop(page, 'Portfolio');
       return section(page, 'Holdings');
@@ -116,10 +112,20 @@ export async function nav(page: Page, name: string) {
   }
 }
 
-/** Basic hides the leg editor, the chain and the Greeks. */
+/** Basic hides the leg editor and the Greeks; Advanced is a switch. */
 export async function advanced(page: Page, on = true) {
+  const toggle = page.locator('.od-switch');
+  if ((await toggle.getAttribute('aria-pressed')) !== String(on))
+    await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', String(on));
+}
+
+/** Cash moves in and out through the wallet in the top bar. */
+export async function openUsdcDeposit(page: Page) {
+  await page.getByRole('button', { name: 'Wallet', exact: true }).click();
   await page
-    .getByRole('button', { name: on ? 'Advanced' : 'Basic', exact: true })
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Deposit USDC', exact: true })
     .click();
 }
 
@@ -129,9 +135,12 @@ export async function deposit(
   amount: string,
 ) {
   await nav(page, 'Vault');
-  await page
-    .getByRole('button', { name: `Deposit ${asset}`, exact: true })
-    .click();
+  // Stock deposits from its row; cash from the wallet in the top bar.
+  if (asset === 'USDC') await openUsdcDeposit(page);
+  else
+    await page
+      .getByRole('button', { name: `Deposit ${asset}`, exact: true })
+      .click();
   await page.getByLabel('Amount', { exact: true }).fill(amount);
   await page
     .getByRole('button', { name: 'Confirm deposit', exact: true })

@@ -1,4 +1,6 @@
 import { MarkEngine } from './prices/engine';
+import { LiveMarketService } from './prices/live';
+import { setLiveMarket } from '../lib/parcel/market';
 import { TokenizedEquitiesService } from './tokenized-equities/service';
 import { XStocksService } from './xstocks/service';
 import { ParcelAdapter } from './parcel/chain/adapter';
@@ -28,6 +30,11 @@ export function createApp(
     adapter?: ChainAdapter;
     xstocks?: XStocksService;
     tokenizedEquities?: TokenizedEquitiesService;
+    /**
+     * Price and settle the vault on the live market rather than the 2025
+     * replay. The server entrypoint turns it on; tests leave the replay.
+     */
+    live?: boolean;
   } = {},
 ) {
   const store =
@@ -40,6 +47,16 @@ export function createApp(
   // is priced, and the rate that produces is stored on the loan.
   const marks = new MarkEngine();
   marks.start();
+  // The vault's own chain program settles on the replay clock, so the
+  // live market runs only with the ledger-backed sandbox.
+  const live =
+    options.live && !config.parcel
+      ? new LiveMarketService(marks, store)
+      : undefined;
+  if (live) {
+    setLiveMarket(live);
+    live.start();
+  }
   // xStocks has its own issuer registry and quote endpoint. It is not a
   // MarkEngine instrument: a missing issuer quote must read as unavailable,
   // never as the sandbox engine's modelled walk.
@@ -118,6 +135,20 @@ export function createApp(
       }
       if (url.pathname === '/api/marks' && method === 'GET')
         return json(res, 200, marks.snapshot());
+      if (url.pathname === '/api/marks/daily' && method === 'GET') {
+        const symbol = (url.searchParams.get('symbol') || '').toUpperCase();
+        return json(res, 200, { symbol, closes: live?.history(symbol) ?? [] });
+      }
+      if (url.pathname === '/api/marks/intraday' && method === 'GET') {
+        const symbols = (url.searchParams.get('symbols') || '')
+          .split(',')
+          .map((symbol) => symbol.trim().toUpperCase())
+          .filter(Boolean)
+          .slice(0, 20);
+        return json(res, 200, {
+          days: symbols.flatMap((symbol) => marks.intraday(symbol) ?? []),
+        });
+      }
       if (url.pathname === '/api/xstocks' && method === 'GET')
         return json(res, 200, await xstocks.catalog());
       if (url.pathname === '/api/xstocks/quotes' && method === 'GET') {
@@ -309,6 +340,7 @@ export function createApp(
     portfolio,
     vault,
     marks,
+    live,
     xstocks,
     tokenizedEquities,
   };

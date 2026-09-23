@@ -2,9 +2,10 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import {
-  ArrowUpRight,
+  Activity,
   ChevronDown,
   CircleHelp,
+  Scale,
   ShieldCheck,
   Wallet,
   X,
@@ -17,11 +18,14 @@ import { CATEGORIES, CONTRACTS, templates } from '@/lib/parcel/templates';
 import { PortfolioView, type PortfolioTab } from './PortfolioView';
 import { TradeView, type TradeTab } from './TradeView';
 import { LendingView } from './LendingView';
-import { PreIpoView, type PreIpoTab } from './PreIpoView';
+import { PreIpoView } from './PreIpoView';
 import { DEFAULT_UNDERLYING } from '@/lib/parcel/universe';
+import { setLiveMarket } from '@/lib/parcel/market';
+import type { MarkFeed } from '@/hooks/parcel/use-marks';
+import type { VaultSnapshot } from '@/lib/parcel/types';
 import { TransferDialog, type Transfer } from './TransferDialog';
 import { Welcome, markWelcomeSeen, welcomeSeen } from './Welcome';
-import { Button, Line, Modal, qty, usd } from './shared';
+import { Button, Modal, markOf, qty, usd } from './shared';
 import '@/app/desk.css';
 
 const NAV = [
@@ -50,6 +54,7 @@ const TABS = {
     { id: 'overview', label: 'Holdings' },
     { id: 'watchlist', label: 'Watchlist' },
     { id: 'activity', label: 'Activity' },
+    { id: 'collateral', label: 'Collateral' },
   ],
   // Buying and writing ran the same ticket with the side flipped, so
   // they are one section and the side is a choice on the ticket.
@@ -64,13 +69,16 @@ const TABS = {
     {
       id: 'structures',
       label: 'Structures',
-      choices: CATEGORIES.map((c) => ({ id: c, label: c })),
+      // The dividend contracts settle on a declared 2025 event; the live
+      // market has no such event to settle them against.
+      choices: CATEGORIES.filter((c) => c !== 'Dividends').map((c) => ({
+        id: c,
+        label: c,
+      })),
     },
   ],
-  'Pre-IPO': [
-    { id: 'market', label: 'Market' },
-    { id: 'underwrite', label: 'Underwrite' },
-  ],
+  // One section: the market, and options on whichever company is open.
+  'Pre-IPO': [{ id: 'market', label: 'Market' }],
   // One screen. "Rates" was a table of five reserves, four of which
   // this build cannot lend, borrow or short — it showed nothing a
   // reader could act on. The one rate that matters is on the ticket.
@@ -79,8 +87,9 @@ const TABS = {
   Lending: [
     {
       id: 'borrow',
-      label: 'Lend & borrow',
+      label: 'Lending',
       choices: [
+        { id: 'markets', label: 'Markets' },
         { id: 'lend', label: 'Lend' },
         { id: 'borrow', label: 'Borrow' },
         { id: 'short', label: 'Short' },
@@ -92,6 +101,20 @@ const TABS = {
 
 type Section = { id: string; label: string; choices?: readonly Choice[] };
 type Choice = { id: string; label: string };
+
+function syncBrowserMarket(s: VaultSnapshot | null, feed: MarkFeed) {
+  if (s?.market.clock !== 'live') {
+    setLiveMarket(null);
+    return;
+  }
+  const dates = s.market.dates;
+  const prices = new Map(s.market.underlyings.map((u) => [u.symbol, u.price]));
+  setLiveMarket({
+    spot: (symbol) => feed.marks[symbol]?.price ?? prices.get(symbol) ?? null,
+    close: () => null,
+    expiries: (now) => dates.filter((d) => d > now.slice(0, 10)),
+  });
+}
 
 /** What a section opens on when you have not picked yet. */
 const firstChoice = (page: Page, section: string) =>
@@ -297,6 +320,11 @@ export default function Workspace() {
     setUi((current) => ({ ...current, welcome: open }));
 
   const s = desk.state;
+  // The browser shares the ledger's validation code, which reads the
+  // market through one hook. On the live market it has to see the same
+  // calendar and marks the server does, or it rejects every live expiry
+  // as outside the 2025 replay.
+  syncBrowserMarket(s, feed);
   const current = ui.tab[page] || TABS[page][0].id;
   const choice = ui.pick[`${page}:${current}`] || firstChoice(page, current);
 
@@ -330,7 +358,8 @@ export default function Workspace() {
   };
 
   const walletValue = s
-    ? s.book.wallet.USDC + s.book.wallet.NVDA * s.market.price
+    ? s.book.wallet.USDC +
+      s.book.wallet.NVDA * (markOf(s, feed, 'NVDA')?.price ?? s.market.price)
     : 0;
 
   return (
@@ -440,6 +469,7 @@ export default function Workspace() {
           <TradeView
             key={`${current}:${choice}:${symbol}`}
             desk={desk}
+            feed={feed}
             tab={current as TradeTab}
             choice={choice}
             symbol={symbol}
@@ -451,12 +481,14 @@ export default function Workspace() {
           <PreIpoView
             desk={desk}
             feed={feed}
-            tab={current as PreIpoTab}
-            openTrade={() => navigate('Trade', 'underwrite')}
-            openUnderwrite={() => navigate('Pre-IPO', 'underwrite')}
-            openPortfolio={() => navigate('Portfolio')}
-            onTransfer={setTransfer}
-            pick={ui.pick['Pre-IPO:underwrite']}
+            pick={ui.pick['Pre-IPO:market']}
+            onPick={(sym) =>
+              sym
+                ? navigate('Pre-IPO', 'market', sym)
+                : navigate('Pre-IPO', 'market')
+            }
+            advanced={advanced}
+            onAdvanced={setAdvanced}
           />
         ) : (
           <LendingView
@@ -466,17 +498,58 @@ export default function Workspace() {
             mode={choice}
             symbol={symbol}
             onSymbol={setSymbol}
+            onMode={(m) => navigate('Lending', 'borrow', m)}
           />
         )}
       </main>
 
+      {/* The bar every protocol app ends on: what this is, whether its
+          data is live, where to read more. Only real destinations. */}
       <footer className="od-foot">
-        <span>Parcel — precision for every position</span>
-        <span>
-          {feed.connected
-            ? 'Live marks from Coinbase and Pyth, simulated where no venue publishes'
-            : 'Simulated marks, no venue reachable'}
+        <div className="od-foot-brand">
+          <Mark size={16} />
+          <b>Parcel</b>
+          <span>v0.4.0</span>
+          <span className="od-foot-net">
+            {s?.mode === 'localnet' ? 'Local validator' : 'Sandbox'}
+          </span>
+        </div>
+        <span
+          className={`od-foot-status ${feed.connected ? 'on' : ''}`}
+          title={
+            feed.connected
+              ? 'Stocks from Yahoo Finance, crypto from Coinbase and Pyth; private-company tokens are modeled'
+              : 'No price venue reachable; marks are modeled'
+          }
+        >
+          <i aria-hidden />
+          {feed.connected ? 'Marks live' : 'Marks modeled'}
         </span>
+        <nav className="od-foot-links" aria-label="Footer">
+          <button onClick={() => setModal('about')}>About</button>
+          <a
+            href="https://github.com/nichar3232/parcel#readme"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Docs
+          </a>
+          <Link href="/">Home</Link>
+          <a
+            className="od-foot-icon"
+            href="https://github.com/nichar3232/parcel"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Parcel on GitHub"
+          >
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden>
+              <path
+                fill="currentColor"
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+              />
+            </svg>
+          </a>
+        </nav>
       </footer>
 
       {desk.toast && (
@@ -512,38 +585,66 @@ export default function Workspace() {
       {modal === 'wallet' && s && (
         <Modal
           title="Your wallet"
-          description="An isolated funding wallet for this browser session."
+          description="Move cash and shares into the vault to trade."
           onClose={() => setModal(null)}
         >
-          <div className="od-lines">
-            <Line label="Available USDC" value={usd(s.book.wallet.USDC)} />
-            {(s.market.underlyings ?? [])
-              .filter((u) => (s.book.wallet[u.symbol] ?? 0) > 0)
-              .map((u) => (
-                <Line
-                  key={u.symbol}
-                  label={`Available ${u.symbol}`}
-                  value={`${qty(s.book.wallet[u.symbol])} shares`}
-                />
-              ))}
-            <Line
-              label="In the vault"
-              value={usd(
-                (s.market.underlyings ?? []).reduce(
-                  (t, u) => t + (s.book.vault[u.symbol] ?? 0) * u.price,
-                  s.book.vault.USDC,
-                ),
-              )}
-              tone="muted"
-            />
-          </div>
-          <p className="od-note">
-            Move these assets into your vault to trade or underwrite. Wallet and
-            vault balances persist across reloads.
-          </p>
+          <dl className="od-wallet-figures">
+            <div>
+              <dt>Wallet cash</dt>
+              <dd>{usd(s.book.wallet.USDC)}</dd>
+            </div>
+            <div>
+              <dt>Buying power</dt>
+              <dd>{usd(s.risk.freeCash)}</dd>
+            </div>
+            <div>
+              <dt>Vault value</dt>
+              <dd>
+                {usd(
+                  (s.market.underlyings ?? []).reduce(
+                    (t, u) =>
+                      t +
+                      (s.book.vault[u.symbol] ?? 0) *
+                        (markOf(s, feed, u.symbol)?.price ?? u.price),
+                    s.book.vault.USDC,
+                  ),
+                )}
+              </dd>
+            </div>
+          </dl>
+          {(s.market.underlyings ?? []).some(
+            (u) => (s.book.wallet[u.symbol] ?? 0) > 0,
+          ) && (
+            <>
+              <span className="od-wallet-kicker">Shares in your wallet</span>
+              <ul className="od-wallet-shares">
+                {(s.market.underlyings ?? [])
+                  .filter((u) => (s.book.wallet[u.symbol] ?? 0) > 0)
+                  .map((u) => (
+                    <li key={u.symbol}>
+                      <span>
+                        <b>{u.symbol}</b>
+                        {qty(s.book.wallet[u.symbol])}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setModal(null);
+                          setTransfer({
+                            asset: u.symbol,
+                            direction: 'deposit',
+                          });
+                        }}
+                        aria-label={`Deposit ${u.symbol} from wallet`}
+                      >
+                        Deposit
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            </>
+          )}
           <div className="od-modal-actions">
             <Button
-              variant="secondary"
               onClick={() => {
                 setModal(null);
                 setTransfer({ asset: 'USDC', direction: 'deposit' });
@@ -552,12 +653,13 @@ export default function Workspace() {
               Deposit USDC
             </Button>
             <Button
+              variant="secondary"
               onClick={() => {
                 setModal(null);
-                setTransfer({ asset: symbol, direction: 'deposit' });
+                setTransfer({ asset: 'USDC', direction: 'withdraw' });
               }}
             >
-              Deposit {symbol}
+              Withdraw USDC
             </Button>
           </div>
         </Modal>
@@ -566,43 +668,60 @@ export default function Workspace() {
       {modal === 'about' && (
         <Modal
           title="Options, by the share"
-          description="A unified workspace for granular options and fully assigned collateral."
+          description="How Parcel works, in three lines."
           onClose={() => setModal(null)}
-          wide
         >
-          <p className="od-note">
-            One contract represents one share-equivalent, with quantities as
-            small as 0.000001 when the contract has a payable obligation. Cash
-            and stock deposits fund underwriting, structured options, stock
-            loans and protected shorts. The backend checks both counterparties
-            and refuses double-pledged assets.
-          </p>
-          <p className="od-note">
+          <ul className="od-about">
+            <li>
+              <i>
+                <Scale size={18} />
+              </i>
+              <div>
+                <b>Any size</b>
+                <span>
+                  Every contract is quoted per share, down to a millionth of
+                  one.
+                </span>
+              </div>
+            </li>
+            <li>
+              <i>
+                <ShieldCheck size={18} />
+              </i>
+              <div>
+                <b>Fully funded</b>
+                <span>
+                  What a position could owe is set aside before it opens.
+                </span>
+              </div>
+            </li>
+            <li>
+              <i>
+                <Activity size={18} />
+              </i>
+              <div>
+                <b>Live prices</b>
+                <span>
+                  Marked to the market, and settled at the close on expiry day.
+                </span>
+              </div>
+            </li>
+          </ul>
+          <p className="od-about-foot">
             {s?.mode === 'localnet'
-              ? 'This session executes against the Parcel Solana program on a private local validator. SPL test-token escrow backs its balances, and the backend indexes confirmed results.'
-              : 'This session executes in the persistent ledger. Onchain vault execution requires the separately configured Parcel local-validator program.'}
+              ? 'Runs on a local Solana validator with test tokens.'
+              : 'Sandbox: test balances, no real money.'}
           </p>
-          <p className="od-note">
-            Liquidity comes from funded test counterparties. No external option
-            buyer, stock borrower or market maker is connected. Fractional
-            sizing reduces dollar exposure; physical long calls still prefund
-            strike cash plus premium.
-          </p>
-          <div className="od-modal-actions">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setModal(null);
-                setWelcome(true);
-              }}
-            >
-              Replay the walkthrough
-            </Button>
-            <Link className="od-button secondary md" href="/legacy">
-              Solana escrow desk
-              <ArrowUpRight size={15} />
-            </Link>
-          </div>
+          <Button
+            variant="secondary"
+            full
+            onClick={() => {
+              setModal(null);
+              setWelcome(true);
+            }}
+          >
+            Replay the walkthrough
+          </Button>
         </Modal>
       )}
     </div>

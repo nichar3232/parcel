@@ -92,6 +92,16 @@ export function useVault() {
       cancelRefresh();
     };
   }, [refresh, cancelRefresh]);
+  // On the live market contracts settle on the wall clock, so an open
+  // desk reads the vault again every minute rather than only on focus.
+  const live = state?.market.clock === 'live';
+  useEffect(() => {
+    if (!live) return;
+    const timer = setInterval(() => {
+      if (!document.hidden && !lock.current) void refresh();
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, [live, refresh]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(''), 6000);

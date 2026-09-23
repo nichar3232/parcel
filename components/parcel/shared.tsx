@@ -24,6 +24,33 @@ import {
    $4.04 on the ticket and $4.0378 in the summary beside it.
    ------------------------------------------------------------------ */
 
+/**
+ * The live mark for a symbol, but only when the vault itself runs on the
+ * live market. On the replay the vault prices at its stored session, and
+ * showing a live quote beside it would promise a price it will not fill.
+ */
+export function markOf(
+  state: { market: { clock: string } },
+  feed:
+    | {
+        marks: Record<
+          string,
+          {
+            price: number;
+            bid: number;
+            ask: number;
+            change: number;
+            open: number;
+            kind: string;
+          }
+        >;
+      }
+    | undefined,
+  symbol: string,
+) {
+  return state.market.clock === 'live' ? feed?.marks[symbol] : undefined;
+}
+
 export const usd = (n: number, d = 2) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',

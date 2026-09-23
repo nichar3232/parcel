@@ -1,5 +1,5 @@
 'use client';
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { strategyPnl } from '@/lib/parcel/math';
 import type { OptionPosition } from '@/lib/parcel/types';
 import { usd } from './shared';
@@ -251,6 +251,141 @@ export function ValueHistory({
         <line x1="0" x2="0" y1="-5" y2="5" />
       </g>
     </svg>
+  );
+}
+
+/* ---------------------------------------------------------------- */
+
+export interface ValueTick {
+  /** ms since epoch, or a sequence index when the chart has no clock. */
+  t: number;
+  value: number;
+}
+
+const L = { w: 1000, h: 240, y0: 14, y1: 226 };
+
+/**
+ * The vault's value line, drawn to be read by pointing at it.
+ *
+ * A time axis when `domain` is given: the day runs from the first print
+ * to the close, so the line grows to the right as the session goes on
+ * rather than stretching to fill the width. The dashed rule is the
+ * reference the move is measured from (yesterday's close on 1D). The
+ * last point pulses while the feed is live; pointing anywhere scrubs the
+ * headline to that moment.
+ */
+export function LiveValueChart({
+  points,
+  domain,
+  baseline,
+  live,
+  label,
+  onScrub,
+}: {
+  points: ValueTick[];
+  domain?: [number, number];
+  baseline?: number | null;
+  live?: boolean;
+  label: string;
+  onScrub?: (point: ValueTick | null) => void;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<number | null>(null);
+
+  const plot = useMemo(() => {
+    const values = points.map((p) => p.value);
+    if (baseline != null) values.push(baseline);
+    const min = Math.min(...values),
+      max = Math.max(...values);
+    const pad = (max - min) * 0.14 || Math.abs(max) * 0.002 || 1;
+    const lo = min - pad,
+      hi = max + pad;
+    const [d0, d1] = domain ?? [0, Math.max(1, points.length - 1)];
+    const fx = (p: ValueTick, i: number) =>
+      domain
+        ? Math.min(1, Math.max(0, (p.t - d0) / Math.max(1, d1 - d0)))
+        : i / Math.max(1, d1);
+    const fy = (v: number) => (hi - v) / (hi - lo);
+    const xy = points.map(
+      (p, i) => [fx(p, i), fy(p.value)] as [number, number],
+    );
+    const scaled = xy.map(
+      ([x, y]) => [x * L.w, L.y0 + y * (L.y1 - L.y0)] as [number, number],
+    );
+    const reference = baseline ?? points[0]?.value ?? 0;
+    return {
+      xy,
+      line: path(scaled),
+      area: scaled.length
+        ? `${path(scaled)} L${scaled.at(-1)![0]},${L.h} L${scaled[0][0]},${L.h} Z`
+        : '',
+      base: baseline != null ? L.y0 + fy(baseline) * (L.y1 - L.y0) : null,
+      up: (points.at(-1)?.value ?? 0) >= reference,
+    };
+  }, [points, domain, baseline]);
+
+  const pick = (clientX: number) => {
+    const r = box.current?.getBoundingClientRect();
+    if (!r || !plot.xy.length) return;
+    const fx = (clientX - r.left) / r.width;
+    let best = 0;
+    for (let i = 1; i < plot.xy.length; i++)
+      if (Math.abs(plot.xy[i][0] - fx) < Math.abs(plot.xy[best][0] - fx))
+        best = i;
+    setHover(best);
+    onScrub?.(points[best]);
+  };
+  const leave = () => {
+    setHover(null);
+    onScrub?.(null);
+  };
+
+  const at = hover ?? plot.xy.length - 1;
+  const dot = plot.xy[at];
+  const pct = (n: number) => `${(n * 100).toFixed(3)}%`;
+  const yPct = (y: number) => pct((L.y0 + y * (L.y1 - L.y0)) / L.h);
+
+  return (
+    <div
+      ref={box}
+      className={`od-vline ${plot.up ? 'up' : 'down'}`}
+      onPointerMove={(e) => pick(e.clientX)}
+      onPointerDown={(e) => pick(e.clientX)}
+      onPointerLeave={leave}
+    >
+      <svg
+        viewBox={`0 0 ${L.w} ${L.h}`}
+        preserveAspectRatio="none"
+        aria-label={label}
+      >
+        <defs>
+          <linearGradient id="odVline" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stopColor="currentColor" stopOpacity=".16" />
+            <stop offset="1" stopColor="currentColor" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {plot.base != null && (
+          <line
+            className="od-vline-base"
+            x1="0"
+            x2={L.w}
+            y1={plot.base}
+            y2={plot.base}
+          />
+        )}
+        <path d={plot.area} fill="url(#odVline)" />
+        <path d={plot.line} className="od-vline-line" />
+      </svg>
+      {hover != null && dot && (
+        <i className="od-vline-rule" style={{ left: pct(dot[0]) }} />
+      )}
+      {dot && (
+        <b
+          className={`od-vline-dot ${live && hover == null ? 'pulse' : ''}`}
+          style={{ left: pct(dot[0]), top: yPct(dot[1]) }}
+        />
+      )}
+    </div>
   );
 }
 

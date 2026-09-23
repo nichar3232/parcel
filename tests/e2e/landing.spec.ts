@@ -19,7 +19,9 @@ test('the landing page shows the products and routes into the desk', async ({
   const viewer = page.locator('.lp-viewer');
   for (const k of ['Net premium', 'Max loss', 'Max gain', 'Break-even'])
     await expect(viewer.locator('.lp-viewer-stats')).toContainText(k);
-  await expect(viewer.locator('.lp-viewer-contract')).toContainText('$');
+  // Every structure's copy is laid out at once so the hero never
+  // changes height; the one on show is marked `.on`.
+  await expect(viewer.locator('.on .lp-viewer-contract')).toContainText('$');
   await expect(viewer.getByRole('link')).toHaveCount(0);
 
   // No stat label may wrap: a two-line label pushes its value off the
@@ -77,9 +79,9 @@ test('the landing page shows the products and routes into the desk', async ({
   await expect(viewer.locator('.lp-viewer-stats')).toContainText('∞');
 
   // Picking another structure changes the shape and the figures.
-  const first = await viewer.locator('h2').textContent();
+  const first = await viewer.locator('.on h2').textContent();
   await viewer.locator('.lp-viewer-pips button').nth(3).click();
-  await expect(viewer.locator('h2')).not.toHaveText(first!);
+  await expect(viewer.locator('.on h2')).not.toHaveText(first!);
 
   // The landing states its operating model instead of a frozen market-data rail.
   await expect(page.locator('.lp-rail')).toHaveCount(0);

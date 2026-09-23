@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react';
  * background tab is not asking for a price four times a second.
  */
 
-export type MarkSource = 'pyth' | 'coinbase' | 'simulated';
+export type MarkSource = 'pyth' | 'coinbase' | 'yahoo' | 'simulated';
 
 export interface Mark {
   symbol: string;
@@ -67,7 +67,7 @@ const EMPTY: MarkFeed = {
   ready: false,
 };
 
-const POLL_MS = 2000;
+const POLL_MS = 1000;
 
 export function useMarks(): MarkFeed {
   const [feed, setFeed] = useState<MarkFeed>(EMPTY);

@@ -1,6 +1,6 @@
 import type { OrderTerms, VaultSnapshot } from './types';
 import { templateTerms } from './templates';
-import { expiries } from './market';
+import { offeredExpiries } from './market';
 import { deliveryBounds } from './envelope';
 import { orderGreeks, round } from './math';
 import { parseOrderTerms } from './validation';
@@ -53,7 +53,7 @@ export function explorePreview(
   quantity: number,
   state: VaultSnapshot,
 ) {
-  const dates = expiries(state.book.date);
+  const dates = offeredExpiries(state.market, state.book.date);
   const target = Date.parse(state.book.date) + 14 * 86400000;
   const expiry = dates.find((d) => Date.parse(d) >= target) || dates.at(-1);
   if (!expiry) return null;

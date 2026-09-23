@@ -5,6 +5,8 @@ import {
   DIVIDEND_DATE,
   mark,
   clockDates,
+  expiries,
+  liveMarket,
   VOLATILITY,
   volatility,
 } from '../../lib/parcel/market';
@@ -21,6 +23,7 @@ import {
   symbol as parseSymbol,
 } from '../../lib/parcel/validation';
 import { risk } from '../../lib/parcel/risk';
+import { spreadCost } from '../../lib/parcel/spread';
 import { borrowRate } from '../../lib/parcel/lending';
 import type {
   Asset,
@@ -46,6 +49,7 @@ import {
   openShort,
   premium,
   setMarketDate,
+  syncLive,
   totals,
   transfer,
   validateLedger,
@@ -81,7 +85,43 @@ export class VaultService {
     const row = this.store.db
       .prepare('SELECT revision,book FROM vault_accounts WHERE owner=?')
       .get(session.id) as { revision: number; book: string };
-    return { revision: row.revision, book: migrate(JSON.parse(row.book)) };
+    let revision = row.revision,
+      book = migrate(JSON.parse(row.book));
+    if (!liveMarket()) return { revision, book };
+    const save = () => {
+      this.store.db
+        .prepare(
+          'UPDATE vault_accounts SET revision=?,book=?,updated_at=? WHERE owner=? AND revision=?',
+        )
+        .run(
+          revision + 1,
+          JSON.stringify(book),
+          this.clock(),
+          session.id,
+          revision,
+        );
+      revision += 1;
+    };
+    // A book written on the 2025 replay holds 2025 expiries that will
+    // never have a live close. It starts over on the live market.
+    if (book.clock !== 'live') {
+      book = seedVault();
+      save();
+    }
+    const now = new Date(this.clock()).toISOString();
+    const synced = structuredClone(book);
+    try {
+      const settled = syncLive(synced, now, (symbol) =>
+        this.borrowRate(symbol),
+      );
+      book = synced;
+      if (settled) save();
+    } catch {
+      // A settlement that cannot run yet (no mark, a close not final)
+      // leaves the positions as they were; the next read tries again.
+      book.date = now;
+    }
+    return { revision, book };
   }
   snapshot(session: Session): VaultSnapshot {
     const { revision, book } = this.read(session);
@@ -96,8 +136,8 @@ export class VaultService {
         symbol: DEFAULT_UNDERLYING,
         price: mark(DEFAULT_UNDERLYING, book.date),
         date: book.date,
-        dates: clockDates,
-        clock: 'daily-close-with-hourly-test-clock',
+        dates: liveMarket() ? expiries(book.date) : clockDates,
+        clock: liveMarket() ? 'live' : 'daily-close-with-hourly-test-clock',
         volatility: VOLATILITY,
         dividend: DIVIDEND,
         dividendDate: DIVIDEND_DATE,
@@ -190,9 +230,23 @@ export class VaultService {
       const parsed = closing
         ? closing.terms
         : parseOrderTerms(request.terms, current.book.date);
-      const cost = closing
-        ? -premium(parsed, current.book)
-        : premium(parsed, current.book);
+      // Opening pays the ask (or, writing, receives the bid); closing
+      // crosses back the other way. Off the live market the spread is 0.
+      const crossing =
+        parsed.reference === 'stock'
+          ? spreadCost(
+              parsed,
+              mark(parsed.symbol, current.book.date),
+              current.book.date,
+              volatility(parsed.symbol),
+            )
+          : 0;
+      const cost = add(
+        closing
+          ? -premium(parsed, current.book)
+          : premium(parsed, current.book),
+        crossing,
+      );
       const projection = structuredClone(current.book);
       projection.vault.USDC = add(projection.vault.USDC, -cost);
       projection.counterparty.USDC = add(projection.counterparty.USDC, cost);
@@ -317,7 +371,12 @@ export class VaultService {
       if (a.side !== 'buy' && a.side !== 'sell')
         throw Error('Choose buy or sell.');
       const on = parseSymbol(a.symbol),
-        price = mark(on, book.date),
+        // A buyer pays the ask and a seller receives the bid; the replay
+        // trades at its stored close.
+        side = liveMarket()?.quote?.(on),
+        price = side
+          ? Math.round((a.side === 'buy' ? side.ask : side.bid) * 1e6) / 1e6
+          : mark(on, book.date),
         quantity = parseAmount(a.quantity),
         cash = mul(quantity, price);
       if (a.side === 'buy') {
@@ -433,6 +492,10 @@ export class VaultService {
         'Test allocations restored; previous receipts remain recorded.',
       );
     } else if (a.type === 'advance') {
+      if (liveMarket())
+        throw Error(
+          'The live market keeps its own clock; contracts settle at their expiry close.',
+        );
       if (typeof a.date !== 'string') throw Error('Choose a market date.');
       setMarketDate(book, a.date, (symbol) => this.borrowRate(symbol));
     } else throw Error('Unsupported vault action.');

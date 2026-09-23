@@ -125,16 +125,7 @@ export default function Landing() {
         <section className="lp-section lp-how" id="how">
           <Steps>
             <span className="lp-kicker">How it works</span>
-            <h2>Deposit, position, settle.</h2>
-            <p>
-              All five products run on one vault and one collateral rule. Every
-              position is funded from assets you already hold, and nothing is
-              borrowed on your behalf.
-            </p>
-            <Link className="lp-btn lp-btn-primary" href="/app">
-              Open the desk
-              <span aria-hidden>&rarr;</span>
-            </Link>
+            <h2>Four steps, one vault</h2>
           </Steps>
         </section>
       </main>
@@ -142,10 +133,11 @@ export default function Landing() {
       <div className="lp-ending">
         <section className="lp-close" aria-labelledby="desk-title">
           <div className="lp-close-copy">
-            <h2 id="desk-title">Open the desk</h2>
+            <h2 id="desk-title">Deposit, position, settle.</h2>
             <p>
-              A funded vault, live model pricing and the full contract workflow.
-              Nothing to install and no wallet to connect.
+              All five products run on one vault and one collateral rule. Every
+              position is funded from assets you already hold, and nothing is
+              borrowed on your behalf.
             </p>
             <Link className="lp-btn lp-btn-primary" href="/app">
               Launch Parcel

@@ -24,6 +24,8 @@ export interface Instrument {
   pyth?: string;
   /** The Coinbase product id, for the keyless crypto fallback. */
   coinbase?: string;
+  /** The Yahoo Finance ticker, for listed equities. */
+  yahoo?: string;
   /** Annualised volatility, used to walk the mark and to price options. */
   vol: number;
   /** Seed mark, for the first tick before any feed answers. */
@@ -35,6 +37,16 @@ export interface Instrument {
 }
 
 export const INSTRUMENTS: Instrument[] = [
+  {
+    symbol: 'NVDA',
+    name: 'NVIDIA',
+    kind: 'equity',
+    yahoo: 'NVDA',
+    vol: 0.45,
+    seed: 142.62,
+    spreadBps: 2,
+    depth: 400_000_000,
+  },
   {
     symbol: 'SOL',
     name: 'Solana',
