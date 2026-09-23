@@ -9,6 +9,8 @@ Read `~/Brain/Infra/vps.md` and run `~/bin/vps free` before adding capacity. Thi
 - `/opt/stocklana/.env`: service configuration, owner stocklana, mode 600
 - `/var/lib/stocklana/strata.sqlite`: durable portfolio/session/chain operation state; WAL/SHM companions
 - `/var/lib/stocklana/deployer.json`: dedicated no-value test authority, mode 600
+- `/var/lib/stocklana/parcel-devnet-program.json`: the devnet program's deployment key, mode 600. Never leaves this box; the repository checks refuse the filename
+- `/var/lib/stocklana-devnet/`: the devnet deployment's own state directory, kept separate from the private validator's
 - `/var/lib/stocklana/localnet-mint.json`: test mint identity
 - `/var/lib/stocklana/proofs/`, `evidence.json`: chain evidence
 - `/var/lib/stocklana/ledger/`: existing validator ledger; never reset as part of an app deploy
@@ -94,3 +96,24 @@ Parcel replaces the UI at `/` and retains the previous desk at `/legacy`. Keep t
 The current release review is under `/var/lib/stocklana/parcel-review` on `trading-01`. It uses a new program deployed additively to the existing private validator. The declared program ID and its test-mint configuration are recorded in `docs/PARCEL_CHAIN.md` and the release evidence. Its private deployment key and temporary review environment stay on the box. The ordinary `stocklana-web` app and existing database have not been switched to this branch.
 
 The review backend runs only for a bounded recording/check session on loopback port 3028, reached through a temporary SSH forward. It is not a new always-on tenant. Promoting this release requires the normal authorized deployment, backups and environment update; keep the existing service names and validator ledger. Future persistent operation still belongs in the existing `stocklana-web` systemd unit with `Restart=always`.
+
+## Devnet
+
+The private validator and devnet are separate deployments with separate state directories, program ids and operators; see `docs/PARCEL_CHAIN.md`. `ops/deploy-devnet.sh` refuses to do anything until the RPC's genesis really is devnet's and the deployer is the devnet operator compiled into the program.
+
+The first devnet deployment (2026-09-19: program `A4NTJ45BZT951nYh5xDXUKtyWij3YrYjcngyMigsq9pG`, cash mint `5wbtrHgkfssqreoTkyQKwgrUWqyV85otjgNkdEoAiETr`, stock mint `HWhEjmFRxXFQPDV6NPcxaX1zbeiRxWP2qAvJ5ud3vC3z`) is stranded. Its operator key lived only in `/var/lib/stocklana` on `trading-01`, which was destroyed on 2026-09-23 without that directory being archived. The program still exists on devnet and its recorded evidence stands, but nothing can sign for it.
+
+Redeployed with its own devnet operator `7K12outW8HdaD7McqqGD2nTJW55nd7eYeqxMLVZZiQtS` and program `FwEY5cM9vP31LwywoJu1XWQ1nvBeNh2aMsVVpbYayRvC`, cash mint `2RUteNeqg6AafByCTqQhcYygw88RqKckruLuQQQH4WDw`, stock mint `3KN8iFcCzSDhcDkgS5FDSCJm6x5BqTfLSUuAc3EGH2vh`, on 2026-09-23. The keys live outside every repository, in `~/.parcel-devnet/keys`, and must also be backed up off the machine: losing them strands the deployment again.
+
+Provision from any machine with the Agave 4.3 CLI and Rust:
+
+```sh
+cd programs/parcel && cargo build-sbf --tools-version v1.51.1 --arch v3 --features devnet
+cp target/deploy/parcel.so ../../artifacts/parcel-devnet.so && cd ../..
+KEYS=~/.parcel-devnet/keys STATE=~/.parcel-devnet/state RPC=<dedicated devnet https url> \
+  bash ops/deploy-devnet.sh
+```
+
+Funding is the one manual step, and it is a running budget rather than a one-off: the deploy peaks at about 4.3 SOL and keeps 2.20 SOL in the program account, and **every onchain session holds a further 0.33 SOL** in its 64 KiB vault account. Top the operator up from <https://faucet.solana.com> (GitHub sign-in) before a demo.
+
+Do not run the verification, or show the desk to anyone, against `api.devnet.solana.com`: it answers `429` within a handful of calls. Set `SOLANA_RPC_URL` to a dedicated devnet endpoint (a free Helius or QuickNode tier is enough).

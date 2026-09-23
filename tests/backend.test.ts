@@ -8,6 +8,11 @@ import { PortfolioService } from '../server/domain/portfolio';
 import { ChainService } from '../server/domain/chain';
 import { createApp } from '../server/app';
 import { configFromEnv } from '../server/config';
+import {
+  pinnedGenesisFailure,
+  DEVNET_GENESIS,
+  MAINNET_GENESIS,
+} from '../server/solana/network';
 import { conservation, type Terms } from '../lib/engine';
 import type {
   ChainPosition,
@@ -493,4 +498,107 @@ void test('chain transport: a merely processed error remains pending until confi
     ],
   });
   assert.equal(typeof (await adapter.confirmation('test', 10)), 'object');
+});
+
+/* The devnet gate. Parcel chain mode was localnet-only; devnet is now an
+   accepted no-value target, and the pin is what keeps it honest. */
+const parcelEnv = (over: Record<string, string> = {}) => ({
+  PARCEL_CHAIN_ENABLED: 'true',
+  PARCEL_PROGRAM_ID: 'GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx',
+  PARCEL_CASH_MINT: 'So11111111111111111111111111111111111111112',
+  PARCEL_STOCK_MINT: 'So11111111111111111111111111111111111111113',
+  SOLANA_GENESIS_HASH: 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG',
+  SOLANA_NETWORK: 'devnet',
+  SOLANA_RPC_URL: 'https://api.devnet.solana.com',
+  ...over,
+});
+
+void test('config: parcel chain mode is accepted on a pinned devnet', () => {
+  const config = configFromEnv(parcelEnv());
+  assert.equal(config.network, 'devnet');
+  assert.equal(
+    config.parcel?.program,
+    'GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx',
+  );
+});
+
+void test('config: parcel chain mode still refuses an unpinned genesis', () => {
+  assert.throws(() => configFromEnv(parcelEnv({ SOLANA_GENESIS_HASH: '' })));
+});
+
+void test('config: devnet requires an HTTPS rpc', () => {
+  assert.throws(() =>
+    configFromEnv(parcelEnv({ SOLANA_RPC_URL: 'http://api.devnet.solana.com' })),
+  );
+});
+
+void test('config: no network beyond the two test clusters is configurable', () => {
+  assert.throws(() => configFromEnv(parcelEnv({ SOLANA_NETWORK: 'mainnet' })));
+  assert.throws(() =>
+    configFromEnv(parcelEnv({ SOLANA_NETWORK: 'mainnet-beta' })),
+  );
+});
+
+void test('genesis pin: mainnet is refused on every configured network', () => {
+  for (const network of ['localnet', 'devnet'] as const)
+    assert.equal(
+      pinnedGenesisFailure('5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d', {
+        network,
+        expectedGenesis: '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d',
+      }),
+      'Mainnet is never an accepted target.',
+    );
+});
+
+void test('genesis pin: a devnet deployment must actually be on devnet', () => {
+  assert.equal(
+    pinnedGenesisFailure('EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG', {
+      network: 'devnet',
+      expectedGenesis: 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG',
+    }),
+    null,
+  );
+  assert.equal(
+    pinnedGenesisFailure('PrivateValidatorGenesis1111111111', {
+      network: 'devnet',
+      expectedGenesis: 'PrivateValidatorGenesis1111111111',
+    }),
+    'Devnet mode requires devnet genesis.',
+  );
+});
+
+void test('genesis pin: localnet mode never silently accepts devnet', () => {
+  assert.equal(
+    pinnedGenesisFailure('EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG', {
+      network: 'localnet',
+      expectedGenesis: 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG',
+    }),
+    'Localnet mode is pinned to a private validator, not devnet.',
+  );
+  assert.equal(
+    pinnedGenesisFailure('SomeOtherLedger11111111111111111', {
+      network: 'localnet',
+      expectedGenesis: 'PrivateValidatorGenesis1111111111',
+    }),
+    'RPC genesis does not match the explicitly pinned test network.',
+  );
+});
+
+/* A truncated literal here silently disables the mainnet refusal, which is how
+   the retired constants failed. Decode rather than compare strings. */
+void test('genesis pin: the pinned cluster hashes are whole 32-byte hashes', () => {
+  const alphabet =
+    '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  const decode = (s: string) => {
+    let n = 0n;
+    for (const c of s) {
+      const i = alphabet.indexOf(c);
+      assert.notEqual(i, -1, `${c} is not base58`);
+      n = n * 58n + BigInt(i);
+    }
+    const hex = n.toString(16);
+    return (hex.length % 2 ? '0' + hex : hex).length / 2;
+  };
+  assert.equal(decode(DEVNET_GENESIS), 32);
+  assert.equal(decode(MAINNET_GENESIS), 32);
 });

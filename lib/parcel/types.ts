@@ -104,6 +104,9 @@ export interface LedgerEvent {
   /** Which underlying the share movement was in. */
   symbol?: string;
   reference?: string;
+  /** Set when an agent placed the action through MCP. Not part of the
+   * onchain book hash, so it never affects chain verification. */
+  via?: 'agent';
 }
 export interface VaultBook {
   version: 3;
@@ -195,7 +198,7 @@ export interface VaultSnapshot {
     underlyings: MarketUnderlying[];
   };
   serverTime: number;
-  mode: 'sandbox' | 'localnet';
+  mode: 'sandbox' | 'localnet' | 'devnet';
   chain?: {
     ledger: string;
     signature: string;

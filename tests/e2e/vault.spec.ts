@@ -708,11 +708,24 @@ test('mobile chain keeps strikes, both sides and collateral visible without hori
   await expect(page.locator('.od-ladder')).toBeVisible();
   await page.getByRole('button', { name: 'Put', exact: true }).click();
   await page.getByRole('button', { name: 'Write', exact: true }).click();
-  await page
+  const card = page
     .locator('.od-ladder tbody tr')
-    .filter({ hasText: /^\$145\b/ })
-    .getByRole('button')
-    .click();
+    .filter({ hasText: /^\$145\b/ });
+  // Writing shows what the strike reserves rather than what it costs,
+  // and a written put is secured in cash at its strike. That column
+  // has to survive the phone layout.
+  await expect(card).toContainText('$145.00');
+  // The ladder has to fit the phone. Its last column is the price a
+  // reader taps to take that strike into the ticket, so a ladder wider
+  // than its scroller does not merely look wrong: the action is
+  // unreachable without scrolling the table sideways.
+  expect(
+    await page.evaluate(() => {
+      const scroller = document.querySelector('.od-ladder-scroll');
+      return scroller ? scroller.scrollWidth <= scroller.clientWidth : false;
+    }),
+  ).toBe(true);
+  await card.getByRole('button').click();
   await page.getByRole('button', { name: 'Payoff', exact: true }).click();
   await advanced(page);
   await expect(page.getByLabel('Leg 1 strike', { exact: true })).toHaveValue(

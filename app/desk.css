@@ -805,10 +805,17 @@
 }
 .od-panel-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   padding: 0 0 14px;
+}
+/* On a phone the actions drop below the title instead of squeezing the
+   description to a word per line and running off the edge. */
+.od-panel-head > div:first-child {
+  flex: 1 1 220px;
+  min-width: 0;
 }
 .od-panel-head h2 {
   font-size: 15px;
@@ -1281,6 +1288,16 @@
 }
 .od-table td b {
   font-weight: 600;
+}
+/* Marks receipts an agent placed through MCP. Text only, no box, and the
+   brand accent rather than green, which means a gain on this desk. */
+.od-table .od-agent-tag {
+  margin-left: 8px;
+  color: var(--pc-cyan);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .od-table td small {
   display: block;
@@ -2392,8 +2409,10 @@
 
 .od-panel-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 .od-search {
   display: inline-flex;
@@ -2736,6 +2755,39 @@
   top: 0;
   z-index: 1;
   background: var(--pc-void);
+}
+
+/* Five columns are 577px and a phone is 390. The last column is the
+   price a reader taps to take the strike into the ticket, so a ladder
+   wider than the screen does not merely look wrong: the action is off
+   the edge. The dollar breakeven goes, because the percent beside it
+   says the same thing in less room; the collateral stays, because a
+   writer needs to see what the strike reserves. Headers may wrap and
+   cells give up half their padding, which is what brings four columns
+   under the width. The control line above wraps for the same reason:
+   its right-hand toggles were being clipped. */
+@media (max-width: 620px) {
+  .od-ladder-breakeven {
+    display: none;
+  }
+  .od-ladder td,
+  .od-ladder th {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .od-ladder thead th {
+    white-space: normal;
+    line-height: 1.25;
+    vertical-align: bottom;
+  }
+  .od-ladder-quote {
+    min-width: 64px;
+    padding: 0 8px;
+  }
+  .od-row-end {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
 }
 
 /* Where the share price actually falls between two strikes. */

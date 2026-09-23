@@ -105,6 +105,37 @@ try {
   }
   const ix = (tx: Transaction) =>
     tx.instructions.find((i) => i.programId.equals(adapter.program))!;
+
+  /* Custody: the program is documented as requiring both the owner and
+     the operator on every mutation. Every case below varies the owner
+     while still signing as the operator, so neither signature was ever
+     shown to be load bearing on its own. A user who could sign alone
+     would be able to move escrow without the desk. */
+  async function rejectPartiallySigned(name: string, ...signers: Keypair[]) {
+    const tx = decoded();
+    tx.signatures = [];
+    tx.sign(...signers);
+    let error: unknown;
+    try {
+      const result = await adapter.connection.simulateTransaction(
+        VersionedTransaction.deserialize(tx.serialize({ requireAllSignatures: false })),
+        { sigVerify: true },
+      );
+      error = result.value.err;
+    } catch (e) {
+      // Agave 3 refuses a missing signature as an RPC error rather than a
+      // simulation result. Either way the transaction never executes; only
+      // that refusal counts, so anything else still fails the run.
+      if (!/signature verification failure/i.test((e as Error).message)) throw e;
+      error = 'SignatureFailure';
+    }
+    assert.ok(error, `${name} unexpectedly accepted`);
+    await adapter.verify(s.id, snapshot.book, revision);
+    results.push({ name, error, log: [] });
+    console.log('Rejected:', name);
+  }
+  await rejectPartiallySigned('owner signature alone, no operator', owner);
+  await rejectPartiallySigned('operator signature alone, no owner', operator);
   await reject(
     'wrong owner signer',
     (tx) => {
@@ -237,7 +268,13 @@ try {
     process.env.PARCEL_ADVERSARIAL_EVIDENCE || '/tmp/parcel-adversarial.json',
     JSON.stringify(
       {
-        network: 'isolated Solana local validator',
+        // Name the ledger this evidence was actually produced on: the
+        // same run now targets either the private validator or devnet.
+        network:
+          config.network === 'devnet'
+            ? 'Solana devnet'
+            : 'isolated Solana local validator',
+        genesis: config.expectedGenesis,
         program: adapter.program.toBase58(),
         generatedAt: new Date().toISOString(),
         results,

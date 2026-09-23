@@ -92,12 +92,12 @@ export async function runVerification() {
   )
     throw Error('Localnet RPC must be loopback.');
   const genesis = await c.getGenesisHash();
-  if (network === 'devnet' && genesis !== 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1')
+  if (network === 'devnet' && genesis !== 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG')
     throw Error('Devnet genesis mismatch.');
   if (
     !process.env.SOLANA_GENESIS_HASH ||
     genesis !== process.env.SOLANA_GENESIS_HASH ||
-    genesis === '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'
+    genesis === '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d'
   )
     throw Error('Explicit test-network genesis pin required.');
   const transactions = [],

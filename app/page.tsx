@@ -35,6 +35,24 @@ const PRINCIPLES = [
   },
 ];
 
+const AGENT_ABILITIES = [
+  {
+    title: 'The whole desk as tools',
+    detail:
+      'Quote and trade options, buy stock, lend, short and step the market, through the same checks the desk runs.',
+  },
+  {
+    title: 'Signed on devnet',
+    detail:
+      'Each onchain action returns its transaction signature and a Solana Explorer link anyone can open.',
+  },
+  {
+    title: 'Visible in the desk',
+    detail:
+      'Receipts an agent placed carry an Agent label in Activity, beside the ones you placed yourself.',
+  },
+];
+
 export default function Landing() {
   return (
     <div className="lp">
@@ -137,6 +155,34 @@ export default function Landing() {
             </Link>
           </Steps>
         </section>
+        <section
+          className="lp-principles"
+          id="agents"
+          aria-labelledby="agents-title"
+        >
+          <div className="lp-principles-intro">
+            <span className="lp-kicker">For agents</span>
+            <h2 id="agents-title">An agent can run the desk</h2>
+            <p>
+              Parcel ships an MCP server, so Claude or any MCP client can use
+              the same vault you do. Add it from a checkout of the repository:
+            </p>
+            <pre className="lp-agents-setup">
+              <code>claude mcp add parcel -- npx tsx mcp/parcel.ts</code>
+            </pre>
+          </div>
+          <ol className="lp-principles-list">
+            {AGENT_ABILITIES.map((ability, index) => (
+              <li key={ability.title}>
+                <b>{String(index + 1).padStart(2, '0')}</b>
+                <div>
+                  <strong>{ability.title}</strong>
+                  <p>{ability.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
       </main>
 
       <div className="lp-ending">
@@ -162,6 +208,7 @@ export default function Landing() {
           <nav aria-label="Footer">
             <Link href="/app">Desk</Link>
             <a href="#products">Products</a>
+            <a href="#agents">Agents</a>
             <a
               href="https://github.com/nichar3232/parcel"
               target="_blank"

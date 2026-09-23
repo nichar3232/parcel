@@ -4,6 +4,7 @@ import { parseKey } from '../../domain/portfolio';
 import { VaultService, type VaultPlan } from '../service';
 import type { VaultSnapshot } from '../../../lib/parcel/types';
 import type { PreparedVaultTransaction, VaultChainAdapter } from './adapter';
+import { ONCHAIN_ACTIONS } from './codec';
 interface Operation {
   owner: string;
   key: string;
@@ -35,7 +36,7 @@ export class VaultChainCoordinator {
       .get(session.id) as { proof: string } | undefined;
     return {
       ...this.vault.snapshot(session),
-      mode: 'localnet',
+      mode: this.adapter.network,
       chain: proof ? JSON.parse(proof.proof) : undefined,
     };
   }
@@ -73,6 +74,17 @@ export class VaultChainCoordinator {
           );
         return;
       }
+      // Refused before anything is recorded: an action the program cannot
+      // encode would otherwise stay pending and block the session for good.
+      const type = object(object(request).action).type;
+      if (typeof type !== 'string' || !ONCHAIN_ACTIONS.has(type))
+        throw new ApiError(
+          409,
+          'CHAIN_UNSUPPORTED',
+          type === 'borrow' || type === 'repay'
+            ? 'Cash loans against shares run in sandbox mode only; the onchain vault does not support them.'
+            : 'This action is not available on the onchain vault.',
+        );
       const pending = this.store.db
         .prepare(
           "SELECT key FROM vault_chain_operations WHERE owner=? AND status IN ('preparing','pending')",
@@ -116,7 +128,7 @@ export class VaultChainCoordinator {
           key,
           hash,
         ) as VaultSnapshot;
-        return { ...receipt, mode: 'localnet', chain: JSON.parse(op.proof!) };
+        return { ...receipt, mode: this.adapter.network, chain: JSON.parse(op.proof!) };
       }
       const plan = JSON.parse(op.plan) as VaultPlan;
       if (!op.transaction_json) {
@@ -204,7 +216,7 @@ export class VaultChainCoordinator {
       const proof = {
         ...observed,
         signature: tx.signature,
-        network: 'localnet',
+        network: this.adapter.network,
         revision: plan.revision + 1,
       };
       return this.store.transaction(() => {
@@ -214,7 +226,7 @@ export class VaultChainCoordinator {
             "UPDATE vault_chain_operations SET status='confirmed',proof=? WHERE owner=? AND key=?",
           )
           .run(JSON.stringify(proof), session.id, key);
-        return { ...result, mode: 'localnet', chain: proof };
+        return { ...result, mode: this.adapter.network, chain: proof };
       });
     }
     throw new ApiError(

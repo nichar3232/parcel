@@ -6,7 +6,7 @@
 
 A unified equity workspace for granular options, covered underwriting, stock lending, protected shorts and structured contracts. Size exposure in share-equivalents, including fractional quantities to six decimals; one share is a denomination, not a minimum lot. A contract must have a nonzero payable obligation.
 
-Parcel is a working **private test-asset product**. The same-origin Node API supports a persistent keyless sandbox and **Parcel program execution on a pinned private Solana validator**. In localnet mode, SPL test tokens back the vault and the program independently executes transfers, option deliveries, lending, protected shorts and cross collateral; SQLite indexes confirmed results. Both modes use funded test counterparties and historical prices. This is not a live brokerage or a source of external liquidity. The original Strata spread desk remains at `/legacy`.
+Parcel is a working **private test-asset product**. The same-origin Node API supports a persistent keyless sandbox and **Parcel program execution on a pinned private Solana validator or on devnet**. In either onchain mode, SPL test tokens back the vault and the program independently executes transfers, option deliveries, lending, protected shorts and cross collateral; SQLite indexes confirmed results. Both modes use funded test counterparties and historical prices. This is not a live brokerage or a source of external liquidity. The original Strata spread desk remains at `/legacy`.
 
 ![Parcel vault workspace](docs/audit/parcel/overview.png)
 
@@ -43,6 +43,14 @@ Use Node 22.23.2 from `.nvmrc`. Open `http://localhost:3025`. This single server
 
 Start by depositing one NVDA share, choose **Underwrite → Covered call**, review the actual premium and reserve, and confirm. Use **Market controls** to advance historical sessions; due positions settle at their exact stored expiry observation. The UI does not fabricate balances after an API failure.
 
+## Agent access
+
+`mcp/parcel.ts` is an MCP server that lets Claude, or any MCP client, use the vault through the same HTTP API as the desk, so accounting, risk checks and signing stay on the server. It exposes quotes, options (including spreads and curves), stock, lending, protected shorts, collateral mode and the market replay. Cash borrowing is sandbox-only, and chain mode refuses it.
+
+Start the app, then run Claude from the repository root; `.mcp.json` registers the server. Set `PARCEL_SESSION` to a browser's `strata_session` cookie to share that desk's vault. Receipts an agent places carry an **Agent** label in Activity.
+
+On devnet, every agent action returns its signature and an Explorer link. An agent placed these: [deposit](https://explorer.solana.com/tx/4C6a3zaujC6sZ5N3tjNDU8fYjkLLhWecnbei3YUUuqEWgPbFJqwNEvu6iD4kx4dVV8nv6dmRexxhh5yKnfxEmqPx?cluster=devnet), [stock purchase](https://explorer.solana.com/tx/5fRoLSmoXDXu77iiMMe6JVH7T5gq9ZCxT1cGyya4ooyCXLYexefuGvwQtHhdKP978v6Dq3PZSwgVvHeajZoahuS5?cluster=devnet), [call option](https://explorer.solana.com/tx/62ZVnc9ot1pXPAGLsNU7MdPycWowZsmw7KtKXhSLmXRDJPfd1WqRysxXfTLoM1w3UyXW83hy7PvCnYT1ht974S9N?cluster=devnet). A request whose response is lost is saved and resent with the same idempotency key, so it executes exactly once.
+
 ## Code organization
 
 | Area                                              | Responsibility                                                            |
@@ -59,6 +67,7 @@ Start by depositing one NVDA share, choose **Underwrite → Covered call**, revi
 | `server/parcel/ledger.ts`                         | Asset transfers, loans, protected shorts and net expiry settlement        |
 | `server/db/002-vaults.sql`, `003-vault-chain.sql` | Vaults, quotes and recoverable onchain operations                         |
 | `server/parcel/chain/`, `programs/parcel/`        | Durable execution coordinator, binary codec and new vault program         |
+| `server/solana/network.ts`                        | Genesis-pinned localnet/devnet configuration; mainnet is refused          |
 | `app/legacy/`, `server/domain/`, `server/solana/` | Retained historical desk and durable Solana execution                     |
 | `programs/strata/`                                | Audited original Anchor escrow program                                    |
 | `tests/`, `.github/workflows/`                    | Domain/API regression tests and real-backend browser CI                   |
@@ -73,7 +82,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-CI runs this flow on Linux from a clean checkout. The suite is 121 application tests and 40 browser journeys. They cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, cash loans against pledged stock including term settlement and liquidation, capped shorts, dividends, browser recovery, and that no view scrolls sideways on a phone. The 0.4 release audit recorded 65 application tests, 25 browser journeys, 6 native Rust tests, a 19-action confirmed Parcel chain lifecycle and 9 rejected adversarial program transactions. Actual Solana program verification remains an explicit operator command. See the [findings and verification evidence](docs/audit/2026-09-15-release/REPORT.md).
+CI runs this flow on Linux from a clean checkout. The suite is 129 application tests and 43 browser journeys. They cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, cash loans against pledged stock including term settlement and liquidation, capped shorts, dividends, browser recovery, and that no view scrolls sideways on a phone. The 0.4 release audit recorded 65 application tests, 25 browser journeys, 6 native Rust tests, a 19-action confirmed Parcel chain lifecycle and 9 rejected adversarial program transactions. Actual Solana program verification remains an explicit operator command; it runs against the pinned private validator or devnet, and refuses any other ledger. See the [findings and verification evidence](docs/audit/2026-09-15-release/REPORT.md).
 
 ## Pricing and release boundaries
 
@@ -89,7 +98,7 @@ Hourly test-clock ticks carry the committed daily close forward; they are not hi
 
 Dividend contracts reference the issuer's declared $0.01 dividend for the March 12, 2025 record-date event, payable April 2. They do not transfer dividend ownership or model an xStock multiplier as a cash payment. See [product rules and sources](docs/PRODUCT.md).
 
-Sandbox rules are backend-enforced. Configured localnet vaults execute the matching Parcel program with actual SPL escrow and server-held test signers. Production still requires wallet authentication and client signing, external liquidity, live pricing/oracle feeds, issuer/corporate-action handling and independent program review. Onchain mode limits each vault to 64 active positions for account and transaction compute bounds; sandbox mode supports 500. The original Solana evidence remains local-validator evidence; devnet funding is still an open gate. The prior Bellwether repository has been retired; its history is preserved here as this repository's root commit `ed73929`.
+Sandbox rules are backend-enforced. Configured onchain vaults execute the matching Parcel program with actual SPL escrow and server-held test signers, on either the pinned private validator or devnet. Mainnet is refused by the genesis pin and cannot be configured. Production still requires wallet authentication and client signing, external liquidity, live pricing/oracle feeds, issuer/corporate-action handling and independent program review. Onchain mode limits each vault to 64 active positions for account and transaction compute bounds; sandbox mode supports 500. The recorded lifecycle and adversarial evidence is local-validator evidence. The program is **also deployed on devnet** as `FwEY5cM9vP31LwywoJu1XWQ1nvBeNh2aMsVVpbYayRvC`, with its own operator and six-decimal test mints (it replaces `A4NTJ45B…`, whose operator key was lost), where the same 19-action lifecycle and all 14 adversarial rejections are confirmed. Devnet needs a dedicated `SOLANA_RPC_URL`: the public endpoint rate limits well below what a complete run, or a desk serving several readers, requires. The prior Bellwether repository has been retired; its history is preserved here as this repository's root commit `ed73929`.
 
 The [original engineering audit](docs/audit/REPORT.md) records the legacy execution review and dependency findings. Two moderate entries remain in an unused upstream streaming parser; there are no critical/high findings in that retained audit. The original audited program artifacts and evidence are preserved. No private keys, runtime databases or real `.env` files belong in this repository.
 

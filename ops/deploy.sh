@@ -17,7 +17,9 @@ lines=env.read_text().splitlines();values=dict(line.split('=',1) for line in lin
 rpc=values.get('SOLANA_RPC_URL','http://127.0.0.1:8899')
 req=urllib.request.Request(rpc,data=b'{"jsonrpc":"2.0","id":1,"method":"getGenesisHash"}',headers={'Content-Type':'application/json'})
 genesis=json.load(urllib.request.urlopen(req,timeout=15))['result']
-if genesis=='5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp':raise SystemExit('Refusing mainnet.')
+# Whole 32-byte hash. The 32-character prefix this used to compare against
+# never equalled a real genesis, so the refusal never fired.
+if genesis=='5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d':raise SystemExit('Refusing mainnet.')
 values.setdefault('SOLANA_NETWORK','localnet')
 values.setdefault('SOLANA_GENESIS_HASH',genesis)
 if values['SOLANA_GENESIS_HASH']!=genesis:raise SystemExit('Pinned chain identity changed. Investigate before deploying.')

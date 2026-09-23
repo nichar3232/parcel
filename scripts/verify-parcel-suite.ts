@@ -15,7 +15,7 @@ import type {
   VaultSnapshot,
 } from '../lib/parcel/types';
 const config = configFromEnv();
-if (!config.parcel || config.network !== 'localnet')
+if (!config.parcel)
   throw Error('Explicit pinned private-validator configuration required.');
 const adapter = new ParcelAdapter(config);
 await adapter.health();
@@ -43,7 +43,7 @@ async function act(action: VaultAction) {
     }
   }
   assert.ok(state.chain?.signature);
-  assert.equal(state.mode, 'localnet');
+  assert.equal(state.mode, config.network);
   assert.equal(
     (await coordinator.apply(session, key, input)).revision,
     state.revision,
@@ -172,7 +172,9 @@ try {
       {
         program: adapter.program.toBase58(),
         protocol: 2,
-        network: 'private local validator',
+        network:
+          config.network === 'devnet' ? 'Solana devnet' : 'private local validator',
+        genesis: config.expectedGenesis,
         actions: evidence,
       },
       null,

@@ -16,6 +16,8 @@ import {
   createAssociatedTokenAccountIdempotentInstruction,
   createMintToInstruction,
   getMint,
+  TokenAccountNotFoundError,
+  TokenInvalidAccountOwnerError,
 } from '@solana/spl-token';
 import type { Config } from '../../config';
 import type { VaultPlan } from '../service';
@@ -23,6 +25,7 @@ import type { VaultBook } from '../../../lib/parcel/types';
 import { initialVault } from '../ledger';
 import { instruction, key, pk, u64, i64 } from '../../solana/codec';
 import { actionBytes, bookBytes, bookHash } from './codec';
+import { pinnedGenesisFailure } from '../../solana/network';
 export interface PreparedVaultTransaction {
   raw: string;
   signature: string;
@@ -31,6 +34,9 @@ export interface PreparedVaultTransaction {
   stage: 'initialize' | 'execute';
 }
 export interface VaultChainAdapter {
+  /* Receipts name the ledger they were produced on, so the coordinator reads
+     it from the adapter rather than assuming the original private validator. */
+  readonly network: 'localnet' | 'devnet';
   prepare(
     owner: string,
     plan: VaultPlan,
@@ -71,12 +77,18 @@ export const SESSION_KEY_DOMAIN = Buffer.from([
 export class ParcelAdapter implements VaultChainAdapter {
   readonly connection: Connection;
   readonly program: PublicKey;
+  readonly network: 'localnet' | 'devnet';
   constructor(private config: Config) {
     if (!config.parcel) throw Error('Parcel chain configuration is missing.');
+    this.network = config.network;
     this.program = pk(config.parcel.program);
     this.connection = new Connection(config.rpcUrl, {
       commitment: 'confirmed',
-      disableRetryOnRateLimit: true,
+      /* A private validator that answers 429 is misconfigured, so the
+         retry stays off there and the error surfaces. A shared public
+         cluster rate limits as a matter of course, and refusing to retry
+         turns an ordinary throttle into a failed vault operation. */
+      disableRetryOnRateLimit: config.network === 'localnet',
       fetch: (input, init) =>
         fetch(input, { ...init, signal: AbortSignal.timeout(12000) }),
     });
@@ -124,22 +136,30 @@ export class ParcelAdapter implements VaultChainAdapter {
   }
   async health() {
     const genesis = await this.connection.getGenesisHash();
-    if (
-      this.config.network !== 'localnet' ||
-      !this.config.expectedGenesis ||
-      genesis !== this.config.expectedGenesis ||
-      [
-        '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-        'EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
-      ].includes(genesis)
-    )
-      throw Error('Parcel requires the pinned private local validator.');
+    const failure = pinnedGenesisFailure(genesis, this.config);
+    if (failure) throw Error(`Parcel chain mode refused the RPC. ${failure}`);
+    /* An absent mint is what an unprovisioned ledger looks like, and it is
+       reported as a readiness failure rather than a token-library stack
+       trace. Every other error is left to propagate: a throttled or
+       unreachable RPC is a transient transport failure, and reporting it as
+       "not provisioned" would send an operator to re-provision a ledger that
+       is already correct. */
+    const absent = (e: unknown) =>
+      e instanceof TokenAccountNotFoundError ||
+      e instanceof TokenInvalidAccountOwnerError;
+    const readMint = (mint: string) =>
+      getMint(this.connection, pk(mint)).catch((e) => {
+        if (absent(e)) return null;
+        throw e;
+      });
     const [program, cash, stock] = await Promise.all([
       this.connection.getAccountInfo(this.program),
-      getMint(this.connection, pk(this.config.parcel!.cashMint)),
-      getMint(this.connection, pk(this.config.parcel!.stockMint)),
+      readMint(this.config.parcel!.cashMint),
+      readMint(this.config.parcel!.stockMint),
     ]);
     if (
+      !cash ||
+      !stock ||
       !program?.executable ||
       cash.decimals !== 6 ||
       stock.decimals !== 6 ||
@@ -147,7 +167,9 @@ export class ParcelAdapter implements VaultChainAdapter {
       !cash.mintAuthority?.equals(pk(this.config.authority)) ||
       !stock.mintAuthority?.equals(pk(this.config.authority))
     )
-      throw Error('Parcel program or test mints are not ready.');
+      throw Error(
+        `Parcel program or test mints are not ready on ${this.config.network}.`,
+      );
   }
   async prepare(
     session: string,

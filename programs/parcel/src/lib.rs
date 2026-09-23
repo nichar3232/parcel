@@ -15,9 +15,22 @@ mod curves;
 pub mod economics;
 mod market;
 use economics::{Action, Book};
+// Each deployment declares its own id. The private validator's program keeps
+// the id its recorded audit evidence was produced under; the public devnet
+// deployment is a separate, independently keyed program. Build the devnet
+// artifact with `--features devnet`; the two are never the same binary.
+#[cfg(not(feature = "devnet"))]
 declare_id!("GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx");
-// Dedicated no-value local-validator operator. This is not a permissionless oracle.
+#[cfg(feature = "devnet")]
+declare_id!("FwEY5cM9vP31LwywoJu1XWQ1nvBeNh2aMsVVpbYayRvC");
+// Dedicated no-value test operators, one per ledger. Neither is a permissionless
+// oracle. Devnet's first operator was lost with trading-01 on 2026-09-23, which
+// stranded A4NTJ45B…; the redeploy has its own key rather than sharing the
+// validator's.
+#[cfg(not(feature = "devnet"))]
 const OPERATOR: Pubkey = pubkey!("8oheEujy8FS7Nr3bdYT7okWbWeMy3Tp5eM8z4YwRTzfq");
+#[cfg(feature = "devnet")]
+const OPERATOR: Pubkey = pubkey!("7K12outW8HdaD7McqqGD2nTJW55nd7eYeqxMLVZZiQtS");
 #[program]
 pub mod parcel {
     use super::*;
