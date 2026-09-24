@@ -1,35 +1,33 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { orderGreeks } from '@/lib/parcel/math';
 import type { OrderTerms } from '@/lib/parcel/types';
 import { usd } from './shared';
 
 /**
- * The payoff surface.
+ * A bounded value surface for advanced option analysis.
  *
- * A payoff chart shows the shape at expiry, which is the one day of a
- * contract's life a holder spends the least time in. The surface adds
- * the axis that is actually being traded: what the position is worth
- * today, next week, and the morning it expires. Theta stops being a
- * number in a table and becomes the slope you can see the whole thing
- * sliding down.
- *
- * An orthographic camera in plain SVG: yaw turns the whole way round,
- * pitch tips it from side-on to overhead, and the floor carries the three
- * axes with their values so a reading off any corner means something. A
- * few hundred quads render identically on a phone, print, and inherit
- * the theme.
+ * The old free-rotating mesh was mathematically sound but was difficult to
+ * read once a label or edge rotated toward the camera. This uses a fixed,
+ * deliberately shallow projection: price always runs left to right, time
+ * always recedes away from the reader, and higher P&L always rises. The
+ * alternate grid view uses the exact same samples when a flatter reading is
+ * more useful than perspective.
  */
 
-const COLS = 28;
-const ROWS = 16;
-const W = 880,
-  H = 480;
-/** World box: price across, time deep, value up. */
-const BOX = { x: 1.6, y: 1, z: 0.62 };
+const COLS = 31;
+const ROWS = 11;
+const W = 920;
+const H = 420;
+const FRAME = { left: 68, right: 52, top: 34, bottom: 68 };
+const DEPTH = { x: 72, y: 88 };
+const ELEVATION = 186;
 
-const DEFAULT_VIEW = { yaw: 36, pitch: 28 };
+type Point = { x: number; y: number };
+type SurfaceMode = 'perspective' | 'grid';
+
+const path = (points: Point[], close = false) =>
+  `${points.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}${close ? 'Z' : ''}`;
 
 export function Surface3D({
   terms,
@@ -46,318 +44,259 @@ export function Surface3D({
   vol: number;
   stockQuantity?: number;
 }) {
-  const [view, setView] = useState(DEFAULT_VIEW);
-  const drag = useRef<{
-    x: number;
-    y: number;
-    yaw: number;
-    pitch: number;
-    last: number;
-    at: number;
-    speed: number;
-  } | null>(null);
-  const spin = useRef<number | null>(null);
+  const [mode, setMode] = useState<SurfaceMode>('perspective');
 
   const mesh = useMemo(() => {
     const strikes = terms.curve
       ? [terms.curve.lower, terms.curve.upper]
-      : terms.legs.map((l) => l.strike);
-    const low = Math.min(...strikes),
-      high = Math.max(...strikes);
+      : terms.legs.map((leg) => leg.strike);
+    const low = Math.min(...strikes);
+    const high = Math.max(...strikes);
     const lo = Math.min(spot * 0.75, low * 0.9);
     const hi = Math.max(spot * 1.25, high * 1.1);
+    const start = Date.parse(date.includes('T') ? date : `${date}T00:00:00Z`);
+    const expiry = Date.parse(`${terms.expiry.slice(0, 10)}T20:00:00Z`);
+    const life = Math.max(3_600_000, expiry - start);
 
-    const from = date.includes('T') ? date : `${date}T00:00:00Z`;
-    const start = Date.parse(from);
-    const end = Date.parse(`${terms.expiry.slice(0, 10)}T20:00:00Z`);
-    const life = Math.max(3_600_000, end - start);
-
-    // z is the position's value at (price, time) net of what it cost.
-    // Row 0 is today's mark; the last row is expiry.
-    const grid: number[][] = [];
-    for (let j = 0; j < ROWS; j++) {
-      const at = new Date(start + (life * j) / (ROWS - 1)).toISOString();
-      const row: number[] = [];
-      for (let i = 0; i < COLS; i++) {
-        const price = lo + ((hi - lo) * i) / (COLS - 1);
-        const value = orderGreeks(terms, price, at, vol).price;
-        row.push(value - premium + stockQuantity * (price - spot));
-      }
-      grid.push(row);
-    }
-    const flat = grid.flat();
-    const min = Math.min(...flat, 0),
-      max = Math.max(...flat, 0);
-    return { grid, lo, hi, min, max, span: max - min || 1, start, end };
+    const values = Array.from({ length: ROWS }, (_, row) => {
+      const at = new Date(start + (life * row) / (ROWS - 1)).toISOString();
+      return Array.from({ length: COLS }, (_, column) => {
+        const price = lo + ((hi - lo) * column) / (COLS - 1);
+        return (
+          orderGreeks(terms, price, at, vol).price -
+          premium +
+          stockQuantity * (price - spot)
+        );
+      });
+    });
+    const all = values.flat();
+    const min = Math.min(0, ...all);
+    const max = Math.max(0, ...all);
+    return {
+      values,
+      lo,
+      hi,
+      min,
+      max,
+      span: max - min || 1,
+      start,
+      expiry,
+    };
   }, [terms, premium, spot, date, vol, stockQuantity]);
 
-  /** World point → screen, with a depth for painting back to front. */
-  const camera = useMemo(() => {
-    const yaw = (view.yaw * Math.PI) / 180,
-      pitch = (view.pitch * Math.PI) / 180;
-    const cy = Math.cos(yaw),
-      sy = Math.sin(yaw),
-      cp = Math.cos(pitch),
-      sp = Math.sin(pitch);
-    // The bounding sphere fixes the scale, so the mesh never breathes
-    // in and out as it turns and never leaves the frame.
-    const radius = Math.hypot(BOX.x, BOX.y, BOX.z) / 2;
-    // Wider than tall: the mesh's horizontal reach is the full radius,
-    // its height at any pitch is well under it.
-    const scale = Math.min(W / 2 / radius, (H / 2 / radius) * 1.3) * 0.94;
-    return (x: number, y: number, z: number) => {
-      const rx = x * cy - y * sy;
-      const ry = x * sy + y * cy;
-      return {
-        sx: W / 2 + rx * scale,
-        sy: H / 2 - (z * cp + ry * sp) * scale,
-        depth: ry * cp - z * sp,
-      };
+  const project = (column: number, row: number, value: number): Point => {
+    const xFraction = column / (COLS - 1);
+    const timeFraction = row / (ROWS - 1);
+    const height = (value - mesh.min) / mesh.span;
+    return {
+      x:
+        FRAME.left +
+        xFraction * (W - FRAME.left - FRAME.right - DEPTH.x) +
+        timeFraction * DEPTH.x,
+      y: H - FRAME.bottom - timeFraction * DEPTH.y - height * ELEVATION,
     };
-  }, [view]);
+  };
 
-  const world = useMemo(
-    () => (i: number, j: number, value: number) =>
-      [
-        (i / (COLS - 1) - 0.5) * BOX.x,
-        (j / (ROWS - 1) - 0.5) * BOX.y,
-        ((value - mesh.min) / mesh.span - 0.5) * BOX.z,
-      ] as const,
-    [mesh],
-  );
-
-  const quads = useMemo(() => {
-    const out: { d: string; fill: string; depth: number }[] = [];
-    const at = (i: number, j: number) => {
-      const [x, y, z] = world(i, j, mesh.grid[j][i]);
-      return camera(x, y, z);
-    };
-    for (let j = 0; j < ROWS - 1; j++)
-      for (let i = 0; i < COLS - 1; i++) {
-        const c = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)];
-        const mean =
-          (mesh.grid[j][i] +
-            mesh.grid[j][i + 1] +
-            mesh.grid[j + 1][i + 1] +
-            mesh.grid[j + 1][i]) /
-          4;
+  const surface = (() => {
+    const cells: {
+      perspective: string;
+      grid: { x: number; y: number };
+      fill: string;
+    }[] = [];
+    const gridWidth = W - FRAME.left - FRAME.right;
+    const gridHeight = H - FRAME.top - FRAME.bottom;
+    for (let row = 0; row < ROWS - 1; row++) {
+      for (let column = 0; column < COLS - 1; column++) {
+        const cornerValues = [
+          mesh.values[row][column],
+          mesh.values[row][column + 1],
+          mesh.values[row + 1][column + 1],
+          mesh.values[row + 1][column],
+        ];
+        const mean = cornerValues.reduce((sum, value) => sum + value, 0) / 4;
         const lift = (mean - mesh.min) / mesh.span;
         const fill =
           mean >= 0
-            ? `color-mix(in srgb, var(--pc-up) ${30 + lift * 55}%, var(--pc-void))`
-            : `color-mix(in srgb, var(--pc-down) ${30 + (1 - lift) * 50}%, var(--pc-void))`;
-        out.push({
-          d: `M${c.map((p) => `${p.sx.toFixed(1)},${p.sy.toFixed(1)}`).join('L')}Z`,
+            ? `color-mix(in srgb, var(--pc-up) ${32 + lift * 50}%, var(--pc-void))`
+            : `color-mix(in srgb, var(--pc-down) ${34 + (1 - lift) * 46}%, var(--pc-void))`;
+        cells.push({
+          perspective: path(
+            [
+              project(column, row, cornerValues[0]),
+              project(column + 1, row, cornerValues[1]),
+              project(column + 1, row + 1, cornerValues[2]),
+              project(column, row + 1, cornerValues[3]),
+            ],
+            true,
+          ),
+          grid: {
+            x: FRAME.left + (column * gridWidth) / (COLS - 1),
+            y: FRAME.top + (row * gridHeight) / (ROWS - 1),
+          },
           fill,
-          depth: c.reduce((t, p) => t + p.depth, 0) / 4,
         });
       }
-    // Far first, so the near face of a ridge covers what is behind it.
-    return out.sort((a, b) => b.depth - a.depth);
-  }, [camera, mesh, world]);
-
-  const line = (points: { sx: number; sy: number }[]) =>
-    points
-      .map((p, k) => `${k ? 'L' : 'M'}${p.sx.toFixed(1)},${p.sy.toFixed(1)}`)
-      .join(' ');
-  const rowPath = (j: number) =>
-    line(
-      mesh.grid[j].map((v, i) => {
-        const [x, y, z] = world(i, j, v);
-        return camera(x, y, z);
-      }),
-    );
-
-  /* The floor, the zero plane and the three labelled axes. */
-  const floorZ = -BOX.z / 2;
-  const zeroZ = ((0 - mesh.min) / mesh.span - 0.5) * BOX.z;
-  const hx = BOX.x / 2,
-    hy = BOX.y / 2;
-  const corner = (x: number, y: number, z = floorZ) => camera(x, y, z);
-  const floor = [
-    corner(-hx, -hy),
-    corner(hx, -hy),
-    corner(hx, hy),
-    corner(-hx, hy),
-  ];
-  const zero = [
-    corner(-hx, -hy, zeroZ),
-    corner(hx, -hy, zeroZ),
-    corner(hx, hy, zeroZ),
-    corner(-hx, hy, zeroZ),
-  ];
-  // Axes run along whichever floor edges face the camera, so their
-  // labels are never drawn behind the surface.
-  const nearY =
-    camera(0, hy, floorZ).depth < camera(0, -hy, floorZ).depth ? hy : -hy;
-  const nearX =
-    camera(hx, 0, floorZ).depth < camera(-hx, 0, floorZ).depth ? hx : -hx;
-  const priceTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => ({
-    label: usd(mesh.lo + (mesh.hi - mesh.lo) * f, 0),
-    at: corner((f - 0.5) * BOX.x, nearY + Math.sign(nearY) * 0.09),
-    grid: [corner((f - 0.5) * BOX.x, -hy), corner((f - 0.5) * BOX.x, hy)],
-  }));
-  const dayLabel = (t: number) =>
-    new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(
-      t,
-    );
-  const timeTicks = [0, 0.5, 1].map((f) => ({
-    label:
-      f === 0
-        ? 'Today'
-        : f === 1
-          ? 'Expiry'
-          : dayLabel(mesh.start + (mesh.end - mesh.start) * f),
-    at: corner(nearX + Math.sign(nearX) * 0.17, (f - 0.5) * BOX.y),
-    grid: [corner(-hx, (f - 0.5) * BOX.y), corner(hx, (f - 0.5) * BOX.y)],
-  }));
-  // The value axis stands at the far end of the price axis, clear of
-  // the corner where the price and time labels already meet.
-  const postX = -nearX;
-  const post = [
-    corner(postX, nearY, -BOX.z / 2),
-    corner(postX, nearY, BOX.z / 2),
-  ];
-  const valueTicks = [mesh.min, 0, mesh.max]
-    .filter((v, k, all) => all.indexOf(v) === k)
-    .map((v) => ({
-      label: `${v > 0 ? '+' : v < 0 ? '−' : ''}${usd(Math.abs(v))}`,
-      at: corner(
-        postX + Math.sign(postX) * 0.16,
-        nearY - Math.sign(nearY) * 0.04,
-        ((v - mesh.min) / mesh.span - 0.5) * BOX.z,
-      ),
-    }));
-  const title = (x: number, y: number, z: number) => camera(x, y, z);
-  const priceTitle = title(0, nearY + Math.sign(nearY) * 0.22, floorZ);
-  const timeTitle = title(nearX + Math.sign(nearX) * 0.36, 0, floorZ);
-
-  /* Rotation: drag, arrow keys, or let go with some speed to coast. */
-  const stopSpin = () => {
-    if (spin.current) cancelAnimationFrame(spin.current);
-    spin.current = null;
-  };
-  useEffect(() => stopSpin, []);
-  const coast = (speed: number) => {
-    stopSpin();
-    let v = speed;
-    const step = () => {
-      v *= 0.94;
-      if (Math.abs(v) < 0.02) return;
-      setView((s) => ({ ...s, yaw: (s.yaw + v + 360) % 360 }));
-      spin.current = requestAnimationFrame(step);
+    }
+    return {
+      cells,
+      gridWidth,
+      gridHeight,
+      cellWidth: gridWidth / (COLS - 1),
+      cellHeight: gridHeight / (ROWS - 1),
     };
-    spin.current = requestAnimationFrame(step);
-  };
+  })();
+
+  const rowPath = (row: number) =>
+    path(mesh.values[row].map((value, column) => project(column, row, value)));
+  const zeroPlane = path(
+    [
+      project(0, 0, 0),
+      project(COLS - 1, 0, 0),
+      project(COLS - 1, ROWS - 1, 0),
+      project(0, ROWS - 1, 0),
+    ],
+    true,
+  );
+  const basePlane = path(
+    [
+      project(0, 0, mesh.min),
+      project(COLS - 1, 0, mesh.min),
+      project(COLS - 1, ROWS - 1, mesh.min),
+      project(0, ROWS - 1, mesh.min),
+    ],
+    true,
+  );
+  const priceTicks = [0, 0.25, 0.5, 0.75, 1].map((fraction) => {
+    const price = mesh.lo + (mesh.hi - mesh.lo) * fraction;
+    return {
+      label: usd(price, mesh.hi - mesh.lo < 1 ? 3 : 0),
+      perspectiveX: project((COLS - 1) * fraction, 0, mesh.min).x,
+      gridX: FRAME.left + fraction * (W - FRAME.left - FRAME.right),
+    };
+  });
+  const formatDay = (timestamp: number) =>
+    new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(
+      timestamp,
+    );
+  const signed = (value: number) =>
+    `${value > 0 ? '+' : value < 0 ? '−' : ''}${usd(Math.abs(value))}`;
 
   return (
     <div className="od-surface">
+      <div className="od-surface-toolbar">
+        <span>Read by price and time</span>
+        <fieldset className="od-surface-view" aria-label="Surface view">
+          <button
+            type="button"
+            className={mode === 'perspective' ? 'selected' : ''}
+            aria-pressed={mode === 'perspective'}
+            onClick={() => setMode('perspective')}
+          >
+            Perspective
+          </button>
+          <button
+            type="button"
+            className={mode === 'grid' ? 'selected' : ''}
+            aria-pressed={mode === 'grid'}
+            onClick={() => setMode('grid')}
+          >
+            Grid
+          </button>
+        </fieldset>
+      </div>
+
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        onPointerDown={(e) => {
-          stopSpin();
-          drag.current = {
-            x: e.clientX,
-            y: e.clientY,
-            yaw: view.yaw,
-            pitch: view.pitch,
-            last: e.clientX,
-            at: performance.now(),
-            speed: 0,
-          };
-          e.currentTarget.setPointerCapture(e.pointerId);
-        }}
-        onPointerMove={(e) => {
-          const d = drag.current;
-          if (!d) return;
-          const now = performance.now();
-          d.speed = ((e.clientX - d.last) * 0.4 * 16) / Math.max(1, now - d.at);
-          d.last = e.clientX;
-          d.at = now;
-          setView({
-            yaw: (d.yaw + (e.clientX - d.x) * 0.4 + 3600) % 360,
-            pitch: Math.max(4, Math.min(84, d.pitch + (e.clientY - d.y) * 0.3)),
-          });
-        }}
-        onPointerUp={() => {
-          const d = drag.current;
-          drag.current = null;
-          if (d && performance.now() - d.at < 80 && Math.abs(d.speed) > 0.3)
-            coast(d.speed);
-        }}
-        onPointerCancel={() => {
-          drag.current = null;
-        }}
+        className={`od-surface-svg ${mode}`}
+        aria-label={`Modelled ${terms.symbol} profit and loss across price and time`}
       >
-        <path d={`${line(floor)}Z`} className="od-surface-floor" />
-        {priceTicks.map((t) => (
-          <path
-            key={`pg${t.label}`}
-            d={line(t.grid)}
-            className="od-surface-grid"
-          />
-        ))}
-        {timeTicks.map((t) => (
-          <path
-            key={`tg${t.label}`}
-            d={line(t.grid)}
-            className="od-surface-grid"
-          />
-        ))}
-        <path d={line(post)} className="od-surface-axis" />
-
-        {quads.map((q, i) => (
-          <path key={i} d={q.d} fill={q.fill} className="od-surface-cell" />
-        ))}
-        <path d={`${line(zero)}Z`} className="od-surface-zero" />
-        <path d={rowPath(0)} className="od-surface-edge today" />
-        <path d={rowPath(ROWS - 1)} className="od-surface-edge expiry" />
+        <title>Modelled profit and loss across price and time</title>
+        {mode === 'perspective' ? (
+          <>
+            <path d={basePlane} className="od-surface-floor" />
+            {surface.cells.map((cell, index) => (
+              <path
+                key={index}
+                d={cell.perspective}
+                fill={cell.fill}
+                className="od-surface-cell"
+              />
+            ))}
+            <path d={zeroPlane} className="od-surface-zero" />
+            <path d={rowPath(0)} className="od-surface-edge today" />
+            <path d={rowPath(ROWS - 1)} className="od-surface-edge expiry" />
+          </>
+        ) : (
+          <>
+            <rect
+              x={FRAME.left}
+              y={FRAME.top}
+              width={surface.gridWidth}
+              height={surface.gridHeight}
+              className="od-surface-grid-frame"
+            />
+            {surface.cells.map((cell, index) => (
+              <rect
+                key={index}
+                x={cell.grid.x}
+                y={cell.grid.y}
+                width={surface.cellWidth}
+                height={surface.cellHeight}
+                fill={cell.fill}
+                className="od-surface-cell"
+              />
+            ))}
+            <line
+              x1={FRAME.left}
+              x2={FRAME.left + surface.gridWidth}
+              y1={FRAME.top + surface.cellHeight / 2}
+              y2={FRAME.top + surface.cellHeight / 2}
+              className="od-surface-edge today"
+            />
+            <line
+              x1={FRAME.left}
+              x2={FRAME.left + surface.gridWidth}
+              y1={FRAME.top + surface.gridHeight - surface.cellHeight / 2}
+              y2={FRAME.top + surface.gridHeight - surface.cellHeight / 2}
+              className="od-surface-edge expiry"
+            />
+          </>
+        )}
 
         <g className="od-surface-labels">
-          {priceTicks.map((t) => (
-            <text key={t.label} x={t.at.sx} y={t.at.sy} textAnchor="middle">
-              {t.label}
-            </text>
-          ))}
-          {timeTicks.map((t) => (
-            <text key={t.label} x={t.at.sx} y={t.at.sy} textAnchor="middle">
-              {t.label}
-            </text>
-          ))}
-          {valueTicks.map((t) => (
+          {priceTicks.map((tick) => (
             <text
-              key={t.label}
-              x={t.at.sx}
-              y={t.at.sy + 4}
-              textAnchor={t.at.sx > W / 2 ? 'start' : 'end'}
-              className="value"
+              key={tick.label}
+              x={mode === 'grid' ? tick.gridX : tick.perspectiveX}
+              y={H - 21}
+              textAnchor="middle"
             >
-              {t.label}
+              {tick.label}
             </text>
           ))}
-          <text
-            x={priceTitle.sx}
-            y={priceTitle.sy}
-            textAnchor="middle"
-            className="title"
-          >
+          <text x={W - 18} y={24} textAnchor="end" className="title">
+            P&amp;L
+          </text>
+          <text x={W / 2} y={H - 5} textAnchor="middle" className="title">
             {terms.symbol} price
           </text>
           <text
-            x={timeTitle.sx}
-            y={timeTitle.sy}
-            textAnchor="middle"
+            x={18}
+            y={mode === 'grid' ? FRAME.top + 5 : H - FRAME.bottom + 4}
             className="title"
           >
-            Time
+            Today
           </text>
           <text
-            x={post[1].sx}
-            y={post[1].sy - 12}
-            textAnchor="middle"
+            x={mode === 'grid' ? 18 : FRAME.left + DEPTH.x - 10}
+            y={
+              mode === 'grid'
+                ? FRAME.top + surface.gridHeight + 5
+                : H - FRAME.bottom - DEPTH.y + 4
+            }
             className="title"
           >
-            P&amp;L
+            Expiry
           </text>
         </g>
       </svg>
@@ -371,35 +310,16 @@ export function Surface3D({
           <i className="expiry" />
           At expiry
         </span>
-        <span>
-          <i className="zero" />
-          Break-even
+        {mode === 'perspective' && (
+          <span>
+            <i className="zero" />
+            Break-even plane
+          </span>
+        )}
+        <span className="od-surface-range">
+          {formatDay(mesh.start)} → {formatDay(mesh.expiry)} ·{' '}
+          {signed(mesh.min)} to {signed(mesh.max)}
         </span>
-        <label className="od-surface-turn">
-          <span>Turn</span>
-          <input
-            type="range"
-            min={0}
-            max={359}
-            value={Math.round(view.yaw)}
-            aria-label="Rotate the surface"
-            onChange={(e) => {
-              stopSpin();
-              setView((v) => ({ ...v, yaw: Number(e.target.value) }));
-            }}
-          />
-        </label>
-        <button
-          type="button"
-          className="od-surface-reset"
-          onClick={() => {
-            stopSpin();
-            setView(DEFAULT_VIEW);
-          }}
-        >
-          <RotateCcw size={12} />
-          Reset view
-        </button>
       </div>
     </div>
   );

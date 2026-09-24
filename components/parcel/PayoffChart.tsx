@@ -58,7 +58,12 @@ export function PayoffChart({
 }) {
   const uid = useId().replaceAll(':', '');
   const [ownShock, setOwnShock] = useState(0);
-  const move = shock ?? ownShock;
+  // The control is intentionally constrained to the price domain that is
+  // actually drawn. Previously the slider allowed ±60% while a typical
+  // payoff view showed only ±30%, which meant its cursor could be rendered
+  // outside the chart. Keep the scenario, its marker and the plotted scale
+  // in one shared coordinate system.
+  const requestedMove = shock ?? ownShock;
   const setMove = onShock ?? setOwnShock;
   const [hover, setHover] = useState<number | null>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -179,6 +184,18 @@ export function PayoffChart({
     };
   }, [terms, premium, spot, stockQuantity, date, vol, size]);
 
+  const minMove = Math.min(
+    0,
+    Math.max(-60, Math.ceil(((plot.lo / spot - 1) * 100) / 0.5) * 0.5),
+  );
+  const maxMove = Math.max(
+    0,
+    Math.min(60, Math.floor(((plot.hi / spot - 1) * 100) / 0.5) * 0.5),
+  );
+  const move = Math.min(maxMove, Math.max(minMove, requestedMove));
+  const clampMove = (next: number) =>
+    Math.round(Math.min(maxMove, Math.max(minMove, next)) * 10) / 10;
+
   const cents = plot.hi - plot.lo < 1 ? 4 : 2;
   const dp = terms.reference === 'dividend' ? 4 : 2;
   const reading = hover ?? spot * (1 + move / 100);
@@ -269,10 +286,7 @@ export function PayoffChart({
           const p = priceAt(e.clientX);
           if (p == null) return;
           setHover(p);
-          setMove(
-            Math.round(Math.min(60, Math.max(-60, (p / spot - 1) * 100)) * 10) /
-              10,
-          );
+          setMove(clampMove((p / spot - 1) * 100));
         }}
         onPointerLeave={() => setHover(null)}
       >
@@ -428,11 +442,11 @@ export function PayoffChart({
         <input
           aria-label="Reference price move"
           type="range"
-          min="-60"
-          max="60"
+          min={minMove}
+          max={maxMove}
           step="0.5"
           value={move}
-          onChange={(e) => setMove(Number(e.target.value))}
+          onChange={(e) => setMove(clampMove(Number(e.target.value)))}
         />
         <b>
           {move > 0 ? '+' : ''}

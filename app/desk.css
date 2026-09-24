@@ -4608,21 +4608,108 @@
   color: var(--pc-text);
 }
 
-/* The payoff fills its column down to the foot of the ticket beside it,
-   rather than stopping short and leaving a band of empty canvas. The
-   ticket keeps its own height (it is sticky), and only the chart's plot
-   grows. */
+/* The analysis column owns its height. Stretching it to match a taller
+   Advanced ticket made the payoff field change height when unrelated
+   controls appeared, which read as a layout jump rather than a new model. */
 .od-work {
-  align-items: stretch;
+  align-items: start;
 }
 .od-work > .od-ticket {
   align-self: start;
 }
 .od-insight > .od-panel:first-child {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
 }
 .od-insight > .od-panel:first-child > .od-payoff {
-  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* The advanced value surface is intentionally bounded. Its old free camera
+   could rotate axes and labels out of the field; this fixed projection keeps
+   price, time and P&L legible at every desktop width, with a literal grid
+   available for readers who prefer the flat model view. */
+.od-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+}
+.od-surface-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.od-surface-toolbar > span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-surface-view {
+  display: inline-grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 2px;
+  flex: none;
+  margin: 0;
+  padding: 2px;
+  border: 1px solid var(--pc-line);
+  border-radius: 7px;
+  background: var(--pc-surface-2);
+}
+.od-surface-view button {
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  background: none;
+  color: var(--pc-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.od-surface-view button:hover {
+  color: var(--pc-text);
+}
+.od-surface-view button.selected {
+  background: var(--pc-raised, var(--pc-hover));
+  color: var(--pc-text);
+}
+.od-surface > .od-surface-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: default;
+  touch-action: pan-y;
+}
+.od-surface-grid-frame {
+  fill: color-mix(in srgb, var(--pc-void) 22%, transparent);
+  stroke: var(--pc-line);
+  stroke-width: 1;
+}
+.od-surface-cell {
+  stroke: color-mix(in srgb, var(--pc-void) 56%, transparent);
+  stroke-width: 0.45;
+}
+.od-surface-edge {
+  stroke-linecap: round;
+}
+.od-surface-key {
+  margin-top: 0;
+}
+.od-surface-range {
+  margin-left: auto;
+}
+@media (max-width: 640px) {
+  .od-surface-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .od-surface-range {
+    width: 100%;
+    margin-left: 0;
+  }
 }
 
 /* The side you would not trade on is still quoted, just quietly, so the
