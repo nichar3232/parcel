@@ -73,6 +73,50 @@ export const liveMarket = () => live;
 /** An instant rather than a calendar date: a live clock reading. */
 const instant = (date: string) => date.length > 10;
 
+const newYorkHour = (at: number) => {
+  const part = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: '2-digit',
+    hour12: false,
+  })
+    .formatToParts(at)
+    .find((value) => value.type === 'hour')?.value;
+  return Number(part) % 24;
+};
+
+/**
+ * The listed-equity expiry instant for a calendar expiry date.
+ *
+ * Contracts displayed as (for example) `2026-10-09` expire at the 4pm New
+ * York close, not at midnight UTC at the start of that date. Pricing a live
+ * Friday contract to midnight silently removes most of its final session of
+ * time value. The offset is derived through `Intl` so EST/EDT transitions do
+ * not need a hard-coded daylight-saving table.
+ */
+export function listedExpiryInstant(date: string) {
+  const day = date.slice(0, 10);
+  const guess = Date.parse(`${day}T20:00:00Z`);
+  if (!Number.isFinite(guess)) return NaN;
+  return guess + (16 - newYorkHour(guess)) * 3_600_000;
+}
+
+/**
+ * Time to expiry for model valuation.
+ *
+ * The replay deliberately uses its stored session calendar unchanged. A live
+ * wall-clock book instead values a date-only listed option through its New
+ * York close. This is kept beside the live-market switch so every product
+ * sharing `orderGreeks` sees one clock convention.
+ */
+export function modelDays(from: string, expiry: string) {
+  const start = Date.parse(from);
+  const end =
+    live && instant(from) && !instant(expiry)
+      ? listedExpiryInstant(expiry)
+      : Date.parse(expiry);
+  return (end - start) / 86_400_000;
+}
+
 /** The committed close of one underlying at one observation. */
 export function mark(symbol: string, date: string) {
   if (live) {

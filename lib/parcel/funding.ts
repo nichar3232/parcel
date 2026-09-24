@@ -1,5 +1,6 @@
 import { units } from '../engine';
-import { add, days, mul, optionGreeks, round } from './math';
+import { add, mul, optionGreeks, round } from './math';
+import { modelDays } from './market';
 import type { BorrowPosition, ShortPosition } from './types';
 
 // Shared display/execution amounts. Only stored market dates feed these functions.
@@ -41,7 +42,7 @@ export function protectionPremium(
   volatility = 0.45,
 ) {
   return round(
-    optionGreeks('call', entry, cap, days(from, to), volatility).price *
+    optionGreeks('call', entry, cap, modelDays(from, to), volatility).price *
       quantity,
   );
 }

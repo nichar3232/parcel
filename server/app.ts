@@ -322,12 +322,16 @@ export function createApp(
           usdcMint: process.env.PREIPO_USDC_MINT || null,
         });
         // Peg a mock token to each sponsor's published mark. Nobody
-        // publishes a live feed for a private company, so the engine
-        // walks these between provider refreshes and re-anchors when
-        // the provider moves.
+        // publishes an executable book for a private company. Preserve the
+        // publisher's own timestamp and make the intervening sandbox walk
+        // explicit rather than presenting it as a live mark.
         for (const a of assets.assets)
           if (a.quote?.markPriceUsd)
-            marks.ensure(a.asset.symbol, a.quote.markPriceUsd);
+            marks.publishPreStocks(
+              a.asset.symbol,
+              a.quote.markPriceUsd,
+              Date.parse(a.quote.fetchedAt) || Date.now(),
+            );
         return json(res, 200, assets);
       }
       if (url.pathname === '/api/vault' && method === 'GET')

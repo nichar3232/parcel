@@ -11,7 +11,7 @@
 const NETWORK = 'Solana';
 const PAGE_SIZE = 100;
 const CATALOG_TTL_MS = 15 * 60_000;
-const QUOTE_TTL_MS = 10_000;
+const QUOTE_TTL_MS = 3_000;
 const QUOTE_FAILURE_BACKOFF_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 12_000;
 const MAX_QUOTES_PER_REQUEST = 50;
@@ -40,8 +40,10 @@ export interface XStockQuote {
   symbol: string;
   /** The issuer returned no current quote. This is never modelled. */
   quote: number | null;
-  /** When Parcel received the issuer response, not an invented venue time. */
+  /** xStocks price-data does not publish an observation timestamp. */
   observedAt: number | null;
+  /** When Parcel received the issuer response. */
+  receivedAt: number | null;
   state: 'live' | 'unavailable' | 'pending';
   source: 'xstocks';
 }
@@ -217,14 +219,15 @@ export class XStocksService {
     )
       .then((response) => {
         const quote = finite(response.quote);
-        const observedAt = this.now();
+        const receivedAt = this.now();
         this.quoteCache.set(symbol, {
           symbol,
           quote,
-          observedAt,
+          observedAt: null,
+          receivedAt,
           state: quote === null ? 'unavailable' : 'live',
           source: 'xstocks',
-          refreshAt: observedAt + QUOTE_TTL_MS,
+          refreshAt: receivedAt + QUOTE_TTL_MS,
         });
       })
       .catch(() => {
@@ -236,6 +239,7 @@ export class XStocksService {
           symbol,
           quote: null,
           observedAt: null,
+          receivedAt: attemptedAt,
           state: 'unavailable',
           source: 'xstocks',
           refreshAt: attemptedAt + QUOTE_FAILURE_BACKOFF_MS,
@@ -277,6 +281,7 @@ export class XStocksService {
         symbol,
         quote: null,
         observedAt: null,
+        receivedAt: null,
         state: 'pending' as const,
         source: 'xstocks' as const,
       };

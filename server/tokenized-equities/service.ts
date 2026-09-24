@@ -164,6 +164,7 @@ export class TokenizedEquitiesService {
           id: `xstocks:${quote.symbol}`,
           quote: quote.quote,
           observedAt: quote.observedAt,
+          receivedAt: quote.receivedAt,
           state: quote.state,
           provider: 'xstocks' as const,
         })),

@@ -155,9 +155,9 @@ function quoteState(
   return asset.marketOpen === true ? 'Market open' : 'Issuer quote';
 }
 
-function quoteTime(quote: TokenizedEquityQuote | undefined) {
-  if (!quote?.observedAt) return '—';
-  return new Date(quote.observedAt).toLocaleTimeString('en-US', {
+function quoteTime(at: number | null | undefined) {
+  if (!at) return '—';
+  return new Date(at).toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
@@ -194,8 +194,14 @@ function TokenizedRow({
         </b>
       </div>
       <div className="od-watchlist-metric od-watchlist-source-cell">
-        <span>Updated</span>
-        <b>{quote?.observedAt ? `${quoteTime(quote)} UTC` : '—'}</b>
+        <span>{quote?.observedAt ? 'Issuer time' : 'Received'}</span>
+        <b>
+          {quote?.observedAt
+            ? `${quoteTime(quote.observedAt)} UTC`
+            : quote?.receivedAt
+              ? `${quoteTime(quote.receivedAt)} UTC`
+              : '—'}
+        </b>
       </div>
       <div className="od-watchlist-actions">
         <a
@@ -411,8 +417,8 @@ export function WatchlistView() {
       query.trim() &&
       matchesPreStocks(quote, query),
   );
-  const refreshed = preipo
-    ? new Date(preipo.refreshedAt).toLocaleTimeString('en-US', {
+  const refreshed = preipo?.priceObservedAt
+    ? new Date(preipo.priceObservedAt).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false,
@@ -464,6 +470,7 @@ export function WatchlistView() {
           <span>
             {sourceSummary || 'Reading issuer registries'} ·{' '}
             {preStocksCatalog.length} PreStocks
+            {preipo?.priceState === 'stale' ? ' · publisher marks stale' : ''}
           </span>
         </div>
       </header>

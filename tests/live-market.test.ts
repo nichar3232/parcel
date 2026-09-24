@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { setLiveMarket, type LiveMarket } from '../lib/parcel/market';
+import {
+  listedExpiryInstant,
+  modelDays,
+  setLiveMarket,
+  type LiveMarket,
+} from '../lib/parcel/market';
 import { closeInstant, fridayExpiries, LiveMarketService } from '../server/prices/live';
 import { MarkEngine } from '../server/prices/engine';
 import type { Source } from '../server/prices/sources';
@@ -41,6 +46,25 @@ void test('the settlement close is 4pm New York on both sides of daylight saving
     new Date(closeInstant('2026-12-18')).toISOString(),
     '2026-12-18T21:00:00.000Z',
   );
+});
+
+void test('live option valuation carries a date-only expiry through the New York close', () => {
+  const market: LiveMarket = {
+    spot: () => 100,
+    close: () => null,
+    expiries: () => [],
+  };
+  setLiveMarket(market);
+  try {
+    const from = '2026-12-18T18:00:00.000Z';
+    assert.equal(
+      new Date(listedExpiryInstant('2026-12-18')).toISOString(),
+      '2026-12-18T21:00:00.000Z',
+    );
+    assert.equal(modelDays(from, '2026-12-18'), 3 / 24);
+  } finally {
+    setLiveMarket(null);
+  }
 });
 
 void test('a live book prices at the mark and settles at the recorded expiry close', () => {

@@ -21,6 +21,7 @@ const TIMEOUT = 4000;
 // Must stay aligned with MarkEngine's freshness horizon. A new trade can keep
 // a mark current, but it cannot make an older displayed book current again.
 const BOOK_FRESH_MS = 20_000;
+const BOOK_MAX_FUTURE_SKEW_MS = 5_000;
 
 export interface Observation {
   symbol: string;
@@ -325,7 +326,11 @@ export class MassiveStocksSource implements Source {
     const book = this.books.get(symbol);
     const trade = this.trades.get(symbol);
     const currentBook =
-      book && Date.now() - book.at <= BOOK_FRESH_MS ? book : null;
+      book &&
+      Date.now() - book.at <= BOOK_FRESH_MS &&
+      book.at - Date.now() <= BOOK_MAX_FUTURE_SKEW_MS
+        ? book
+        : null;
     if (!currentBook && !trade) return null;
     // The mark uses the current NBBO midpoint whenever it exists. Last trade
     // remains the fallback before a book arrives or after its book has aged
@@ -360,7 +365,12 @@ export class PythSource implements Source {
     process.env.PYTH_HERMES_URL || 'https://pyth.dourolabs.app/hermes';
   private key = process.env.PYTH_API_KEY || '';
   private ids = new Map<string, string>();
+  private latest = new Map<string, Observation>();
   private resolved = false;
+  private streamAbort: AbortController | null = null;
+  private streamRetry: NodeJS.Timeout | null = null;
+  private streamStopped = false;
+  private streaming = false;
   private state: SourceHealth['state'];
   private detail: string;
 
@@ -417,6 +427,34 @@ export class PythSource implements Source {
     );
   }
 
+  /** Convert one Hermes payload into exact configured instruments only. */
+  private readings(body: { parsed?: UpdateRow[] }): Observation[] {
+    const out: Observation[] = [];
+    for (const row of body.parsed ?? []) {
+      const symbol = this.ids.get(row.id.replace(/^0x/, ''));
+      if (!symbol || !row.price) continue;
+      const scale = 10 ** row.price.expo;
+      const price = Number(row.price.price) * scale;
+      if (!Number.isFinite(price) || price <= 0) continue;
+      out.push({
+        symbol,
+        price,
+        at: row.price.publish_time * 1000,
+        source: this.name,
+        // A confidence interval is a statistical bound, not a bid/ask.
+        quoteKind: 'oracle',
+      });
+    }
+    return out;
+  }
+
+  private accept(rows: Observation[], receive?: (rows: Observation[]) => void) {
+    if (!rows.length) return;
+    for (const row of rows) this.latest.set(row.symbol, row);
+    this.state = 'live';
+    receive?.(rows);
+  }
+
   async observe(instruments: Instrument[]): Promise<Observation[]> {
     if (!this.enabled) return [];
     if (!this.resolved) await this.resolve(instruments);
@@ -425,6 +463,12 @@ export class PythSource implements Source {
       this.detail = 'Pyth oracle could not resolve an exact configured feed';
       return [];
     }
+    // A healthy stream owns the current values. Returning its cache keeps the
+    // two-second recovery poll from competing with an event-driven feed;
+    // MarkEngine still rejects a cache entry once its provider timestamp is
+    // older than the freshness window.
+    if (this.streaming && this.latest.size)
+      return [...this.latest.values()];
     const query = [...this.ids.keys()].map((id) => `ids%5B%5D=${id}`).join('&');
     const res = await getJson<{ parsed?: UpdateRow[] }>(
       `${this.host}/v2/updates/price/latest?${query}&parsed=true`,
@@ -443,29 +487,114 @@ export class PythSource implements Source {
       this.detail = 'Pyth oracle returned no current observations';
       return [];
     }
-    const out: Observation[] = [];
-    for (const row of res.body.parsed) {
-      const symbol = this.ids.get(row.id.replace(/^0x/, ''));
-      if (!symbol || !row.price) continue;
-      const scale = 10 ** row.price.expo;
-      const price = Number(row.price.price) * scale;
-      if (!Number.isFinite(price) || price <= 0) continue;
-      out.push({
-        symbol,
-        price,
-        at: row.price.publish_time * 1000,
-        source: this.name,
-        // Pyth's `conf` is an oracle confidence interval, not executable
-        // liquidity. Keeping it out of bid/ask prevents a statistical band
-        // from being shown as an order book.
-        quoteKind: 'oracle',
-      });
-    }
+    const out = this.readings(res.body);
+    this.accept(out);
     this.state = out.length ? 'live' : 'degraded';
     this.detail = out.length
-      ? `Pyth oracle delivering ${out.length} current mark${out.length === 1 ? '' : 's'}`
+      ? `Pyth oracle ${this.streaming ? 'streaming' : 'polling'} ${out.length} current mark${out.length === 1 ? '' : 's'}`
       : 'Pyth oracle returned no usable current marks';
     return out;
+  }
+
+  /**
+   * Hermes can stream the same exact price-update payload used by the REST
+   * recovery path. Keep one server-side stream and hand each current update
+   * straight to the mark engine; browser tabs continue to receive the
+   * coalesced same-origin SSE stream. A failed stream falls back to polling
+   * and reconnects with bounded backoff rather than inventing intermediate
+   * prices.
+   */
+  subscribe(
+    instruments: Instrument[],
+    receive: (observations: Observation[]) => void,
+  ) {
+    if (!this.enabled) return () => undefined;
+    this.streamStopped = false;
+    let retry = 1000;
+    const sleep = (ms: number) =>
+      new Promise<void>((resolve) => {
+        this.streamRetry = setTimeout(() => {
+          this.streamRetry = null;
+          resolve();
+        }, ms);
+        this.streamRetry.unref?.();
+      });
+    const parseChunk = (block: string) => {
+      const data = block
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trimStart())
+        .join('\n');
+      if (!data) return;
+      try {
+        this.accept(this.readings(JSON.parse(data) as { parsed?: UpdateRow[] }), receive);
+      } catch {
+        // A malformed event is discarded; the stream's next complete event
+        // and the REST recovery path remain independent.
+      }
+    };
+    const run = async () => {
+      while (!this.streamStopped && this.enabled) {
+        try {
+          if (!this.resolved) await this.resolve(instruments);
+          if (!this.ids.size) throw Error('No exact Pyth feeds resolved.');
+          const query = [...this.ids.keys()]
+            .map((id) => `ids%5B%5D=${id}`)
+            .join('&');
+          const controller = new AbortController();
+          this.streamAbort = controller;
+          const res = await fetch(
+            `${this.host}/v2/updates/price/stream?${query}&parsed=true`,
+            { headers: this.headers, signal: controller.signal },
+          );
+          if (res.status === 401 || res.status === 403) {
+            this.enabled = false;
+            this.state = 'disabled';
+            this.detail = 'Pyth oracle authentication was rejected';
+            return;
+          }
+          if (!res.ok || !res.body)
+            throw Error(`Pyth stream responded with ${res.status}.`);
+          this.streaming = true;
+          this.state = 'live';
+          this.detail = 'Pyth oracle streaming current price updates';
+          retry = 1000;
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          while (!this.streamStopped) {
+            const next = await reader.read();
+            if (next.done) break;
+            buffer += decoder.decode(next.value, { stream: true });
+            const blocks = buffer.split(/\r?\n\r?\n/);
+            buffer = blocks.pop() ?? '';
+            blocks.forEach(parseChunk);
+          }
+          reader.releaseLock();
+        } catch {
+          if (!this.streamStopped && this.enabled) {
+            this.state = 'degraded';
+            this.detail = 'Pyth oracle stream interrupted; polling and reconnecting';
+          }
+        } finally {
+          this.streaming = false;
+          this.streamAbort = null;
+        }
+        if (!this.streamStopped && this.enabled) {
+          await sleep(retry);
+          retry = Math.min(retry * 2, 30_000);
+        }
+      }
+    };
+    void run();
+    return () => {
+      this.streamStopped = true;
+      this.streamAbort?.abort();
+      this.streamAbort = null;
+      if (this.streamRetry) clearTimeout(this.streamRetry);
+      this.streamRetry = null;
+      this.streaming = false;
+    };
   }
 }
 

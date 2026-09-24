@@ -93,6 +93,7 @@ void test('Ondo: requires an issuer-declared Solana address and reads its direct
       id: 'ondo:AAPLon',
       quote: 171.383708297189,
       observedAt: 1_799_999_999_000,
+      receivedAt: 1_800_000_000_000,
       state: 'live',
       provider: 'ondo',
     },

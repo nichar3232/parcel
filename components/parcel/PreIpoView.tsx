@@ -77,17 +77,30 @@ export function PreIpoView({
       <section className="od-pm" aria-labelledby="pm-title">
         <div className="od-pm-head">
           <h2 id="pm-title">Pre-IPO market</h2>
-          <span className={`od-pm-live ${feed.connected ? 'on' : ''}`}>
+          <span
+            className={`od-pm-live ${data.priceState === 'fresh' ? 'on' : ''}`}
+            title={
+              data.priceState === 'fresh'
+                ? 'Current PreStocks publisher marks. They are not an executable order book.'
+                : data.priceState === 'stale'
+                  ? 'The publisher is unavailable; retained marks are labelled stale.'
+                  : 'No publisher marks are currently available.'
+            }
+          >
             <i aria-hidden />
-            {feed.connected ? 'Live' : 'Modeled'}
+            {data.priceState === 'fresh'
+              ? 'Publisher marks'
+              : data.priceState === 'stale'
+                ? 'Publisher marks stale'
+                : 'Publisher unavailable'}
           </span>
         </div>
         <div className="od-pm-table">
           <div className="od-pm-row od-pm-cols">
             <span>Company</span>
             <span>Price</span>
-            <span>Bid</span>
-            <span>Ask</span>
+            <span>Model bid</span>
+            <span>Model ask</span>
             <span>Today</span>
             <span>Valuation</span>
             <span />

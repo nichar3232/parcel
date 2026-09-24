@@ -143,13 +143,15 @@ export class SuperstateService {
     )
       .then((response) => {
         const quote = number(response.price);
+        const receivedAt = this.now();
         const sourceTime = text(response.timestamp);
         const parsed = sourceTime ? Date.parse(sourceTime) : NaN;
-        const observedAt = Number.isFinite(parsed) ? parsed : this.now();
+        const observedAt = Number.isFinite(parsed) ? parsed : null;
         this.quoteCache.set(asset.id, {
           id: asset.id,
           quote,
           observedAt,
+          receivedAt,
           state: quote === null ? 'unavailable' : 'live',
           provider: 'superstate',
           refreshAt: this.now() + QUOTE_TTL_MS,
@@ -160,6 +162,7 @@ export class SuperstateService {
           id: asset.id,
           quote: null,
           observedAt: null,
+          receivedAt: this.now(),
           state: 'unavailable',
           provider: 'superstate',
           refreshAt: this.now() + FAILURE_BACKOFF_MS,
@@ -192,6 +195,7 @@ export class SuperstateService {
         id,
         quote: null,
         observedAt: null,
+        receivedAt: null,
         state: 'pending' as const,
         provider: 'superstate' as const,
       };

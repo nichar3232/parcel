@@ -78,6 +78,7 @@ export function TradeView({
   // moves with the market; the snapshot's price until it does.
   const price =
     markOf(state, feed, symbol)?.price ?? under?.price ?? state.market.price;
+  const referenceMark = markOf(state, feed, symbol);
   // Hoisted: a memo keyed on `state.book.date` cannot be preserved
   // through the compiler, because it cannot prove the chain is stable.
   const session = state.book.date;
@@ -183,6 +184,22 @@ export function TradeView({
   const crossing = invalid ? 0 : spreadCost(effective, reference, session, vol);
   const market = quoteAround(g.price, crossing);
   const trades = g.price + crossing;
+  const referenceBasis =
+    !referenceMark
+      ? 'Snapshot reference'
+      : referenceMark.stale
+        ? `Stale ${referenceMark.source} mark`
+        : referenceMark.source === 'massive-nbbo'
+          ? 'Fresh consolidated NBBO midpoint'
+          : referenceMark.source === 'coinbase'
+            ? 'Fresh Coinbase venue midpoint'
+            : referenceMark.source === 'pyth'
+              ? 'Fresh Pyth oracle mark'
+              : referenceMark.source === 'prestocks'
+                ? 'PreStocks publisher mark'
+                : referenceMark.source === 'yahoo'
+                  ? 'Delayed Yahoo reference'
+                  : 'Simulated reference mark';
 
   const includedStock =
     !invalid &&
@@ -319,6 +336,7 @@ export function TradeView({
         {browse && tab === 'trade' ? (
           <OptionsChain
             desk={desk}
+            feed={feed}
             symbol={symbol}
             quantity={effective.quantity}
             side={chainSide}
@@ -427,7 +445,7 @@ export function TradeView({
                       {effective.reference === 'dividend'
                         ? 'Committed dividend event'
                         : state.market.clock === 'live'
-                          ? 'Live mark'
+                          ? referenceBasis
                           : session.includes('T')
                             ? 'Daily close carried forward'
                             : 'Stored historical close'}
@@ -588,7 +606,7 @@ export function TradeView({
               {!invalid && crossing > 0 && (
                 <div className="od-bidask">
                   <span>
-                    Bid{' '}
+                    Model bid{' '}
                     <b>
                       {usd(Math.abs(g.price < 0 ? market.ask : market.bid))}
                     </b>
@@ -597,7 +615,7 @@ export function TradeView({
                     Mid <b>{usd(Math.abs(g.price))}</b>
                   </span>
                   <span>
-                    Ask{' '}
+                    Model ask{' '}
                     <b>
                       {usd(Math.abs(g.price < 0 ? market.bid : market.ask))}
                     </b>

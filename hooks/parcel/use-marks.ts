@@ -15,6 +15,7 @@ export type MarkSource =
   | 'pyth'
   | 'coinbase'
   | 'yahoo'
+  | 'prestocks'
   | 'simulated';
 
 export interface Mark {
@@ -26,6 +27,9 @@ export interface Mark {
   change: number;
   bid: number;
   ask: number;
+  /** Actual displayed top-of-book size when the source publishes it. */
+  bidSize: number | null;
+  askSize: number | null;
   quoteKind: 'nbbo' | 'venue-bbo' | 'modelled';
   spreadBps: number;
   vol: number;

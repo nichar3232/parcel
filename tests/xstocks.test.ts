@@ -131,6 +131,7 @@ void test('xStocks: prices only requested known symbols and never models a missi
       symbol: 'NVDAx',
       quote: null,
       observedAt: null,
+      receivedAt: null,
       state: 'pending',
       source: 'xstocks',
     },
@@ -138,6 +139,7 @@ void test('xStocks: prices only requested known symbols and never models a missi
       symbol: 'SPYx',
       quote: null,
       observedAt: null,
+      receivedAt: null,
       state: 'pending',
       source: 'xstocks',
     },
@@ -149,14 +151,16 @@ void test('xStocks: prices only requested known symbols and never models a missi
     {
       symbol: 'NVDAx',
       quote: 183.45,
-      observedAt: 1_800_000_000_000,
+      observedAt: null,
+      receivedAt: 1_800_000_000_000,
       state: 'live',
       source: 'xstocks',
     },
     {
       symbol: 'SPYx',
       quote: null,
-      observedAt: 1_800_000_000_000,
+      observedAt: null,
+      receivedAt: 1_800_000_000_000,
       state: 'unavailable',
       source: 'xstocks',
     },
@@ -167,7 +171,7 @@ void test('xStocks: prices only requested known symbols and never models a missi
   // seed, prior close, or synthetic walk.
   await service.quotes(['NVDAx', 'SPYx']);
   assert.equal(calls.filter((call) => call.endsWith('/price-data')).length, 2);
-  advance(10_000);
+  advance(3_000);
   await service.quotes(['NVDAx']);
   await tick();
   assert.equal(

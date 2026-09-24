@@ -4,9 +4,11 @@ import type { VaultController } from '@/hooks/parcel/use-vault';
 import type { ChainCatalog } from '@/lib/parcel/types';
 import type { OrderTerms } from '@/lib/parcel/types';
 import { offeredExpiries } from '@/lib/parcel/market';
+import type { MarkFeed } from '@/hooks/parcel/use-marks';
 import { Panel, qty, usd } from './shared';
 export function OptionsChain({
   desk,
+  feed,
   quantity,
   side,
   kind,
@@ -15,6 +17,8 @@ export function OptionsChain({
   onSelect,
 }: {
   desk: VaultController;
+  /** The same-origin mark stream; used to reprice on a real observation. */
+  feed?: MarkFeed;
   /** The underlying the ladder is priced on. */
   symbol: string;
   /**
@@ -44,6 +48,10 @@ export function OptionsChain({
     [error, setError] = useState(''),
     [loading, setLoading] = useState(false);
   const read = useRef(desk.chain);
+  // A slower request can finish after an event-driven reprice. Only the
+  // newest request may update the ladder, otherwise the UI can briefly show
+  // an older spot after a fresh NBBO event has already arrived.
+  const requestVersion = useRef(0);
   useLayoutEffect(() => {
     read.current = desk.chain;
   }, [desk.chain]);
@@ -54,13 +62,18 @@ export function OptionsChain({
       setLoading(true);
       setError('');
       setCatalog(null);
+      const version = ++requestVersion.current;
       try {
         const result = await read.current(effective, quantity, symbol);
-        if (!cancelled) setCatalog(result);
+        if (!cancelled && version === requestVersion.current) {
+          setCatalog(result);
+          setLoading(false);
+        }
       } catch (e) {
-        if (!cancelled) setError((e as Error).message);
+        if (!cancelled && version === requestVersion.current)
+          setError((e as Error).message);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && version === requestVersion.current) setLoading(false);
       }
     }, 150);
     return () => {
@@ -72,14 +85,29 @@ export function OptionsChain({
      the same request, answered at the current mark, swapped in without
      clearing the table, so the premiums tick rather than flash. */
   const live = state.market.clock === 'live';
+
+  // `asOf` changes for regular sandbox ticks too. Key the fast reprice to
+  // this instrument's provider timestamp instead, so a live options ladder
+  // follows the actual upstream event without firing for an unrelated mark
+  // or an invented walk. The two-second interval below remains a recovery
+  // path for proxies and non-streaming sources.
+  const observedAt =
+    live && !feed?.marks[symbol]?.stale
+      ? (feed?.marks[symbol]?.observedAt ?? 0)
+      : 0;
+
   useEffect(() => {
     if (!live) return;
     let cancelled = false;
     const timer = setInterval(async () => {
       if (document.hidden) return;
+      const version = ++requestVersion.current;
       try {
         const result = await read.current(effective, quantity, symbol);
-        if (!cancelled) setCatalog(result);
+        if (!cancelled && version === requestVersion.current) {
+          setCatalog(result);
+          setLoading(false);
+        }
       } catch {
         /* keep the last good ladder; the next tick tries again */
       }
@@ -89,6 +117,30 @@ export function OptionsChain({
       clearInterval(timer);
     };
   }, [live, effective, quantity, symbol, state.revision]);
+
+  useEffect(() => {
+    if (!live || !observedAt) return;
+    let cancelled = false;
+    // Coalesce a burst of venue events into one request. The mark stream
+    // itself already preserves the newest complete book at a ten-Hz browser
+    // cadence; this short delay avoids issuing one chain request per packet.
+    const timer = setTimeout(async () => {
+      const version = ++requestVersion.current;
+      try {
+        const result = await read.current(effective, quantity, symbol);
+        if (!cancelled && version === requestVersion.current) {
+          setCatalog(result);
+          setLoading(false);
+        }
+      } catch {
+        /* Retain the last complete model ladder until the next mark. */
+      }
+    }, 120);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [live, observedAt, effective, quantity, symbol]);
   const current =
     catalog &&
     catalog.revision === state.revision &&
@@ -176,7 +228,7 @@ export function OptionsChain({
             <div className="od-chain-assumptions" aria-label="Pricing assumptions">
               <span>Spot {usd(catalog.spot)}</span>
               <span>{(volatility * 100).toFixed(0)}% IV</span>
-              <span>4.00% rate</span>
+              <span>4.00% assumed rate</span>
               <span>Per selected size</span>
             </div>
           </div>

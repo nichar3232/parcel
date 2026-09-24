@@ -24,6 +24,7 @@ export interface TokenizedEquityQuote {
   id: string;
   quote: number | null;
   observedAt: number | null;
+  receivedAt: number | null;
   state: 'live' | 'unavailable' | 'pending';
   provider: TokenizedEquityProvider;
 }
@@ -43,7 +44,10 @@ export interface TokenizedEquityCatalog {
 }
 
 const CATALOG_POLL_MS = 15 * 60_000;
-const QUOTE_POLL_MS = 5_000;
+// Issuer endpoints are quote snapshots, not event streams. Keep a modest
+// cadence for the visible watchlist while preserving the provider timestamp
+// (when one exists) separately from Parcel's receipt time.
+const QUOTE_POLL_MS = 3_000;
 
 /**
  * Solana equities from issuer-owned registries. A source may be unavailable

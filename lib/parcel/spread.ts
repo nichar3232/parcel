@@ -1,5 +1,6 @@
 import { liveMarket } from './market';
-import { days, optionGreeks, round } from './math';
+import { optionGreeks, round } from './math';
+import { modelDays } from './market';
 import type { OrderTerms } from './types';
 
 /**
@@ -70,7 +71,7 @@ export function spreadCost(
     // model unit for the same visible-touch/participation schedule.
     return legCrossingCost(Math.abs(terms.curve.cap), terms.quantity);
   }
-  const t = days(date, terms.expiry);
+  const t = modelDays(date, terms.expiry);
   let cost = 0;
   for (const leg of terms.legs) {
     const mid = optionGreeks(leg.kind, spot, leg.strike, t, vol).price;

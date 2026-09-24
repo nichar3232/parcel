@@ -32,6 +32,11 @@ import { YahooSource } from './yahoo';
  */
 
 const FRESH_MS = 20_000;
+// Providers and Parcel will not share an exact wall clock, but a timestamp
+// far enough in the future to evade the freshness window is not a usable
+// market observation. Five seconds tolerates ordinary NTP jitter without
+// allowing one malformed event to look live indefinitely.
+const MAX_FUTURE_SKEW_MS = 5_000;
 const TICK_MS = 1000;
 const POLL_MS = 2000;
 const YEAR_SECONDS = 365 * 24 * 3600;
@@ -43,6 +48,7 @@ export type MarkSource =
   | 'pyth'
   | 'coinbase'
   | 'yahoo'
+  | 'prestocks'
   | 'simulated';
 
 export interface Mark {
@@ -117,6 +123,39 @@ const gaussian = () => {
 };
 
 const day = (at: number) => new Date(at).toISOString().slice(0, 10);
+const freshAt = (at: number, now = Date.now()) =>
+  now - at <= FRESH_MS && at - now <= MAX_FUTURE_SKEW_MS;
+
+/**
+ * A lower number is a more authoritative mark for one instrument.
+ *
+ * Polling already applies this order by walking `sources` from most to least
+ * authoritative. Streamed updates do not share that polling pass, however,
+ * so they need the same guard here: an oracle event that happens to arrive
+ * after a fresh consolidated quote must not erase that book. A source may
+ * take over as soon as the higher-quality observation ages out.
+ */
+const sourcePriority = (source: string | null) => {
+  switch (source) {
+    case 'massive-nbbo':
+      return 0;
+    case 'pyth':
+      return 1;
+    case 'coinbase':
+      return 2;
+    case 'massive-delayed-nbbo':
+      return 3;
+    case 'yahoo':
+      return 4;
+    case 'prestocks':
+      // Publisher marks only exist on their own private-company symbols,
+      // but keep their identity ahead of the sandbox walk if that ever
+      // changes.
+      return 0;
+    default:
+      return 99;
+  }
+};
 
 export class MarkEngine {
   private state = new Map<string, State>();
@@ -224,6 +263,38 @@ export class MarkEngine {
   }
 
   /**
+   * Apply a publisher's own mark without turning it into venue liquidity.
+   *
+   * PreStocks publishes an indicative mark, not an executable order book.
+   * Recording its timestamp lets the UI tell a newly received publisher mark
+   * from the sandbox walk that fills the gap between publisher updates.  The
+   * bid/ask remains modelled in `project`, because the publisher response has
+   * not supplied either side or any displayed size.
+   */
+  publishPreStocks(symbol: string, price: number, at = Date.now()) {
+    if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(at)) return;
+    this.ensure(symbol, price);
+    const state = this.state.get(symbol);
+    if (!state) return;
+    if (state.lastReal && state.realSource === 'prestocks' && at < state.lastReal)
+      return;
+    state.price = price;
+    state.lastReal = at;
+    state.realSource = 'prestocks';
+    state.realBid = null;
+    state.realAsk = null;
+    state.realBidSize = null;
+    state.realAskSize = null;
+    state.realQuoteKind = 'oracle';
+    if (!state.openIsReal) {
+      state.open = price;
+      state.openIsReal = true;
+    }
+    state.openDay = day(at);
+    this.broadcast();
+  }
+
+  /**
    * Begin ticking. Safe to call when the process has no network: feed
    * resolution simply never completes and every instrument stays on the
    * walk. The timers are unref'd so they can never hold the process
@@ -286,7 +357,7 @@ export class MarkEngine {
         for (const row of rows) {
           // A stale high-priority snapshot must not suppress a fresh lower
           // priority source. Check age before inserting into the priority map.
-          if (now - row.at <= FRESH_MS && !seen.has(row.symbol))
+          if (freshAt(row.at, now) && !seen.has(row.symbol))
             seen.set(row.symbol, row);
         }
       }
@@ -302,10 +373,21 @@ export class MarkEngine {
     let changed = false;
     for (const row of rows) {
       const s = this.state.get(row.symbol);
-      if (!s || now - row.at > FRESH_MS) continue;
+      if (!s || !freshAt(row.at, now)) continue;
       // Recovering a cached event after the streaming source has already
       // delivered a newer one must not move a quote backwards.
       if (s.lastReal && s.realSource === row.source && row.at < s.lastReal)
+        continue;
+      // Direct subscriptions arrive independently of the two-second recovery
+      // poll. Preserve a fresh, more authoritative source when a lower
+      // priority stream delivers a later timestamp; otherwise an oracle or
+      // one-venue quote could overwrite a current listed NBBO solely because
+      // its packet arrived later.
+      if (
+        s.lastReal &&
+        freshAt(s.lastReal, now) &&
+        sourcePriority(row.source) > sourcePriority(s.realSource)
+      )
         continue;
       s.price = row.price;
       s.realBid = row.bid ?? null;
@@ -435,7 +517,7 @@ export class MarkEngine {
     // the market closes, but it is not "live" forever. Treat every source
     // the same here: provenance is retained below while freshness drives the
     // live badge, venue BBO, and browser-session chart tail.
-    const fresh = !!s.lastReal && Date.now() - s.lastReal < FRESH_MS;
+    const fresh = !!s.lastReal && freshAt(s.lastReal);
     const half = (s.price * s.spreadBps) / 10_000;
     const round = (n: number) => Math.round(n * 1e6) / 1e6;
     // A venue's own book beats a modelled spread whenever we have one.
@@ -483,7 +565,8 @@ export class MarkEngine {
       source === 'massive-delayed-nbbo' ||
       source === 'pyth' ||
       source === 'coinbase' ||
-      source === 'yahoo'
+      source === 'yahoo' ||
+      source === 'prestocks'
       ? source
       : 'simulated';
   }
@@ -498,7 +581,11 @@ export class MarkEngine {
           !mark.stale &&
           mark.source !== 'simulated' &&
           mark.source !== 'yahoo' &&
-          mark.source !== 'massive-delayed-nbbo',
+          mark.source !== 'massive-delayed-nbbo' &&
+          // A publisher mark is useful and timestamped, but it is neither a
+          // venue BBO nor a streaming oracle. Do not let one make a generic
+          // "live market" badge true for the whole desk.
+          mark.source !== 'prestocks',
       ),
       sources: this.sources.map((x): SourceHealth =>
         x.health?.() ?? {

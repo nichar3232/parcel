@@ -361,6 +361,18 @@ export default function Workspace() {
     ? s.book.wallet.USDC +
       s.book.wallet.NVDA * (markOf(s, feed, 'NVDA')?.price ?? s.market.price)
     : 0;
+  const listedNbbo = feed.sources.some(
+    (source) =>
+      source.name === 'massive-nbbo' && source.enabled && source.state === 'live',
+  );
+  const cryptoBbo = feed.sources.some(
+    (source) => source.name === 'coinbase' && source.state === 'live',
+  );
+  const dataStatus = listedNbbo
+    ? { label: 'Listed NBBO live', detail: 'Fresh consolidated listed-equity NBBO is connected. Modelled option premiums remain separate.' }
+    : cryptoBbo
+      ? { label: 'Crypto BBO live', detail: 'Fresh Coinbase venue BBO is connected. Listed-equity and option marks retain their own source labels.' }
+      : { label: 'Indicative marks', detail: 'No fresh executable venue book is connected. Source labels identify delayed, publisher, oracle, or simulated marks.' };
 
   return (
     <div className="pc-desk" data-ready={!!s}>
@@ -515,15 +527,11 @@ export default function Workspace() {
           </span>
         </div>
         <span
-          className={`od-foot-status ${feed.connected ? 'on' : ''}`}
-          title={
-            feed.connected
-              ? 'Stocks from Yahoo Finance, crypto from Coinbase and Pyth; private-company tokens are modeled'
-              : 'No price venue reachable; marks are modeled'
-          }
+          className={`od-foot-status ${listedNbbo || cryptoBbo ? 'on' : ''}`}
+          title={dataStatus.detail}
         >
           <i aria-hidden />
-          {feed.connected ? 'Marks live' : 'Marks modeled'}
+          {dataStatus.label}
         </span>
         <nav className="od-foot-links" aria-label="Footer">
           <button onClick={() => setModal('about')}>About</button>

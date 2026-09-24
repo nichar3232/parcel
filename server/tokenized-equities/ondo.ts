@@ -46,13 +46,13 @@ const number = (value: unknown): number | null => {
         : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
-const observedAt = (value: unknown, fallback: number) => {
+const observedAt = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string') {
     const parsed = Date.parse(value);
     if (Number.isFinite(parsed)) return parsed;
   }
-  return fallback;
+  return null;
 };
 
 // Ondo's API returns a chain label rather than a Solana mint convention. Keep
@@ -175,7 +175,8 @@ export class OndoService {
         const idBySymbol = new Map(
           assets.map((asset) => [asset.symbol, asset.id]),
         );
-        const refreshAt = this.now() + QUOTE_TTL_MS;
+        const receivedAt = this.now();
+        const refreshAt = receivedAt + QUOTE_TTL_MS;
         const returned = new Set<string>();
         for (const entry of response) {
           const symbol =
@@ -187,10 +188,8 @@ export class OndoService {
           this.quoteCache.set(id, {
             id,
             quote,
-            observedAt: observedAt(
-              entry.primaryMarket?.timestamp ?? entry.timestamp,
-              this.now(),
-            ),
+            observedAt: observedAt(entry.primaryMarket?.timestamp ?? entry.timestamp),
+            receivedAt,
             state: quote === null ? 'unavailable' : 'live',
             provider: 'ondo',
             refreshAt,
@@ -204,6 +203,7 @@ export class OndoService {
               id,
               quote: null,
               observedAt: null,
+              receivedAt,
               state: 'unavailable',
               provider: 'ondo',
               refreshAt,
@@ -216,6 +216,7 @@ export class OndoService {
             id,
             quote: null,
             observedAt: null,
+            receivedAt: this.now(),
             state: 'unavailable',
             provider: 'ondo',
             refreshAt,
@@ -251,6 +252,7 @@ export class OndoService {
         id,
         quote: null,
         observedAt: null,
+        receivedAt: null,
         state: 'pending' as const,
         provider: 'ondo' as const,
       };

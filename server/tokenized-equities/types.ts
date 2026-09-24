@@ -27,8 +27,10 @@ export interface TokenizedEquityAsset {
 export interface TokenizedEquityQuote {
   id: string;
   quote: number | null;
-  /** Source observation time when supplied, otherwise the issuer response time. */
+  /** Issuer-provided observation time. Null means the source did not publish one. */
   observedAt: number | null;
+  /** Time Parcel received the issuer response; not a claimed venue timestamp. */
+  receivedAt: number | null;
   state: 'live' | 'unavailable' | 'pending';
   provider: TokenizedEquityProvider;
 }

@@ -295,6 +295,9 @@ void test('the endpoint falls back to its last complete publisher catalog', asyn
   up = false;
   const second = await loadAssets(config, 200_000, impl, noSleep);
   assert.equal(second.catalog.length, 1);
+  assert.equal(second.priceState, 'stale');
+  assert.equal(second.priceObservedAt, new Date(1_000).toISOString());
+  assert.equal(second.refreshedAt, new Date(1_000).toISOString());
   assert.deepEqual(
     second.warnings.filter((w) => w.includes('prices')),
     [],

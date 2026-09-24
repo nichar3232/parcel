@@ -11,6 +11,8 @@ export interface AssetsPayload {
   catalog: ProviderQuote[];
   assets: ResolvedAsset[];
   warnings: string[];
+  priceState: 'fresh' | 'stale' | 'unavailable';
+  priceObservedAt: string | null;
   refreshedAt: string;
 }
 
@@ -47,7 +49,7 @@ export function usePreIpoAssets() {
     void load();
     // The providers republish a mark on their own clock; re-reading keeps
     // the mock tokens anchored to it rather than drifting all session.
-    const timer = setInterval(load, 60_000);
+    const timer = setInterval(load, 15_000);
     return () => {
       live = false;
       clearInterval(timer);

@@ -248,6 +248,111 @@ void test('marks: stale higher-priority cache cannot mask a fresh lower-priority
   assert.equal(nvda.quoteKind, 'modelled');
 });
 
+void test('marks: a lower-priority streamed oracle cannot overwrite a fresh NBBO', () => {
+  const now = Date.now();
+  const nbbo: Source = {
+    name: 'massive-nbbo',
+    enabled: true,
+    async observe() {
+      return [];
+    },
+    subscribe(_instruments, receive) {
+      receive([
+        {
+          symbol: 'NVDA',
+          price: 142.62,
+          bid: 142.61,
+          ask: 142.63,
+          bidSize: 400,
+          askSize: 600,
+          at: now,
+          source: 'massive-nbbo',
+          quoteKind: 'nbbo',
+        },
+      ]);
+      return () => undefined;
+    },
+  };
+  const oracle: Source = {
+    name: 'pyth',
+    enabled: true,
+    async observe() {
+      return [];
+    },
+    subscribe(_instruments, receive) {
+      receive([
+        {
+          symbol: 'NVDA',
+          price: 142.7,
+          at: now + 1,
+          source: 'pyth',
+          quoteKind: 'oracle',
+        },
+      ]);
+      return () => undefined;
+    },
+  };
+  const engine = new MarkEngine(now, [nbbo, oracle]);
+  engine.start();
+  const mark = engine.mark('NVDA')!;
+  engine.stop();
+
+  assert.equal(mark.source, 'massive-nbbo');
+  assert.equal(mark.price, 142.62);
+  assert.equal(mark.quoteKind, 'nbbo');
+});
+
+void test('marks: a future-dated provider event is not allowed to look fresh forever', () => {
+  const now = Date.now();
+  const futureNbbo: Source = {
+    name: 'massive-nbbo',
+    enabled: true,
+    async observe() {
+      return [];
+    },
+    subscribe(_instruments, receive) {
+      receive([
+        {
+          symbol: 'NVDA',
+          price: 999,
+          bid: 998.99,
+          ask: 999.01,
+          at: now + 6_000,
+          source: 'massive-nbbo',
+          quoteKind: 'nbbo',
+        },
+      ]);
+      return () => undefined;
+    },
+  };
+  const oracle: Source = {
+    name: 'pyth',
+    enabled: true,
+    async observe() {
+      return [];
+    },
+    subscribe(_instruments, receive) {
+      receive([
+        {
+          symbol: 'NVDA',
+          price: 142.7,
+          at: now,
+          source: 'pyth',
+          quoteKind: 'oracle',
+        },
+      ]);
+      return () => undefined;
+    },
+  };
+  const engine = new MarkEngine(now, [futureNbbo, oracle]);
+  engine.start();
+  const mark = engine.mark('NVDA')!;
+  engine.stop();
+
+  assert.equal(mark.source, 'pyth');
+  assert.equal(mark.price, 142.7);
+});
+
 void test('marks: an old official equity print keeps provenance but cannot claim a live connection', () => {
   const realNow = Date.now;
   const base = realNow();
@@ -289,4 +394,20 @@ void test('marks: an old official equity print keeps provenance but cannot claim
   } finally {
     Date.now = realNow;
   }
+});
+
+void test('marks: a PreStocks publisher mark keeps its source and never becomes venue liquidity', () => {
+  const now = Date.now();
+  const engine = new MarkEngine(now, []);
+  engine.publishPreStocks('OPENAI', 1001.25, now);
+  const openai = engine.mark('OPENAI')!;
+
+  assert.equal(openai.price, 1001.25);
+  assert.equal(openai.source, 'prestocks');
+  assert.equal(openai.observedAt, now);
+  assert.equal(openai.stale, false);
+  assert.equal(openai.quoteKind, 'modelled');
+  assert.equal(openai.bidSize, null);
+  assert.equal(openai.askSize, null);
+  assert.equal(engine.snapshot().connected, false);
 });

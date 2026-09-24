@@ -30,10 +30,17 @@ export interface AssetsPayload {
   assets: ResolvedAsset[];
   /** Per-source failures, surfaced rather than swallowed. */
   warnings: string[];
+  /** Whether the publisher marks below were read in this response or retained. */
+  priceState: 'fresh' | 'stale' | 'unavailable';
+  /** The actual time of the most recent successful publisher response. */
+  priceObservedAt: string | null;
   refreshedAt: string;
 }
 
-const TTL_MS = 60_000;
+// The publisher has no streaming endpoint. Fifteen seconds is a bounded,
+// visible polling cadence: fast enough to surface a new issuer mark without
+// pretending to have tick data or opening one request per browser tab.
+const TTL_MS = 15_000;
 let cache: { at: number; payload: AssetsPayload } | null = null;
 
 /**
@@ -44,7 +51,7 @@ let cache: { at: number; payload: AssetsPayload } | null = null;
  * recent mark is more useful than an empty screen. A failed read therefore
  * falls back to the last successful catalog in this process.
  */
-let lastGood: ProviderQuote[] | null = null;
+let lastGood: { catalog: ProviderQuote[]; observedAt: number } | null = null;
 
 /**
  * Resolve the curated registry against the chain and the PreStocks API.
@@ -64,12 +71,22 @@ export async function loadAssets(
 
   const warnings: string[] = [];
   let catalog: ProviderQuote[] = [];
+  let priceState: AssetsPayload['priceState'] = 'unavailable';
+  let priceObservedAt: number | null = null;
   try {
     catalog = await fetchPreStocks(fetchImpl, undefined, retry);
-    lastGood = catalog;
+    priceState = 'fresh';
+    priceObservedAt = now;
+    lastGood = { catalog, observedAt: now };
   } catch {
-    if (lastGood) catalog = lastGood;
-    else
+    if (lastGood) {
+      catalog = lastGood.catalog;
+      priceState = 'stale';
+      priceObservedAt = lastGood.observedAt;
+      warnings.push(
+        `PreStocks publisher is unavailable. Showing its last response from ${new Date(lastGood.observedAt).toISOString()}; these marks are informational and never settle a contract.`,
+      );
+    } else
       warnings.push(
         'PreStocks prices are not available yet. Prices are informational and never settle a contract.',
       );
@@ -95,7 +112,15 @@ export async function loadAssets(
     catalog,
     assets: resolveAssets(registry, onchain, catalog),
     warnings,
-    refreshedAt: new Date(now).toISOString(),
+    priceState,
+    priceObservedAt: priceObservedAt
+      ? new Date(priceObservedAt).toISOString()
+      : null,
+    // A cache hit is not a new publisher observation. Keep this field as a
+    // compatibility alias for consumers that predate `priceObservedAt`.
+    refreshedAt: priceObservedAt
+      ? new Date(priceObservedAt).toISOString()
+      : new Date(now).toISOString(),
   };
   cache = { at: now, payload };
   return payload;

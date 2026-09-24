@@ -4,6 +4,7 @@ import {
   type BlackScholesModel,
 } from './black-scholes';
 import { units } from '../engine';
+import { modelDays } from './market';
 import type { Greeks, Leg, OrderTerms } from './types';
 export { DEFAULT_BLACK_SCHOLES, type BlackScholesModel } from './black-scholes';
 export const round = (n: number) => Math.round(n * 1e6) / 1e6;
@@ -139,14 +140,14 @@ export function orderGreeks(
   overrides: Partial<BlackScholesModel> = {},
 ): Greeks {
   if (terms.curve)
-    return curveGreeks(terms, s, days(date, terms.expiry), vol, overrides);
+    return curveGreeks(terms, s, modelDays(date, terms.expiry), vol, overrides);
   const result: Greeks = { price: 0, delta: 0, gamma: 0, theta: 0, vega: 0 };
   for (const leg of terms.legs) {
     const g = optionGreeks(
       leg.kind,
       s,
       leg.strike,
-      days(date, terms.expiry),
+      modelDays(date, terms.expiry),
       vol,
       overrides,
     );
