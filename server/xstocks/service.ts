@@ -16,7 +16,6 @@ const QUOTE_FAILURE_BACKOFF_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 12_000;
 const MAX_QUOTES_PER_REQUEST = 50;
 const MAX_CONCURRENT_QUOTES = 6;
-const CATALOG_PAGE_WINDOW = 8;
 
 export interface XStockAsset {
   symbol: string;
@@ -165,24 +164,15 @@ export class XStocksService {
     const pages: ApiNode[] = [...first.nodes!];
     let nextPage = 1;
     let hasNext = first.page?.hasNextPage === true;
-    // The issuer pagination is measured in 100-asset pages. Pulling a small
-    // window in parallel avoids a long request waterfall for a current
-    // catalog, while limiting the small speculative over-read at its end.
+    // Follow the issuer's cursor one page at a time. Asking for a speculative
+    // page beyond the last one made otherwise healthy one-page catalogs fail
+    // when the issuer correctly rejected the out-of-range request.
     while (hasNext) {
       if (nextPage > 199)
         throw Error('xStocks asset pagination exceeded its safety limit.');
-      const batch = await Promise.all(
-        Array.from({ length: CATALOG_PAGE_WINDOW }, (_, offset) =>
-          readPage(nextPage + offset),
-        ),
-      );
-      const terminal = batch.findIndex(
-        (response) => response.page?.hasNextPage !== true,
-      );
-      const usable = terminal < 0 ? batch : batch.slice(0, terminal + 1);
-      for (const response of usable) pages.push(...response.nodes!);
-      hasNext = terminal < 0;
-      nextPage += batch.length;
+      const response = await readPage(nextPage++);
+      pages.push(...response.nodes!);
+      hasNext = response.page?.hasNextPage === true;
     }
     const assets = pages
       .map(normalizeAsset)

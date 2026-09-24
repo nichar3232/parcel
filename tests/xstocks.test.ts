@@ -116,6 +116,11 @@ void test('xStocks: paginates the current Solana issuer catalog and retains only
   assert.ok(
     calls.includes('/api/v2/public/assets?network=Solana&page=1&pageSize=100'),
   );
+  assert.equal(
+    calls.filter((call) => call.startsWith('/api/v2/public/assets')).length,
+    2,
+    'the catalog follows the declared last page instead of probing past it',
+  );
 });
 
 void test('xStocks: prices only requested known symbols and never models a missing issuer quote', async () => {
