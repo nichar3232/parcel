@@ -32,7 +32,7 @@ const density = (x: number) => Math.exp((-x * x) / 2) / Math.sqrt(2 * Math.PI);
 const intrinsic = (kind: 'call' | 'put', s: number, k: number) =>
   Math.max(0, kind === 'call' ? s - k : k - s);
 
-const assertModelInputs = (s: number, k: number, v: number) => {
+const assertModelInputs = (s: number, k: number, v: number, dayCount: number) => {
   if (!Number.isFinite(s) || s <= 0)
     throw new RangeError(
       'Black-Scholes spot must be a positive finite number.',
@@ -41,10 +41,12 @@ const assertModelInputs = (s: number, k: number, v: number) => {
     throw new RangeError(
       'Black-Scholes strike must be a positive finite number.',
     );
-  if (!Number.isFinite(v) || v < 0)
+  if (!Number.isFinite(v) || v < 0 || v > 10)
     throw new RangeError(
-      'Black-Scholes volatility must be a non-negative finite number.',
+      'Black-Scholes volatility must be a finite annual value from 0% to 1000%.',
     );
+  if (!Number.isFinite(dayCount))
+    throw new RangeError('Black-Scholes expiry must be a finite day count.');
 };
 
 function deterministicGreeks(
@@ -95,7 +97,7 @@ export function optionGreeks(
   v = 0.45,
   overrides: Partial<BlackScholesModel> = {},
 ): Greeks {
-  assertModelInputs(s, k, v);
+  assertModelInputs(s, k, v, dayCount);
   const model = resolveBlackScholesModel(overrides);
   const t = Math.max(0, dayCount) / 365;
   if (t === 0 || v === 0) return deterministicGreeks(kind, s, k, t, model);

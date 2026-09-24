@@ -63,13 +63,25 @@ void test('Massive: subscribes server-side and preserves NBBO provenance', () =>
     params: 'Q.NVDA,T.NVDA',
   });
 
-  socket.message([{ ev: 'Q', sym: 'NVDA', bp: 142.61, ap: 142.63, t: Date.now() }]);
+  socket.message([
+    {
+      ev: 'Q',
+      sym: 'NVDA',
+      bp: 142.61,
+      ap: 142.63,
+      bs: 400,
+      as: 600,
+      t: Date.now(),
+    },
+  ]);
   assert.deepEqual(observations, [
     {
       symbol: 'NVDA',
       price: 142.62,
       bid: 142.61,
       ask: 142.63,
+      bidSize: 400,
+      askSize: 600,
       at: (observations[0] as { at: number }).at,
       source: 'massive-nbbo',
       quoteKind: 'nbbo',
@@ -110,6 +122,54 @@ void test('Massive: an authentication rejection disables instead of retrying a b
     state: 'disabled',
     detail: 'Listed-equity NBBO authentication was rejected',
   });
+});
+
+void test('Massive: a newer trade never keeps an older NBBO book executable', () => {
+  const socket = new Socket();
+  const source = new MassiveStocksSource(
+    { MASSIVE_STOCKS_API_KEY: 'test-key' },
+    () => socket,
+  );
+  const observations: unknown[] = [];
+  const stop = source.subscribe!(
+    [
+      {
+        symbol: 'NVDA',
+        name: 'NVIDIA',
+        kind: 'equity',
+        vol: 0.45,
+        seed: 100,
+        spreadBps: 12,
+        depth: 1,
+      },
+    ],
+    (rows) => observations.push(...rows),
+  );
+  socket.onopen?.();
+  socket.message([{ ev: 'status', status: 'auth_success' }]);
+  socket.message([
+    {
+      ev: 'Q',
+      sym: 'NVDA',
+      bp: 142.61,
+      ap: 142.63,
+      bs: 400,
+      as: 600,
+      t: Date.now() - 20_001,
+    },
+  ]);
+  socket.message([{ ev: 'T', sym: 'NVDA', p: 142.62, t: Date.now() }]);
+
+  assert.deepEqual(observations.at(-1), {
+    symbol: 'NVDA',
+    price: 142.62,
+    bid: undefined,
+    ask: undefined,
+    at: (observations.at(-1) as { at: number }).at,
+    source: 'massive-nbbo',
+    quoteKind: undefined,
+  });
+  stop();
 });
 
 void test('marks: an NBBO keeps its real bid and ask instead of a modelled spread', () => {

@@ -18,12 +18,18 @@ import type { Instrument } from './feeds';
  */
 
 const TIMEOUT = 4000;
+// Must stay aligned with MarkEngine's freshness horizon. A new trade can keep
+// a mark current, but it cannot make an older displayed book current again.
+const BOOK_FRESH_MS = 20_000;
 
 export interface Observation {
   symbol: string;
   price: number;
   bid?: number;
   ask?: number;
+  /** Displayed shares at the bid and ask, when the venue publishes depth. */
+  bidSize?: number;
+  askSize?: number;
   /** The venue's own 24h open, when it publishes one. */
   open?: number;
   /** When the venue published it, in ms. */
@@ -97,12 +103,16 @@ interface MassiveEvent {
   p?: unknown;
   bp?: unknown;
   ap?: unknown;
+  bs?: unknown;
+  as?: unknown;
   t?: unknown;
 }
 
 interface MassiveBook {
   bid: number;
   ask: number;
+  bidSize: number | null;
+  askSize: number | null;
   at: number;
 }
 
@@ -287,7 +297,18 @@ export class MassiveStocksSource implements Source {
         const bid = finite(event.bp);
         const ask = finite(event.ap);
         if (bid === null || ask === null || bid <= 0 || ask <= bid) continue;
-        this.books.set(symbol, { bid, ask, at });
+        const bidSize = finite(event.bs);
+        const askSize = finite(event.as);
+        this.books.set(symbol, {
+          bid,
+          ask,
+          // A malformed or omitted depth is represented as unavailable, not
+          // silently coerced to one share. The execution boundary decides
+          // whether a quote without disclosed size is usable.
+          bidSize: bidSize !== null && bidSize > 0 ? bidSize : null,
+          askSize: askSize !== null && askSize > 0 ? askSize : null,
+          at,
+        });
       } else {
         const price = finite(event.p);
         if (price === null || price <= 0) continue;
@@ -303,19 +324,25 @@ export class MassiveStocksSource implements Source {
   private compose(symbol: string): Observation | null {
     const book = this.books.get(symbol);
     const trade = this.trades.get(symbol);
-    if (!book && !trade) return null;
+    const currentBook =
+      book && Date.now() - book.at <= BOOK_FRESH_MS ? book : null;
+    if (!currentBook && !trade) return null;
     // The mark uses the current NBBO midpoint whenever it exists. Last trade
-    // remains the fallback before a book arrives; it never masquerades as an
-    // order book.
-    const price = book ? (book.bid + book.ask) / 2 : trade!.price;
+    // remains the fallback before a book arrives or after its book has aged
+    // out; a new trade must never make the old book look fresh.
+    const price = currentBook
+      ? (currentBook.bid + currentBook.ask) / 2
+      : trade!.price;
     return {
       symbol,
       price,
-      bid: book?.bid,
-      ask: book?.ask,
-      at: Math.max(book?.at || 0, trade?.at || 0),
+      bid: currentBook?.bid,
+      ask: currentBook?.ask,
+      ...(currentBook?.bidSize ? { bidSize: currentBook.bidSize } : {}),
+      ...(currentBook?.askSize ? { askSize: currentBook.askSize } : {}),
+      at: currentBook?.at ?? trade!.at,
       source: this.name,
-      quoteKind: book ? 'nbbo' : undefined,
+      quoteKind: currentBook ? 'nbbo' : undefined,
     };
   }
 }

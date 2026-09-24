@@ -104,7 +104,7 @@ export function optionsChain(
     spot,
     rows,
     pricing:
-      'Model mid, quoted with a bid and an ask · funded test counterparty',
+      'Black–Scholes model mid with per-leg bid/ask and size impact · funded test counterparty · not an external options book',
   };
 }
 export function sizeOrder(
@@ -121,11 +121,14 @@ export function sizeOrder(
   let q: number;
   if (mode === 'exposure') q = amount(limit);
   else if (mode === 'premium') {
-    if (premium(terms, book) <= 0)
+    if (indicative(terms, book).premium <= 0)
       throw Error(
         'Premium budgets require a positive premium purchase. Use exposure sizing for underwriting.',
       );
-    // Search actual rounded model costs, so the result cannot overspend the budget.
+    // Search the same rounded ask shown in the chain and charged by a durable
+    // quote. Sizing on the mid would promise a quantity which exceeds the
+    // selected cash budget once its per-leg spread and participation impact
+    // are applied.
     let low = 0,
       high = 1_000_000_000;
     while (low < high) {
@@ -133,7 +136,9 @@ export function sizeOrder(
       const candidate = { ...terms, quantity: mid / 1e6 },
         b = payoffBounds(candidate);
       const cost =
-        b.cashMin === 0n && b.cashMax === 0n ? 0 : premium(candidate, book);
+        b.cashMin === 0n && b.cashMax === 0n
+          ? 0
+          : indicative(candidate, book).premium;
       if (cost <= limit) low = mid;
       else high = mid - 1;
     }

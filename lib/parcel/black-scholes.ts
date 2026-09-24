@@ -26,5 +26,16 @@ export function resolveBlackScholesModel(
     !Number.isFinite(model.dividendYield)
   )
     throw new RangeError('Black-Scholes rates must be finite numbers.');
+  // The model permits negative carry, but never values that overflow the
+  // discount factors and turn an otherwise valid contract into NaN. Ten
+  // hundred percent is deliberately far outside an economic input while
+  // still leaving stress scenarios possible.
+  if (
+    Math.abs(model.riskFreeRate) > 10 ||
+    Math.abs(model.dividendYield) > 10
+  )
+    throw new RangeError(
+      'Black-Scholes rates must be between -1000% and 1000% annually.',
+    );
   return model;
 }

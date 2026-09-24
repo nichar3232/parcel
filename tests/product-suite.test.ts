@@ -10,7 +10,7 @@ import {
   closeOrder,
   validateLedger,
 } from '../server/parcel/ledger';
-import { optionsChain, sizeOrder } from '../server/parcel/catalog';
+import { indicative, optionsChain, sizeOrder } from '../server/parcel/catalog';
 import { templateTerms } from '../lib/parcel/templates';
 import { cashPayoff, orderGreeks, add, signedUnits } from '../lib/parcel/math';
 import { curveCash, curveCap } from '../lib/parcel/curves';
@@ -18,6 +18,7 @@ import { deliveryBounds } from '../lib/parcel/envelope';
 import { parseOrderTerms } from '../lib/parcel/validation';
 import { risk } from '../lib/parcel/risk';
 import { mark, clockRows, shortExpiries } from '../lib/parcel/market';
+import { setLiveMarket, type LiveMarket } from '../lib/parcel/market';
 import { termInterest, accruedInterest } from '../lib/parcel/funding';
 import type { OrderTerms, OptionPosition } from '../lib/parcel/types';
 const position = (terms: OrderTerms): OptionPosition => ({
@@ -287,6 +288,44 @@ void test('server sizing respects actual rounded premium budgets, sensitivity ta
         orderGreeks({ ...t, quantity: 0.1 }, mark('NVDA', b.date), b.date).theta,
       ),
   );
+});
+void test('live model liquidity prices every leg, penalises participation, and sizes against the displayed ask', () => {
+  const market: LiveMarket = {
+    spot: () => 142.62,
+    close: () => null,
+    expiries: () => ['2025-02-07'],
+  };
+  setLiveMarket(market);
+  try {
+    const b = initialVault();
+    // Make the model clock deterministic while retaining the live-liquidity
+    // branch. The synthetic market above explicitly lists this expiry.
+    b.date = '2025-01-24T12:00:00.000Z';
+    const one = templateTerms('call', '2025-02-07');
+    one.quantity = 1;
+    const hundred = { ...one, quantity: 100 };
+    const oneCrossing = indicative(one, b).premium - premium(one, b);
+    const hundredCrossing = indicative(hundred, b).premium - premium(hundred, b);
+
+    assert.ok(oneCrossing > 0);
+    assert.ok(
+      hundredCrossing / hundred.quantity > oneCrossing / one.quantity,
+      'per-share impact must increase once an order consumes displayed size',
+    );
+
+    const budget = 20;
+    const sized = sizeOrder(b, one, 'premium', budget);
+    assert.ok(sized.premium <= budget && sized.terms.quantity > 0);
+    if (sized.terms.quantity < 1000) {
+      const next = indicative(
+        { ...sized.terms, quantity: add(sized.terms.quantity, 0.000001) },
+        b,
+      );
+      assert.ok(next.premium > budget, 'one minimum increment overspends');
+    }
+  } finally {
+    setLiveMarket(null);
+  }
 });
 void test('500 nonlinear positions retain bounded risk calculation cost', () => {
   const b = funded();

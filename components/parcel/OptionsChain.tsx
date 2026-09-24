@@ -168,7 +168,7 @@ export function OptionsChain({
         <>
           <div className="od-chain-summary">
             <div>
-              <span>Model indication</span>
+              <span>Model bid / ask</span>
               <b>
                 {side === 'buy' ? 'Buy' : 'Write'} {kind} · {qty(catalog.quantity)} {catalog.symbol}
               </b>
@@ -181,7 +181,9 @@ export function OptionsChain({
             </div>
           </div>
           <p className="od-chain-guidance">
-            Select a premium to open the position simulator. Premiums are Black–Scholes model indications, not executable market quotes.
+            Select a premium to open the position simulator. Premiums include
+            modelled per-leg spread and size impact; they are not external
+            options-market quotes.
           </p>
           <div className="od-table-wrap od-ladder-scroll" ref={scroller}>
             <table className="od-table od-ladder">
@@ -190,10 +192,8 @@ export function OptionsChain({
                 <th>Strike</th>
                 <th className="num od-ladder-breakeven">Break-even</th>
                 <th className="num">Move to B/E</th>
-                <th className="num">
-                  {side === 'buy' ? 'At exercise' : 'Max reserve'}
-                </th>
-                <th className="num">Model premium</th>
+                <th className="num">Model bid</th>
+                <th className="num">Model ask</th>
               </tr>
             </thead>
             <tbody>
@@ -204,7 +204,10 @@ export function OptionsChain({
                 .sort((a, b) => b.strike - a.strike)
                 .map((row, i, all) => {
                   const c = row.contracts.find((c) => c.kind === kind)!;
-                  const per = c[side].premium / catalog.quantity;
+                  // Buy and write prices have opposite cash signs. Break-even
+                  // uses the absolute debit/credit in either direction: a
+                  // short call breaks even above its strike, never below it.
+                  const per = Math.abs(c[side].premium) / catalog.quantity;
                   const breakeven =
                     kind === 'call' ? row.strike + per : row.strike - per;
                   const away = (breakeven / spot - 1) * 100;

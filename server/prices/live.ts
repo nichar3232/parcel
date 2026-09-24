@@ -128,8 +128,33 @@ export class LiveMarketService implements LiveMarket {
 
   quote(symbol: string) {
     const m = this.engine.mark(symbol);
-    if (!m || (m.kind === 'equity' && m.source === 'simulated')) return null;
-    return { bid: m.bid, ask: m.ask };
+    // A stock transfer is the one sandbox action whose cash amount is based
+    // on a quoted two-sided market. Do not silently substitute Yahoo's delayed
+    // last, an oracle mark, an old NBBO, or the engine's maker spread. Those
+    // remain useful *display* marks and can price a clearly-labelled option
+    // model indication, but are not executable stock liquidity.
+    if (
+      !m ||
+      m.stale ||
+      m.kind !== 'equity' ||
+      m.source !== 'massive-nbbo' ||
+      m.quoteKind !== 'nbbo' ||
+      !Number.isFinite(m.bid) ||
+      !Number.isFinite(m.ask) ||
+      m.bid <= 0 ||
+      m.ask <= m.bid ||
+      !Number.isFinite(m.bidSize) ||
+      !Number.isFinite(m.askSize) ||
+      m.bidSize! <= 0 ||
+      m.askSize! <= 0
+    )
+      return null;
+    return {
+      bid: m.bid,
+      ask: m.ask,
+      bidSize: m.bidSize!,
+      askSize: m.askSize!,
+    };
   }
 
   close(symbol: string, date: string) {

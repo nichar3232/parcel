@@ -57,8 +57,13 @@ export interface LiveMarket {
   close(symbol: string, date: string): number | null;
   /** The expiry dates a contract can be written to, after `now`. */
   expiries(now: string): string[];
-  /** The current bid and ask, when a venue or the maker quotes one. */
-  quote?(symbol: string): { bid: number; ask: number } | null;
+  /**
+   * A fresh executable bid and ask. A delayed mark, oracle mark, or modelled
+   * spread must return null here rather than being passed off as a venue book.
+   */
+  quote?(
+    symbol: string,
+  ): { bid: number; ask: number; bidSize?: number; askSize?: number } | null;
 }
 let live: LiveMarket | null = null;
 export function setLiveMarket(market: LiveMarket | null) {

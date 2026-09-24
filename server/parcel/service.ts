@@ -371,13 +371,35 @@ export class VaultService {
       if (a.side !== 'buy' && a.side !== 'sell')
         throw Error('Choose buy or sell.');
       const on = parseSymbol(a.symbol),
-        // A buyer pays the ask and a seller receives the bid; the replay
-        // trades at its stored close.
-        side = liveMarket()?.quote?.(on),
-        price = side
-          ? Math.round((a.side === 'buy' ? side.ask : side.bid) * 1e6) / 1e6
-          : mark(on, book.date),
+        live = liveMarket(),
+        // A buyer pays the ask and a seller receives the bid. On a live
+        // session this is deliberately fail-closed: a delayed last, stale
+        // NBBO or modelled spread is never silently used as an execution
+        // price. The stored replay still trades at its committed close.
+        side = live?.quote?.(on),
         quantity = parseAmount(a.quantity),
+        price = live
+          ? (() => {
+              if (!side)
+                throw Error(
+                  `A fresh consolidated bid/ask for ${on} is required before a stock order can be simulated.`,
+                );
+              const displayed = a.side === 'buy' ? side.askSize : side.bidSize;
+              if (!Number.isFinite(displayed) || displayed! <= 0)
+                throw Error(
+                  `The fresh consolidated ${a.side === 'buy' ? 'ask' : 'bid'} for ${on} has no displayed size.`,
+                );
+              if (quantity > displayed! + 1e-9)
+                throw Error(
+                  `${Number(quantity.toFixed(6))} ${on} exceeds the current displayed ${a.side === 'buy' ? 'ask' : 'bid'} size of ${Number(displayed!.toFixed(6))}. Reduce the order or wait for depth to refresh.`,
+                );
+              return (
+                Math.round(
+                  (a.side === 'buy' ? side.ask : side.bid) * 1e6,
+                ) / 1e6
+              );
+            })()
+          : mark(on, book.date),
         cash = mul(quantity, price);
       if (a.side === 'buy') {
         transfer(book.vault, book.market, 'USDC', cash);

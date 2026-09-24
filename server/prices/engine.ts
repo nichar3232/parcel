@@ -55,6 +55,9 @@ export interface Mark {
   change: number;
   bid: number;
   ask: number;
+  /** Displayed shares at each side of an actual venue book, if available. */
+  bidSize: number | null;
+  askSize: number | null;
   /** Whether the displayed bid/ask is an NBBO, one venue's BBO, or a model. */
   quoteKind: 'nbbo' | 'venue-bbo' | 'modelled';
   spreadBps: number;
@@ -96,6 +99,8 @@ interface State extends Instrument {
   realSource: string | null;
   realBid: number | null;
   realAsk: number | null;
+  realBidSize: number | null;
+  realAskSize: number | null;
   realQuoteKind: Observation['quoteKind'] | null;
   supply: number;
   supplied: number;
@@ -150,6 +155,8 @@ export class MarkEngine {
       realSource: null,
       realBid: null,
       realAsk: null,
+      realBidSize: null,
+      realAskSize: null,
       realQuoteKind: null,
       // Depth is a dollar figure, so units come from dividing by the
       // mark. Seeding units directly meant a pool's size scaled with
@@ -303,6 +310,8 @@ export class MarkEngine {
       s.price = row.price;
       s.realBid = row.bid ?? null;
       s.realAsk = row.ask ?? null;
+      s.realBidSize = row.bidSize ?? null;
+      s.realAskSize = row.askSize ?? null;
       s.realQuoteKind = row.quoteKind ?? null;
       s.lastReal = row.at;
       s.realSource = row.source;
@@ -451,6 +460,8 @@ export class MarkEngine {
       change: s.open ? (s.price - s.open) / s.open : 0,
       bid: round(bid),
       ask: round(ask),
+      bidSize: hasVenueBook ? s.realBidSize : null,
+      askSize: hasVenueBook ? s.realAskSize : null,
       quoteKind,
       spreadBps: s.spreadBps,
       vol: s.vol,

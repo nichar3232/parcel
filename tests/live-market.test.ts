@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { setLiveMarket, type LiveMarket } from '../lib/parcel/market';
-import { closeInstant, fridayExpiries } from '../server/prices/live';
+import { closeInstant, fridayExpiries, LiveMarketService } from '../server/prices/live';
+import { MarkEngine } from '../server/prices/engine';
+import type { Source } from '../server/prices/sources';
+import { Store } from '../server/db/store';
+import { VaultService } from '../server/parcel/service';
 import {
   addOrder,
   initialVault,
@@ -95,5 +100,119 @@ void test('a live book prices at the mark and settles at the recorded expiry clo
     );
   } finally {
     setLiveMarket(null);
+  }
+});
+
+void test('live stock transfers only receive a fresh consolidated NBBO', () => {
+  const now = Date.now();
+  const nbbo: Source = {
+    name: 'massive-nbbo',
+    enabled: true,
+    async observe() {
+      return [];
+    },
+    subscribe(_instruments, receive) {
+      receive([
+        {
+          symbol: 'NVDA',
+          price: 142.62,
+          bid: 142.61,
+          ask: 142.63,
+          bidSize: 400,
+          askSize: 600,
+          at: now,
+          source: 'massive-nbbo',
+          quoteKind: 'nbbo',
+        },
+      ]);
+      return () => undefined;
+    },
+  };
+  const engine = new MarkEngine(now, [nbbo]);
+  const store = new Store(':memory:');
+  engine.start();
+  try {
+    const market = new LiveMarketService(engine, store);
+    assert.deepEqual(market.quote('NVDA'), {
+      bid: 142.61,
+      ask: 142.63,
+      bidSize: 400,
+      askSize: 600,
+    });
+  } finally {
+    engine.stop();
+    store.close();
+  }
+});
+
+void test('an oracle or delayed modelled mark cannot be used as a stock execution quote', () => {
+  const now = Date.now();
+  const oracle: Source = {
+    name: 'pyth',
+    enabled: true,
+    async observe() {
+      return [];
+    },
+    subscribe(_instruments, receive) {
+      receive([
+        {
+          symbol: 'NVDA',
+          price: 142.62,
+          at: now,
+          source: 'pyth',
+          quoteKind: 'oracle',
+        },
+      ]);
+      return () => undefined;
+    },
+  };
+  const engine = new MarkEngine(now, [oracle]);
+  const store = new Store(':memory:');
+  engine.start();
+  try {
+    const market = new LiveMarketService(engine, store);
+    assert.equal(market.spot('NVDA'), 142.62, 'the mark remains displayable');
+    assert.equal(market.quote('NVDA'), null, 'but it is not a two-sided venue book');
+  } finally {
+    engine.stop();
+    store.close();
+  }
+});
+
+void test('a live stock simulation cannot consume more than the displayed NBBO side', () => {
+  const market: LiveMarket = {
+    spot: () => 142.62,
+    close: () => null,
+    expiries: () => [],
+    quote: () => ({ bid: 142.61, ask: 142.63, bidSize: 0.25, askSize: 0.5 }),
+  };
+  const store = new Store(':memory:');
+  setLiveMarket(market);
+  try {
+    const session = store.createSession().session;
+    const vault = new VaultService(store);
+    let state = vault.snapshot(session);
+    state = vault.apply(session, randomUUID(), {
+      revision: state.revision,
+      action: { type: 'transfer', direction: 'deposit', asset: 'USDC', amount: 1000 },
+    });
+
+    assert.throws(
+      () =>
+        vault.plan(session, {
+          revision: state.revision,
+          action: { type: 'stock', side: 'buy', symbol: 'NVDA', quantity: 0.500001 },
+        }),
+      /exceeds the current displayed ask size/,
+    );
+
+    const plan = vault.plan(session, {
+      revision: state.revision,
+      action: { type: 'stock', side: 'buy', symbol: 'NVDA', quantity: 0.5 },
+    });
+    assert.equal(plan.book.vault.NVDA, 0.5);
+  } finally {
+    setLiveMarket(null);
+    store.close();
   }
 });
