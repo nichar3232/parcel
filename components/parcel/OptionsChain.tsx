@@ -4,8 +4,15 @@ import type { VaultController } from '@/hooks/parcel/use-vault';
 import type { ChainCatalog } from '@/lib/parcel/types';
 import type { OrderTerms } from '@/lib/parcel/types';
 import { offeredExpiries } from '@/lib/parcel/market';
+import { MODEL_LIQUIDITY } from '@/lib/parcel/spread';
 import type { MarkFeed } from '@/hooks/parcel/use-marks';
 import { Panel, qty, usd } from './shared';
+
+/** Modelled touch depth; never render NaN if the chain payload omits it. */
+const modelSize = (catalog: ChainCatalog) =>
+  Number.isFinite(catalog.displayedSize)
+    ? catalog.displayedSize
+    : MODEL_LIQUIDITY.displayedSize;
 export function OptionsChain({
   desk,
   feed,
@@ -251,7 +258,7 @@ export function OptionsChain({
               <li
                 title="Modelled share-equivalents displayed at the touch — not exchange options volume"
               >
-                Model size {qty(catalog.displayedSize)}
+                Model size {qty(modelSize(catalog))}
               </li>
             </ul>
             <p className="od-chain-guidance">
@@ -318,7 +325,7 @@ export function OptionsChain({
                           className="num od-ladder-size"
                           title="Modelled share-equivalents displayed at the touch — not exchange options volume"
                         >
-                          {qty(catalog.displayedSize)}
+                          {qty(modelSize(catalog))}
                         </td>
                         {(['sell', 'buy'] as const).map((at) => {
                           const price = Math.abs(c[at].premium);

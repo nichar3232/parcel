@@ -774,6 +774,21 @@
     border-color 0.15s,
     background 0.15s;
 }
+/* Native up/down steppers on type=number. Trade size keeps its own −/+. */
+.pc-desk input[type='number'],
+.od-dialog input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.pc-desk input[type='number']::-webkit-outer-spin-button,
+.pc-desk input[type='number']::-webkit-inner-spin-button,
+.od-dialog input[type='number']::-webkit-outer-spin-button,
+.od-dialog input[type='number']::-webkit-inner-spin-button {
+  display: none;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
 .pc-desk select,
 .od-dialog select {
   font-family: inherit;
@@ -894,30 +909,53 @@
   padding: 0;
 }
 /* The greeks read as one row, five columns, the way a stats block on a
-   contract page does: label over value, a rule between columns. */
+   contract page does: label over value, a centred rule between columns. */
 .od-greeks {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0 20px;
-  margin-top: 18px;
-  padding-top: 16px;
+  gap: 0;
+  margin-top: 20px;
+  padding: 18px 0 8px;
   border-top: 1px solid var(--pc-line-soft);
 }
+.od-greeks .od-stat {
+  gap: 6px;
+  padding: 0 16px;
+}
+.od-greeks .od-stat:first-child {
+  padding-left: 0;
+}
+.od-greeks .od-stat:last-child {
+  padding-right: 0;
+}
 .od-greeks .od-stat + .od-stat {
-  padding-left: 20px;
   border-left: 1px solid var(--pc-line-soft);
 }
 .od-greeks .od-stat strong {
   font-size: 17px;
+  line-height: 1.2;
+}
+.od-greeks .od-stat small {
+  line-height: 1.35;
 }
 @media (max-width: 760px) {
   .od-greeks {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: 16px;
+    row-gap: 18px;
   }
+  .od-greeks .od-stat,
+  .od-greeks .od-stat:first-child,
+  .od-greeks .od-stat:last-child,
   .od-greeks .od-stat + .od-stat {
-    padding-left: 0;
+    padding: 0;
     border-left: 0;
+  }
+  .od-greeks .od-stat:nth-child(odd) {
+    padding-right: 16px;
+  }
+  .od-greeks .od-stat:nth-child(even) {
+    padding-left: 16px;
+    border-left: 1px solid var(--pc-line-soft);
   }
 }
 
@@ -1555,9 +1593,9 @@
 .od-payoff {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   height: 100%;
-  padding: 16px 18px 14px;
+  padding: 14px 16px 12px;
   border-radius: var(--pc-r-lg);
   background: var(--pc-plot);
 }
@@ -1566,7 +1604,6 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 10px;
 }
 .od-payoff-head > div:first-child > span {
   display: block;
@@ -1609,16 +1646,14 @@
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px 24px;
-  margin-bottom: 8px;
+  gap: 8px 20px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--pc-line-soft);
 }
 .od-payoff-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 28px;
-  padding-bottom: 4px;
+  gap: 6px 24px;
 }
 .od-payoff-stats > div {
   display: flex;
@@ -1819,6 +1854,7 @@
   grid-template-columns: auto minmax(0, 1fr) 56px;
   align-items: center;
   gap: 12px;
+  padding-top: 2px;
 }
 .od-chart-slider > span {
   color: var(--pc-muted);
@@ -2006,8 +2042,7 @@
 /* The live value line. A box of its own so the scrub rule, the dot,
    and the axis labels can be HTML: the SVG stretches to the width,
    which would squash circles and warp text under preserveAspectRatio
-   none. Session structure is soft bands + open/close hairlines — no
-   floating PRE/MARKET copy. */
+   none. Clean uniform canvas with subtle open/close session hairlines. */
 .od-vline {
   position: relative;
   display: flex;
@@ -2032,24 +2067,6 @@
   width: 100%;
   height: 100%;
   overflow: visible;
-}
-.od-vline-band {
-  fill: color-mix(in srgb, var(--pc-text) 2.5%, transparent);
-  pointer-events: none;
-}
-.od-vline-band.regular {
-  fill: color-mix(in srgb, var(--pc-cyan) 3.5%, transparent);
-}
-.od-vline-band.pre,
-.od-vline-band.post {
-  fill: color-mix(in srgb, var(--pc-text) 1.6%, transparent);
-}
-.od-vline-band.active.regular {
-  fill: color-mix(in srgb, var(--pc-cyan) 5.5%, transparent);
-}
-.od-vline-band.active.pre,
-.od-vline-band.active.post {
-  fill: color-mix(in srgb, var(--pc-text) 3.2%, transparent);
 }
 .od-vline-grid line {
   stroke: var(--pc-line);
@@ -2124,8 +2141,8 @@
 .od-vline-session {
   stroke: var(--pc-line);
   stroke-width: 1;
-  stroke-dasharray: 1.5 3.5;
-  opacity: 0.65;
+  stroke-dasharray: 2 4;
+  opacity: 0.35;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
@@ -3112,7 +3129,7 @@
 }
 /* The surface is its own chapter under the chart and the greeks, so it
    carries a rule and a breath of air rather than running on from the
-   pricing basis line. */
+   metrics strip. */
 .od-insight > .od-panel + .od-panel {
   margin-top: 14px;
   padding-top: 26px;
@@ -3340,12 +3357,27 @@
   color: var(--pc-text);
 }
 .od-expiry-group button small {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   color: var(--pc-muted);
   font-family: var(--pc-mono);
   font-size: 10.5px;
 }
+.od-expiry-group button small em {
+  font-style: normal;
+  color: var(--pc-muted);
+}
+.od-expiry-group button small b {
+  color: var(--pc-body);
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
 .od-expiry-group button.selected small {
   color: var(--pc-cyan);
+}
+.od-expiry-group button.selected small b {
+  color: var(--pc-text);
 }
 
 /* Instrument selection follows the expiry control rather than browser-native
@@ -4017,22 +4049,20 @@
 .od-watchlist-labels,
 .od-watchlist-row {
   display: grid;
-  grid-template-columns: minmax(240px, 1.55fr) repeat(
-      4,
-      minmax(84px, 0.6fr)
-    ) 58px;
-  column-gap: 16px;
+  grid-template-columns:
+    minmax(220px, 1.7fr) repeat(3, minmax(72px, 0.55fr)) minmax(88px, 0.7fr)
+    52px;
+  column-gap: 20px;
 }
 .od-watchlist-tokenized .od-watchlist-labels,
 .od-watchlist-tokenized .od-watchlist-tokenized-row {
-  grid-template-columns: minmax(240px, 1.55fr) repeat(
-      3,
-      minmax(84px, 0.6fr)
-    ) 58px;
+  grid-template-columns: minmax(0, 1fr) 96px minmax(120px, 0.7fr) 52px;
+  column-gap: 24px;
 }
 .od-watchlist-labels {
-  align-items: center;
-  min-height: 36px;
+  align-items: end;
+  min-height: 34px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--pc-line-soft);
   color: var(--pc-muted);
   font-family: var(--pc-mono);
@@ -4045,7 +4075,7 @@
 }
 .od-watchlist-row {
   align-items: center;
-  min-height: 74px;
+  min-height: 70px;
   border-top: 1px solid var(--pc-line-soft);
   transition: background 0.15s ease;
 }
@@ -4109,6 +4139,19 @@
   font-weight: 550;
   white-space: nowrap;
 }
+.od-watchlist-status-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.od-watchlist-status-cell small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
 .od-watchlist-actions {
   display: flex;
   justify-content: flex-end;
@@ -4139,28 +4182,19 @@
   color: var(--pc-body);
 }
 @media (max-width: 900px) {
-  .od-watchlist-labels,
-  .od-watchlist-row {
-    grid-template-columns: minmax(220px, 1.4fr) repeat(
-        2,
-        minmax(80px, 0.6fr)
-      ) 58px;
+  .od-watchlist-private .od-watchlist-labels,
+  .od-watchlist-private .od-watchlist-private-row {
+    grid-template-columns: minmax(200px, 1.4fr) repeat(2, minmax(72px, 0.55fr)) 52px;
   }
-  .od-watchlist-labels span:nth-child(4),
-  .od-watchlist-labels span:nth-child(5),
-  .od-watchlist-row .od-watchlist-metric:nth-of-type(4),
-  .od-watchlist-row .od-watchlist-metric:nth-of-type(5) {
+  .od-watchlist-private .od-watchlist-labels span:nth-child(4),
+  .od-watchlist-private .od-watchlist-labels span:nth-child(5),
+  .od-watchlist-private-row .od-watchlist-metric:nth-of-type(4),
+  .od-watchlist-private-row .od-watchlist-metric:nth-of-type(5) {
     display: none;
   }
   .od-watchlist-tokenized .od-watchlist-labels,
   .od-watchlist-tokenized .od-watchlist-tokenized-row {
-    grid-template-columns: minmax(220px, 1.4fr) repeat(
-        2,
-        minmax(80px, 0.6fr)
-      ) 58px;
-  }
-  .od-watchlist-tokenized-row .od-watchlist-metric:nth-of-type(3) {
-    display: none;
+    grid-template-columns: minmax(0, 1fr) 88px minmax(110px, 0.7fr) 52px;
   }
 }
 @media (max-width: 620px) {
@@ -4230,12 +4264,15 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
-  .od-watchlist-row .od-watchlist-metric:nth-of-type(4),
-  .od-watchlist-row .od-watchlist-metric:nth-of-type(5) {
+  .od-watchlist-row .od-watchlist-metric:nth-of-type(3),
+  .od-watchlist-row .od-watchlist-metric:nth-of-type(4) {
     display: flex;
   }
-  .od-watchlist-tokenized-row .od-watchlist-metric:nth-of-type(3) {
-    display: none !important;
+  .od-watchlist-status-cell {
+    align-items: stretch;
+  }
+  .od-watchlist-status-cell small {
+    text-align: right;
   }
   .od-watchlist-actions {
     grid-column: 1 / -1;
@@ -4982,13 +5019,6 @@
   font-size: 16px;
   font-weight: 500;
   text-align: center;
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
-.od-stepper input::-webkit-outer-spin-button,
-.od-stepper input::-webkit-inner-spin-button {
-  margin: 0;
-  -webkit-appearance: none;
 }
 .od-stepper > span {
   padding-right: 6px;
@@ -5527,21 +5557,21 @@
 
 .od-lm-head {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
-  padding-bottom: 18px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 16px;
 }
 .od-lm-head h2 {
-  margin-bottom: 12px;
+  margin: 0;
   font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.025em;
 }
 .od-lm-head dl {
   display: flex;
-  gap: 32px;
+  flex-wrap: wrap;
+  gap: 12px 28px;
 }
 .od-lm-head dt {
   color: var(--pc-muted);
@@ -5557,29 +5587,33 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  width: min(340px, 100%);
-  height: 38px;
-  padding: 0 12px;
+  width: min(200px, 100%);
+  height: 30px;
+  padding: 0 10px;
   border: 1px solid var(--pc-line);
   border-radius: var(--pc-r-sm);
-  background: var(--pc-surface-2);
+  background: transparent;
   color: var(--pc-muted);
 }
 .pc-desk .od-lm-search input {
-  height: 36px;
+  min-width: 0;
+  height: 28px;
   border: 0;
   padding: 0;
   background: none;
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 12.5px;
+}
+.pc-desk .od-lm-search input::placeholder {
+  color: var(--pc-muted);
 }
 .od-lm-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px 20px;
   flex-wrap: wrap;
-  padding: 4px 0 14px;
+  padding: 2px 0 14px;
   border-bottom: 1px solid var(--pc-line-soft);
   margin-bottom: 4px;
 }
@@ -5618,7 +5652,7 @@
 .od-lm-toolbar-end {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
   margin-left: auto;
 }
@@ -5653,23 +5687,56 @@
 .od-lm-health {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  font-size: 12.5px;
+  gap: 12px;
+  min-height: 30px;
+  padding-left: 12px;
+  border-left: 1px solid var(--pc-line-soft);
   color: var(--pc-muted);
+  font-size: 12px;
 }
-.od-lm-health b {
-  font-size: 16px;
+.od-lm-health-main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+.od-lm-health-main b {
+  font-size: 15px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--pc-text);
 }
-.od-lm-health.safe b {
+.od-lm-health-side {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.od-lm-health.safe .od-lm-health-main b {
   color: var(--pc-up);
 }
-.od-lm-health.watch b {
+.od-lm-health.watch .od-lm-health-main b {
   color: var(--pc-warn, #d4a017);
 }
-.od-lm-health.risk b {
+.od-lm-health.risk .od-lm-health-main b {
   color: var(--pc-down);
+}
+@media (max-width: 720px) {
+  .od-lm-toolbar-end {
+    width: 100%;
+    margin-left: 0;
+  }
+  .od-lm-search {
+    flex: 1 1 140px;
+    width: auto;
+  }
+  .od-lm-health {
+    flex: 1 1 100%;
+    padding-left: 0;
+    border-left: 0;
+    padding-top: 2px;
+  }
 }
 .od-lm-held {
   font-style: normal;
@@ -5896,4 +5963,116 @@
   margin-top: -8px;
   color: var(--pc-muted);
   font-size: 12px;
+}
+
+/* ---------- Lending ticket (scoped) ----------
+   Keep term pricing and the expiry menu inside the lending column so a
+   long tenor list does not collide with the pool / read panels. */
+.od-borrow .od-lend-ticket .od-panel-body {
+  gap: 16px;
+}
+.od-borrow .od-lend-ticket .od-expiry-picker {
+  z-index: 8;
+  width: 100%;
+}
+.od-borrow .od-lend-ticket .od-expiry-trigger {
+  width: 100%;
+  height: auto;
+  min-height: 42px;
+  padding: 8px 11px;
+}
+.od-borrow .od-lend-ticket .od-expiry-menu {
+  left: 0;
+  right: 0;
+  width: auto;
+  max-width: 100%;
+}
+.od-borrow .od-lend-ticket .od-expiry-menu-scroll {
+  max-height: min(260px, 38vh);
+}
+.od-borrow .od-lend-rate {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.od-borrow .od-lend-rate-label {
+  color: var(--pc-body);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.od-borrow .od-lend-rate-note {
+  margin: 0;
+  color: var(--pc-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.od-borrow .od-lend-open {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--pc-line-soft);
+  border-radius: var(--pc-r-sm);
+  background: color-mix(in srgb, var(--pc-surface-2) 88%, transparent);
+}
+.od-borrow .od-lend-open > span {
+  grid-column: 1;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-borrow .od-lend-open > strong {
+  grid-column: 2;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.od-borrow .od-lend-open > p {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  color: var(--pc-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.od-borrow .od-lend-price {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 14px 18px;
+  padding: 12px 0 2px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-borrow .od-lend-price-main,
+.od-borrow .od-lend-price-side {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.od-borrow .od-lend-price-main > span,
+.od-borrow .od-lend-price-side > span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-borrow .od-lend-price-main > strong {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.od-borrow .od-lend-price-side > b {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.od-borrow .od-lend-price small {
+  color: var(--pc-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
 }

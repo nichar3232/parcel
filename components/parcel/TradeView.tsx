@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, LockKeyhole, Minus, Plus } from 'lucide-react';
 import type { VaultController } from '@/hooks/parcel/use-vault';
 import type { MarketUnderlying, OrderTerms, Quote } from '@/lib/parcel/types';
 import { deliveryBounds } from '@/lib/parcel/envelope';
-import { bounded, DEFAULT_BLACK_SCHOLES, orderGreeks } from '@/lib/parcel/math';
+import { bounded, orderGreeks } from '@/lib/parcel/math';
 import { parseOrderTerms } from '@/lib/parcel/validation';
 import {
   CATEGORIES,
@@ -78,7 +78,6 @@ export function TradeView({
   // moves with the market; the snapshot's price until it does.
   const price =
     markOf(state, feed, symbol)?.price ?? under?.price ?? state.market.price;
-  const referenceMark = markOf(state, feed, symbol);
   // Hoisted: a memo keyed on `state.book.date` cannot be preserved
   // through the compiler, because it cannot prove the chain is stable.
   const session = state.book.date;
@@ -187,21 +186,6 @@ export function TradeView({
   const crossing = invalid ? 0 : spreadCost(effective, reference, session, vol);
   const market = quoteAround(g.price, crossing);
   const trades = g.price + crossing;
-  const referenceBasis = !referenceMark
-    ? 'Snapshot reference'
-    : referenceMark.stale
-      ? `Stale ${referenceMark.source} mark`
-      : referenceMark.source === 'massive-nbbo'
-        ? 'Fresh consolidated NBBO midpoint'
-        : referenceMark.source === 'coinbase'
-          ? 'Fresh Coinbase venue midpoint'
-          : referenceMark.source === 'pyth'
-            ? 'Fresh Pyth oracle mark'
-            : referenceMark.source === 'prestocks'
-              ? 'PreStocks publisher mark'
-              : referenceMark.source === 'yahoo'
-                ? 'Delayed Yahoo reference'
-                : 'Simulated reference mark';
 
   const includedStock =
     !invalid &&
@@ -418,69 +402,35 @@ export function TradeView({
                   someone who already knows what they are looking at.
                   Under the chart in Basic they are five more numbers
                   between the reader and the one decision on the page,
-                  so the whole row, and the pricing basis under it,
-                  belong to Advanced. */}
+                  so the strip belongs to Advanced. */}
               {advanced && (
-                <>
-                  <div className="od-greeks">
-                    <Stat
-                      label="Per +1¢ move"
-                      value={usd((g.delta + includedStock) * 0.01, 4)}
-                      detail="Local estimate"
-                    />
-                    <Stat
-                      label={includedStock ? 'Net delta' : 'Delta'}
-                      value={(g.delta + includedStock).toFixed(3)}
-                      detail="Shares of exposure"
-                    />
-                    <Stat
-                      label="Theta per day"
-                      value={usd(g.theta, 4)}
-                      detail="Position-level decay"
-                    />
-                    <Stat
-                      label="Vega per vol point"
-                      value={usd(g.vega, 4)}
-                      detail="Modelled vol sensitivity"
-                    />
-                    <Stat
-                      label="Gamma"
-                      value={g.gamma.toFixed(4)}
-                      detail="Delta change per $1"
-                    />
-                  </div>
-                  <div className="od-panel-foot">
-                    <span>Pricing basis</span>
-                    <span>
-                      {effective.reference === 'dividend'
-                        ? 'Committed dividend event'
-                        : state.market.clock === 'live'
-                          ? referenceBasis
-                          : session.includes('T')
-                            ? 'Daily close carried forward'
-                            : 'Stored historical close'}
-                      {' — Black-Scholes at '}
-                      {(vol * 100).toFixed(0)}% vol, reference{' '}
-                      {usd(
-                        reference,
-                        effective.reference === 'dividend' ? 4 : 2,
-                      )}
-                      {effective.reference === 'stock' && (
-                        <>
-                          {', '}
-                          {(DEFAULT_BLACK_SCHOLES.riskFreeRate * 100).toFixed(
-                            2,
-                          )}
-                          %{' rate, '}
-                          {(DEFAULT_BLACK_SCHOLES.dividendYield * 100).toFixed(
-                            2,
-                          )}
-                          %{' yield'}
-                        </>
-                      )}
-                    </span>
-                  </div>
-                </>
+                <div className="od-greeks">
+                  <Stat
+                    label="Per +1¢ move"
+                    value={usd((g.delta + includedStock) * 0.01, 4)}
+                    detail="Local estimate"
+                  />
+                  <Stat
+                    label={includedStock ? 'Net delta' : 'Delta'}
+                    value={(g.delta + includedStock).toFixed(3)}
+                    detail="Shares of exposure"
+                  />
+                  <Stat
+                    label="Theta per day"
+                    value={usd(g.theta, 4)}
+                    detail="Position-level decay"
+                  />
+                  <Stat
+                    label="Vega per vol point"
+                    value={usd(g.vega, 4)}
+                    detail="Modelled vol sensitivity"
+                  />
+                  <Stat
+                    label="Gamma"
+                    value={g.gamma.toFixed(4)}
+                    detail="Delta change per $1"
+                  />
+                </div>
               )}
             </Panel>
 

@@ -615,36 +615,28 @@ function Markets({
     onOpen('borrow', pledge);
   };
 
+  const healthLabel = Number.isFinite(position.factor)
+    ? `${position.factor.toFixed(2)}×`
+    : '∞';
+
   return (
     <section className="od-lm" aria-labelledby="lm-title">
       <div className="od-lm-head">
-        <div>
-          <h2 id="lm-title">Lending markets</h2>
-          <dl>
-            <div>
-              <dt>Total market size</dt>
-              <dd>{compactUsd(size)}</dd>
-            </div>
-            <div>
-              <dt>Total available</dt>
-              <dd>{compactUsd(Math.max(0, size - out))}</dd>
-            </div>
-            <div>
-              <dt>Total borrowed</dt>
-              <dd>{compactUsd(out)}</dd>
-            </div>
-          </dl>
-        </div>
-        <label className="od-lm-search">
-          <Search size={15} />
-          <input
-            type="search"
-            placeholder="Search asset name or symbol"
-            aria-label="Search lending markets"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </label>
+        <h2 id="lm-title">Lending markets</h2>
+        <dl>
+          <div>
+            <dt>Market size</dt>
+            <dd>{compactUsd(size)}</dd>
+          </div>
+          <div>
+            <dt>Available</dt>
+            <dd>{compactUsd(Math.max(0, size - out))}</dd>
+          </div>
+          <div>
+            <dt>Borrowed</dt>
+            <dd>{compactUsd(out)}</dd>
+          </div>
+        </dl>
       </div>
 
       <div className="od-lm-toolbar">
@@ -685,19 +677,29 @@ function Markets({
               ))}
             </select>
           </label>
+          <label className="od-lm-search">
+            <Search size={14} aria-hidden />
+            <input
+              type="search"
+              placeholder="Name or symbol"
+              aria-label="Search lending markets"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </label>
           <div
             className={`od-lm-health ${tone}`}
-            title={reserveOf('NVDA')?.note}
+            title="Health factor"
           >
-            <span>Cross margin</span>
-            <b>
-              {Number.isFinite(position.factor)
-                ? position.factor.toFixed(2)
-                : '∞'}
-            </b>
-            <small>
-              {usd(position.available)} free · {usd(position.owed)} owed
-            </small>
+            <div className="od-lm-health-main">
+              <span>Health</span>
+              <b>{healthLabel}</b>
+            </div>
+            <div className="od-lm-health-side">
+              <span>{usd(position.available)} free</span>
+              <span aria-hidden="true">·</span>
+              <span>{usd(position.owed)} owed</span>
+            </div>
           </div>
         </div>
       </div>
@@ -721,22 +723,7 @@ function Markets({
         {category === 'xstocks' && !query.trim() && xstocks.length > 0 && (
           <p className="od-lm-empty">
             Showing {listedXstocks.length.toLocaleString()} of{' '}
-            {xstocks.length.toLocaleString()} xStocks
-            {sort === 'positions'
-              ? ' — positions and liquid names first.'
-              : ` — sorted by ${
-                  MARKET_SORTS.find((o) => o.id === sort)?.label.toLowerCase() ??
-                  'name'
-                }.`}{' '}
-            Search by name or ticker for the rest.
-          </p>
-        )}
-        {category === 'all' && !query.trim() && (
-          <p className="od-lm-empty">
-            Sorted by{' '}
-            {MARKET_SORTS.find((o) => o.id === sort)?.label.toLowerCase() ??
-              'your positions'}
-            . Open xStocks or search to browse the wider catalog.
+            {xstocks.length.toLocaleString()} — search for the rest.
           </p>
         )}
         {pools.map((p) => (
@@ -986,10 +973,23 @@ function Borrow({
     );
   if (noBook) valid = false;
 
-  const interest = valid ? termInterest(q, price, s.book.date, end) : 0;
+  // Stock loans lock 3.5% in the ledger (termInterest embeds the same rate).
+  const stockLoanApr = 0.035;
+  const interest =
+    valid && (mode === 'lend' || mode === 'short')
+      ? termInterest(q, price, s.book.date, end)
+      : 0;
+  const interestEach =
+    valid && (mode === 'lend' || mode === 'short')
+      ? termInterest(1, price, s.book.date, end)
+      : 0;
   const protection =
     valid && mode === 'short'
       ? protectionPremium(q, price, k, s.book.date, end, volatility)
+      : 0;
+  const protectionEach =
+    valid && mode === 'short'
+      ? protectionPremium(1, price, k, s.book.date, end, volatility)
       : 0;
 
   // What this borrow would do to the health factor, before it is taken.
@@ -1017,20 +1017,58 @@ function Borrow({
    * bring, so it is shown as the first day's run.
    */
   const apr = reserve ? rates(utilisation, reserve).borrow : 0;
+  const dayAhead = new Date(Date.parse(s.book.date) + 86_400_000)
+    .toISOString()
+    .slice(0, 10);
   const loan = (() => {
     if (mode !== 'borrow' || !valid || !reserve) return null;
     const termCost =
       rateKind === 'fixed' ? borrowInterest(b, apr, s.book.date, end) : 0;
+    const dayCost = borrowInterest(b, apr, s.book.date, dayAhead);
     const owed = position.owed + b;
     return {
       termCost,
+      dayCost,
+      perShare: q > 0 ? (rateKind === 'fixed' ? termCost : dayCost) / q : 0,
       ltv: q > 0 ? b / (q * price) : 0,
       factor: owed > 0 ? position.weighted / owed : Infinity,
       liquidation: pledgeLiquidationPrice(b + termCost, q, reserve),
     };
   })();
   const aprLabel = `${(apr * 100).toFixed(2)}% APR`;
+  const stockAprLabel = `${(stockLoanApr * 100).toFixed(2)}% APR`;
 
+  /** Ticket price strip: ledger figures, always per share and total. */
+  const ticketPrice =
+    mode === 'lend'
+      ? {
+          label: 'Interest you earn',
+          each: usd(interestEach, 4),
+          total: usd(interest, 4),
+          note: `${stockAprLabel} · prepaid at signing · until ${expiryLabel(end)}`,
+        }
+      : mode === 'short'
+        ? {
+            label: 'Protection + max interest',
+            each: usd(add(protectionEach, interestEach), 4),
+            total: usd(add(protection, interest), 4),
+            note: `Call ${usd(k, 2)} · interest ${usd(interestEach, 4)}/sh · protection ${usd(protectionEach, 4)}/sh`,
+          }
+        : mode === 'borrow' && loan
+          ? rateKind === 'fixed'
+            ? {
+                label: 'Interest locked',
+                each: usd(loan.perShare, 4),
+                total: usd(loan.termCost, 4),
+                note: `${aprLabel} fixed · per pledged share · until ${expiryLabel(end)}`,
+              }
+            : {
+                label: 'Interest today',
+                each: usd(loan.perShare, 4),
+                total: usd(loan.dayCost, 4),
+                note: `${aprLabel} variable · per pledged share · one session at today's pool rate`,
+              }
+          : null;
   const openReview = () =>
     setReview({
       action:
@@ -1073,16 +1111,21 @@ function Borrow({
                 'Rate',
                 rateKind === 'fixed'
                   ? `${aprLabel} fixed until ${expiryLabel(end)}`
-                  : `${aprLabel} variable`,
+                  : `${aprLabel} variable · open-ended`,
               ],
               ...(rateKind === 'fixed'
                 ? [
-                    ['Interest', usd(loan?.termCost ?? 0, 4)] as [
-                      string,
-                      string,
-                    ],
+                    [
+                      'Interest',
+                      `${usd(loan?.termCost ?? 0, 4)} · ${usd(loan?.perShare ?? 0, 4)}/share`,
+                    ] as [string, string],
                   ]
-                : []),
+                : [
+                    [
+                      'Interest today',
+                      `${usd(loan?.dayCost ?? 0, 4)} · ${usd(loan?.perShare ?? 0, 4)}/share`,
+                    ] as [string, string],
+                  ]),
               [
                 'Pledge sold below',
                 loan?.liquidation != null ? usd(loan.liquidation) : '—',
@@ -1095,11 +1138,15 @@ function Borrow({
                   side === 'buy' ? 'Buy owned stock' : 'Sell owned stock',
                 ],
                 ['Settlement', 'Immediate stock and USDC exchange'],
+                ['Fill', `${usd(fill)} a share`],
               ]
             : [
                 ['Term ends', expiryLabel(end)],
-                ['Borrow rate', '3.50% APR'],
-                ['Full-term interest', usd(interest, 6)],
+                ['Borrow rate', stockAprLabel],
+                [
+                  'Full-term interest',
+                  `${usd(interest, 6)} · ${usd(interestEach, 4)}/share`,
+                ],
                 ['Stock sale proceeds', usd(mul(q, price), 6)],
                 [
                   'Protective call',
@@ -1176,18 +1223,15 @@ function Borrow({
           caption:
             rateKind === 'fixed'
               ? `Locked at ${aprLabel} until ${expiryLabel(end)}. ${qty(q)} ${symbol} stays in your vault, pledged.`
-              : `${aprLabel} today, repriced each session as the ${symbol} pool moves. ${qty(q)} ${symbol} stays in your vault, pledged.`,
+              : `Variable at ${aprLabel} today — open-ended, repriced each session as the ${symbol} pool moves. ${qty(q)} ${symbol} stays pledged.`,
           figures: [
             {
-              label: rateKind === 'fixed' ? 'Interest over term' : 'Rate',
-              value:
-                rateKind === 'fixed'
-                  ? usd(loan?.termCost ?? 0, 4)
-                  : `${(apr * 100).toFixed(2)}%`,
+              label: rateKind === 'fixed' ? 'Interest / share' : 'Today / share',
+              value: usd(loan?.perShare ?? 0, 4),
               detail:
                 rateKind === 'fixed'
-                  ? aprLabel
-                  : `${usd(borrowInterest(b || 0, apr, s.book.date, new Date(Date.parse(s.book.date) + 86_400_000).toISOString().slice(0, 10)), 4)} a day`,
+                  ? `${usd(loan?.termCost ?? 0, 4)} over term · ${aprLabel}`
+                  : `${usd(loan?.dayCost ?? 0, 4)} this session · ${aprLabel}`,
             },
             {
               label: 'Loan-to-value',
@@ -1213,17 +1257,20 @@ function Borrow({
             tone: 'down' as const,
             caption: `Capped at ${usd(k)} a share, protection and interest included.`,
             figures: [
-              { label: 'You receive now', value: usd(q * price) },
-              { label: 'Protection', value: usd(protection) },
               {
-                label: 'Liquidates at',
-                value:
-                  projected?.liquidation != null
-                    ? usd(projected.liquidation)
-                    : '—',
-                detail: projected
-                  ? `Health ${Number.isFinite(projected.factor) ? projected.factor.toFixed(2) : '∞'}`
-                  : undefined,
+                label: 'You receive / share',
+                value: usd(price),
+                detail: `${usd(mul(q, price))} total`,
+              },
+              {
+                label: 'Protection / share',
+                value: usd(protectionEach, 4),
+                detail: `${usd(protection, 4)} total`,
+              },
+              {
+                label: 'Interest / share',
+                value: usd(interestEach, 4),
+                detail: `${usd(interest, 4)} max · ${stockAprLabel}`,
               },
             ],
           }
@@ -1236,10 +1283,15 @@ function Borrow({
               caption: `For lending ${qty(q)} ${symbol} until ${expiryLabel(end)}.`,
               figures: [
                 {
-                  label: 'Borrower posts',
-                  value: usd(q * price * 1.5),
+                  label: 'Interest / share',
+                  value: usd(interestEach, 4),
+                  detail: `${usd(interest, 4)} total · ${stockAprLabel}`,
                 },
-                { label: 'Rate', value: '3.50% APR' },
+                {
+                  label: 'Borrower posts / share',
+                  value: usd(price * 1.5),
+                  detail: `${usd(q * price * 1.5)} collateral`,
+                },
                 { label: 'Term ends', value: expiryLabel(end) },
               ],
             }
@@ -1338,7 +1390,7 @@ function Borrow({
         )}
       </div>
 
-      <Panel className="od-ticket">
+      <Panel className="od-ticket od-lend-ticket">
         <PanelHead title="Your terms" />
         <div className="od-panel-body">
           <Segmented
@@ -1381,45 +1433,57 @@ function Borrow({
           </Field>
 
           {mode === 'borrow' && (
-            <>
-              <Field
-                label="Borrow"
-                hint={
-                  reserve
-                    ? `Up to ${usd(limit)} USDC · ${usd(position.available)} free`
-                    : undefined
-                }
-              >
-                <input
-                  aria-label="Borrow amount"
-                  type="number"
-                  min="0.000001"
-                  max={limit || undefined}
-                  step="any"
-                  value={amount_}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-              </Field>
-              <Field label="Rate">
-                <Segmented
-                  label="Rate"
-                  value={rateKind}
-                  onChange={setRateKind}
-                  options={[
-                    {
-                      id: 'variable',
-                      label: 'Variable',
-                      hint: 'Repriced each session off the pool',
-                    },
-                    {
-                      id: 'fixed',
-                      label: 'Fixed',
-                      hint: 'Locked for the term',
-                    },
-                  ]}
-                />
-              </Field>
-            </>
+            <Field
+              label="Borrow"
+              hint={
+                reserve
+                  ? `Up to ${usd(limit)} USDC · ${usd(position.available)} free`
+                  : undefined
+              }
+            >
+              <input
+                aria-label="Borrow amount"
+                type="number"
+                min="0.000001"
+                max={limit || undefined}
+                step="any"
+                value={amount_}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </Field>
+          )}
+
+          {mode === 'borrow' && (
+            <div className="od-lend-rate">
+              <div className="od-field-top">
+                <span className="od-lend-rate-label">Rate</span>
+                <span className="od-field-hint">
+                  {rateKind === 'variable' ? 'Open-ended' : 'Locked term'}
+                </span>
+              </div>
+              <Segmented
+                label="Rate"
+                value={rateKind}
+                onChange={setRateKind}
+                options={[
+                  {
+                    id: 'variable',
+                    label: 'Variable',
+                    hint: 'Open-ended · repriced each session off the pool',
+                  },
+                  {
+                    id: 'fixed',
+                    label: 'Fixed',
+                    hint: 'Locked APR until a chosen term end',
+                  },
+                ]}
+              />
+              <p className="od-lend-rate-note">
+                {rateKind === 'variable'
+                  ? `${aprLabel} today. No fixed expiry — repay anytime; the rate moves with the ${symbol} pool.`
+                  : `${aprLabel} locked until the term ends. Interest is known at signing.`}
+              </p>
+            </div>
           )}
 
           {mode === 'stock' ? (
@@ -1434,17 +1498,75 @@ function Borrow({
                 ]}
               />
             </Field>
-          ) : !termed ? null : (
-            <Field label="Term ends">
+          ) : mode === 'borrow' && rateKind === 'variable' ? (
+            <output className="od-lend-open">
+              <span>Term</span>
+              <strong>Open-ended</strong>
+              <p>Variable rate · no fixed expiry · repay when you choose</p>
+            </output>
+          ) : termed ? (
+            <Field
+              label={
+                mode === 'borrow'
+                  ? 'Fixed until'
+                  : mode === 'short'
+                    ? 'Short covers through'
+                    : 'Term ends'
+              }
+              hint={
+                mode === 'lend'
+                  ? stockAprLabel
+                  : mode === 'short'
+                    ? 'Protection scales with tenor'
+                    : aprLabel
+              }
+            >
               <ExpiryPicker
-                label="Term ends"
+                label={
+                  mode === 'borrow'
+                    ? 'Fixed until'
+                    : mode === 'short'
+                      ? 'Covers through'
+                      : 'Term ends'
+                }
                 dates={future}
                 value={end}
                 asOf={s.book.date}
                 onChange={setExpiry}
+                headLabel={
+                  mode === 'borrow'
+                    ? 'Fixed terms'
+                    : mode === 'short'
+                      ? 'Short tenors'
+                      : 'Loan terms'
+                }
+                nearLabel="Near term"
+                laterLabel="Later dates"
+                detailOf={(date) => {
+                  if (mode === 'lend')
+                    return usd(termInterest(1, price, s.book.date, date), 4);
+                  if (mode === 'short') {
+                    const i = termInterest(1, price, s.book.date, date);
+                    const p = protectionPremium(
+                      1,
+                      price,
+                      k,
+                      s.book.date,
+                      date,
+                      volatility,
+                    );
+                    return usd(add(i, p), 4);
+                  }
+                  if (mode === 'borrow' && b > 0 && q > 0)
+                    return usd(
+                      borrowInterest(b, apr, s.book.date, date) / q,
+                      4,
+                    );
+                  return undefined;
+                }}
               />
             </Field>
-          )}
+          ) : null}
 
           {mode === 'short' && (
             <Field
@@ -1460,6 +1582,21 @@ function Borrow({
                 onChange={(e) => setCap(e.target.value)}
               />
             </Field>
+          )}
+
+          {ticketPrice && (
+            <div className="od-lend-price" aria-live="polite">
+              <div className="od-lend-price-main">
+                <span>{ticketPrice.label}</span>
+                <strong>{ticketPrice.each}</strong>
+                <small>per share</small>
+              </div>
+              <div className="od-lend-price-side">
+                <span>Total · {qty(q)} {symbol}</span>
+                <b>{ticketPrice.total}</b>
+                <small>{ticketPrice.note}</small>
+              </div>
+            </div>
           )}
 
           <Button

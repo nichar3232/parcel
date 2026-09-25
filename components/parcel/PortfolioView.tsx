@@ -438,6 +438,8 @@ export function PortfolioView({
           liveSpots={liveSpots}
           onTransfer={onTransfer}
         />
+
+        <Collateral desk={desk} />
       </div>
     </div>
   );

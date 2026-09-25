@@ -85,33 +85,51 @@ function placeTopLabels(items: Omit<TopLabel, 'lift'>[]): TopLabel[] {
   return kept;
 }
 
-/** Prefer spot / breakeven / strike; fill gaps with sparse nice prices. */
+/** Prefer strike / breakeven; fill gaps with sparse nice prices.
+ *  `avoidX` keeps filler ticks clear of top markers (Now). Landmarks
+ *  still compete later against top-label widths. `focus` densifies the
+ *  one-viewport window so a wide scrollable domain isn't only $200/$400. */
 function axisTickPrices(
   keys: number[],
   lo: number,
   hi: number,
   x: (v: number) => number,
   maxTicks = 6,
+  avoidX: number[] = [],
+  focus?: { lo: number; hi: number },
 ): number[] {
   const span = hi - lo || 1;
   const inDomain = (p: number) =>
     p >= lo - span * 0.001 && p <= hi + span * 0.001;
+  const clearOfAvoid = (p: number) =>
+    avoidX.every((ax) => Math.abs(x(p) - ax) >= LABEL_GAP * 0.7);
   const seen = new Set<number>();
-  const ranked: { p: number; rank: number }[] = [];
+  const ranked: { p: number; rank: number; soft?: boolean }[] = [];
   for (const [i, p] of keys.entries()) {
     if (!inDomain(p) || seen.has(p)) continue;
     seen.add(p);
-    ranked.push({ p, rank: i });
+    // Soft avoid: landmarks may sit near Now; the top-label pass drops
+    // the ones that truly collide with the "Now …" text.
+    ranked.push({ p, rank: i, soft: true });
   }
-  for (const [i, p] of niceTicks(lo, hi, 4).entries()) {
+  if (focus) {
+    for (const [i, p] of niceTicks(focus.lo, focus.hi, 5).entries()) {
+      if (!inDomain(p) || seen.has(p)) continue;
+      seen.add(p);
+      ranked.push({ p, rank: 40 + i });
+    }
+  }
+  for (const [i, p] of niceTicks(lo, hi, 5).entries()) {
     if (!inDomain(p) || seen.has(p)) continue;
     seen.add(p);
     ranked.push({ p, rank: 100 + i });
   }
 
   const picked: number[] = [];
-  for (const { p } of ranked.sort((a, b) => a.rank - b.rank)) {
-    // Keep axis sparse — landmarks only when they don't crowd.
+  for (const { p, soft } of ranked.sort((a, b) => a.rank - b.rank)) {
+    // Keep axis sparse — don't crowd Now with filler prices, and don't
+    // stack ticks on top of each other across the scrollable canvas.
+    if (!soft && !clearOfAvoid(p)) continue;
     if (picked.some((q) => Math.abs(x(q) - x(p)) < LABEL_GAP * 0.85)) continue;
     picked.push(p);
     if (picked.length >= maxTicks) break;
@@ -270,22 +288,46 @@ export function PayoffChart({
           })
         : null;
 
-    const finite = rows
+    // Y-scale from one viewport of price around spot — not the full
+    // scrollable domain. Unlimited wings otherwise push max/min to the
+    // far edge and crush the near-spot shape into the floor.
+    const focusHalf = focusSpan / 2;
+    const yPriceLo = Math.max(lo, spot - focusHalf);
+    const yPriceHi = Math.min(hi, spot + focusHalf);
+    const inYWindow = (price: number) =>
+      price >= yPriceLo - EPS && price <= yPriceHi + EPS;
+    const focusPnls = rows
+      .filter((r) => inYWindow(r.price))
       .map((r) => r.pnl)
-      .concat((now ?? []).map((r) => r.pnl))
+      .concat(
+        (now ?? []).filter((r) => inYWindow(r.price)).map((r) => r.pnl),
+      )
       .filter((v) => Number.isFinite(v));
-    // Cap levels stay in the vertical scale even when a wing is unlimited,
-    // so the flat "max profit" shelf remains readable while you scroll.
-    const capHi = Number.isFinite(best) ? best : Math.max(0, ...finite);
-    const capLo = Number.isFinite(worst) ? worst : Math.min(0, ...finite);
-    let min = Math.min(0, capLo, ...finite);
-    let max = Math.max(0, capHi, ...finite);
-    // Leave headroom so an unlimited wing can keep climbing off-screen.
-    if (unlimitedProfit) max = Math.max(max, capHi + Math.abs(capHi || 1) * 0.35);
-    if (unlimitedLoss) min = Math.min(min, capLo - Math.abs(capLo || 1) * 0.35);
-    const room = (max - min || Math.abs(premium) || 1) * 0.08;
+    // Finite Cap / Floor shelves stay in scale so the dashed rules remain
+    // readable; open wings only get modest edge headroom.
+    const landmarks: number[] = [0, pnlAt(spot)];
+    if (Number.isFinite(best)) landmarks.push(best as number);
+    if (Number.isFinite(worst)) landmarks.push(worst as number);
+    for (const k of new Set(strikes)) landmarks.push(pnlAt(k));
+
+    const focusPool =
+      focusPnls.length > 0 ? focusPnls : [pnlAt(spot), 0];
+    let min = Math.min(...focusPool, ...landmarks);
+    let max = Math.max(...focusPool, ...landmarks);
+    const baseSpan = max - min || Math.abs(premium) || 1;
+    // Let an open wing climb off the viewport edge without owning the
+    // whole vertical range — slope stays readable near spot.
+    if (unlimitedProfit)
+      max += Math.max(Math.abs(premium) || 1, baseSpan * 0.22);
+    if (unlimitedLoss)
+      min -= Math.max(Math.abs(premium) || 1, baseSpan * 0.22);
+    const room = (max - min || Math.abs(premium) || 1) * 0.1;
     min -= room;
     max += room;
+    // Keep zero inside the plot with a little air so a one-sided
+    // payoff (long call near ATM) doesn't glue to the floor/ceiling.
+    if (min > -room * 0.5) min = Math.min(min, -room * 0.5);
+    if (max < room * 0.5) max = Math.max(max, room * 0.5);
     const span = max - min || 1;
 
     const x = (v: number) => x0 + ((v - lo) / (hi - lo)) * (x1 - x0);
@@ -319,6 +361,8 @@ export function PayoffChart({
       hi,
       x,
       Math.max(5, Math.round(domainSpan / (focusSpan / 3.5))),
+      [x(spot)],
+      { lo: yPriceLo, hi: yPriceHi },
     );
     const priceDp = hi - lo < 1 ? 3 : hi - lo < 20 ? 2 : 0;
     const ticks = tickPrices.map((price) => ({
@@ -438,11 +482,15 @@ export function PayoffChart({
       },
     ].sort((a, b) => a.x - b.x),
   );
-  // Drop an axis tick only when it sits under a top label at the same
-  // landmark (e.g. "Now" already names spot). Nearby-but-different
-  // prices (ATM strike under Now) stay — top and bottom don't compete.
+  // Drop axis ticks that crowd a top label (Now / strike). Top and
+  // bottom share the same x, so a $228 tick under "Now $224.52" reads
+  // as a collision even when the prices differ.
   const axisTicks = plot.ticks.filter(
-    (t) => !topLabels.some((l) => Math.abs(l.x - t.x) < 3),
+    (t) =>
+      !topLabels.some((l) => {
+        const half = Math.max(l.width / 2, 28);
+        return Math.abs(l.x - t.x) < half + 10;
+      }),
   );
   // Cap / Floor sit inside the plot; keep them clear of the top label band
   // and of each other when both shelves are tight.

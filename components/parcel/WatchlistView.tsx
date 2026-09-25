@@ -125,16 +125,25 @@ function PreStocksIdentity({ quote }: { quote: ProviderQuote }) {
   );
 }
 
+function tokenizedSubline(asset: TokenizedEquityAsset) {
+  const parts = [asset.symbol];
+  if (
+    asset.underlyingSymbol &&
+    asset.underlyingSymbol !== asset.symbol
+  ) {
+    parts.push(asset.underlyingSymbol);
+  }
+  if (asset.providerName) parts.push(asset.providerName);
+  return parts.join(' · ');
+}
+
 function TokenizedIdentity({ asset }: { asset: TokenizedEquityAsset }) {
   return (
     <div className="od-watchlist-company">
       <AssetLogo symbol={asset.underlyingSymbol} src={asset.logo} size={34} />
       <div>
         <b>{asset.name}</b>
-        <small>
-          {asset.symbol} · {asset.underlyingSymbol} · {asset.providerName} ·
-          Solana
-        </small>
+        <small>{tokenizedSubline(asset)}</small>
       </div>
     </div>
   );
@@ -176,14 +185,15 @@ function TokenizedRow({
   onRemove: () => void;
 }) {
   const state = quoteState(quote, asset);
+  const at = quote?.observedAt ?? quote?.receivedAt ?? null;
   return (
     <article className="od-watchlist-row od-watchlist-tokenized-row">
       <TokenizedIdentity asset={asset} />
       <div className="od-watchlist-metric">
-        <span>Issuer quote</span>
+        <span>Quote</span>
         <Price value={quote?.quote} />
       </div>
-      <div className="od-watchlist-metric">
+      <div className="od-watchlist-metric od-watchlist-status-cell">
         <span>Status</span>
         <b
           className={
@@ -192,16 +202,7 @@ function TokenizedRow({
         >
           {state}
         </b>
-      </div>
-      <div className="od-watchlist-metric od-watchlist-source-cell">
-        <span>{quote?.observedAt ? 'Issuer time' : 'Received'}</span>
-        <b>
-          {quote?.observedAt
-            ? `${quoteTime(quote.observedAt)} UTC`
-            : quote?.receivedAt
-              ? `${quoteTime(quote.receivedAt)} UTC`
-              : '—'}
-        </b>
+        {at != null && <small>{quoteTime(at)} UTC</small>}
       </div>
       <div className="od-watchlist-actions">
         <a
@@ -250,11 +251,11 @@ function PreStocksRow({
         <Price value={token} />
       </div>
       <div className="od-watchlist-metric">
-        <span>Implied value</span>
+        <span>Implied</span>
         <b>{valuationOf(quote) == null ? '—' : compact(valuationOf(quote)!)}</b>
       </div>
       <div className="od-watchlist-metric">
-        <span>Token vs mark</span>
+        <span>Vs mark</span>
         <b className={spread == null ? '' : spread >= 0 ? 'od-up' : 'od-down'}>
           {spread == null ? '—' : pct(spread)}
         </b>
@@ -333,12 +334,12 @@ function SectionHead({
 }: {
   id: string;
   title: string;
-  detail: string;
+  detail?: string | null;
 }) {
   return (
     <header className="od-watchlist-section-head">
       <b id={id}>{title}</b>
-      <span>{detail}</span>
+      {detail ? <span>{detail}</span> : null}
     </header>
   );
 }
@@ -461,8 +462,6 @@ export function WatchlistView() {
     .join(' · ');
   const issuerCatalogPending =
     tokenized?.sources.some((source) => source.state === 'pending') ?? false;
-  const issuerCatalogCached =
-    tokenized?.sources.some((source) => source.state === 'cached') ?? false;
   const sourceStatus = sourceSummary
     ? sourceSummary
     : issuerCatalogPending
@@ -475,16 +474,16 @@ export function WatchlistView() {
         <div>
           <span className="od-watchlist-kicker">Portfolio</span>
           <h2 id="watchlist-title">Watchlist</h2>
-          <p>
-            Public tokenized equities and publisher marks for the instruments
-            you follow.
-          </p>
+          <p>Tokenized equities and PreStocks you follow.</p>
         </div>
         <div className="od-watchlist-source">
-          <b>Equities + PreStocks</b>
+          <b>Sources</b>
           <span>
-            {sourceStatus} · {preStocksCatalog.length} PreStocks
-            {preipo?.priceState === 'stale' ? ' · publisher marks stale' : ''}
+            {sourceStatus}
+            {preStocksCatalog.length
+              ? ` · ${preStocksCatalog.length} PreStocks`
+              : ''}
+            {preipo?.priceState === 'stale' ? ' · marks stale' : ''}
           </span>
         </div>
       </header>
@@ -556,15 +555,15 @@ export function WatchlistView() {
         >
           <SectionHead
             id="watchlist-tokenized"
-            title="Solana tokenized equities"
+            title="Tokenized equities"
             detail={
               tokenizedError
-                ? 'Issuer catalog temporarily unavailable'
+                ? 'Catalog unavailable'
                 : tokenized
                   ? issuerCatalogPending
-                    ? 'Updating issuer inventory'
-                    : `${tokenizedCatalog.length} ${issuerCatalogCached ? 'cached' : 'issuer'} assets · ${liveQuotes}/${watchedTokenized.length} current quotes`
-                  : 'Loading tokenized-equity catalog'
+                    ? 'Updating inventory'
+                    : `${tokenizedCatalog.length} listed · ${liveQuotes}/${watchedTokenized.length} live`
+                  : 'Loading catalog'
             }
           />
           {tokenized && (
@@ -572,9 +571,9 @@ export function WatchlistView() {
               {tokenized.sources
                 .map((source) =>
                   source.state === 'live'
-                    ? `${source.name}: ${source.assets} listed`
+                    ? `${source.name}: ${source.assets}`
                     : source.state === 'cached'
-                      ? `${source.name}: ${source.assets} cached; refreshing`
+                      ? `${source.name}: ${source.assets} cached`
                       : `${source.name}: ${source.detail.toLowerCase()}`,
                 )
                 .join(' · ')}
@@ -583,9 +582,8 @@ export function WatchlistView() {
           <div className="od-watchlist-table od-watchlist-tokenized">
             <div className="od-watchlist-labels" aria-hidden="true">
               <span>Instrument</span>
-              <span>Issuer quote</span>
+              <span>Quote</span>
               <span>Status</span>
-              <span>Updated</span>
               <span />
             </div>
             {watchedTokenized.length ? (
@@ -621,10 +619,12 @@ export function WatchlistView() {
             title="PreStocks"
             detail={
               preipoError
-                ? 'Publisher data temporarily unavailable'
+                ? 'Publisher unavailable'
                 : preipo
-                  ? `${preStocksCatalog.length} listed · updated ${refreshed} UTC`
-                  : 'Reading publisher catalog'
+                  ? refreshed
+                    ? `${preStocksCatalog.length} listed · ${refreshed} UTC`
+                    : `${preStocksCatalog.length} listed`
+                  : 'Loading catalog'
             }
           />
           <div className="od-watchlist-table od-watchlist-private">
@@ -632,8 +632,8 @@ export function WatchlistView() {
               <span>Company</span>
               <span>Mark</span>
               <span>Token</span>
-              <span>Implied value</span>
-              <span>Token vs mark</span>
+              <span>Implied</span>
+              <span>Vs mark</span>
               <span />
             </div>
             {preipo && watchedPreStocks.length ? (

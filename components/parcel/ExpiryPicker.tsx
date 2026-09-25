@@ -38,6 +38,10 @@ export function ExpiryPicker({
   asOf,
   onChange,
   disabled = false,
+  headLabel = 'Available expiries',
+  nearLabel = 'Near term',
+  laterLabel = 'Later dates',
+  detailOf,
 }: {
   id?: string;
   label?: string;
@@ -48,6 +52,12 @@ export function ExpiryPicker({
   asOf: string;
   onChange: (date: string) => void;
   disabled?: boolean;
+  /** Menu header title — e.g. "Fixed terms" on a cash loan. */
+  headLabel?: string;
+  nearLabel?: string;
+  laterLabel?: string;
+  /** Optional right-hand figure per date (interest, premium, etc.). */
+  detailOf?: (date: string) => string | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -55,6 +65,7 @@ export function ExpiryPicker({
   const selected = dates.includes(value) ? value : dates[0] || '';
   const near = dates.slice(0, 5);
   const later = dates.slice(5);
+  const selectedDetail = selected && detailOf ? detailOf(selected) : undefined;
 
   useEffect(() => {
     const closeOutside = (event: PointerEvent) => {
@@ -76,18 +87,30 @@ export function ExpiryPicker({
     setOpen(false);
   };
   const options = (items: string[]) =>
-    items.map((date) => (
-      <button
-        type="button"
-        key={date}
-        aria-pressed={selected === date}
-        className={selected === date ? 'selected' : ''}
-        onClick={() => pick(date)}
-      >
-        <span>{expiryLabel(date)}</span>
-        <small>{termLabel(date, asOf)}</small>
-      </button>
-    ));
+    items.map((date) => {
+      const detail = detailOf?.(date);
+      return (
+        <button
+          type="button"
+          key={date}
+          aria-pressed={selected === date}
+          className={selected === date ? 'selected' : ''}
+          onClick={() => pick(date)}
+        >
+          <span>{expiryLabel(date)}</span>
+          <small>
+            {detail ? (
+              <>
+                <em>{termLabel(date, asOf)}</em>
+                <b>{detail}</b>
+              </>
+            ) : (
+              termLabel(date, asOf)
+            )}
+          </small>
+        </button>
+      );
+    });
 
   return (
     <div className="od-expiry-picker" ref={root}>
@@ -104,7 +127,10 @@ export function ExpiryPicker({
         <CalendarDays aria-hidden size={15} />
         <span>
           <small>{label}</small>
-          <b>{selected ? expiryLabel(selected) : 'No expiry available'}</b>
+          <b>
+            {selected ? expiryLabel(selected) : 'No expiry available'}
+            {selectedDetail ? ` · ${selectedDetail}` : ''}
+          </b>
         </span>
         <ChevronDown aria-hidden size={15} />
       </button>
@@ -112,17 +138,17 @@ export function ExpiryPicker({
       {open && (
         <div className="od-expiry-menu" id={menuId}>
           <div className="od-expiry-menu-head">
-            <span>Available expiries</span>
+            <span>{headLabel}</span>
             <small>{dates.length} sessions</small>
           </div>
           <div className="od-expiry-menu-scroll">
             <div className="od-expiry-group">
-              <span>Near term</span>
+              <span>{nearLabel}</span>
               {options(near)}
             </div>
             {later.length > 0 && (
               <div className="od-expiry-group">
-                <span>Later dates</span>
+                <span>{laterLabel}</span>
                 {options(later)}
               </div>
             )}

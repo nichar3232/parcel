@@ -266,7 +266,7 @@ export interface MarketSessions {
   post?: { start: number; end: number } | null;
 }
 
-const L = { w: 1000, h: 240, y0: 10, y1: 218 };
+const L = { w: 1000, h: 240, y0: 14, y1: 226 };
 
 /** Compact portfolio axis figures — soft context, not a ledger column. */
 function axisUsd(n: number) {
@@ -324,7 +324,7 @@ export function LiveValueChart({
   domain,
   baseline,
   sessions,
-  asOf,
+  asOf: _asOf,
   dates,
   range,
   live,
@@ -375,51 +375,10 @@ export function LiveValueChart({
       Math.min(L.w, Math.max(0, ((t - d0) / span) * L.w));
     const pctAt = (t: number) => (xAt(t) / L.w) * 100;
 
-    type Band = {
-      key: 'pre' | 'regular' | 'post';
-      x: number;
-      width: number;
-      active: boolean;
-    };
-    const bands: Band[] = [];
     const dividers: number[] = [];
     const xTicks: { x: number; label: string; major?: boolean }[] = [];
 
     if (domain && sessions?.regular) {
-      const clip = (start: number, end: number) => {
-        const a = Math.max(d0, start);
-        const b = Math.min(d1, end);
-        if (b <= a) return null;
-        return { x: xAt(a), width: xAt(b) - xAt(a) };
-      };
-      const clock = asOf ?? d1;
-      const push = (
-        key: Band['key'],
-        window: { start: number; end: number } | null | undefined,
-        active: boolean,
-      ) => {
-        if (!window) return;
-        const band = clip(window.start, window.end);
-        if (!band || band.width < L.w * 0.012) return;
-        bands.push({ key, ...band, active });
-      };
-
-      push(
-        'pre',
-        sessions.pre,
-        !!sessions.pre && clock < sessions.regular.start,
-      );
-      push(
-        'regular',
-        sessions.regular,
-        clock >= sessions.regular.start && clock <= sessions.regular.end,
-      );
-      push(
-        'post',
-        sessions.post,
-        !!sessions.post && clock > sessions.regular.end,
-      );
-
       if (sessions.regular.start > d0 && sessions.regular.start < d1)
         dividers.push(xAt(sessions.regular.start));
       if (sessions.regular.end > d0 && sessions.regular.end < d1)
@@ -504,12 +463,11 @@ export function LiveValueChart({
         : '',
       base: baseline != null ? L.y0 + fy(baseline) * (L.y1 - L.y0) : null,
       up: (points.at(-1)?.value ?? 0) >= reference,
-      bands,
       dividers,
       xTicks,
       yGuides,
     };
-  }, [points, domain, baseline, sessions, asOf, dates, range]);
+  }, [points, domain, baseline, sessions, dates, range]);
 
   const pick = (clientX: number) => {
     const plotEl = box.current?.querySelector('.od-vline-plot');
@@ -536,7 +494,7 @@ export function LiveValueChart({
   return (
     <div
       ref={box}
-      className={`od-vline ${plot.up ? 'up' : 'down'}${plot.bands.length ? ' has-sessions' : ''}`}
+      className={`od-vline ${plot.up ? 'up' : 'down'}`}
     >
       <div
         className="od-vline-plot"
@@ -555,16 +513,6 @@ export function LiveValueChart({
               <stop offset="1" stopColor="currentColor" stopOpacity="0" />
             </linearGradient>
           </defs>
-          {plot.bands.map((band) => (
-            <rect
-              key={band.key}
-              className={`od-vline-band ${band.key}${band.active ? ' active' : ''}`}
-              x={band.x}
-              y={0}
-              width={band.width}
-              height={L.h}
-            />
-          ))}
           <g className="od-vline-grid" aria-hidden>
             {plot.yGuides.map((g) => (
               <line key={g.label} x1={0} x2={L.w} y1={g.y} y2={g.y} />
