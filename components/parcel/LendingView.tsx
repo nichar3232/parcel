@@ -643,9 +643,6 @@ function Markets({
               <span className="od-lm-asset-copy">
                 <span className="od-lm-asset-title">
                   <span className="od-lm-asset-name">{p.name}</span>
-                  {p.held ? (
-                    <em className="od-lm-held">Your position</em>
-                  ) : null}
                 </span>
                 <small>
                   <span className="od-lm-asset-ticker">{p.symbol}</span>
