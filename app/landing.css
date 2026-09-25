@@ -599,7 +599,6 @@
   grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
   gap: clamp(40px, 6vw, 96px);
   padding: clamp(52px, 7vh, 84px) 0 clamp(24px, 3vh, 40px);
-  border-top: 1px solid var(--pc-line-soft);
 }
 .lp-principles-intro .lp-kicker {
   margin-bottom: 14px;

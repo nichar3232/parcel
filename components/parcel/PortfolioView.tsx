@@ -17,11 +17,6 @@ import {
   shortCloseAmounts,
 } from '@/lib/parcel/funding';
 import {
-  health,
-  healthTone,
-  type Holding,
-} from '@/lib/parcel/lending';
-import {
   RANGES,
   valueSeries,
   withinRange,
@@ -31,7 +26,12 @@ import { QuoteReview } from './QuoteReview';
 import type { MarketUnderlying, Quote, VaultAction } from '@/lib/parcel/types';
 import { AssetLogo } from './AssetLogo';
 import { logoOf } from '@/lib/preipo/registry';
-import { LiveValueChart, Meter, type MarketSessions, type ValueTick } from './charts';
+import {
+  LiveValueChart,
+  Meter,
+  type MarketSessions,
+  type ValueTick,
+} from './charts';
 import { WatchlistView } from './WatchlistView';
 import type { Transfer } from './TransferDialog';
 import {
@@ -649,42 +649,6 @@ function Positions({
   const openCount =
     marked.length + loans.length + borrows.length + shorts.length;
 
-  const positionHealth = useMemo(() => {
-    const underlyings = s.market.underlyings ?? [];
-    const priceOf = (of: string) =>
-      liveSpots[of] ??
-      underlyings.find((u) => u.symbol === of)?.price ??
-      s.market.price;
-    const collateral: Holding[] = [
-      { symbol: 'USDC', amount: book.vault.USDC, price: 1 },
-      ...underlyings.map((u) => ({
-        symbol: u.symbol,
-        amount: book.vault[u.symbol] ?? 0,
-        price: priceOf(u.symbol),
-      })),
-    ].filter((h) => h.amount > 0);
-    const shortedBy: Record<string, number> = {};
-    for (const p of shorts)
-      shortedBy[p.symbol] = (shortedBy[p.symbol] ?? 0) + p.quantity;
-    const debt: Holding[] = Object.entries(shortedBy).map(([of, amount]) => ({
-      symbol: of,
-      amount,
-      price: priceOf(of),
-    }));
-    for (const p of borrows)
-      debt.push({
-        symbol: 'USDC',
-        amount: borrowDebt(p, book.date).total,
-        price: 1,
-      });
-    return health(collateral, debt);
-  }, [book, borrows, liveSpots, s.market, shorts]);
-  const healthLabel = Number.isFinite(positionHealth.factor)
-    ? `${positionHealth.factor.toFixed(2)}×`
-    : '—';
-  const healthClass = healthTone(positionHealth.factor);
-
-
   /**
    * One table, the way a brokerage lists a portfolio.
    *
@@ -700,12 +664,6 @@ function Positions({
       <div className="od-positions-head">
         <div className="od-positions-title">
           <h2 id="positions-title">Positions</h2>
-          <span
-            className={`od-pos-health ${healthClass}`}
-            title="Health factor"
-          >
-            Health <b>{healthLabel}</b>
-          </span>
         </div>
         <span>{openCount ? `${openCount} open` : 'Cash & stock'}</span>
       </div>
@@ -727,7 +685,7 @@ function Positions({
           return (
             <div key={u.symbol} className="od-ptable-row">
               <div className="od-ptable-asset">
-                <AssetLogo symbol={u.symbol} src={logoOf(u.symbol)} size={32} />
+                <AssetLogo symbol={u.symbol} src={logoOf(u.symbol)} size={24} />
                 <div>
                   <b>{u.name}</b>
                   <small>
@@ -781,7 +739,7 @@ function Positions({
                 <AssetLogo
                   symbol={p.terms.symbol}
                   src={logoOf(p.terms.symbol)}
-                  size={32}
+                  size={24}
                 />
                 <div>
                   <b>{contractTitle(p.terms)}</b>
@@ -824,7 +782,7 @@ function Positions({
         {loans.map((p) => (
           <div key={p.id} className="od-ptable-row">
             <div className="od-ptable-asset">
-              <AssetLogo symbol={p.symbol} src={logoOf(p.symbol)} size={32} />
+              <AssetLogo symbol={p.symbol} src={logoOf(p.symbol)} size={24} />
               <div>
                 <b>
                   {qty(p.quantity)} {p.symbol} lent
@@ -878,7 +836,7 @@ function Positions({
           return (
             <div key={p.id} className="od-ptable-row">
               <div className="od-ptable-asset">
-                <AssetLogo symbol="USDC" size={32} />
+                <AssetLogo symbol="USDC" size={24} />
                 <div>
                   <b>{usd(p.principal)} borrowed</b>
                   <small>
@@ -935,7 +893,7 @@ function Positions({
           return (
             <div key={p.id} className="od-ptable-row">
               <div className="od-ptable-asset">
-                <AssetLogo symbol={p.symbol} src={logoOf(p.symbol)} size={32} />
+                <AssetLogo symbol={p.symbol} src={logoOf(p.symbol)} size={24} />
                 <div>
                   <b>
                     {qty(p.quantity)} {p.symbol} short

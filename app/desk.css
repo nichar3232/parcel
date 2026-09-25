@@ -1935,8 +1935,8 @@
     padding-bottom: 8px;
   }
   .od-ptable-row {
-    min-height: 60px;
-    padding: 8px 0;
+    min-height: 44px;
+    padding: 5px 0;
   }
 }
 
@@ -2250,39 +2250,6 @@
   gap: 14px;
   min-width: 0;
 }
-.od-positions-title .od-pos-health {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 14px;
-  border: 1px solid color-mix(in srgb, var(--pc-faint) 55%, var(--pc-line));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--pc-surface) 88%, var(--pc-raised));
-  color: var(--pc-body);
-  font-family: var(--pc-mono);
-  font-size: 12.5px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.od-positions-title .od-pos-health b {
-  color: var(--pc-text);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
-  font-variant-numeric: tabular-nums;
-}
-.od-positions-title .od-pos-health.safe b {
-  color: var(--pc-up);
-}
-.od-positions-title .od-pos-health.watch b {
-  color: var(--pc-warn, #d4a017);
-}
-.od-positions-title .od-pos-health.risk b {
-  color: var(--pc-down);
-}
 
 .od-ptable-row {
   display: grid;
@@ -2291,8 +2258,8 @@
     104px;
   align-items: center;
   gap: 16px;
-  min-height: 68px;
-  padding: 10px 0;
+  min-height: 48px;
+  padding: 6px 0;
   border-top: 1px solid var(--pc-line-soft);
 }
 .od-ptable-row:last-child {
@@ -2315,7 +2282,7 @@
 .od-ptable-asset {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 .od-ptable-asset > div {
@@ -2332,7 +2299,7 @@
 .od-ptable-asset small,
 .od-ptable-num small {
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
   overflow: hidden;
   color: var(--pc-muted);
   font-size: 12px;
