@@ -4692,7 +4692,8 @@
   gap: 10px;
 }
 .od-agent-command {
-  overflow-x: auto;
+  max-height: 240px;
+  overflow: auto;
   color: var(--pc-cyan);
   font-family: var(--pc-mono);
   font-size: 12px;

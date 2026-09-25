@@ -15,13 +15,16 @@ export async function handleMcp(
   res: ServerResponse,
   store: Store,
   localBase: () => string,
+  pathKey?: string,
 ) {
-  const key = bearer(req);
+  // A client that takes only a URL (a connector, most GUI apps) carries the
+  // key in the path instead: /mcp/<key>.
+  const key = bearer(req) ?? pathKey;
   if (!store.agentSession(key)) {
     res.setHeader('WWW-Authenticate', 'Bearer realm="parcel"');
     return json(res, 401, {
       error:
-        'An agent key is required. Create one in the desk under Agents and send it as a bearer token.',
+        'An agent key is required. Create one in the desk under Agents and send it as a bearer token, or connect to /mcp/<key>.',
       code: 'AGENT_KEY_REQUIRED',
     });
   }

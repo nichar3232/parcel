@@ -16,11 +16,13 @@ import { ChainService } from './domain/chain';
 import { PortfolioService, parseKey } from './domain/portfolio';
 import { ApiError, object } from './http/errors';
 import { handleMcp } from './http/mcp';
+import { desktopEntry } from './agent/desktop';
 import {
   bearer,
   body,
   cookie,
   json,
+  loopback,
   mutationGuard,
   staticFile,
 } from './http/primitives';
@@ -98,11 +100,20 @@ export function createApp(
     try {
       const url = new URL(req.url || '/', 'http://localhost'),
         method = req.method || 'GET';
-      if (url.pathname === '/mcp')
-        return await handleMcp(req, res, store, () => {
-          const a = server.address();
-          return `http://127.0.0.1:${a && typeof a === 'object' ? a.port : config.port}`;
-        });
+      const mcpPath = url.pathname.match(
+        /^\/mcp(?:\/(pk_agent_[0-9a-f]{64}))?\/?$/,
+      );
+      if (mcpPath)
+        return await handleMcp(
+          req,
+          res,
+          store,
+          () => {
+            const a = server.address();
+            return `http://127.0.0.1:${a && typeof a === 'object' ? a.port : config.port}`;
+          },
+          mcpPath[1],
+        );
       if (!url.pathname.startsWith('/api/'))
         return await staticFile(req, res, url, config.publicDir);
       if (
@@ -405,8 +416,18 @@ export function createApp(
         if (method !== 'POST')
           throw new ApiError(405, 'METHOD', 'POST required.');
         guard();
-        if (url.pathname === '/api/agent/keys')
-          return json(res, 200, store.createAgentKey(session.id));
+        if (url.pathname === '/api/agent/keys') {
+          const created = store.createAgentKey(session.id);
+          return json(res, 200, {
+            ...created,
+            // Claude Desktop starts local MCP servers itself. When the desk
+            // is served from this machine, hand it the exact launch entry.
+            // From anywhere else its paths would mean nothing.
+            ...(loopback(req) && {
+              desktop: desktopEntry(created.key, config.port),
+            }),
+          });
+        }
         const revoke = url.pathname.match(
           /^\/api\/agent\/keys\/([0-9a-f-]{36})\/revoke$/,
         );

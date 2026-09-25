@@ -181,7 +181,7 @@ try {
     await click(page.getByRole('button', { name: 'Connect an agent' }));
     await click(page.getByRole('button', { name: 'Create agent key' }));
     const command = await page.locator('.od-agent-command').textContent();
-    key = command?.match(/Bearer (pk_agent_[0-9a-f]+)/)?.[1];
+    key = command?.match(/(pk_agent_[0-9a-f]{64})/)?.[1];
     if (!key) throw Error('The dialog showed no agent key.');
     await beat(2.5);
     await page.keyboard.press('Escape');

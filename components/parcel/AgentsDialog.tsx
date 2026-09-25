@@ -2,7 +2,16 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { api } from '@/lib/client/api';
-import { Button, Line, Modal } from './shared';
+import { Button, Line, Modal, Segmented } from './shared';
+
+/** How Claude's desktop app launches Parcel's MCP server on this machine. */
+interface DesktopEntry {
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+}
+
+type Client = 'desktop' | 'code' | 'url';
 
 interface AgentKey {
   id: string;
@@ -36,15 +45,55 @@ export function AgentsDialog({
   onClose: () => void;
 }) {
   const [keys, setKeys] = useState<AgentKey[] | null>(null);
-  const [fresh, setFresh] = useState<{ id: string; key: string } | null>(null);
+  const [fresh, setFresh] = useState<{
+    id: string;
+    key: string;
+    desktop?: DesktopEntry;
+  } | null>(null);
+  const [client, setClient] = useState<Client>('desktop');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const endpoint =
     typeof window === 'undefined' ? '/mcp' : `${window.location.origin}/mcp`;
-  const command = fresh
-    ? `claude mcp add --transport http parcel ${endpoint} --header "Authorization: Bearer ${fresh.key}"`
-    : '';
+  const local =
+    typeof window !== 'undefined' &&
+    ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+  // What each client needs, for the key just created.
+  const setup = !fresh
+    ? null
+    : {
+        desktop: fresh.desktop
+          ? {
+              steps:
+                'In the Claude app, open Settings → Developer → Edit Config. Put this in claude_desktop_config.json (merge "parcel" into an existing "mcpServers"), save, and quit and reopen Claude. Parcel’s tools then appear under the chat’s tools menu.',
+              text: JSON.stringify(
+                { mcpServers: { parcel: fresh.desktop } },
+                null,
+                2,
+              ),
+              copy: 'Copy config',
+            }
+          : {
+              steps:
+                'The Claude app starts local MCP servers itself, so its config has to come from the machine running this desk. Open the desk there (at localhost), or use the URL.',
+              text: '',
+              copy: '',
+            },
+        code: {
+          steps:
+            'Run this in a terminal, then start claude. /mcp shows it connected.',
+          text: `claude mcp add --transport http parcel ${endpoint} --header "Authorization: Bearer ${fresh.key}"`,
+          copy: 'Copy command',
+        },
+        url: {
+          steps: local
+            ? 'For any MCP client that takes only a URL. This address works for clients on this machine. claude.ai and Claude’s custom connectors connect from Anthropic’s servers, so they need this desk served at a public HTTPS address.'
+            : 'For any MCP client that takes only a URL, including a custom connector in Claude: Settings → Connectors → Add custom connector, and paste it as the server URL.',
+          text: `${endpoint}/${fresh.key}`,
+          copy: 'Copy URL',
+        },
+      }[client];
 
   useEffect(() => {
     api<{ keys: AgentKey[] }>('/api/agent/keys')
@@ -60,6 +109,7 @@ export function AgentsDialog({
         key?: string;
         agentKey?: AgentKey;
         keys?: AgentKey[];
+        desktop?: DesktopEntry;
       }>(url, {
         method: 'POST',
         headers: {
@@ -78,7 +128,7 @@ export function AgentsDialog({
   const create = async () => {
     const r = await post('/api/agent/keys');
     if (!r?.key || !r.agentKey) return;
-    setFresh({ id: r.agentKey.id, key: r.key });
+    setFresh({ id: r.agentKey.id, key: r.key, desktop: r.desktop });
     setCopied(false);
     const list = await api<{ keys: AgentKey[] }>('/api/agent/keys');
     setKeys(list.keys);
@@ -94,7 +144,7 @@ export function AgentsDialog({
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(command);
+      await navigator.clipboard.writeText(setup?.text ?? '');
       setCopied(true);
     } catch {
       setError('Copying was blocked. Select the command and copy it by hand.');
@@ -115,27 +165,46 @@ export function AgentsDialog({
         Trades an agent places are labelled Agent in Activity.
       </p>
 
-      {fresh ? (
+      {fresh && setup ? (
         <div className="od-agent-fresh">
           <p className="od-note">
-            Run this where your agent lives. The key is shown only now; anyone
-            holding it can trade this vault until you revoke it.
+            The key is shown only now; anyone holding it can trade this vault
+            until you revoke it. Connect with:
           </p>
-          <pre className="od-agent-command">
-            <code>{command}</code>
-          </pre>
-          <p className="od-agent-hint">
-            Any other MCP client works with the same URL and Authorization
-            header.
-          </p>
-          <div className="od-modal-actions">
-            <Button variant="secondary" onClick={copy}>
-              {copied ? <Check size={15} /> : <Copy size={15} />}
-              {copied ? 'Copied' : 'Copy command'}
-            </Button>
-          </div>
+          <Segmented
+            label="Agent client"
+            value={client}
+            onChange={(next) => {
+              setClient(next);
+              setCopied(false);
+            }}
+            options={[
+              { id: 'desktop', label: 'Claude app' },
+              { id: 'code', label: 'Claude Code' },
+              { id: 'url', label: 'URL' },
+            ]}
+          />
+          <p className="od-agent-hint">{setup.steps}</p>
+          {setup.text && (
+            <>
+              <pre className="od-agent-command">
+                <code>{setup.text}</code>
+              </pre>
+              <div className="od-modal-actions">
+                <Button variant="secondary" onClick={copy}>
+                  {copied ? <Check size={15} /> : <Copy size={15} />}
+                  {copied ? 'Copied' : setup.copy}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
-      ) : null}
+      ) : (
+        <p className="od-agent-hint">
+          Create a key to connect the Claude app, Claude Code, or any MCP
+          client. The server is at {endpoint}.
+        </p>
+      )}
 
       <div className="od-lines" aria-label="Agent keys">
         {keys === null ? (

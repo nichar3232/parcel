@@ -190,3 +190,41 @@ void test('/mcp: an MCP client with an agent key uses the vault; without one it 
     await f.close();
   }
 });
+
+void test('agent keys: a URL-only client connects at /mcp/<key>, and a local desk gets a Claude app entry', async () => {
+  const f = await fixture();
+  try {
+    const d = await f.desk();
+    const created = (await (await d.createKey()).json()) as {
+      key: string;
+      desktop?: {
+        command: string;
+        args: string[];
+        env: Record<string, string>;
+      };
+    };
+    // The test server is reached over loopback, as a desk on this machine is.
+    assert.equal(created.desktop?.command, process.execPath);
+    assert.match(created.desktop!.args[1], /mcp\/parcel\.ts$/);
+    assert.equal(created.desktop!.env.PARCEL_AGENT_KEY, created.key);
+
+    const client = new Client({ name: 'url-only', version: '1' });
+    await client.connect(
+      new StreamableHTTPClientTransport(
+        new URL(`${f.base}/mcp/${created.key}`),
+      ),
+    );
+    const r = await client.callTool({ name: 'get_vault', arguments: {} });
+    assert.ok(!r.isError);
+    await client.close();
+
+    const wrong = await fetch(`${f.base}/mcp/pk_agent_${'0'.repeat(64)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    assert.equal(wrong.status, 401);
+  } finally {
+    await f.close();
+  }
+});
