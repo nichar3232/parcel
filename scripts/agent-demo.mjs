@@ -177,15 +177,26 @@ try {
   });
 
   let key;
-  await scene('Connect an agent', async () => {
+  await scene('Connect Claude', async () => {
     await click(page.getByRole('button', { name: 'Connect an agent' }));
-    await click(page.getByRole('button', { name: 'Create agent key' }));
-    const command = await page.locator('.od-agent-command').textContent();
-    key = command?.match(/(pk_agent_[0-9a-f]{64})/)?.[1];
-    if (!key) throw Error('The dialog showed no agent key.');
+    await expect(page.locator('.od-agent-url code').first()).toHaveText(
+      `${base}/mcp`,
+    );
     await beat(2.5);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    // The demo's agent stands in for an app that has already been allowed:
+    // the OAuth approval issues the same kind of key this does.
+    key = await page.evaluate(async () => {
+      const { csrf } = await fetch('/api/session').then((r) => r.json());
+      const r = await fetch('/api/agent/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        body: '{}',
+      });
+      return (await r.json()).key;
+    });
+    if (!key) throw Error('No agent key was issued.');
   });
 
   await scene('Open Activity while the agent trades over MCP', async () => {

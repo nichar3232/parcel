@@ -12,6 +12,8 @@ export interface AgentKey {
   id: string;
   /** The key's last four characters, so its owner can tell keys apart. */
   hint: string;
+  /** The app it was issued to through OAuth, when it was. */
+  label: string | null;
   createdAt: number;
   lastUsedAt: number | null;
 }
@@ -56,6 +58,15 @@ export class Store {
     this.db.exec(
       readFileSync(new URL('./005-vault-mutations.sql', import.meta.url), 'utf8'),
     );
+    this.db.exec(
+      readFileSync(new URL('./006-oauth.sql', import.meta.url), 'utf8'),
+    );
+    // Which app a key was issued to, for the owner's list of connections.
+    const columns = this.db.prepare('PRAGMA table_info(agent_keys)').all() as {
+      name: string;
+    }[];
+    if (!columns.some((c) => c.name === 'label'))
+      this.db.exec('ALTER TABLE agent_keys ADD COLUMN label TEXT');
     this.ensureVaultChainColumns();
   }
   /**
@@ -125,12 +136,19 @@ export class Store {
   agentKeys(owner: string): AgentKey[] {
     return this.db
       .prepare(
-        'SELECT id,hint,created_at AS createdAt,last_used_at AS lastUsedAt FROM agent_keys WHERE owner=? AND revoked_at IS NULL ORDER BY created_at DESC',
+        'SELECT id,hint,label,created_at AS createdAt,last_used_at AS lastUsedAt FROM agent_keys WHERE owner=? AND revoked_at IS NULL ORDER BY created_at DESC',
       )
       .all(owner) as unknown as AgentKey[];
   }
-  createAgentKey(owner: string, now = Date.now()) {
+  createAgentKey(owner: string, now = Date.now(), label?: string) {
     return this.transaction(() => {
+      // An app that connects again replaces its earlier connection.
+      if (label)
+        this.db
+          .prepare(
+            'UPDATE agent_keys SET revoked_at=? WHERE owner=? AND label=? AND revoked_at IS NULL',
+          )
+          .run(now, owner, label);
       if (this.agentKeys(owner).length >= 5)
         throw new ApiError(
           409,
@@ -142,10 +160,19 @@ export class Store {
         hint = key.slice(-4);
       this.db
         .prepare(
-          'INSERT INTO agent_keys(id,owner,key_hash,hint,created_at) VALUES(?,?,?,?,?)',
+          'INSERT INTO agent_keys(id,owner,key_hash,hint,created_at,label) VALUES(?,?,?,?,?,?)',
         )
-        .run(id, owner, digest(key), hint, now);
-      return { key, agentKey: { id, hint, createdAt: now, lastUsedAt: null } };
+        .run(id, owner, digest(key), hint, now, label ?? null);
+      return {
+        key,
+        agentKey: {
+          id,
+          hint,
+          label: label ?? null,
+          createdAt: now,
+          lastUsedAt: null,
+        },
+      };
     });
   }
   revokeAgentKey(owner: string, id: string, now = Date.now()) {
@@ -156,6 +183,63 @@ export class Store {
       .run(now, id, owner);
     if (!r.changes)
       throw new ApiError(404, 'AGENT_KEY', 'That agent key was not found.');
+  }
+  registerOAuthClient(name: string, redirectUris: string[], now = Date.now()) {
+    const id = `parcel_client_${randomBytes(16).toString('hex')}`;
+    this.db
+      .prepare('INSERT INTO oauth_clients VALUES(?,?,?,?)')
+      .run(id, name, JSON.stringify(redirectUris), now);
+    return id;
+  }
+  oauthClient(id: string) {
+    const row = this.db
+      .prepare('SELECT id,name,redirect_uris FROM oauth_clients WHERE id=?')
+      .get(id) as
+      | { id: string; name: string; redirect_uris: string }
+      | undefined;
+    return (
+      row && {
+        id: row.id,
+        name: row.name,
+        redirectUris: JSON.parse(row.redirect_uris) as string[],
+      }
+    );
+  }
+  createOAuthCode(
+    clientId: string,
+    owner: string,
+    redirectUri: string,
+    challenge: string,
+    now = Date.now(),
+  ) {
+    const code = randomBytes(32).toString('hex');
+    this.db
+      .prepare(
+        'INSERT INTO oauth_codes(code_hash,client_id,owner,redirect_uri,challenge,expires_at) VALUES(?,?,?,?,?,?)',
+      )
+      .run(digest(code), clientId, owner, redirectUri, challenge, now + 60_000);
+    return code;
+  }
+  /** Spends a code once; a second use, or a late one, finds nothing. */
+  takeOAuthCode(code: string, now = Date.now()) {
+    return this.transaction(() => {
+      const row = this.db
+        .prepare(
+          'SELECT client_id,owner,redirect_uri,challenge FROM oauth_codes WHERE code_hash=? AND used_at IS NULL AND expires_at>?',
+        )
+        .get(digest(code), now) as
+        | {
+            client_id: string;
+            owner: string;
+            redirect_uri: string;
+            challenge: string;
+          }
+        | undefined;
+      this.db
+        .prepare('UPDATE oauth_codes SET used_at=? WHERE code_hash=?')
+        .run(now, digest(code));
+      return row;
+    });
   }
   createSession(now = Date.now()) {
     const token = randomBytes(32).toString('hex'),

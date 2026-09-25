@@ -47,18 +47,6 @@ export function bearer(req: IncomingMessage) {
   const h = req.headers.authorization;
   return h?.startsWith('Bearer ') ? h.slice(7).trim() : undefined;
 }
-/**
- * The request came from this machine directly. A reverse proxy also connects
- * from loopback, so a forwarded request never counts.
- */
-export function loopback(req: IncomingMessage) {
-  const a = req.socket.remoteAddress;
-  return (
-    !req.headers['x-forwarded-for'] &&
-    !req.headers.forwarded &&
-    (a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1')
-  );
-}
 export function equal(a: string, b: string) {
   const left = Buffer.from(a),
     right = Buffer.from(b);

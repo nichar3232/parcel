@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -191,39 +191,150 @@ void test('/mcp: an MCP client with an agent key uses the vault; without one it 
   }
 });
 
-void test('agent keys: a URL-only client connects at /mcp/<key>, and a local desk gets a Claude app entry', async () => {
+void test('oauth: an MCP app registers, the owner allows, and the code becomes a key once', async () => {
   const f = await fixture();
   try {
     const d = await f.desk();
-    const created = (await (await d.createKey()).json()) as {
-      key: string;
-      desktop?: {
-        command: string;
-        args: string[];
-        env: Record<string, string>;
-      };
-    };
-    // The test server is reached over loopback, as a desk on this machine is.
-    assert.equal(created.desktop?.command, process.execPath);
-    assert.match(created.desktop!.args[1], /mcp\/parcel\.ts$/);
-    assert.equal(created.desktop!.env.PARCEL_AGENT_KEY, created.key);
-
-    const client = new Client({ name: 'url-only', version: '1' });
-    await client.connect(
-      new StreamableHTTPClientTransport(
-        new URL(`${f.base}/mcp/${created.key}`),
-      ),
-    );
-    const r = await client.callTool({ name: 'get_vault', arguments: {} });
-    assert.ok(!r.isError);
-    await client.close();
-
-    const wrong = await fetch(`${f.base}/mcp/pk_agent_${'0'.repeat(64)}`, {
+    // /mcp without a key points at the metadata that starts the flow.
+    const bare = await fetch(`${f.base}/mcp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
     });
-    assert.equal(wrong.status, 401);
+    assert.equal(bare.status, 401);
+    const meta = /resource_metadata="([^"]+)"/.exec(
+      bare.headers.get('www-authenticate') ?? '',
+    )?.[1];
+    assert.ok(meta);
+    const resource = (await (await fetch(meta)).json()) as {
+      authorization_servers: string[];
+    };
+    const server = (await (
+      await fetch(
+        `${resource.authorization_servers[0]}/.well-known/oauth-authorization-server`,
+      )
+    ).json()) as Record<string, string>;
+
+    const redirect = 'http://localhost:9999/callback';
+    const registered = (await (
+      await fetch(server.registration_endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_name: 'Claude',
+          redirect_uris: [redirect],
+        }),
+      })
+    ).json()) as { client_id: string };
+    const refused = await fetch(server.registration_endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ redirect_uris: ['http://evil.example/cb'] }),
+    });
+    assert.equal(refused.status, 400, 'plain http only back to localhost');
+
+    const verifier = randomUUID() + randomUUID();
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
+    const page = await fetch(
+      `${server.authorization_endpoint}?${new URLSearchParams({
+        response_type: 'code',
+        client_id: registered.client_id,
+        redirect_uri: redirect,
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        state: 's1',
+      })}`,
+    );
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /Claude wants to use your Parcel vault/);
+
+    const approved = (await (
+      await fetch(`${f.base}/api/oauth/approve`, {
+        method: 'POST',
+        headers: d.headers,
+        body: JSON.stringify({
+          clientId: registered.client_id,
+          redirectUri: redirect,
+          challenge,
+          state: 's1',
+        }),
+      })
+    ).json()) as { redirect: string };
+    const back = new URL(approved.redirect);
+    assert.equal(back.searchParams.get('state'), 's1');
+    const code = back.searchParams.get('code')!;
+
+    const exchange = (v: string) =>
+      fetch(server.token_endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: redirect,
+          client_id: registered.client_id,
+          code_verifier: v,
+        }),
+      });
+    assert.equal((await exchange('wrong-verifier')).status, 400);
+    // A failed attempt spends the code too.
+    assert.equal((await exchange(verifier)).status, 400);
+
+    // A fresh approval, exchanged correctly, connects.
+    const again = new URL(
+      (
+        (await (
+          await fetch(`${f.base}/api/oauth/approve`, {
+            method: 'POST',
+            headers: d.headers,
+            body: JSON.stringify({
+              clientId: registered.client_id,
+              redirectUri: redirect,
+              challenge,
+            }),
+          })
+        ).json()) as { redirect: string }
+      ).redirect,
+    ).searchParams.get('code')!;
+    const token = (await (
+      await fetch(server.token_endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: again,
+          redirect_uri: redirect,
+          client_id: registered.client_id,
+          code_verifier: verifier,
+        }),
+      })
+    ).json()) as { access_token: string };
+    const keys = await d.keys();
+    assert.equal(keys.length, 1);
+    assert.equal((keys[0] as { label?: string }).label, 'Claude');
+
+    const client = new Client({ name: 'Claude', version: '1' });
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(`${f.base}/mcp`), {
+        requestInit: { headers: bearer(token.access_token) },
+      }),
+    );
+    const got = await client.callTool({ name: 'get_vault', arguments: {} });
+    assert.ok(!got.isError);
+    await client.close();
+
+    // An approval needs the desk's CSRF token, so another site cannot
+    // click Allow on the owner's behalf.
+    const forged = await fetch(`${f.base}/api/oauth/approve`, {
+      method: 'POST',
+      headers: { ...d.headers, 'X-CSRF-Token': 'nope' },
+      body: JSON.stringify({
+        clientId: registered.client_id,
+        redirectUri: redirect,
+        challenge,
+      }),
+    });
+    assert.equal(forged.status, 403);
   } finally {
     await f.close();
   }
