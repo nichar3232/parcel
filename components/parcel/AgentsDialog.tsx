@@ -20,16 +20,19 @@ type App = 'claude' | 'codex' | 'claude-code' | 'other';
  */
 const GUIDES: Record<
   App,
-  (url: string) => { steps: React.ReactNode[]; command?: string; web?: boolean }
+  (
+    url: string,
+    address: React.ReactNode,
+  ) => { steps: React.ReactNode[]; command?: string; web?: boolean }
 > = {
-  claude: () => ({
+  claude: (_url, address) => ({
     web: true,
     steps: [
       <>
         In Claude, open <b>Settings → Connectors</b> and choose{' '}
         <b>Add custom connector</b>.
       </>,
-      <>Name it Parcel and paste the URL above.</>,
+      <>Name it Parcel and paste Parcel’s address: {address}.</>,
       <>
         Click <b>Connect</b>, then <b>Allow</b> on the Parcel page that opens.
       </>,
@@ -54,9 +57,12 @@ const GUIDES: Record<
       </>,
     ],
   }),
-  other: () => ({
+  other: (_url, address) => ({
     steps: [
-      <>Add the URL above as a remote (streamable HTTP) MCP server.</>,
+      <>
+        Add Parcel’s address as a remote (streamable HTTP) MCP server: {address}
+        .
+      </>,
       <>
         When the app opens the Parcel page, click <b>Allow</b>.
       </>,
@@ -102,7 +108,6 @@ export function AgentsDialog({
     typeof window !== 'undefined' &&
     ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
   const [app, setApp] = useState<App>('claude');
-  const guide = GUIDES[app](server);
 
   // Approving happens on another page, so keep the list current while this
   // is open: a connection appears here as soon as it is made.
@@ -148,6 +153,17 @@ export function AgentsDialog({
     }
   };
 
+  const guide = GUIDES[app](
+    server,
+    <button
+      type="button"
+      className="od-agent-copy"
+      onClick={() => void copy('url', server)}
+    >
+      {copied === 'url' ? 'copied' : 'copy address'}
+    </button>,
+  );
+
   return (
     <Modal
       title="Connect an agent"
@@ -155,18 +171,6 @@ export function AgentsDialog({
       onClose={onClose}
       wide
     >
-      <div className="od-agent-url">
-        <code>{server}</code>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => copy('url', server)}
-        >
-          {copied === 'url' ? <Check size={14} /> : <Copy size={14} />}
-          {copied === 'url' ? 'Copied' : 'Copy'}
-        </Button>
-      </div>
-
       <Segmented
         label="App"
         value={app}
