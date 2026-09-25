@@ -10,7 +10,8 @@ import type {
 } from '../server/parcel/chain/adapter';
 import { tradedPremium, initialVault } from '../server/parcel/ledger';
 import { templateTerms } from '../lib/parcel/templates';
-import type { VaultBook, VaultPlan } from '../lib/parcel/types';
+import type { VaultBook } from '../lib/parcel/types';
+import type { VaultPlan } from '../server/parcel/service';
 import { bookBytes } from '../server/parcel/chain/codec';
 
 void test('sandbox tracking: execute receipt premium matches quote, revision bumps once, no double-exec', () => {

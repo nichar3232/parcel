@@ -44,6 +44,7 @@ export function ExpiryPicker({
   detailOf,
 }: {
   id?: string;
+  /** Caps caption inside the trigger. Pass "" when a Field already labels it. */
   label?: string;
   /** Distinguishes concurrent pickers while preserving the short visual label. */
   ariaLabel?: string;
@@ -126,7 +127,8 @@ export function ExpiryPicker({
       >
         <CalendarDays aria-hidden size={15} />
         <span>
-          <small>{label}</small>
+          {/* Caption is for standalone toolbars; Field wrappers already name the control. */}
+          {label ? <small>{label}</small> : null}
           <b>
             {selected ? expiryLabel(selected) : 'No expiry available'}
             {selectedDetail ? ` · ${selectedDetail}` : ''}

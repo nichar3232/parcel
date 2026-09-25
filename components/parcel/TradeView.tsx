@@ -473,7 +473,6 @@ export function TradeView({
           <div className="od-panel-body">
             <Field label="Underlying">
               <AssetPicker
-                label="Underlying"
                 value={symbol}
                 onChange={onSymbol}
                 options={underlyings
@@ -539,7 +538,7 @@ export function TradeView({
 
             <Field label="Expiry">
               <ExpiryPicker
-                label="Expiry"
+                label=""
                 ariaLabel="Contract expiry"
                 asOf={session}
                 value={effective.expiry}

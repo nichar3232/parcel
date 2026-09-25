@@ -385,7 +385,6 @@ export function AssetPicker({
         onClick={() => setOpen((shown) => !shown)}
       >
         <span>
-          <small>{label}</small>
           <b>
             {selected.name} ({selected.symbol})
           </b>

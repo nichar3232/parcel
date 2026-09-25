@@ -1406,7 +1406,6 @@ function Borrow({
           />
           <Field label="Underlying">
             <AssetPicker
-              label="Underlying"
               value={symbol}
               onChange={onSymbol}
               options={underlyings.map((u) => ({
@@ -1522,7 +1521,8 @@ function Borrow({
               }
             >
               <ExpiryPicker
-                label={
+                label=""
+                ariaLabel={
                   mode === 'borrow'
                     ? 'Fixed until'
                     : mode === 'short'
