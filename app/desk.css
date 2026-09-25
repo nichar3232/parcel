@@ -1836,6 +1836,27 @@
   gap: 18px;
   min-width: 0;
 }
+/* The account view is a working screen, not a landing hero. On desktop,
+   keep the value line and the open positions together inside a normal
+   laptop viewport without compressing the data columns themselves. */
+@media (min-width: 901px) {
+  .od-open-main {
+    gap: 12px;
+  }
+  .od-vline {
+    height: 190px;
+  }
+  .od-positions {
+    padding-top: 12px;
+  }
+  .od-positions-head {
+    padding-bottom: 8px;
+  }
+  .od-ptable-row {
+    min-height: 60px;
+    padding: 8px 0;
+  }
+}
 
 .od-open-head > span {
   display: block;

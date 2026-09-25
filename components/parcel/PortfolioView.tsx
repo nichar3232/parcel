@@ -122,14 +122,6 @@ export function PortfolioView({
   const hasLiveMark =
     heldSymbols.length > 0 &&
     heldSymbols.every((symbol) => isLiveMark(markOf(s, feed, symbol)));
-  const hasDelayedMark = heldSymbols.some((symbol) => {
-    const mark = markOf(s, feed, symbol);
-    return (
-      !!mark &&
-      !mark.stale &&
-      (mark.source === 'yahoo' || mark.source === 'massive-delayed-nbbo')
-    );
-  });
   const lastObservedAt = Math.max(
     0,
     ...heldSymbols.map(
@@ -253,17 +245,21 @@ export function PortfolioView({
     /* On a time axis within one day, so the line grows toward the
        close. Across two days the overnight has no prints, so the axis is
        the prints themselves. */
-    const end = Math.max(
-      points.at(-1)!.t,
-      ...days.map((d) => d.session?.end ?? 0),
-    );
+    const lastObservation = points.at(-1)!.t;
+    /* A current execution-grade mark is plotted across the full trading
+       session. A last-mark view ends at its last real observation instead:
+       reserving the rest of the session made a stale chart look unfinished
+       and implied a time axis it could not support. */
+    const end = hasLiveMark
+      ? Math.max(lastObservation, ...days.map((d) => d.session?.end ?? 0))
+      : lastObservation;
     return {
       points: todayOnly ? points : points.map((p, i) => ({ ...p, t: i })),
       times: points.map((p) => p.t),
       base,
       domain: todayOnly ? ([points[0].t, end] as [number, number]) : undefined,
     };
-  }, [intraday, book.vault, underlyings, liveSpots, liveSamples]);
+  }, [intraday, book.vault, underlyings, liveSpots, liveSamples, hasLiveMark]);
 
   /* The longer ranges are session-close accounting, with this browser
      session's live marks as their tail. Nothing is invented to fill them. */
@@ -372,9 +368,7 @@ export function PortfolioView({
             <span>
               {hasLiveMark
                 ? 'Live'
-                : hasDelayedMark
-                  ? 'Delayed mark'
-                  : 'Last mark'}
+                : 'Last mark'}
             </span>
             {lastObservedAt > 0 && (
               <time
