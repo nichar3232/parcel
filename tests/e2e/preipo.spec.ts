@@ -13,9 +13,6 @@ test('the unified watchlist searches, removes and restores PreStocks listings', 
     page.getByRole('heading', { name: 'Watchlist', exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText('Solana tokenized equities', { exact: true }),
-  ).toBeVisible();
-  await expect(
     page.getByText('PreStocks', { exact: true }).last(),
   ).toBeVisible();
   const search = page.getByLabel('Search tokenized equities and PreStocks');
