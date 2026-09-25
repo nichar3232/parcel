@@ -782,7 +782,7 @@ function Positions({
               <small>{usd(p.collateral)} collateral held</small>
             </div>
             <div className="od-ptable-num">
-              <b className="od-up">+{usd(p.prepaidInterest, 4)}</b>
+              <b className="od-up">+{usd(p.prepaidInterest)}</b>
               <small>Interest, prepaid</small>
             </div>
             <div className="od-ptable-act">
@@ -857,8 +857,8 @@ function Positions({
                       label: 'You pay to repay',
                       value: debt.total,
                       details: [
-                        ['Principal', usd(p.principal, 6)],
-                        ['Interest accrued', usd(debt.interest, 6)],
+                        ['Principal', usd(p.principal)],
+                        ['Interest accrued', usd(debt.interest)],
                         [
                           'Pledge released',
                           `${qty(p.pledged)} ${p.symbol} back to free collateral`,
@@ -915,12 +915,9 @@ function Positions({
                       label: 'You pay to cover and repay',
                       value: close.total,
                       details: [
-                        ['Repurchase cost', usd(close.repurchase, 6)],
-                        ['Accrued borrow cost', usd(close.interest, 6)],
-                        [
-                          'Total P&L including paid protection',
-                          usd(close.pnl, 6),
-                        ],
+                        ['Repurchase cost', usd(close.repurchase)],
+                        ['Accrued borrow cost', usd(close.interest)],
+                        ['Total P&L including paid protection', usd(close.pnl)],
                       ],
                     });
                   }}
@@ -960,7 +957,7 @@ function Positions({
           onClose={() => setReview(null)}
         >
           <div className="od-lines">
-            <Line label={review.label} value={usd(review.value, 6)} />
+            <Line label={review.label} value={usd(review.value)} />
             {review.details.map(([label, value]) => (
               <Line key={label} label={label} value={value} />
             ))}

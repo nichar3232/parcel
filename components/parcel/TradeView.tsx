@@ -407,7 +407,7 @@ export function TradeView({
                 <div className="od-greeks">
                   <Stat
                     label="Per +1¢ move"
-                    value={usd((g.delta + includedStock) * 0.01, 4)}
+                    value={usd((g.delta + includedStock) * 0.01)}
                     detail="Local estimate"
                   />
                   <Stat
@@ -417,12 +417,12 @@ export function TradeView({
                   />
                   <Stat
                     label="Theta per day"
-                    value={usd(g.theta, 4)}
+                    value={usd(g.theta)}
                     detail="Position-level decay"
                   />
                   <Stat
                     label="Vega per vol point"
-                    value={usd(g.vega, 4)}
+                    value={usd(g.vega)}
                     detail="Modelled vol sensitivity"
                   />
                   <Stat
@@ -575,9 +575,7 @@ export function TradeView({
                       {usd(Math.abs(g.price < 0 ? market.bid : market.ask))}
                     </b>
                   </span>
-                  <span
-                    title="Modelled share-equivalents displayed at the touch — not exchange options volume"
-                  >
+                  <span title="Modelled share-equivalents displayed at the touch — not exchange options volume">
                     Model size <b>{qty(MODEL_LIQUIDITY.displayedSize)}</b>
                   </span>
                 </div>

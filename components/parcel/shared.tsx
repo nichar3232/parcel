@@ -77,10 +77,12 @@ export const usd = (n: number, d = 2) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
+    // Cents, unless the amount is smaller than one: then enough places
+    // to show it at all.
     minimumFractionDigits:
-      d === 2 && Math.abs(n) > 0 && Math.abs(n) < 0.01 ? 6 : d,
+      d === 2 && Math.abs(n) > 0 && Math.abs(n) < 0.01 ? 4 : d,
     maximumFractionDigits:
-      d === 2 && Math.abs(n) > 0 && Math.abs(n) < 0.01 ? 6 : d,
+      d === 2 && Math.abs(n) > 0 && Math.abs(n) < 0.01 ? 4 : d,
   }).format(n);
 
 /** Precision scales with size: a pool of 168,282 shares is a whole

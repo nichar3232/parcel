@@ -45,6 +45,50 @@ export function QuoteReview({
   const stale = quote.revision !== revision;
   const dead = !remaining;
 
+  // Closing needs only what it is and what it pays: the rest of the
+  // opening review (legs, reserves, balances after) is for signing.
+  if (closing) {
+    const t = quote.terms;
+    const only = !t.curve && t.legs.length === 1 ? t.legs[0] : null;
+    const what = only
+      ? `${qty(t.quantity * only.ratio)} ${t.symbol} ${usd(only.strike, only.strike < 1 ? 4 : 2)} ${only.kind}`
+      : `${qty(t.quantity)} ${t.symbol} ${t.name.toLowerCase()}`;
+    return (
+      <Modal title={`Close ${t.name.toLowerCase()}`} onClose={onClose}>
+        <p className="od-close-summary">
+          {what} · expires {expiryLabel(t.expiry)}
+        </p>
+        <div className="od-close-amount">
+          <span>{quote.premium >= 0 ? 'You pay' : 'You receive'}</span>
+          <strong>{usd(Math.abs(quote.premium))}</strong>
+        </div>
+        {stale && (
+          <p className="od-error" role="alert">
+            Your vault changed. Close this and try again.
+          </p>
+        )}
+        {!quote.eligible && (
+          <p className="od-error" role="alert">
+            {quote.reason}
+          </p>
+        )}
+        <p className="od-close-clock">
+          {dead
+            ? 'Price expired. Close this and try again.'
+            : `Price held for ${remaining}s`}
+        </p>
+        <Button
+          size="lg"
+          full
+          disabled={busy || dead || !quote.eligible || stale}
+          onClick={onConfirm}
+        >
+          {busy ? 'Closing…' : 'Confirm close'}
+        </Button>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       title={closing ? 'Review your close quote' : 'Review your funded quote'}
@@ -54,7 +98,7 @@ export function QuoteReview({
       <div className="od-quote-premium">
         <span>{quote.premium >= 0 ? 'You pay' : 'You receive'}</span>
         <strong>
-          <Money value={Math.abs(quote.premium)} decimals={4} />
+          <Money value={Math.abs(quote.premium)} />
         </strong>
         <small>
           {quote.terms.settlement === 'physical'
@@ -76,10 +120,10 @@ export function QuoteReview({
             {quote.terms.curve.shape}, {quote.terms.curve.direction}
           </b>
           <p>
-            Range {usd(quote.terms.curve.lower, 6)} to{' '}
-            {usd(quote.terms.curve.upper, 6)}. Maximum payout{' '}
-            {usd(quote.terms.curve.cap, 6)} per share-equivalent, or{' '}
-            {usd(quote.terms.curve.cap * quote.terms.quantity, 6)} for this
+            Range {usd(quote.terms.curve.lower)} to{' '}
+            {usd(quote.terms.curve.upper)}. Maximum payout{' '}
+            {usd(quote.terms.curve.cap)} per share-equivalent, or{' '}
+            {usd(quote.terms.curve.cap * quote.terms.quantity)} for this
             contract, settled in cash at the committed event.
           </p>
         </div>

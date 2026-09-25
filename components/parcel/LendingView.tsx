@@ -20,7 +20,6 @@ import {
   crossBorrowCap,
   CRYPTO_MARKETS,
   health,
-  healthTone,
   liquidationPrice,
   MARKET_CATEGORIES,
   pledgeLiquidationPrice,
@@ -170,12 +169,7 @@ export function LendingView({
   );
 }
 
-type MarketSort =
-  | 'positions'
-  | 'liquidity'
-  | 'supply'
-  | 'borrow'
-  | 'name';
+type MarketSort = 'positions' | 'liquidity' | 'supply' | 'borrow' | 'name';
 
 const MARKET_SORTS: { id: MarketSort; label: string }[] = [
   { id: 'positions', label: 'Your positions' },
@@ -212,22 +206,13 @@ function Markets({
   const [xstocksLimit, setXstocksLimit] = useState(XSTOCKS_PAGE);
   const { data: tokenized } = useTokenizedEquities();
   const xstocks = useMemo(
-    () =>
-      (tokenized?.assets ?? []).filter((a) => a.provider === 'xstocks'),
+    () => (tokenized?.assets ?? []).filter((a) => a.provider === 'xstocks'),
     [tokenized],
   );
   // Mega-caps always included in the curated / All surfaces.
   const FEATURED_XSTOCKS = useMemo(
     () =>
-      new Set([
-        'NVDAx',
-        'AAPLx',
-        'MSFTx',
-        'AMZNx',
-        'GOOGLx',
-        'METAx',
-        'TSLAx',
-      ]),
+      new Set(['NVDAx', 'AAPLx', 'MSFTx', 'AMZNx', 'GOOGLx', 'METAx', 'TSLAx']),
     [],
   );
 
@@ -256,8 +241,10 @@ function Markets({
       heldTickers.has(a.underlyingSymbol) ||
       heldTickers.has(xstockTicker(a.id)) ||
       heldTickers.has(a.symbol);
-    const byTicker = (a: (typeof xstocks)[number], b: (typeof xstocks)[number]) =>
-      a.symbol.localeCompare(b.symbol);
+    const byTicker = (
+      a: (typeof xstocks)[number],
+      b: (typeof xstocks)[number],
+    ) => a.symbol.localeCompare(b.symbol);
 
     if (category === 'xstocks') {
       if (q) {
@@ -267,10 +254,7 @@ function Markets({
               .toLowerCase()
               .includes(q),
           )
-          .sort(
-            (a, b) =>
-              Number(heldX(b)) - Number(heldX(a)) || byTicker(a, b),
-          )
+          .sort((a, b) => Number(heldX(b)) - Number(heldX(a)) || byTicker(a, b))
           .slice(0, XSTOCKS_SEARCH_MAX);
       }
       // Larger sensible set: positions, then featured mega-caps, then
@@ -283,59 +267,18 @@ function Markets({
         .filter((a) => !heldX(a) && !FEATURED_XSTOCKS.has(a.symbol))
         .sort(byTicker);
       const preferred = [...held, ...featured];
-      const fill = rest.slice(
-        0,
-        Math.max(0, xstocksLimit - preferred.length),
-      );
+      const fill = rest.slice(0, Math.max(0, xstocksLimit - preferred.length));
       return [...preferred, ...fill];
     }
     // All / other chips: only held matches + featured mega-caps so All
     // does not paint the entire xStocks catalog.
-    return xstocks.filter(
-      (a) => heldX(a) || FEATURED_XSTOCKS.has(a.symbol),
-    );
-  }, [
-    category,
-    query,
-    xstocks,
-    FEATURED_XSTOCKS,
-    heldTickers,
-    xstocksLimit,
-  ]);
+    return xstocks.filter((a) => heldX(a) || FEATURED_XSTOCKS.has(a.symbol));
+  }, [category, query, xstocks, FEATURED_XSTOCKS, heldTickers, xstocksLimit]);
   const xstockIds = useMemo(
     () => listedXstocks.map((a) => a.id),
     [listedXstocks],
   );
   const quotes = useTokenizedEquityQuotes(xstockIds);
-
-  const position = useMemo(() => {
-    const priceOf = (of: string) =>
-      (s.market.underlyings ?? EMPTY_UNDERLYINGS).find((u) => u.symbol === of)
-        ?.price ??
-      feed.marks[of]?.price ??
-      1;
-    const collateral: Holding[] = [
-      { symbol: 'USDC', amount: s.book.vault.USDC, price: 1 },
-      ...(s.market.underlyings ?? EMPTY_UNDERLYINGS).map((u) => ({
-        symbol: u.symbol,
-        amount: s.book.vault[u.symbol] ?? 0,
-        price: u.price,
-      })),
-    ].filter((h) => h.amount > 0);
-    const debt: Holding[] = [];
-    const shortedBy: Record<string, number> = {};
-    for (const p of s.book.shorts.filter((p) => p.status === 'active'))
-      shortedBy[p.symbol] = (shortedBy[p.symbol] ?? 0) + p.quantity;
-    for (const [of, amount] of Object.entries(shortedBy))
-      debt.push({ symbol: of, amount, price: priceOf(of) });
-    for (const p of (s.book.borrows ?? []).filter((p) => p.status === 'active'))
-      debt.push({
-        symbol: 'USDC',
-        amount: borrowDebt(p, s.book.date).total,
-        price: 1,
-      });
-    return health(collateral, debt);
-  }, [s, feed.marks]);
 
   const pools = useMemo(() => {
     const seen = new Set<string>();
@@ -371,9 +314,7 @@ function Markets({
       seen.add(row.key);
       const price = row.price ?? 0;
       const liquidity =
-        row.priced && price > 0
-          ? (row.supplied + row.borrowed) * price
-          : 0;
+        row.priced && price > 0 ? (row.supplied + row.borrowed) * price : 0;
       rows.push({
         ...row,
         held: row.held ?? isHeld(row.symbol, row.key),
@@ -481,10 +422,8 @@ function Markets({
     const q = query.trim().toLowerCase();
     const byName = (a: (typeof rows)[number], b: (typeof rows)[number]) =>
       a.name.localeCompare(b.name) || a.symbol.localeCompare(b.symbol);
-    const byLiquidity = (
-      a: (typeof rows)[number],
-      b: (typeof rows)[number],
-    ) => b.liquidity - a.liquidity || byName(a, b);
+    const byLiquidity = (a: (typeof rows)[number], b: (typeof rows)[number]) =>
+      b.liquidity - a.liquidity || byName(a, b);
     return rows
       .filter((p) => category === 'all' || p.category === category)
       .filter((p) =>
@@ -587,7 +526,6 @@ function Markets({
           : n.toFixed(2);
   const pct = (n: number) =>
     n > 0 && n < 0.0001 ? '< 0.01%' : `${(n * 100).toFixed(2)}%`;
-  const tone = healthTone(position.factor);
   const pledge =
     (s.market.underlyings ?? EMPTY_UNDERLYINGS).find(
       (u) => (s.risk.freeShares[u.symbol] ?? 0) > 0,
@@ -614,10 +552,6 @@ function Markets({
     // SOL/BTC/ETH stay on the list (live marks) without a vault mint.
     onOpen('borrow', pledge);
   };
-
-  const healthLabel = Number.isFinite(position.factor)
-    ? `${position.factor.toFixed(2)}×`
-    : '∞';
 
   return (
     <section className="od-lm" aria-labelledby="lm-title">
@@ -687,20 +621,6 @@ function Markets({
               onChange={(e) => setQuery(e.target.value)}
             />
           </label>
-          <div
-            className={`od-lm-health ${tone}`}
-            title="Health factor"
-          >
-            <div className="od-lm-health-main">
-              <span>Health</span>
-              <b>{healthLabel}</b>
-            </div>
-            <div className="od-lm-health-side">
-              <span>{usd(position.available)} free</span>
-              <span aria-hidden="true">·</span>
-              <span>{usd(position.owed)} owed</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -818,8 +738,8 @@ function Markets({
           xstocksLimit >= XSTOCKS_BROWSE_MAX &&
           listedXstocks.length < xstocks.length && (
             <p className="od-lm-empty">
-              Browse capped at {XSTOCKS_BROWSE_MAX}. Search by name or ticker
-              to reach the remaining{' '}
+              Browse capped at {XSTOCKS_BROWSE_MAX}. Search by name or ticker to
+              reach the remaining{' '}
               {(xstocks.length - listedXstocks.length).toLocaleString()}{' '}
               xStocks.
             </p>
@@ -1043,29 +963,29 @@ function Borrow({
     mode === 'lend'
       ? {
           label: 'Interest you earn',
-          each: usd(interestEach, 4),
-          total: usd(interest, 4),
+          each: usd(interestEach),
+          total: usd(interest),
           note: `${stockAprLabel} · prepaid at signing · until ${expiryLabel(end)}`,
         }
       : mode === 'short'
         ? {
             label: 'Protection + max interest',
-            each: usd(add(protectionEach, interestEach), 4),
-            total: usd(add(protection, interest), 4),
-            note: `Call ${usd(k, 2)} · interest ${usd(interestEach, 4)}/sh · protection ${usd(protectionEach, 4)}/sh`,
+            each: usd(add(protectionEach, interestEach)),
+            total: usd(add(protection, interest)),
+            note: `Call ${usd(k, 2)} · interest ${usd(interestEach)}/sh · protection ${usd(protectionEach)}/sh`,
           }
         : mode === 'borrow' && loan
           ? rateKind === 'fixed'
             ? {
                 label: 'Interest locked',
-                each: usd(loan.perShare, 4),
-                total: usd(loan.termCost, 4),
+                each: usd(loan.perShare),
+                total: usd(loan.termCost),
                 note: `${aprLabel} fixed · per pledged share · until ${expiryLabel(end)}`,
               }
             : {
                 label: 'Interest today',
-                each: usd(loan.perShare, 4),
-                total: usd(loan.dayCost, 4),
+                each: usd(loan.perShare),
+                total: usd(loan.dayCost),
                 note: `${aprLabel} variable · per pledged share · one session at today's pool rate`,
               }
           : null;
@@ -1117,13 +1037,13 @@ function Borrow({
                 ? [
                     [
                       'Interest',
-                      `${usd(loan?.termCost ?? 0, 4)} · ${usd(loan?.perShare ?? 0, 4)}/share`,
+                      `${usd(loan?.termCost ?? 0)} · ${usd(loan?.perShare ?? 0)}/share`,
                     ] as [string, string],
                   ]
                 : [
                     [
                       'Interest today',
-                      `${usd(loan?.dayCost ?? 0, 4)} · ${usd(loan?.perShare ?? 0, 4)}/share`,
+                      `${usd(loan?.dayCost ?? 0)} · ${usd(loan?.perShare ?? 0)}/share`,
                     ] as [string, string],
                   ]),
               [
@@ -1145,9 +1065,9 @@ function Borrow({
                 ['Borrow rate', stockAprLabel],
                 [
                   'Full-term interest',
-                  `${usd(interest, 6)} · ${usd(interestEach, 4)}/share`,
+                  `${usd(interest)} · ${usd(interestEach)}/share`,
                 ],
-                ['Stock sale proceeds', usd(mul(q, price), 6)],
+                ['Stock sale proceeds', usd(mul(q, price))],
                 [
                   'Protective call',
                   `Buy ${qty(q)} ${symbol} call at ${usd(mode === 'lend' ? round(price * 1.5) : k, 2)}`,
@@ -1171,7 +1091,7 @@ function Borrow({
                 [
                   'Your cash movement now',
                   mode === 'lend'
-                    ? '$0.000000'
+                    ? '$0.00'
                     : usd(add(mul(q, price), -protection), 6),
                 ],
               ],
@@ -1226,12 +1146,13 @@ function Borrow({
               : `Variable at ${aprLabel} today — open-ended, repriced each session as the ${symbol} pool moves. ${qty(q)} ${symbol} stays pledged.`,
           figures: [
             {
-              label: rateKind === 'fixed' ? 'Interest / share' : 'Today / share',
-              value: usd(loan?.perShare ?? 0, 4),
+              label:
+                rateKind === 'fixed' ? 'Interest / share' : 'Today / share',
+              value: usd(loan?.perShare ?? 0),
               detail:
                 rateKind === 'fixed'
-                  ? `${usd(loan?.termCost ?? 0, 4)} over term · ${aprLabel}`
-                  : `${usd(loan?.dayCost ?? 0, 4)} this session · ${aprLabel}`,
+                  ? `${usd(loan?.termCost ?? 0)} over term · ${aprLabel}`
+                  : `${usd(loan?.dayCost ?? 0)} this session · ${aprLabel}`,
             },
             {
               label: 'Loan-to-value',
@@ -1243,9 +1164,6 @@ function Borrow({
             {
               label: 'Pledge sold at',
               value: loan?.liquidation != null ? usd(loan.liquidation) : '—',
-              detail: loan
-                ? `Health ${Number.isFinite(loan.factor) ? loan.factor.toFixed(2) : '∞'}`
-                : undefined,
             },
           ],
         }
@@ -1264,13 +1182,13 @@ function Borrow({
               },
               {
                 label: 'Protection / share',
-                value: usd(protectionEach, 4),
-                detail: `${usd(protection, 4)} total`,
+                value: usd(protectionEach),
+                detail: `${usd(protection)} total`,
               },
               {
                 label: 'Interest / share',
-                value: usd(interestEach, 4),
-                detail: `${usd(interest, 4)} max · ${stockAprLabel}`,
+                value: usd(interestEach),
+                detail: `${usd(interest)} max · ${stockAprLabel}`,
               },
             ],
           }
@@ -1278,14 +1196,14 @@ function Borrow({
           ? {
               eyebrow: 'Stock loan',
               label: 'You earn, paid at signing',
-              value: usd(interest, 4),
+              value: usd(interest),
               tone: 'up' as const,
               caption: `For lending ${qty(q)} ${symbol} until ${expiryLabel(end)}.`,
               figures: [
                 {
                   label: 'Interest / share',
-                  value: usd(interestEach, 4),
-                  detail: `${usd(interest, 4)} total · ${stockAprLabel}`,
+                  value: usd(interestEach),
+                  detail: `${usd(interest)} total · ${stockAprLabel}`,
                 },
                 {
                   label: 'Borrower posts / share',
@@ -1336,8 +1254,7 @@ function Borrow({
           )}
           {mode === 'borrow' && reserve && b > limit && (
             <p className="od-error" role="alert">
-              <TriangleAlert size={13} /> Cross-margin room is{' '}
-              {usd(limit)}
+              <TriangleAlert size={13} /> Cross-margin room is {usd(limit)}
               {pledgeLimit < position.available
                 ? ` (${Math.round(reserve.ltv * 100)}% of this pledge)`
                 : ' (portfolio borrow power)'}
@@ -1544,7 +1461,7 @@ function Borrow({
                 laterLabel="Later dates"
                 detailOf={(date) => {
                   if (mode === 'lend')
-                    return usd(termInterest(1, price, s.book.date, date), 4);
+                    return usd(termInterest(1, price, s.book.date, date));
                   if (mode === 'short') {
                     const i = termInterest(1, price, s.book.date, date);
                     const p = protectionPremium(
@@ -1555,7 +1472,7 @@ function Borrow({
                       date,
                       volatility,
                     );
-                    return usd(add(i, p), 4);
+                    return usd(add(i, p));
                   }
                   if (mode === 'borrow' && b > 0 && q > 0)
                     return usd(
@@ -1592,7 +1509,9 @@ function Borrow({
                 <small>per share</small>
               </div>
               <div className="od-lend-price-side">
-                <span>Total · {qty(q)} {symbol}</span>
+                <span>
+                  Total · {qty(q)} {symbol}
+                </span>
                 <b>{ticketPrice.total}</b>
                 <small>{ticketPrice.note}</small>
               </div>
@@ -1625,7 +1544,7 @@ function Borrow({
           onClose={() => setReview(null)}
         >
           <div className="od-lines">
-            <Line label={review.label} value={usd(review.value, 6)} />
+            <Line label={review.label} value={usd(review.value)} />
             {review.details.map(([label, value]) => (
               <Line key={label} label={label} value={value} />
             ))}

@@ -4654,17 +4654,57 @@
   gap: 8px;
 }
 
-/* The Connect dialog takes the desk's own surface and rule. globals.css
-   still paints every [data-slot='dialog-content'] in the retired desk's
-   warm brown with !important, so only an !important of higher
-   specificity can win it back. Scoped to this dialog alone. */
-.od-dialog.od-connect {
+/* Desk dialogs take the desk's own surface, rule and type in both themes.
+   globals.css still paints every [data-slot='dialog-*'] in the retired
+   desk's warm brown with !important, so only an !important of higher
+   specificity can win it back. */
+.od-dialog {
   background: var(--pc-surface) !important;
   border: 1px solid var(--pc-line) !important;
   color: var(--pc-text);
 }
-.od-dialog.od-connect .od-dialog-head {
+.od-dialog .od-dialog-head {
   border-bottom-color: var(--pc-line-soft);
+}
+.od-dialog [data-slot='dialog-title'] {
+  color: var(--pc-text) !important;
+  font-size: 18px !important;
+  letter-spacing: -0.01em !important;
+}
+.od-dialog [data-slot='dialog-description'] {
+  color: var(--pc-muted) !important;
+  font-size: 13px !important;
+}
+
+/* Closing a position: what it is, what you receive, one button. */
+.od-close-summary {
+  margin: 0;
+  color: var(--pc-body);
+  font-size: 14px;
+}
+.od-close-amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--pc-line-soft);
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-close-amount span {
+  color: var(--pc-muted);
+  font-size: 13px;
+}
+.od-close-amount strong {
+  color: var(--pc-text);
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.od-close-clock {
+  margin: 0;
+  color: var(--pc-muted);
+  font-size: 12px;
 }
 
 /* The Agents dialog. The command is plain monospace text, not a box. */

@@ -541,11 +541,9 @@ test('option confirmation lists every leg and a close is priced before execution
   await expect(dialog).toHaveCount(0);
   await nav(page, 'Positions');
   await page.getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(dialog).toContainText('Review your close quote');
+  await expect(dialog).toContainText('Close ');
   await expect(dialog).toContainText('You receive');
-  await expect(dialog.getByRole('row').nth(1)).toHaveText(
-    /Sell.*call.*\$140\.00.*2×.*2/,
-  );
+  await expect(dialog).toContainText(/1 NVDA call spread/);
   await page
     .getByRole('button', { name: 'Confirm close', exact: true })
     .click();
@@ -674,7 +672,9 @@ test('capped curves review every parameter, execute, close with a priced quote a
     .filter({ hasText: 'Capped exponential' })
     .getByRole('button', { name: 'Close', exact: true })
     .click();
-  await expect(page.getByRole('dialog')).toContainText(/sell to close/i);
+  await expect(page.getByRole('dialog')).toContainText(
+    'Close capped exponential',
+  );
   await page
     .getByRole('button', { name: 'Confirm close', exact: true })
     .click();

@@ -172,12 +172,7 @@ export function AgentsDialog({
   });
 
   return (
-    <Modal
-      title="Connect over MCP"
-      className="od-connect"
-      onClose={onClose}
-      wide
-    >
+    <Modal title="Connect over MCP" onClose={onClose} wide>
       <Segmented
         label="App"
         value={app}

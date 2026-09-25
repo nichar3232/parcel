@@ -70,7 +70,7 @@ export function CurveEditor({
       <p className="od-form-note">
         Cash payoff is clipped to this range. Maximum obligation:{' '}
         {Number.isFinite(curve.cap * draft.quantity)
-          ? usd(curve.cap * draft.quantity, 6)
+          ? usd(curve.cap * draft.quantity)
           : '—'}
         . The writer locks this amount; an identical opposite contract may
         offset it.
