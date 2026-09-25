@@ -781,13 +781,13 @@ export default function Workspace() {
               </div>
             </li>
           </ul>
-          <p className="od-about-foot">
-            {s?.mode === 'localnet'
-              ? 'Runs on a local Solana validator with test tokens — not sandbox, not mainnet.'
-              : s?.mode === 'devnet'
-                ? 'Runs on Solana devnet with no-value test tokens — not sandbox, not mainnet.'
-                : 'Sandbox: test balances in SQLite, not onchain, no real money.'}
-          </p>
+          {(s?.mode === 'localnet' || s?.mode === 'devnet') && (
+            <p className="od-about-foot">
+              {s.mode === 'localnet'
+                ? 'Runs on a local Solana validator with test tokens — not mainnet.'
+                : 'Runs on Solana devnet with no-value test tokens — not mainnet.'}
+            </p>
+          )}
           <Button
             variant="secondary"
             full

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import type { Desk } from '@/hooks/desk/use-desk';
 import { maximum, money } from '@/lib/engine';
 import { priceOn } from '@/lib/scenarios';
+import { shownWarning } from '@/lib/client/chain-copy';
 import { CheckCheck, ExternalLink, Link as LinkIcon, Lock } from 'lucide-react';
 export function ExecuteContent({
   health,
@@ -33,13 +34,6 @@ export function ExecuteContent({
 >) {
   return (
     <>
-      {(!health?.chain.ready || !chainReady) && (
-        <p className="form-error" role="alert">
-          Solana execution is unavailable or still connecting. Your historical
-          practice desk remains available.{' '}
-          <button onClick={() => chainAction('read')}>Check connection</button>
-        </p>
-      )}
       <div className="chain-banner">
         <LinkIcon size={22} />
         <div>
@@ -61,8 +55,8 @@ export function ExecuteContent({
         separate from your practice portfolio. Historical expiry is compressed
         to 90 seconds after funding.
       </p>
-      {remote?.warning && (
-        <output className="form-error">{remote.warning}</output>
+      {shownWarning(remote?.warning) && (
+        <output className="form-error">{remote?.warning}</output>
       )}
       {!remote ? (
         <>

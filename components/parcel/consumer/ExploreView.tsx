@@ -223,12 +223,12 @@ export function ExploreView({
               View assets & funding <ArrowRight size={15} />
             </button>
             <small>
-              Actual saved balances ·{' '}
+              Actual saved balances
               {state.mode === 'localnet'
-                ? 'local-validator test assets (not sandbox, not mainnet)'
+                ? ' · local-validator test assets (not mainnet)'
                 : state.mode === 'devnet'
-                  ? 'devnet test assets (not sandbox, not mainnet)'
-                  : 'sandbox test assets (not onchain)'}
+                  ? ' · devnet test assets (not mainnet)'
+                  : ''}
             </small>
           </section>
         </div>
