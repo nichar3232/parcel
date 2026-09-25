@@ -67,15 +67,14 @@ export async function nav(page: Page, name: string) {
       await navTop(page, 'Portfolio');
       return section(page, 'Holdings');
     // Positions and Collateral are no longer tabs of their own: the
-    // open positions are on Holdings, and the collateral policy is a
-    // setting reached from the line that states it.
+    // open positions and health sit on Holdings.
     case 'Positions':
       await navTop(page, 'Portfolio');
       return section(page, 'Holdings');
     case 'Risk':
     case 'Collateral':
       await navTop(page, 'Portfolio');
-      return section(page, 'Collateral');
+      return section(page, 'Holdings');
     case 'Activity':
       await navTop(page, 'Portfolio');
       return section(page, 'Activity');

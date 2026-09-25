@@ -58,8 +58,14 @@ export interface LiveMarket {
   /** The expiry dates a contract can be written to, after `now`. */
   expiries(now: string): string[];
   /**
-   * A fresh executable bid and ask. A delayed mark, oracle mark, or modelled
-   * spread must return null here rather than being passed off as a venue book.
+   * A fresh executable bid and ask for sandbox stock transfers.
+   *
+   * Preferred: a consolidated NBBO with displayed sizes (depth-capped).
+   * Fallback without that feed: a fresh Yahoo mark's *modelled* bid/ask — the
+   * same spread the desk shows beside the mark — filled by the sandbox
+   * counterparty with no venue depth claim. Oracle marks, stale prints,
+   * boot seeds, delayed-NBBO feeds and pure simulation must return null
+   * rather than being passed off as a venue book.
    */
   quote?(
     symbol: string,

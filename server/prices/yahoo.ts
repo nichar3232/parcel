@@ -17,6 +17,29 @@ import type { Observation, Source, SourceHealth } from './sources';
 
 const TIMEOUT = 4000;
 const HOST = process.env.YAHOO_CHART_URL || 'https://query1.finance.yahoo.com';
+/**
+ * How long a one-minute chart bar may still be treated as the current
+ * delayed print. The mark engine's freshness window is ~20s (built for
+ * streaming NBBO). Stamping Yahoo observations with the bar's open time
+ * would mark the desk stale for most of every minute even while polls
+ * keep returning that bar's moving close. While the latest bar is still
+ * inside this window, observation time follows the successful poll clock
+ * so freshness means "Yahoo answered recently", not "the minute opened
+ * under 20 seconds ago". Older bars keep their published time and age
+ * out honestly (weekend / halt / overnight gap).
+ */
+export const YAHOO_BAR_CURRENT_MS = 90_000;
+
+/**
+ * Observation time for a Yahoo chart print.
+ *
+ * `publishedAt` is the venue bar timestamp. `now` is the poll clock.
+ */
+export function yahooObservationTime(publishedAt: number, now = Date.now()) {
+  if (!Number.isFinite(publishedAt) || publishedAt <= 0) return now;
+  if (!Number.isFinite(now) || now <= 0) return publishedAt;
+  return now - publishedAt <= YAHOO_BAR_CURRENT_MS ? now : publishedAt;
+}
 
 export interface IntradayBar {
   /** Bar start, in ms. */
@@ -143,11 +166,13 @@ export class YahooSource implements Source {
           post: bound(post),
           asOf: Date.now(),
         });
+        const publishedAt =
+          last?.t ?? (r.meta?.regularMarketTime ?? 0) * 1000;
         return {
           symbol: i.symbol,
           price,
           open: previousClose ?? undefined,
-          at: last?.t ?? (r.meta?.regularMarketTime ?? 0) * 1000,
+          at: yahooObservationTime(publishedAt),
           source: this.name,
         };
       }),

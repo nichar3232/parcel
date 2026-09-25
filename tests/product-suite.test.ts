@@ -5,6 +5,7 @@ import {
   initialVault,
   addOrder,
   premium,
+  tradedPremium,
   setMarketDate,
   totals,
   closeOrder,
@@ -19,8 +20,16 @@ import { parseOrderTerms } from '../lib/parcel/validation';
 import { risk } from '../lib/parcel/risk';
 import { mark, clockRows, shortExpiries } from '../lib/parcel/market';
 import { setLiveMarket, type LiveMarket } from '../lib/parcel/market';
+import { fridayExpiries } from '../server/prices/live';
+import { Store } from '../server/db/store';
+import { VaultService } from '../server/parcel/service';
 import { termInterest, accruedInterest } from '../lib/parcel/funding';
 import type { OrderTerms, OptionPosition } from '../lib/parcel/types';
+import {
+  halfSpread,
+  quoteAround,
+  MODEL_LIQUIDITY,
+} from '../lib/parcel/spread';
 const position = (terms: OrderTerms): OptionPosition => ({
   id: randomUUID(),
   terms,
@@ -312,6 +321,8 @@ void test('live model liquidity prices every leg, penalises participation, and s
       hundredCrossing / hundred.quantity > oneCrossing / one.quantity,
       'per-share impact must increase once an order consumes displayed size',
     );
+    assert.equal(indicative(one, b).premium, tradedPremium(one, b));
+    assert.ok(oneCrossing >= halfSpread(Math.abs(premium(one, b))));
 
     const budget = 20;
     const sized = sizeOrder(b, one, 'premium', budget);
@@ -325,6 +336,184 @@ void test('live model liquidity prices every leg, penalises participation, and s
     }
   } finally {
     setLiveMarket(null);
+  }
+});
+
+void test('live chain bid/ask equals funded quote equals durable fill; writers receive the bid', () => {
+  const nowIso = '2026-09-23T12:00:00.000Z';
+  const nowMs = Date.parse(nowIso);
+  const listed = fridayExpiries(nowIso);
+  assert.ok(listed.length > 0);
+  const expiry = listed[2] ?? listed[0];
+  const market: LiveMarket = {
+    spot: () => 223.71,
+    close: () => null,
+    expiries: (at) => fridayExpiries(at),
+  };
+  setLiveMarket(market);
+  const store = new Store(':memory:');
+  try {
+    const { session } = store.createSession();
+    const service = new VaultService(store, () => nowMs);
+    let state = service.snapshot(session);
+    assert.equal(state.mode, 'sandbox');
+    state = service.apply(session, randomUUID(), {
+      revision: state.revision,
+      action: {
+        type: 'transfer',
+        asset: 'USDC',
+        direction: 'deposit',
+        amount: 10_000,
+      },
+    });
+    state = service.apply(session, randomUUID(), {
+      revision: state.revision,
+      action: {
+        type: 'transfer',
+        asset: 'NVDA',
+        direction: 'deposit',
+        amount: 25,
+      },
+    });
+
+    const chain = optionsChain(state.book, expiry, 1, 'NVDA');
+    assert.match(chain.pricing, /not an external options book/i);
+    const spotRow = chain.rows.reduce((best, row) =>
+      Math.abs(row.strike - chain.spot) < Math.abs(best.strike - chain.spot)
+        ? row
+        : best,
+    );
+    const call = spotRow.contracts.find((c) => c.kind === 'call')!;
+    assert.ok(call.buy.premium > 0, 'model ask is a debit');
+    assert.ok(call.sell.premium < 0, 'model bid is a credit');
+    assert.ok(
+      call.buy.premium + call.sell.premium > 0,
+      'asymmetric: buyer pays more than writer receives — no cooked mid',
+    );
+
+    const mid = premium(
+      parseOrderTerms(
+        {
+          symbol: 'NVDA',
+          name: 'call',
+          quantity: 1,
+          expiry,
+          settlement: 'physical',
+          reference: 'stock',
+          legs: [
+            { kind: 'call', side: 'buy', strike: spotRow.strike, ratio: 1 },
+          ],
+        },
+        state.book.date,
+      ),
+      state.book,
+    );
+    const around = quoteAround(mid, call.buy.premium - mid);
+    assert.equal(around.ask, call.buy.premium);
+    assert.equal(around.bid, -call.sell.premium);
+    assert.ok(
+      halfSpread(mid) >= MODEL_LIQUIDITY.minimum / 2,
+      'touch respects the one-cent floor',
+    );
+
+    const buyTerms = parseOrderTerms(
+      {
+        symbol: 'NVDA',
+        name: `Long call ${spotRow.strike}`,
+        quantity: 1,
+        expiry,
+        settlement: 'physical',
+        reference: 'stock',
+        legs: [{ kind: 'call', side: 'buy', strike: spotRow.strike, ratio: 1 }],
+      },
+      state.book.date,
+    );
+    assert.equal(call.buy.premium, tradedPremium(buyTerms, state.book));
+    assert.equal(call.buy.premium, indicative(buyTerms, state.book).premium);
+
+    const buyQuote = service.quote(session, randomUUID(), {
+      revision: state.revision,
+      terms: buyTerms,
+    });
+    assert.equal(
+      buyQuote.premium,
+      call.buy.premium,
+      'funded quote matches chain ask',
+    );
+    assert.equal(buyQuote.eligible, true, buyQuote.reason);
+    const cashBefore = state.book.vault.USDC;
+    state = service.apply(session, randomUUID(), {
+      revision: state.revision,
+      action: { type: 'execute', quoteId: buyQuote.id },
+    });
+    assert.equal(
+      state.book.options[0].premium,
+      buyQuote.premium,
+      'fill stores the quoted ask',
+    );
+    assert.equal(state.book.vault.USDC, add(cashBefore, -buyQuote.premium));
+
+    const closeQuote = service.quote(session, randomUUID(), {
+      revision: state.revision,
+      positionId: state.book.options[0].id,
+    });
+    assert.equal(closeQuote.intent, 'close');
+    assert.equal(
+      closeQuote.premium,
+      tradedPremium(buyTerms, state.book, 'close'),
+    );
+    assert.ok(
+      closeQuote.premium < 0,
+      'closing a long credits the model bid (negative debit)',
+    );
+    assert.equal(closeQuote.eligible, true, closeQuote.reason);
+    const openAsk = buyQuote.premium;
+    const closeCredit = -closeQuote.premium;
+    assert.ok(openAsk > closeCredit, 'round-trip loses the modelled spread');
+    state = service.apply(session, randomUUID(), {
+      revision: state.revision,
+      action: { type: 'execute', quoteId: closeQuote.id },
+    });
+    assert.equal(state.book.options[0].status, 'closed');
+    assert.equal(state.book.options[0].cashFlow, closeCredit);
+
+    const writeTerms = parseOrderTerms(
+      {
+        symbol: 'NVDA',
+        name: `Short call ${spotRow.strike}`,
+        quantity: 1,
+        expiry,
+        settlement: 'physical',
+        reference: 'stock',
+        legs: [{ kind: 'call', side: 'sell', strike: spotRow.strike, ratio: 1 }],
+      },
+      state.book.date,
+    );
+    assert.equal(call.sell.premium, tradedPremium(writeTerms, state.book));
+    const writeQuote = service.quote(session, randomUUID(), {
+      revision: state.revision,
+      terms: writeTerms,
+    });
+    assert.equal(
+      writeQuote.premium,
+      call.sell.premium,
+      'funded quote matches chain bid credit',
+    );
+    assert.equal(writeQuote.eligible, true, writeQuote.reason);
+    const beforeWrite = state.book.vault.USDC;
+    state = service.apply(session, randomUUID(), {
+      revision: state.revision,
+      action: { type: 'execute', quoteId: writeQuote.id },
+    });
+    assert.equal(state.book.options[0].premium, writeQuote.premium);
+    assert.equal(
+      state.book.vault.USDC,
+      add(beforeWrite, -writeQuote.premium),
+      'writer is credited the model bid',
+    );
+  } finally {
+    setLiveMarket(null);
+    store.close();
   }
 });
 void test('500 nonlinear positions retain bounded risk calculation cost', () => {

@@ -49,15 +49,10 @@ type Page = (typeof NAV)[number]['name'];
  * tab it should render and nothing else.
  */
 const TABS = {
-  // "Positions" listed the same open contracts as the overview and
-  // "Collateral" the same reserves the assets table already columns.
-  // Collateral is still reachable — it is a real setting — from the line
-  // that states which mode is on.
   Portfolio: [
     { id: 'overview', label: 'Holdings' },
     { id: 'watchlist', label: 'Watchlist' },
     { id: 'activity', label: 'Activity' },
-    { id: 'collateral', label: 'Collateral' },
   ],
   // Buying and writing ran the same ticket with the side flipped, so
   // they are one section and the side is a choice on the ticket.
@@ -602,7 +597,7 @@ export default function Workspace() {
               <dd>{usd(s.risk.freeCash)}</dd>
             </div>
             <div>
-              <dt>Vault value</dt>
+              <dt>Portfolio balance</dt>
               <dd>
                 {usd(
                   (s.market.underlyings ?? []).reduce(

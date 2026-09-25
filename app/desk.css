@@ -1893,7 +1893,7 @@
     gap: 12px;
   }
   .od-vline {
-    height: 190px;
+    height: 210px;
   }
   .od-positions {
     padding-top: 12px;
@@ -1926,10 +1926,12 @@
 .od-open-move {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-top: 6px;
-  font-size: 13.5px;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 14.5px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 .od-open-move.up {
   color: var(--pc-up);
@@ -1939,10 +1941,16 @@
 }
 .od-open-move.flat {
   color: var(--pc-muted);
+  font-weight: 400;
+}
+.od-open-move b {
+  font-weight: 600;
 }
 .od-open-move em {
   color: var(--pc-muted);
   font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 .od-open-feed {
   display: inline-flex;
@@ -1995,26 +2003,107 @@
   vector-effect: non-scaling-stroke;
 }
 
-/* The live value line. A box of its own so the scrub rule and the dot
-   can be HTML: the SVG stretches to the width, which would squash a
-   circle into an ellipse. */
+/* The live value line. A box of its own so the scrub rule, the dot,
+   and the axis labels can be HTML: the SVG stretches to the width,
+   which would squash circles and warp text under preserveAspectRatio
+   none. Session structure is soft bands + open/close hairlines — no
+   floating PRE/MARKET copy. */
 .od-vline {
   position: relative;
+  display: flex;
+  flex-direction: column;
   align-self: stretch;
   width: 100%;
-  height: 240px;
+  height: 248px;
   color: var(--pc-up);
   touch-action: pan-y;
-  cursor: crosshair;
 }
 .od-vline.down {
   color: var(--pc-down);
 }
-.od-vline svg {
+.od-vline-plot {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  cursor: crosshair;
+}
+.od-vline-plot svg {
   display: block;
   width: 100%;
   height: 100%;
   overflow: visible;
+}
+.od-vline-band {
+  fill: color-mix(in srgb, var(--pc-text) 2.5%, transparent);
+  pointer-events: none;
+}
+.od-vline-band.regular {
+  fill: color-mix(in srgb, var(--pc-cyan) 3.5%, transparent);
+}
+.od-vline-band.pre,
+.od-vline-band.post {
+  fill: color-mix(in srgb, var(--pc-text) 1.6%, transparent);
+}
+.od-vline-band.active.regular {
+  fill: color-mix(in srgb, var(--pc-cyan) 5.5%, transparent);
+}
+.od-vline-band.active.pre,
+.od-vline-band.active.post {
+  fill: color-mix(in srgb, var(--pc-text) 3.2%, transparent);
+}
+.od-vline-grid line {
+  stroke: var(--pc-line-soft);
+  stroke-width: 1;
+  opacity: 0.9;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.od-vline-y {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 0;
+  pointer-events: none;
+}
+.od-vline-y span {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  padding: 1px 6px 1px 8px;
+  border-radius: 4px 0 0 4px;
+  background: color-mix(in srgb, var(--pc-void) 72%, transparent);
+  color: var(--pc-faint);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.od-vline-x {
+  position: relative;
+  flex: 0 0 20px;
+  margin-top: 4px;
+}
+.od-vline-x span {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-50%);
+  color: var(--pc-faint);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+.od-vline-x span.major {
+  color: var(--pc-muted);
+}
+.od-vline-x span:first-child {
+  transform: translateX(0);
+}
+.od-vline-x span:last-child {
+  transform: translateX(-100%);
 }
 .od-vline-line {
   fill: none;
@@ -2028,34 +2117,15 @@
   stroke: var(--pc-muted);
   stroke-width: 1;
   stroke-dasharray: 2 5;
-  opacity: 0.6;
+  opacity: 0.5;
   vector-effect: non-scaling-stroke;
 }
-/* Venue day: pre and after are quieter; regular hours sit clearer. */
-.od-vline-band rect {
-  pointer-events: none;
-}
-.od-vline-band.pre rect,
-.od-vline-band.post rect {
-  fill: color-mix(in srgb, var(--pc-text) 3.5%, transparent);
-}
-.od-vline-band.regular rect {
-  fill: color-mix(in srgb, var(--pc-text) 7%, transparent);
-}
-.od-vline-band text {
-  fill: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.85;
-  pointer-events: none;
-}
+/* Open / close hairlines — session shape is carried by soft bands. */
 .od-vline-session {
   stroke: var(--pc-line);
   stroke-width: 1;
-  stroke-dasharray: 2 4;
-  opacity: 0.75;
+  stroke-dasharray: 1.5 3.5;
+  opacity: 0.65;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
@@ -2146,7 +2216,7 @@
 }
 .od-positions-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding-bottom: 12px;
@@ -2160,6 +2230,46 @@
   color: var(--pc-muted);
   font-size: 12.5px;
 }
+.od-positions-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.od-pos-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--pc-line) 88%, var(--pc-text));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pc-text) 7.5%, transparent);
+  color: var(--pc-body);
+  font-family: var(--pc-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.od-pos-health b {
+  color: var(--pc-text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.od-pos-health.safe b {
+  color: var(--pc-up);
+}
+.od-pos-health.watch b {
+  color: var(--pc-warn, #d4a017);
+}
+.od-pos-health.risk b {
+  color: var(--pc-down);
+}
+
 .od-ptable-row {
   display: grid;
   grid-template-columns:
@@ -5502,6 +5612,41 @@
   color: var(--pc-text);
   background: color-mix(in srgb, var(--pc-text) 8%, transparent);
   border-color: color-mix(in srgb, var(--pc-text) 28%, var(--pc-line));
+}
+.od-lm-toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.od-lm-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pc-muted);
+  font-size: 12.5px;
+}
+.od-lm-sort span {
+  white-space: nowrap;
+}
+.pc-desk .od-lm-sort select {
+  height: 30px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: transparent;
+  color: var(--pc-text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.pc-desk .od-lm-sort select:hover {
+  border-color: color-mix(in srgb, var(--pc-text) 28%, var(--pc-line));
+}
+.pc-desk .od-lm-sort select:focus {
+  outline: 2px solid color-mix(in srgb, var(--pc-cyan) 45%, transparent);
+  outline-offset: 1px;
 }
 .od-lm-health {
   display: flex;

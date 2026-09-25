@@ -192,7 +192,13 @@ void test('without an NBBO feed, a fresh Yahoo mark fills at its modelled bid/as
         const market = new LiveMarketService(engine, store);
         const q = market.quote('NVDA');
         assert.equal(m.source, 'yahoo');
+        assert.equal(m.quoteKind, 'modelled');
         assert.deepEqual(q, { bid: m.bid, ask: m.ask });
+        assert.equal(
+          (q as { bidSize?: number }).bidSize,
+          undefined,
+          'modelled Yahoo fills carry no venue depth',
+        );
         assert.ok(q!.bid < 142.62 && q!.ask > 142.62, 'a two-sided spread');
         done();
       } catch (e) {

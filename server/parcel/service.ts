@@ -23,7 +23,6 @@ import {
   symbol as parseSymbol,
 } from '../../lib/parcel/validation';
 import { risk } from '../../lib/parcel/risk';
-import { spreadCost } from '../../lib/parcel/spread';
 import { borrowRate } from '../../lib/parcel/lending';
 import type {
   Asset,
@@ -47,7 +46,7 @@ import {
   seedVault,
   openLoan,
   openShort,
-  premium,
+  tradedPremium,
   setMarketDate,
   syncLive,
   totals,
@@ -232,20 +231,11 @@ export class VaultService {
         : parseOrderTerms(request.terms, current.book.date);
       // Opening pays the ask (or, writing, receives the bid); closing
       // crosses back the other way. Off the live market the spread is 0.
-      const crossing =
-        parsed.reference === 'stock'
-          ? spreadCost(
-              parsed,
-              mark(parsed.symbol, current.book.date),
-              current.book.date,
-              volatility(parsed.symbol),
-            )
-          : 0;
-      const cost = add(
-        closing
-          ? -premium(parsed, current.book)
-          : premium(parsed, current.book),
-        crossing,
+      // Chain indications use the same tradedPremium helper.
+      const cost = tradedPremium(
+        parsed,
+        current.book,
+        closing ? 'close' : 'open',
       );
       const projection = structuredClone(current.book);
       projection.vault.USDC = add(projection.vault.USDC, -cost);

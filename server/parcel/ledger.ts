@@ -24,10 +24,17 @@ import {
   termInterest,
   shortCloseAmounts,
 } from '../../lib/parcel/funding';
-import { crossBorrowCap, health, reserveOf } from '../../lib/parcel/lending';
+import {
+  borrowRate,
+  crossBorrowCap,
+  health,
+  reserveOf,
+} from '../../lib/parcel/lending';
 import { payoffBounds } from '../../lib/parcel/envelope';
 import { bounded } from '../../lib/parcel/math';
 import { assertCollateral, risk } from '../../lib/parcel/risk';
+import { spreadCost } from '../../lib/parcel/spread';
+import { templateTerms } from '../../lib/parcel/templates';
 import type {
   Asset,
   Balances,
@@ -99,32 +106,106 @@ export function migrate(book: VaultBook & { version: number }): VaultBook {
 /**
  * The same vault with a position in it, for demonstrating the desk.
  *
- * Built by running the deposits, the loan and the short through the
- * ordinary ledger functions rather than by writing rows into `loans`
- * and `shorts`. That matters: a hand-written row looks identical until
- * someone presses Recall, at which point the balances it was never
- * part of refuse to move. Seeded this way the health factor, the
- * reserved share count, the activity feed and both close buttons all
- * agree with each other, because they are reading a book that actually
- * did the trades.
+ * Built by running deposits, loans, shorts, borrows and contracts through
+ * the ordinary ledger functions rather than by writing rows into the
+ * books. That matters: a hand-written row looks identical until someone
+ * presses Recall, at which point the balances it was never part of refuse
+ * to move. Seeded this way the health factor, the reserved share count,
+ * the activity feed and every close button agree with each other.
  *
  * Off unless PARCEL_DEMO is set, so the test suite keeps the empty
  * vault every one of its assertions is written against.
  */
 export function demoVault(): VaultBook {
   const book = initialVault();
+  // Demo needs a deeper wallet than the empty-book faucet: cash for
+  // option premia and borrows, and enough of each pre-IPO token to hold
+  // and lend without draining the counterparty seed.
+  book.wallet.USDC = add(book.wallet.USDC, 40_000);
+  for (const symbol of [
+    'SPACEX',
+    'ANTHROPIC',
+    'OPENAI',
+    'ANDURIL',
+    'NEURALINK',
+  ] as const)
+    book.wallet[symbol] = add(book.wallet[symbol] ?? 0, 10);
+
   const expiry = expiries(book.date).find(
     (d) => days(book.date, d) >= 14,
   ) as string;
+  if (!expiry) throw Error('Demo vault needs an expiry at least two weeks out.');
 
-  transfer(book.wallet, book.vault, 'USDC', 10_000);
-  transfer(book.wallet, book.vault, 'NVDA', 25);
+  const deposit = (asset: Asset, amount: number) => {
+    transfer(book.wallet, book.vault, asset, amount);
+    emit(
+      book,
+      'Vault deposit',
+      `${amount} ${asset} deposited from test wallet`,
+      asset === 'USDC' ? amount : 0,
+      asset === 'USDC' ? 0 : amount,
+      undefined,
+      asset === 'USDC' ? DEFAULT_UNDERLYING : asset,
+    );
+  };
 
-  // Four shares out on loan and two sold short against a cap about 12%
-  // above the price: enough for both tables to have rows and for the
-  // health factor to be a number rather than an infinity.
-  openLoan(book, 4, expiry);
-  openShort(book, 2, Math.round(mark('NVDA', book.date) * 1.12), expiry);
+  deposit('USDC', 25_000);
+  deposit('NVDA', 25);
+  deposit('SPACEX', 8);
+  deposit('ANTHROPIC', 4);
+  deposit('OPENAI', 3);
+  deposit('ANDURIL', 5);
+  deposit('NEURALINK', 3);
+
+  const write = (id: string, symbol: string, quantity: number) => {
+    const price = mark(symbol, book.date);
+    const terms = templateTerms(id, expiry, symbol, price);
+    terms.quantity = quantity;
+    // Seed at the same traded premium a live open would charge so demo
+    // positions never sit at a silent mid while the desk shows an ask.
+    addOrder(book, terms, tradedPremium(terms, book));
+  };
+
+  // Options across the book: covered call on NVDA, directional and
+  // defined-risk tickets on the pre-IPO sleeve.
+  write('covered-call', 'NVDA', 2);
+  write('call', 'OPENAI', 0.5);
+  write('put', 'ANTHROPIC', 0.5);
+  write('call-spread', 'SPACEX', 1);
+  write('put-spread', 'ANDURIL', 1);
+
+  openLoan(book, 4, expiry, 'NVDA');
+  openLoan(book, 2, expiry, 'SPACEX');
+
+  openShort(
+    book,
+    2,
+    round(mark('NVDA', book.date) * 1.12),
+    expiry,
+    'NVDA',
+  );
+  openShort(
+    book,
+    1,
+    round(mark('ANDURIL', book.date) * 1.15),
+    expiry,
+    'ANDURIL',
+  );
+
+  // Cash borrow against free NVDA so the positions table shows USDC debt
+  // and Activity records the draw.
+  const freeNvda = risk(book).freeShares.NVDA ?? 0;
+  const pledge = Math.min(3, Math.floor(freeNvda * 1e6) / 1e6);
+  if (pledge > 0) {
+    const price = mark('NVDA', book.date);
+    const apr = borrowRate('NVDA', null);
+    const amount =
+      Math.floor(pledge * price * (reserveOf('NVDA')?.ltv ?? 0.6) * 0.45 * 1e6) /
+      1e6;
+    if (amount >= 1)
+      openBorrow(book, pledge, amount, 'variable', apr, undefined, 'NVDA');
+  }
+
   return book;
 }
 
@@ -194,6 +275,33 @@ export function premium(terms: OrderTerms, book: VaultBook) {
     Math.min(0, Number(bounds.cashMin) / 1e6),
     Math.min(Math.max(0, Number(bounds.cashMax) / 1e6), value),
   );
+}
+
+/**
+ * The cash amount that opens or closes this contract against the modelled
+ * market maker: mid from {@link premium}, plus the live per-leg crossing
+ * cost (zero off the live market). Open and close both cross; a long pays
+ * the ask to open and receives the bid to close.
+ *
+ * Chain indications, funded quotes and durable fills all read this one
+ * schedule so the premium on screen is the premium charged.
+ */
+export function tradedPremium(
+  terms: OrderTerms,
+  book: VaultBook,
+  intent: 'open' | 'close' = 'open',
+) {
+  const mid = premium(terms, book);
+  const crossing =
+    terms.reference === 'stock'
+      ? spreadCost(
+          terms,
+          mark(terms.symbol, book.date),
+          book.date,
+          volatility(terms.symbol),
+        )
+      : 0;
+  return add(intent === 'close' ? -mid : mid, crossing);
 }
 export function addOrder(
   book: VaultBook,

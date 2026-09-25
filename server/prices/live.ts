@@ -130,15 +130,17 @@ export class LiveMarketService implements LiveMarket {
     const m = this.engine.mark(symbol);
     // A stock transfer's cash amount comes from a two-sided market. A fresh
     // consolidated NBBO is used when one is connected, with its displayed
-    // size as the limit. Parcel runs without that feed, so a fresh Yahoo mark
-    // fills at the modelled bid/ask the desk shows beside it; the sandbox's
-    // test counterparty takes the other side. An oracle mark, a stale print
-    // or the engine's boot seed never fills.
+    // size as the limit. Without that feed, a fresh Yahoo mark fills at the
+    // *modelled* bid/ask the desk shows beside it (spreadBps around the
+    // delayed print); the sandbox counterparty takes the other side — this
+    // is not a venue book and carries no displayed size. An oracle mark, a
+    // stale print, delayed NBBO, or the engine's boot seed never fills.
     if (
       m &&
       !m.stale &&
       m.kind === 'equity' &&
       m.source === 'yahoo' &&
+      m.quoteKind === 'modelled' &&
       m.bid > 0 &&
       m.ask > m.bid
     )

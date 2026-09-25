@@ -6,6 +6,25 @@ import {
   type SocketLike,
   type Source,
 } from '../server/prices/sources';
+import {
+  YAHOO_BAR_CURRENT_MS,
+  yahooObservationTime,
+} from '../server/prices/yahoo';
+
+void test('Yahoo: a current one-minute bar stays fresh across the poll window', () => {
+  const now = 1_700_000_000_000;
+  const barOpen = now - 45_000;
+  assert.equal(
+    yahooObservationTime(barOpen, now),
+    now,
+    'poll clock keeps an in-progress minute bar inside the desk freshness window',
+  );
+  assert.equal(
+    yahooObservationTime(now - YAHOO_BAR_CURRENT_MS - 1, now),
+    now - YAHOO_BAR_CURRENT_MS - 1,
+    'an aged bar keeps its published time and ages out honestly',
+  );
+});
 
 class Socket implements SocketLike {
   onopen: (() => void) | null = null;

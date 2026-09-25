@@ -266,25 +266,68 @@ export interface MarketSessions {
   post?: { start: number; end: number } | null;
 }
 
-const L = { w: 1000, h: 240, y0: 22, y1: 226 };
+const L = { w: 1000, h: 240, y0: 10, y1: 218 };
+
+/** Compact portfolio axis figures — soft context, not a ledger column. */
+function axisUsd(n: number) {
+  const a = Math.abs(n);
+  if (a >= 1_000_000)
+    return `$${(n / 1_000_000).toFixed(a >= 10_000_000 ? 1 : 2)}M`;
+  if (a >= 10_000) return `$${(n / 1_000).toFixed(a >= 100_000 ? 0 : 1)}k`;
+  return usd(n, a >= 100 ? 0 : 2);
+}
+
+function clockTick(t: number) {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(t);
+}
+
+function dayTick(iso: string, withYear: boolean) {
+  if (iso === 'now') return 'Now';
+  const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return iso.slice(5).replace('-', '/');
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    ...(withYear ? { year: '2-digit' } : {}),
+  }).format(d);
+}
+
+function monthTick(iso: string) {
+  if (iso === 'now') return 'Now';
+  const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 7);
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    year: '2-digit',
+  }).format(d);
+}
 
 /**
- * The vault's value line, drawn to be read by pointing at it.
+ * The portfolio value line, drawn to be read by pointing at it.
  *
  * A time axis when `domain` is given: the day runs from the first print
- * to the close, so the line grows to the right as the session goes on
- * rather than stretching to fill the width. The dashed rule is the
- * reference the move is measured from (yesterday's close on 1D). On a
- * 1D axis, pre-market / regular / after-hours bands mark the venue's
- * day so the line's shape reads against the clock. The last point
- * pulses while the feed is live; pointing anywhere scrubs the headline
- * to that moment.
+ * toward the close, so the line grows to the right as the session goes
+ * on rather than stretching to fill the width. The dashed rule is the
+ * reference the move is measured from (yesterday's close on 1D).
+ *
+ * Structure stays quiet: soft horizontal guides with lean y-labels, a
+ * short x-axis of time or date ticks, and on a timed 1D day soft session
+ * bands with open/close hairlines — no floating PRE/MARKET copy. Axis
+ * labels live in HTML so preserveAspectRatio:none cannot warp them.
+ * The last point pulses while the feed is live; pointing scrubs the
+ * headline.
  */
 export function LiveValueChart({
   points,
   domain,
   baseline,
   sessions,
+  asOf,
+  dates,
+  range,
   live,
   label,
   onScrub,
@@ -294,6 +337,12 @@ export function LiveValueChart({
   baseline?: number | null;
   /** Pre / regular / after windows; only drawn on a timed 1D domain. */
   sessions?: MarketSessions | null;
+  /** Clock used to tint the active session band. */
+  asOf?: number;
+  /** Session dates parallel to `points` when the axis is index-based. */
+  dates?: string[];
+  /** Drives x-tick density and date formatting on multi-day ranges. */
+  range?: '1D' | '1W' | '1M' | '3M' | 'ALL';
   live?: boolean;
   label: string;
   onScrub?: (point: ValueTick | null) => void;
@@ -325,45 +374,123 @@ export function LiveValueChart({
     const reference = baseline ?? points[0]?.value ?? 0;
     const xAt = (t: number) =>
       Math.min(L.w, Math.max(0, ((t - d0) / span) * L.w));
-    const bands: {
-      id: string;
-      label: string;
+    const pctAt = (t: number) => (xAt(t) / L.w) * 100;
+
+    type Band = {
+      key: 'pre' | 'regular' | 'post';
       x: number;
       width: number;
-      kind: 'pre' | 'regular' | 'post';
-    }[] = [];
+      active: boolean;
+    };
+    const bands: Band[] = [];
     const dividers: number[] = [];
-    if (domain && sessions) {
+    const xTicks: { x: number; label: string; major?: boolean }[] = [];
+
+    if (domain && sessions?.regular) {
       const clip = (start: number, end: number) => {
         const a = Math.max(d0, start);
         const b = Math.min(d1, end);
         if (b <= a) return null;
         return { x: xAt(a), width: xAt(b) - xAt(a) };
       };
-      if (sessions.pre) {
-        const box = clip(sessions.pre.start, sessions.pre.end);
-        if (box) bands.push({ id: 'pre', label: 'Pre', kind: 'pre', ...box });
+      const clock = asOf ?? d1;
+      const push = (
+        key: Band['key'],
+        window: { start: number; end: number } | null | undefined,
+        active: boolean,
+      ) => {
+        if (!window) return;
+        const band = clip(window.start, window.end);
+        if (!band || band.width < L.w * 0.012) return;
+        bands.push({ key, ...band, active });
+      };
+
+      push(
+        'pre',
+        sessions.pre,
+        !!sessions.pre && clock < sessions.regular.start,
+      );
+      push(
+        'regular',
+        sessions.regular,
+        clock >= sessions.regular.start && clock <= sessions.regular.end,
+      );
+      push(
+        'post',
+        sessions.post,
+        !!sessions.post && clock > sessions.regular.end,
+      );
+
+      if (sessions.regular.start > d0 && sessions.regular.start < d1)
+        dividers.push(xAt(sessions.regular.start));
+      if (sessions.regular.end > d0 && sessions.regular.end < d1)
+        dividers.push(xAt(sessions.regular.end));
+
+      const open = sessions.regular.start;
+      const close = sessions.regular.end;
+      const mid = open + (close - open) / 2;
+      const candidates: { t: number; label: string; major?: boolean }[] = [
+        { t: d0, label: clockTick(d0) },
+        { t: open, label: clockTick(open), major: true },
+        { t: mid, label: clockTick(mid) },
+        { t: close, label: clockTick(close), major: true },
+      ];
+      const tail =
+        sessions.post && sessions.post.end > close + 30 * 60_000
+          ? Math.min(d1, sessions.post.end)
+          : d1 > close + 15 * 60_000
+            ? d1
+            : null;
+      if (tail != null) candidates.push({ t: tail, label: clockTick(tail) });
+
+      let lastX = -Infinity;
+      for (const c of candidates) {
+        if (c.t < d0 - 1 || c.t > d1 + 1) continue;
+        const x = pctAt(c.t);
+        if (x - lastX < 9) continue;
+        xTicks.push({ x, label: c.label, major: c.major });
+        lastX = x;
       }
-      if (sessions.regular) {
-        const box = clip(sessions.regular.start, sessions.regular.end);
-        if (box)
-          bands.push({
-            id: 'regular',
-            label: 'Market',
-            kind: 'regular',
-            ...box,
-          });
-        if (sessions.regular.start > d0 && sessions.regular.start < d1)
-          dividers.push(xAt(sessions.regular.start));
-        if (sessions.regular.end > d0 && sessions.regular.end < d1)
-          dividers.push(xAt(sessions.regular.end));
-      }
-      if (sessions.post) {
-        const box = clip(sessions.post.start, sessions.post.end);
-        if (box)
-          bands.push({ id: 'post', label: 'After', kind: 'post', ...box });
+    } else if (dates?.length) {
+      const n = Math.max(1, points.length - 1);
+      const want =
+        range === '1W'
+          ? Math.min(5, points.length)
+          : range === '1M'
+            ? 5
+            : range === '3M'
+              ? 5
+              : 6;
+      const withYear = range === 'ALL' || range === '3M';
+      const step = Math.max(1, Math.round(n / Math.max(1, want - 1)));
+      const idxs = new Set<number>();
+      for (let i = 0; i < points.length; i += step) idxs.add(i);
+      idxs.add(0);
+      idxs.add(points.length - 1);
+      const ordered = [...idxs].sort((a, b) => a - b);
+      let lastX = -Infinity;
+      for (const i of ordered) {
+        const x = (i / n) * 100;
+        if (x - lastX < 11 && i !== 0 && i !== points.length - 1) continue;
+        const raw = dates[i] ?? '';
+        const label =
+          range === '3M' || range === 'ALL'
+            ? monthTick(raw)
+            : dayTick(raw, withYear);
+        xTicks.push({ x, label });
+        lastX = x;
       }
     }
+
+    const yGuides = [0, 0.5, 1].map((n) => {
+      const value = hi - (hi - lo) * n;
+      return {
+        y: L.y0 + n * (L.y1 - L.y0),
+        top: ((L.y0 + n * (L.y1 - L.y0)) / L.h) * 100,
+        label: axisUsd(value),
+      };
+    });
+
     return {
       xy,
       line: path(scaled),
@@ -374,11 +501,14 @@ export function LiveValueChart({
       up: (points.at(-1)?.value ?? 0) >= reference,
       bands,
       dividers,
+      xTicks,
+      yGuides,
     };
-  }, [points, domain, baseline, sessions]);
+  }, [points, domain, baseline, sessions, asOf, dates, range]);
 
   const pick = (clientX: number) => {
-    const r = box.current?.getBoundingClientRect();
+    const plotEl = box.current?.querySelector('.od-vline-plot');
+    const r = plotEl?.getBoundingClientRect();
     if (!r || !plot.xy.length) return;
     const fx = (clientX - r.left) / r.width;
     let best = 0;
@@ -401,66 +531,91 @@ export function LiveValueChart({
   return (
     <div
       ref={box}
-      className={`od-vline ${plot.up ? 'up' : 'down'}`}
-      onPointerMove={(e) => pick(e.clientX)}
-      onPointerDown={(e) => pick(e.clientX)}
-      onPointerLeave={leave}
+      className={`od-vline ${plot.up ? 'up' : 'down'}${plot.bands.length ? ' has-sessions' : ''}`}
     >
-      <svg
-        viewBox={`0 0 ${L.w} ${L.h}`}
-        preserveAspectRatio="none"
-        aria-label={label}
+      <div
+        className="od-vline-plot"
+        onPointerMove={(e) => pick(e.clientX)}
+        onPointerDown={(e) => pick(e.clientX)}
+        onPointerLeave={leave}
       >
-        <defs>
-          <linearGradient id="odVline" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="currentColor" stopOpacity=".16" />
-            <stop offset="1" stopColor="currentColor" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {plot.bands.map((band) => (
-          <g key={band.id} className={`od-vline-band ${band.kind}`}>
-            <rect x={band.x} y={0} width={band.width} height={L.h} />
-            {band.width > 48 && (
-              <text
-                x={band.x + band.width / 2}
-                y={12}
-                textAnchor="middle"
-              >
-                {band.label}
-              </text>
-            )}
+        <svg
+          viewBox={`0 0 ${L.w} ${L.h}`}
+          preserveAspectRatio="none"
+          aria-label={label}
+        >
+          <defs>
+            <linearGradient id="odVline" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stopColor="currentColor" stopOpacity=".16" />
+              <stop offset="1" stopColor="currentColor" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {plot.bands.map((band) => (
+            <rect
+              key={band.key}
+              className={`od-vline-band ${band.key}${band.active ? ' active' : ''}`}
+              x={band.x}
+              y={0}
+              width={band.width}
+              height={L.h}
+            />
+          ))}
+          <g className="od-vline-grid" aria-hidden>
+            {plot.yGuides.map((g) => (
+              <line key={g.y} x1={0} x2={L.w} y1={g.y} y2={g.y} />
+            ))}
           </g>
-        ))}
-        {plot.dividers.map((x) => (
-          <line
-            key={x}
-            className="od-vline-session"
-            x1={x}
-            x2={x}
-            y1={0}
-            y2={L.h}
-          />
-        ))}
-        {plot.base != null && (
-          <line
-            className="od-vline-base"
-            x1="0"
-            x2={L.w}
-            y1={plot.base}
-            y2={plot.base}
+          {plot.dividers.map((x) => (
+            <line
+              key={x}
+              className="od-vline-session"
+              x1={x}
+              x2={x}
+              y1={0}
+              y2={L.h}
+            />
+          ))}
+          {plot.base != null && (
+            <line
+              className="od-vline-base"
+              x1="0"
+              x2={L.w}
+              y1={plot.base}
+              y2={plot.base}
+            />
+          )}
+          <path d={plot.area} fill="url(#odVline)" />
+          <path d={plot.line} className="od-vline-line" />
+        </svg>
+        <div className="od-vline-y" aria-hidden>
+          {plot.yGuides.map((g) => (
+            <span key={g.y} style={{ top: `${g.top}%` }}>
+              {g.label}
+            </span>
+          ))}
+        </div>
+        {hover != null && dot && (
+          <i className="od-vline-rule" style={{ left: pct(dot[0]) }} />
+        )}
+        {dot && (
+          <b
+            className={`od-vline-dot ${live && hover == null ? 'pulse' : ''}`}
+            style={{ left: pct(dot[0]), top: yPct(dot[1]) }}
           />
         )}
-        <path d={plot.area} fill="url(#odVline)" />
-        <path d={plot.line} className="od-vline-line" />
-      </svg>
-      {hover != null && dot && (
-        <i className="od-vline-rule" style={{ left: pct(dot[0]) }} />
-      )}
-      {dot && (
-        <b
-          className={`od-vline-dot ${live && hover == null ? 'pulse' : ''}`}
-          style={{ left: pct(dot[0]), top: yPct(dot[1]) }}
-        />
+      </div>
+      {plot.xTicks.length > 0 && (
+        <div className="od-vline-x" aria-hidden>
+          {plot.xTicks.map((t) => (
+            <span
+              key={`${t.x}-${t.label}`}
+              className={t.major ? 'major' : undefined}
+              style={{ left: `${t.x}%` }}
+            >
+              {t.label}
+            </span>
+          ))}
+        </div>
       )}
     </div>
   );

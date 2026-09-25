@@ -29,35 +29,94 @@ function niceTicks(min: number, max: number, target = 5) {
 }
 const tickDp = (span: number) => (span < 0.5 ? 3 : span < 20 ? 2 : 0);
 /** Top band holds strike / Now labels above the plot; bottom holds ticks. */
-const PAD = { left: 58, right: 28, top: 44, bottom: 36 };
-const LABEL_GAP = 54;
+const PAD = { left: 52, right: 24, top: 40, bottom: 32 };
+/** Minimum pixel gap between top labels and between axis ticks. */
+const LABEL_GAP = 64;
 
-/** Nudge a sorted list of x-positions so neighbouring labels stay apart. */
-function spaceLabels<T extends { x: number; width: number }>(
-  items: T[],
-  lo: number,
-  hi: number,
-): (T & { px: number })[] {
-  const out = items.map((item) => ({ ...item, px: item.x }));
-  for (let pass = 0; pass < 4; pass++) {
-    for (let i = 1; i < out.length; i++) {
-      const prev = out[i - 1]!;
-      const cur = out[i]!;
-      const min = prev.px + (prev.width + cur.width) / 2;
-      if (cur.px < min) {
-        const mid = (prev.px + cur.px) / 2;
-        prev.px = mid - (prev.width + cur.width) / 4;
-        cur.px = mid + (prev.width + cur.width) / 4;
-      }
+type TopLabel = {
+  id: string;
+  x: number;
+  text: string;
+  width: number;
+  kind: 'strike' | 'spot';
+  /** Vertical offset above the plot top (higher = further up). */
+  lift: number;
+};
+
+/**
+ * Keep top labels on their marker x. When two collide, drop the lower-
+ * priority one (strike loses to spot; later strike loses to earlier)
+ * instead of nudging text off its line. Moderately close pairs stagger
+ * vertically so both can stay.
+ */
+function placeTopLabels(items: Omit<TopLabel, 'lift'>[]): TopLabel[] {
+  const ranked = [...items].sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === 'spot' ? -1 : 1;
+    return a.x - b.x;
+  });
+  const kept: TopLabel[] = [];
+  for (const item of ranked) {
+    const hit = kept.find(
+      (k) => Math.abs(k.x - item.x) < (k.width + item.width) / 2 + 8,
+    );
+    if (!hit) {
+      kept.push({ ...item, lift: 14 });
+      continue;
     }
-    for (const item of out) {
-      item.px = Math.min(
-        hi - item.width / 2,
-        Math.max(lo + item.width / 2, item.px),
-      );
+    // Spot always wins a hard collision; strikes yield to spot or peer.
+    if (item.kind === 'strike') continue;
+    if (hit.kind === 'strike') {
+      kept.splice(kept.indexOf(hit), 1);
+      kept.push({ ...item, lift: 14 });
     }
   }
-  return out;
+  // Soft collision: stagger a surviving strike above Now when close.
+  kept.sort((a, b) => a.x - b.x);
+  for (let i = 1; i < kept.length; i++) {
+    const prev = kept[i - 1]!;
+    const cur = kept[i]!;
+    const gap = Math.abs(cur.x - prev.x);
+    const need = (prev.width + cur.width) / 2;
+    if (gap < need + 12 && gap >= need * 0.45) {
+      if (prev.kind === 'strike') prev.lift = 28;
+      else if (cur.kind === 'strike') cur.lift = 28;
+    }
+  }
+  return kept;
+}
+
+/** Prefer spot / breakeven / strike; fill gaps with sparse nice prices. */
+function axisTickPrices(
+  keys: number[],
+  lo: number,
+  hi: number,
+  x: (v: number) => number,
+  maxTicks = 6,
+): number[] {
+  const span = hi - lo || 1;
+  const inDomain = (p: number) =>
+    p >= lo - span * 0.001 && p <= hi + span * 0.001;
+  const seen = new Set<number>();
+  const ranked: { p: number; rank: number }[] = [];
+  for (const [i, p] of keys.entries()) {
+    if (!inDomain(p) || seen.has(p)) continue;
+    seen.add(p);
+    ranked.push({ p, rank: i });
+  }
+  for (const [i, p] of niceTicks(lo, hi, 4).entries()) {
+    if (!inDomain(p) || seen.has(p)) continue;
+    seen.add(p);
+    ranked.push({ p, rank: 100 + i });
+  }
+
+  const picked: number[] = [];
+  for (const { p } of ranked.sort((a, b) => a.rank - b.rank)) {
+    // Keep axis sparse — landmarks only when they don't crowd.
+    if (picked.some((q) => Math.abs(x(q) - x(p)) < LABEL_GAP * 0.85)) continue;
+    picked.push(p);
+    if (picked.length >= maxTicks) break;
+  }
+  return picked.sort((a, b) => a - b);
 }
 
 export function PayoffChart({
@@ -250,11 +309,23 @@ export function PayoffChart({
     }
 
     const line = path(rows);
-    const tickCount = Math.max(5, Math.round(domainSpan / (focusSpan / 4)));
-    const ticks = Array.from({ length: tickCount + 1 }, (_, i) => {
-      const price = lo + (hi - lo) * (i / tickCount);
-      return { x: x(price), label: usd(price, hi - lo < 1 ? 3 : 0), price };
-    });
+    const uniqueStrikes = [...new Set(strikes)].sort((a, b) => a - b);
+    // Axis prefers landmarks the reader already cares about.
+    // Strike first (structure), then breakeven if it still has room.
+    // Spot stays off the axis — it already has the "Now" top label.
+    const tickPrices = axisTickPrices(
+      [...uniqueStrikes, ...crossings],
+      lo,
+      hi,
+      x,
+      Math.max(5, Math.round(domainSpan / (focusSpan / 3.5))),
+    );
+    const priceDp = hi - lo < 1 ? 3 : hi - lo < 20 ? 2 : 0;
+    const ticks = tickPrices.map((price) => ({
+      x: x(price),
+      label: usd(price, priceDp),
+      price,
+    }));
 
     return {
       canvasW,
@@ -282,7 +353,7 @@ export function PayoffChart({
       leftOpenDown,
       rightOpenUp,
       rightOpenDown,
-      strikes: [...new Set(strikes)].sort((a, b) => a - b),
+      strikes: uniqueStrikes,
       grid: niceTicks(min, max).map((v) => ({
         y: y(v),
         label: `${v < 0 ? '−' : ''}${usd(Math.abs(v), tickDp(max - min))}`,
@@ -317,8 +388,15 @@ export function PayoffChart({
   const dp = terms.reference === 'dividend' ? 4 : 2;
   const reading = hover ?? spot * (1 + move / 100);
   const pnl = strategyPnl(terms, reading, spot, premium, stockQuantity);
+  const todayPnl =
+    plot.now && date && vol && terms.reference === 'stock'
+      ? orderGreeks(terms, reading, date, vol).price -
+        premium +
+        stockQuantity * (reading - spot)
+      : null;
   const cx = plot.x(reading),
     cy = plot.y(pnl);
+  const todayCy = todayPnl != null ? plot.y(todayPnl) : null;
   const away = (reading / spot - 1) * 100;
 
   const priceAt = (clientX: number) => {
@@ -340,38 +418,31 @@ export function PayoffChart({
       ? 'Unlimited'
       : `${n > 0.004 ? '+' : n < -0.004 ? '−' : ''}${usd(Math.abs(n), dp)}`;
   const spotX = plot.x(spot);
-  // Strike labels that would sit on top of each other collapse to every
-  // other strike; "Now" always stays and is spaced away from neighbours.
-  const strikeLabels = plot.strikes
-    .filter((k, i, all) => i === 0 || plot.x(k) - plot.x(all[i - 1]!) >= 48)
-    .map((k) => ({
-      id: `k${k}`,
-      x: plot.x(k),
-      text: usd(k, k < 1 ? 3 : k % 1 ? 2 : 0),
-      width: 46,
-      kind: 'strike' as const,
-    }));
-  const topLabels = spaceLabels(
+  // When strike sits on top of spot, drop the strike label (keep the line).
+  // Moderately close pairs stagger vertically instead of sliding sideways.
+  const topLabels = placeTopLabels(
     [
-      ...strikeLabels,
+      ...plot.strikes.map((k) => ({
+        id: `k${k}`,
+        x: plot.x(k),
+        text: usd(k, k < 1 ? 3 : k % 1 ? 2 : 0),
+        width: Math.max(36, usd(k, k < 1 ? 3 : k % 1 ? 2 : 0).length * 7.2),
+        kind: 'strike' as const,
+      })),
       {
         id: 'spot',
         x: spotX,
         text: `Now ${usd(spot, cents)}`,
-        width: 86,
+        width: Math.max(72, (`Now ${usd(spot, cents)}`).length * 7),
         kind: 'spot' as const,
       },
     ].sort((a, b) => a.x - b.x),
-    plot.x0,
-    plot.x1,
-  ).filter((label, _, all) => {
-    if (label.kind === 'spot') return true;
-    const spotLabel = all.find((row) => row.kind === 'spot');
-    return !spotLabel || Math.abs(label.px - spotLabel.px) >= 50;
-  });
-  // Skip an axis tick under a top label so $236 doesn't sit under "Now $225".
-  const axisTicks = plot.ticks.filter((t) =>
-    topLabels.every((l) => Math.abs(l.px - t.x) >= LABEL_GAP * 0.55),
+  );
+  // Drop an axis tick only when it sits under a top label at the same
+  // landmark (e.g. "Now" already names spot). Nearby-but-different
+  // prices (ATM strike under Now) stay — top and bottom don't compete.
+  const axisTicks = plot.ticks.filter(
+    (t) => !topLabels.some((l) => Math.abs(l.x - t.x) < 3),
   );
   // Cap / Floor sit inside the plot; keep them clear of the top label band
   // and of each other when both shelves are tight.
@@ -393,7 +464,6 @@ export function PayoffChart({
       <div className="od-payoff-head">
         <div>
           <span>{stockQuantity ? 'Stock and options' : 'Profit and loss'}</span>
-          <b>At expiry</b>
         </div>
         <div className="od-payoff-read">
           <b className={pnl >= 0 ? 'up' : 'down'}>{signed(pnl)}</b>
@@ -426,14 +496,14 @@ export function PayoffChart({
           </div>
         </dl>
         {plot.now && (
-          <div className="od-payoff-legend">
+          <div className="od-payoff-legend" aria-hidden="true">
             <span>
               <i className="expiry" />
-              At expiry
+              Expiry
             </span>
             <span>
               <i className="today" />
-              Value today
+              Today
             </span>
           </div>
         )}
@@ -586,8 +656,8 @@ export function PayoffChart({
                   <text
                     key={l.id}
                     className={l.kind === 'spot' ? 'spot' : 'strike'}
-                    x={l.px}
-                    y={plot.y0 - 16}
+                    x={l.x}
+                    y={plot.y0 - l.lift}
                     textAnchor="middle"
                   >
                     {l.text}
@@ -642,6 +712,9 @@ export function PayoffChart({
 
               <g className="od-chart-cursor">
                 <line x1={cx} x2={cx} y1={plot.y0} y2={plot.y1} />
+                {todayCy != null && (
+                  <circle cx={cx} cy={todayCy} r="4" className="today" />
+                )}
                 <circle
                   cx={cx}
                   cy={cy}

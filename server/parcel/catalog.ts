@@ -4,21 +4,12 @@ import { DEFAULT_UNDERLYING } from '../../lib/parcel/universe';
 import { orderGreeks, round } from '../../lib/parcel/math';
 import { deliveryBounds, payoffBounds } from '../../lib/parcel/envelope';
 import { amount, expiry, parseOrderTerms } from '../../lib/parcel/validation';
-import { premium } from './ledger';
-import { spreadCost } from '../../lib/parcel/spread';
+import { tradedPremium } from './ledger';
 
 export function indicative(terms: OrderTerms, book: VaultBook) {
   // The price you would trade at: the ask to buy, the bid to write.
-  const crossing =
-    terms.reference === 'stock'
-      ? spreadCost(
-          terms,
-          mark(terms.symbol, book.date),
-          book.date,
-          volatility(terms.symbol),
-        )
-      : 0;
-  const p = round(premium(terms, book) + crossing),
+  // Same schedule as the funded quote and the durable fill.
+  const p = tradedPremium(terms, book),
     b = deliveryBounds([terms]);
   return {
     premium: p,

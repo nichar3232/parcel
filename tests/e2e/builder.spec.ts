@@ -77,7 +77,7 @@ test('the shell is four destinations, each with its own sections', async ({
   // nested under it in the rail, and only while it is the open one.
   // Lending owns a single section, so it has no list to open.
   const sections: Record<string, string[]> = {
-    Portfolio: ['Holdings', 'Watchlist', 'Activity', 'Collateral'],
+    Portfolio: ['Holdings', 'Watchlist', 'Activity'],
     Trade: ['Options', 'Structures'],
     // One section each: Pre-IPO is the market and a company's options,
     // and Lending's choices stand alone in its menu.
@@ -114,7 +114,8 @@ test('the shell is four destinations, each with its own sections', async ({
   await expect(page.locator('.od-legs-row')).toHaveCount(1);
   await expect(page.locator('.od-surface > svg')).toBeVisible();
 
-  // Collateral is a section of Portfolio rather than its own page.
+  // Collateral is no longer a Portfolio section; health sits on Holdings.
   await nav(page, 'Risk');
-  await expect(page.getByText('Collateral policy')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Positions' })).toBeVisible();
+  await expect(page.getByTitle('Health factor')).toBeVisible();
 });

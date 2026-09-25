@@ -170,6 +170,27 @@ export function LendingView({
   );
 }
 
+type MarketSort =
+  | 'positions'
+  | 'liquidity'
+  | 'supply'
+  | 'borrow'
+  | 'name';
+
+const MARKET_SORTS: { id: MarketSort; label: string }[] = [
+  { id: 'positions', label: 'Your positions' },
+  { id: 'liquidity', label: 'Liquidity' },
+  { id: 'supply', label: 'Supply APY' },
+  { id: 'borrow', label: 'Borrow APY' },
+  { id: 'name', label: 'Name' },
+];
+
+/** First-paint size for the xStocks chip — held + mega-caps + catalog fill. */
+const XSTOCKS_PAGE = 48;
+/** Cap browse-without-search so quote polling stays bounded. */
+const XSTOCKS_BROWSE_MAX = 120;
+const XSTOCKS_SEARCH_MAX = 60;
+
 /**
  * Every pool the vault can supply to or borrow from, the way a money
  * market lists them — equities, crypto, Pre-IPO, xStocks and stables,
@@ -187,14 +208,15 @@ function Markets({
   const s = desk.state!;
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<MarketCategory | 'all'>('all');
+  const [sort, setSort] = useState<MarketSort>('positions');
+  const [xstocksLimit, setXstocksLimit] = useState(XSTOCKS_PAGE);
   const { data: tokenized } = useTokenizedEquities();
   const xstocks = useMemo(
     () =>
       (tokenized?.assets ?? []).filter((a) => a.provider === 'xstocks'),
     [tokenized],
   );
-  // Mega-caps the desk always surfaces; everything else waits on search
-  // or a matching vault position.
+  // Mega-caps always included in the curated / All surfaces.
   const FEATURED_XSTOCKS = useMemo(
     () =>
       new Set([
@@ -234,6 +256,9 @@ function Markets({
       heldTickers.has(a.underlyingSymbol) ||
       heldTickers.has(xstockTicker(a.id)) ||
       heldTickers.has(a.symbol);
+    const byTicker = (a: (typeof xstocks)[number], b: (typeof xstocks)[number]) =>
+      a.symbol.localeCompare(b.symbol);
+
     if (category === 'xstocks') {
       if (q) {
         return xstocks
@@ -242,24 +267,41 @@ function Markets({
               .toLowerCase()
               .includes(q),
           )
-          .sort((a, b) => Number(heldX(b)) - Number(heldX(a)))
-          .slice(0, 40);
+          .sort(
+            (a, b) =>
+              Number(heldX(b)) - Number(heldX(a)) || byTicker(a, b),
+          )
+          .slice(0, XSTOCKS_SEARCH_MAX);
       }
-      // No dump of the catalog: positions first, then featured.
-      const preferred = xstocks.filter(
-        (a) => heldX(a) || FEATURED_XSTOCKS.has(a.symbol),
+      // Larger sensible set: positions, then featured mega-caps, then
+      // alphabetical fill up to the browse limit — not the full 1k+.
+      const held = xstocks.filter(heldX).sort(byTicker);
+      const featured = xstocks
+        .filter((a) => !heldX(a) && FEATURED_XSTOCKS.has(a.symbol))
+        .sort(byTicker);
+      const rest = xstocks
+        .filter((a) => !heldX(a) && !FEATURED_XSTOCKS.has(a.symbol))
+        .sort(byTicker);
+      const preferred = [...held, ...featured];
+      const fill = rest.slice(
+        0,
+        Math.max(0, xstocksLimit - preferred.length),
       );
-      return preferred.sort(
-        (a, b) =>
-          Number(heldX(b)) - Number(heldX(a)) ||
-          a.symbol.localeCompare(b.symbol),
-      );
+      return [...preferred, ...fill];
     }
-    // All / other chips: only held matches + featured mega-caps.
+    // All / other chips: only held matches + featured mega-caps so All
+    // does not paint the entire xStocks catalog.
     return xstocks.filter(
       (a) => heldX(a) || FEATURED_XSTOCKS.has(a.symbol),
     );
-  }, [category, query, xstocks, FEATURED_XSTOCKS, heldTickers]);
+  }, [
+    category,
+    query,
+    xstocks,
+    FEATURED_XSTOCKS,
+    heldTickers,
+    xstocksLimit,
+  ]);
   const xstockIds = useMemo(
     () => listedXstocks.map((a) => a.id),
     [listedXstocks],
@@ -437,16 +479,32 @@ function Markets({
     }
 
     const q = query.trim().toLowerCase();
+    const byName = (a: (typeof rows)[number], b: (typeof rows)[number]) =>
+      a.name.localeCompare(b.name) || a.symbol.localeCompare(b.symbol);
+    const byLiquidity = (
+      a: (typeof rows)[number],
+      b: (typeof rows)[number],
+    ) => b.liquidity - a.liquidity || byName(a, b);
     return rows
       .filter((p) => category === 'all' || p.category === category)
       .filter((p) =>
         q ? `${p.name} ${p.symbol}`.toLowerCase().includes(q) : true,
       )
       .sort((a, b) => {
-        // Positions first, then deepest pools, then name.
-        if (a.held !== b.held) return a.held ? -1 : 1;
-        if (b.liquidity !== a.liquidity) return b.liquidity - a.liquidity;
-        return a.name.localeCompare(b.name);
+        switch (sort) {
+          case 'liquidity':
+            return byLiquidity(a, b);
+          case 'supply':
+            return b.supply - a.supply || byName(a, b);
+          case 'borrow':
+            return b.borrow - a.borrow || byName(a, b);
+          case 'name':
+            return byName(a, b);
+          case 'positions':
+          default:
+            if (a.held !== b.held) return a.held ? -1 : 1;
+            return byLiquidity(a, b);
+        }
       });
   }, [
     s.market.underlyings,
@@ -456,6 +514,7 @@ function Markets({
     category,
     query,
     heldTickers,
+    sort,
   ]);
 
   const catalogCounts = useMemo(() => {
@@ -482,18 +541,32 @@ function Markets({
     }
     base.stable += 1;
     base.all += 1;
-    // Chip count is the curated list size, not the searchable catalog.
-    // Search still reaches every xStock; the badge stays honest about
-    // what the table opens with.
-    const curatedX = listedXstocks.length || FEATURED_XSTOCKS.size;
-    base.xstocks = curatedX;
-    base.all += curatedX;
+    // All embeds only held + featured xStocks. The xStocks chip badge
+    // previews the larger browse page so it matches that tab's open size.
+    const curatedForAll =
+      category === 'xstocks'
+        ? xstocks.filter(
+            (a) =>
+              heldTickers.has(a.underlyingSymbol) ||
+              heldTickers.has(xstockTicker(a.id)) ||
+              heldTickers.has(a.symbol) ||
+              FEATURED_XSTOCKS.has(a.symbol),
+          ).length || FEATURED_XSTOCKS.size
+        : listedXstocks.length || FEATURED_XSTOCKS.size;
+    base.xstocks =
+      category === 'xstocks'
+        ? listedXstocks.length || FEATURED_XSTOCKS.size
+        : Math.min(XSTOCKS_PAGE, xstocks.length || FEATURED_XSTOCKS.size);
+    base.all += curatedForAll;
     return base;
   }, [
     s.market.underlyings,
     feed.marks,
-    listedXstocks.length,
-    FEATURED_XSTOCKS.size,
+    listedXstocks,
+    FEATURED_XSTOCKS,
+    category,
+    xstocks,
+    heldTickers,
   ]);
 
   const size = pools.reduce(
@@ -587,23 +660,45 @@ function Markets({
               role="tab"
               aria-selected={category === c.id}
               className={category === c.id ? 'active' : undefined}
-              onClick={() => setCategory(c.id)}
+              onClick={() => {
+                setCategory(c.id);
+                if (c.id !== 'xstocks') setXstocksLimit(XSTOCKS_PAGE);
+              }}
             >
               {c.label}
               <small>{catalogCounts[c.id]}</small>
             </button>
           ))}
         </div>
-        <div className={`od-lm-health ${tone}`} title={reserveOf('NVDA')?.note}>
-          <span>Cross margin</span>
-          <b>
-            {Number.isFinite(position.factor)
-              ? position.factor.toFixed(2)
-              : '∞'}
-          </b>
-          <small>
-            {usd(position.available)} free · {usd(position.owed)} owed
-          </small>
+        <div className="od-lm-toolbar-end">
+          <label className="od-lm-sort">
+            <span>Sort</span>
+            <select
+              aria-label="Sort lending markets"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as MarketSort)}
+            >
+              {MARKET_SORTS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div
+            className={`od-lm-health ${tone}`}
+            title={reserveOf('NVDA')?.note}
+          >
+            <span>Cross margin</span>
+            <b>
+              {Number.isFinite(position.factor)
+                ? position.factor.toFixed(2)
+                : '∞'}
+            </b>
+            <small>
+              {usd(position.available)} free · {usd(position.owed)} owed
+            </small>
+          </div>
         </div>
       </div>
 
@@ -625,30 +720,46 @@ function Markets({
         )}
         {category === 'xstocks' && !query.trim() && xstocks.length > 0 && (
           <p className="od-lm-empty">
-            Showing your positions and liquid mega-caps. Search the full{' '}
-            {xstocks.length.toLocaleString()} xStocks catalog by name or
-            ticker.
+            Showing {listedXstocks.length.toLocaleString()} of{' '}
+            {xstocks.length.toLocaleString()} xStocks
+            {sort === 'positions'
+              ? ' — positions and liquid names first.'
+              : ` — sorted by ${
+                  MARKET_SORTS.find((o) => o.id === sort)?.label.toLowerCase() ??
+                  'name'
+                }.`}{' '}
+            Search by name or ticker for the rest.
           </p>
         )}
         {category === 'all' && !query.trim() && (
           <p className="od-lm-empty">
-            Sorted by your positions, then pool depth. Search to reach the
-            wider xStocks catalog.
+            Sorted by{' '}
+            {MARKET_SORTS.find((o) => o.id === sort)?.label.toLowerCase() ??
+              'your positions'}
+            . Open xStocks or search to browse the wider catalog.
           </p>
         )}
         {pools.map((p) => (
           <div key={p.key} className={`od-lm-row${p.held ? ' held' : ''}`}>
             <span className="od-lm-asset">
               <AssetLogo symbol={p.symbol} src={p.logo} size={34} />
-              <span>
+              <span className="od-lm-asset-copy">
                 <b>
-                  {p.name}
-                  {p.held ? <em className="od-lm-held">Your position</em> : null}
+                  <span className="od-lm-asset-name">{p.name}</span>
+                  {p.held ? (
+                    <em className="od-lm-held">Your position</em>
+                  ) : null}
                 </b>
                 <small>
-                  {p.symbol}
-                  {p.category !== 'equity' ? ` · ${labelOf(p.category)}` : ''}
-                  {p.price != null ? ` · ${usd(p.price)}` : ' · Price pending'}
+                  <span className="od-lm-asset-ticker">{p.symbol}</span>
+                  {p.category !== 'equity' ? (
+                    <span> · {labelOf(p.category)}</span>
+                  ) : null}
+                  <span>
+                    {p.price != null
+                      ? ` · ${usd(p.price)}`
+                      : ' · Price pending'}
+                  </span>
                 </small>
               </span>
             </span>
@@ -691,6 +802,41 @@ function Markets({
             </span>
           </div>
         ))}
+        {category === 'xstocks' &&
+          !query.trim() &&
+          listedXstocks.length < xstocks.length &&
+          xstocksLimit < XSTOCKS_BROWSE_MAX && (
+            <div className="od-lm-more">
+              <button
+                type="button"
+                onClick={() =>
+                  setXstocksLimit((n) =>
+                    Math.min(XSTOCKS_BROWSE_MAX, n + XSTOCKS_PAGE),
+                  )
+                }
+              >
+                Show more
+                <small>
+                  {(
+                    Math.min(XSTOCKS_BROWSE_MAX, xstocks.length) -
+                    listedXstocks.length
+                  ).toLocaleString()}{' '}
+                  more on this list · search for the full catalog
+                </small>
+              </button>
+            </div>
+          )}
+        {category === 'xstocks' &&
+          !query.trim() &&
+          xstocksLimit >= XSTOCKS_BROWSE_MAX &&
+          listedXstocks.length < xstocks.length && (
+            <p className="od-lm-empty">
+              Browse capped at {XSTOCKS_BROWSE_MAX}. Search by name or ticker
+              to reach the remaining{' '}
+              {(xstocks.length - listedXstocks.length).toLocaleString()}{' '}
+              xStocks.
+            </p>
+          )}
       </div>
     </section>
   );

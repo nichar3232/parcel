@@ -17,6 +17,11 @@ import {
   shortCloseAmounts,
 } from '@/lib/parcel/funding';
 import {
+  health,
+  healthTone,
+  type Holding,
+} from '@/lib/parcel/lending';
+import {
   RANGES,
   valueSeries,
   withinRange,
@@ -26,11 +31,10 @@ import { QuoteReview } from './QuoteReview';
 import type { MarketUnderlying, Quote, VaultAction } from '@/lib/parcel/types';
 import { AssetLogo } from './AssetLogo';
 import { logoOf } from '@/lib/preipo/registry';
-import { LiveValueChart, Meter, type MarketSessions, type ValueTick } from './charts';
+import { LiveValueChart, type MarketSessions, type ValueTick } from './charts';
 import { WatchlistView } from './WatchlistView';
 import type { Transfer } from './TransferDialog';
 import {
-  Badge,
   Button,
   Empty,
   Line,
@@ -38,7 +42,6 @@ import {
   Money,
   Panel,
   PanelHead,
-  dateLabel,
   expiryLabel,
   isLiveMark,
   markOf,
@@ -46,12 +49,7 @@ import {
   usd,
 } from './shared';
 
-export type PortfolioTab =
-  | 'overview'
-  | 'watchlist'
-  | 'positions'
-  | 'collateral'
-  | 'activity';
+export type PortfolioTab = 'overview' | 'watchlist' | 'activity';
 
 const EMPTY_UNDERLYINGS: MarketUnderlying[] = [];
 
@@ -61,8 +59,7 @@ const EMPTY_UNDERLYINGS: MarketUnderlying[] = [];
  * This was one scrolling page carrying the vault, the allocation, the
  * asset table, three promo cards, the whole activity ledger, the
  * collateral policy, the settlement groups, the requirement breakdown
- * and a reconcile button. Four tabs now, each answering one question:
- * what am I worth, what do I hold, what is pledged, what happened.
+ * and a reconcile button. Three tabs now: holdings, watchlist, activity.
  */
 export function PortfolioView({
   desk,
@@ -130,12 +127,9 @@ export function PortfolioView({
   // shown beside the figure; only its ability to extend the "live" tail is
   // withheld below.
   const displayedNav = lastObservedAt ? liveNav : nav;
-  // What is held: every underlying with something in the vault, NVDA
-  // always so the list never comes up empty. What sits only in the
-  // wallet is deposited from the wallet, not listed here as a zero.
-  const held = underlyings.filter(
-    (u) => u.symbol === 'NVDA' || (book.vault[u.symbol] ?? 0) > 0,
-  );
+  // What is held: every underlying with a positive vault balance. Wallet
+  // inventory is deposited from the wallet dialog, not listed as a zero.
+  const held = underlyings.filter((u) => (book.vault[u.symbol] ?? 0) > 0);
   const active = book.options.filter((p) => p.status === 'active');
 
   /**
@@ -317,7 +311,6 @@ export function PortfolioView({
     }).format(t);
 
   if (tab === 'watchlist') return <WatchlistView />;
-  if (tab === 'collateral') return <Collateral desk={desk} />;
   if (tab === 'activity') return <Activity desk={desk} />;
 
   /**
@@ -330,15 +323,13 @@ export function PortfolioView({
    * balance and the list, so the screen is the balance and the list.
    *
    * "Positions" was a second tab showing the same open contracts, and
-   * "Collateral" a third showing what the reserved column already says.
-   * Positions is folded in below; the collateral policy is a setting,
-   * reached from the line that states it.
+   * Positions is folded in below.
    */
   return (
     <div className="od-open">
       <div className="od-open-main">
         <div className="od-open-head">
-          <span>Vault value</span>
+          <span>Portfolio balance</span>
           <strong>
             <Money value={shown} />
           </strong>
@@ -395,9 +386,20 @@ export function PortfolioView({
           domain={onDay ? today!.domain : undefined}
           baseline={onDay ? today!.base : null}
           sessions={onDay ? today!.sessions : null}
+          asOf={
+            onDay
+              ? scrub && today!.domain
+                ? scrub.t
+                : scrub
+                  ? today!.times[scrub.t]
+                  : feed.asOf
+              : undefined
+          }
+          dates={onDay ? undefined : historyDates}
+          range={range}
           live={hasLiveMark}
           onScrub={setScrub}
-          label={`Vault value ${onDay ? 'today' : `across ${drawn.length} sessions`}, now ${usd(displayedNav)}`}
+          label={`Portfolio balance ${onDay ? 'today' : `across ${drawn.length} sessions`}, now ${usd(displayedNav)}`}
         />
         <div className="od-range">
           {[{ id: '1D' as const, label: '1D' }, ...RANGES].map((r) => (
@@ -631,6 +633,42 @@ function Positions({
   const openCount =
     marked.length + loans.length + borrows.length + shorts.length;
 
+  const positionHealth = useMemo(() => {
+    const underlyings = s.market.underlyings ?? [];
+    const priceOf = (of: string) =>
+      liveSpots[of] ??
+      underlyings.find((u) => u.symbol === of)?.price ??
+      s.market.price;
+    const collateral: Holding[] = [
+      { symbol: 'USDC', amount: book.vault.USDC, price: 1 },
+      ...underlyings.map((u) => ({
+        symbol: u.symbol,
+        amount: book.vault[u.symbol] ?? 0,
+        price: priceOf(u.symbol),
+      })),
+    ].filter((h) => h.amount > 0);
+    const shortedBy: Record<string, number> = {};
+    for (const p of shorts)
+      shortedBy[p.symbol] = (shortedBy[p.symbol] ?? 0) + p.quantity;
+    const debt: Holding[] = Object.entries(shortedBy).map(([of, amount]) => ({
+      symbol: of,
+      amount,
+      price: priceOf(of),
+    }));
+    for (const p of borrows)
+      debt.push({
+        symbol: 'USDC',
+        amount: borrowDebt(p, book.date).total,
+        price: 1,
+      });
+    return health(collateral, debt);
+  }, [book, borrows, liveSpots, s.market, shorts]);
+  const healthLabel = Number.isFinite(positionHealth.factor)
+    ? `${positionHealth.factor.toFixed(2)}×`
+    : '—';
+  const healthClass = healthTone(positionHealth.factor);
+
+
   /**
    * One table, the way a brokerage lists a portfolio.
    *
@@ -644,8 +682,16 @@ function Positions({
   return (
     <section className="od-positions" aria-labelledby="positions-title">
       <div className="od-positions-head">
-        <h2 id="positions-title">Positions</h2>
-        <span>{openCount ? `${openCount} open` : 'Stock only'}</span>
+        <div className="od-positions-title">
+          <h2 id="positions-title">Positions</h2>
+          <span
+            className={`od-pos-health ${healthClass}`}
+            title="Health factor"
+          >
+            Health <b>{healthLabel}</b>
+          </span>
+        </div>
+        <span>{openCount ? `${openCount} open` : 'Cash & stock'}</span>
       </div>
 
       <div className="od-ptable">
@@ -656,6 +702,47 @@ function Positions({
           <span>Return</span>
           <span />
         </div>
+
+        {book.vault.USDC > 0 && (
+          <div className="od-ptable-row">
+            <div className="od-ptable-asset">
+              <AssetLogo symbol="USDC" size={32} />
+              <div>
+                <b>USD Coin</b>
+                <small>{usd(book.vault.USDC)} USDC</small>
+              </div>
+            </div>
+            <span className="od-ptable-type">Cash</span>
+            <div className="od-ptable-num">
+              <b>{usd(book.vault.USDC)}</b>
+              <small>$1.00 per unit</small>
+            </div>
+            <div className="od-ptable-num">
+              <b>{usd(0)}</b>
+              <small>Stable</small>
+            </div>
+            <div className="od-ptable-act">
+              <button
+                onClick={() =>
+                  onTransfer({ asset: 'USDC', direction: 'deposit' })
+                }
+                aria-label="Deposit USDC"
+                title="Deposit"
+              >
+                <ArrowDownLeft size={15} />
+              </button>
+              <button
+                onClick={() =>
+                  onTransfer({ asset: 'USDC', direction: 'withdraw' })
+                }
+                aria-label="Withdraw USDC"
+                title="Withdraw"
+              >
+                <ArrowUpRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {held.map((u) => {
           const shares = book.vault[u.symbol] ?? 0;
@@ -773,7 +860,7 @@ function Positions({
             <span className="od-ptable-type">Stock loan</span>
             <div className="od-ptable-num">
               <b>{usd(p.quantity * spot(p.symbol))}</b>
-              <small>{usd(p.collateral)} collateral held</small>
+              <small>{usd(spot(p.symbol))} per share</small>
             </div>
             <div className="od-ptable-num">
               <b className="od-up">+{usd(p.prepaidInterest, 4)}</b>
@@ -973,172 +1060,9 @@ function Positions({
   );
 }
 
-/* ---------------------------------------------------------------- */
-
-function Collateral({ desk }: { desk: VaultController }) {
-  const s = desk.state!;
-  const r = s.risk;
-  return (
-    <>
-      <section className="od-collateral-hero" aria-label="Collateral overview">
-        <div className="od-collateral-primary">
-          <span>Available to withdraw</span>
-          <strong>
-            <Money value={r.availableValue} />
-          </strong>
-          <p>Funds not supporting an open position or a loan.</p>
-        </div>
-        <dl className="od-collateral-stats">
-          <div className="od-stat">
-            <dt>Collateral committed</dt>
-            <dd>
-              <Money value={r.collateralValue} />
-            </dd>
-            <small>{usd(r.cash)} cash reserve</small>
-          </div>
-          <div className="od-stat">
-            <dt>Released by offsets</dt>
-            <dd className={r.releasedValue > 0 ? 'up' : ''}>
-              <Money value={r.releasedValue} />
-            </dd>
-            <small>Netted across eligible terms</small>
-          </div>
-        </dl>
-      </section>
-
-      <section className="od-collateral-section">
-        <PanelHead
-          title="Collateral policy"
-          description="Choose how the vault reserves capital for your positions."
-          action={<Badge tone="accent">Ledger enforced</Badge>}
-        />
-        <div className="od-collateral-modes">
-          {(
-            [
-              {
-                id: 'cross',
-                title: 'Cross collateral',
-                description:
-                  'Net eligible positions to use capital efficiently.',
-              },
-              {
-                id: 'isolated',
-                title: 'Isolated collateral',
-                description: 'Keep every position independently reserved.',
-              },
-            ] as const
-          ).map((m) => (
-            <button
-              key={m.id}
-              aria-label={m.title}
-              aria-pressed={s.book.margin === m.id}
-              className={`od-policy ${s.book.margin === m.id ? 'selected' : ''}`}
-              disabled={desk.busy}
-              onClick={() => void desk.act({ type: 'margin', mode: m.id })}
-            >
-              <span className="od-radio" />
-              <div>
-                <h3>{m.title}</h3>
-                <p>{m.description}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="od-collateral-section">
-        <PanelHead
-          title="Reserve coverage"
-          description="Your available balance is always checked before a position can open or funds can leave the vault."
-        />
-        <div className="od-collateral-meters">
-          <Meter
-            label="Cash reserved"
-            value={r.cash}
-            of={Math.max(r.grossCash, r.cash, 1)}
-            note={`${usd(r.cash)} held against ${usd(r.grossCash)} standalone requirement`}
-          />
-          <Meter
-            label="Shares reserved"
-            value={r.shares.NVDA}
-            of={Math.max(r.grossShares.NVDA, r.shares.NVDA, 0.000001)}
-            note={`${qty(r.shares.NVDA)} of ${qty(r.grossShares.NVDA)} NVDA standalone requirement`}
-            color="var(--pc-magenta)"
-          />
-        </div>
-      </section>
-
-      {r.groups.length ? (
-        <section className="od-collateral-section">
-          <PanelHead
-            title="Position reserves"
-            description="Separate settlement dates retain a visible, fully funded reserve."
-          />
-          <div className="od-table-wrap">
-            <table className="od-table">
-              <thead>
-                <tr>
-                  <th>Expiry group</th>
-                  <th className="num">Contracts</th>
-                  <th>Settlement</th>
-                  <th className="num">Standalone cash</th>
-                  <th className="num">Shares reserved</th>
-                  <th className="num">Counterparty backing</th>
-                </tr>
-              </thead>
-              <tbody>
-                {r.groups.map((g) => (
-                  <tr key={g.key}>
-                    <td>
-                      <b>{dateLabel(g.expiry)}</b>
-                    </td>
-                    <td className="num">{g.positions}</td>
-                    <td>{g.settlement}</td>
-                    <td className="num">
-                      {usd(g.cash)}
-                      {g.cashMinimum > 0 && (
-                        <small>Guaranteed {usd(g.cashMinimum, 6)}</small>
-                      )}
-                    </td>
-                    <td className="num">{qty(g.shares)}</td>
-                    <td className="num">
-                      {usd(g.counterpartyCash)}
-                      <small>
-                        {qty(g.counterpartyShares)} {g.symbol}
-                      </small>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : (
-        <section className="od-collateral-idle">
-          <div>
-            <b>No position reserves</b>
-            <p>
-              Open option positions will appear here with the capital held for
-              them.
-            </p>
-          </div>
-        </section>
-      )}
-
-      <section className="od-collateral-check">
-        <div>
-          <b>Verify balances</b>
-          <p>Reconcile the current ledger before acting on a discrepancy.</p>
-        </div>
-        <Button variant="secondary" onClick={() => void desk.refresh()}>
-          Refresh balances
-        </Button>
-      </section>
-    </>
-  );
-}
 
 /* ---------------------------------------------------------------- */
+
 
 /** A replay session is a date; a live receipt is an instant, read locally. */
 const session = (date: string) =>
