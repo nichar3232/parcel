@@ -146,12 +146,17 @@ export async function deposit(
   amount: string,
 ) {
   await nav(page, 'Vault');
-  // Stock deposits from its row; cash from the wallet in the top bar.
+  // Both move in through the wallet in the top bar. Holdings lists only
+  // stock with a positive vault balance, so a first stock deposit has no
+  // row to start from; the wallet lists the shares it holds.
   if (asset === 'USDC') await openUsdcDeposit(page);
-  else
+  else {
+    await page.getByRole('button', { name: 'Wallet', exact: true }).click();
     await page
-      .getByRole('button', { name: `Deposit ${asset}`, exact: true })
+      .getByRole('dialog')
+      .getByRole('button', { name: `Deposit ${asset} from wallet`, exact: true })
       .click();
+  }
   await page.getByLabel('Amount', { exact: true }).fill(amount);
   await page
     .getByRole('button', { name: 'Confirm deposit', exact: true })

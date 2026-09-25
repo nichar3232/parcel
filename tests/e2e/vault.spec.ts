@@ -90,7 +90,7 @@ test('vault deposits, fractional covered underwriting, blocked withdrawal and ex
     page.getByText('Contract opened', { exact: true }),
   ).toBeVisible();
 });
-test('structured orders release only valid collateral offsets; risk view stays synchronized', async ({
+test('structured orders release only valid collateral offsets; isolated mode persists', async ({
   page,
 }) => {
   await deposit(page, 'USDC', '100');
@@ -108,23 +108,44 @@ test('structured orders release only valid collateral offsets; risk view stays s
     .getByRole('group', { name: 'Leg 2 side' })
     .getByRole('button', { name: 'Buy' })
     .click();
-  await execute(page);
-  await nav(page, 'Risk');
-  await expect(
-    page.locator('.od-stat').filter({ hasText: 'Released by offsets' }),
-  ).toContainText('$10.00');
+  // The reversed spread offsets the one already held. The review states
+  // what the offset releases before the contract is confirmed.
+  await page.getByRole('button', { name: 'Review funded quote' }).click();
+  await expect(page.getByRole('dialog')).toContainText(
+    /Released by collateral offsets\s*\$10\.00/,
+  );
   await page
-    .getByRole('button', { name: 'Isolated collateral', exact: true })
+    .getByRole('button', { name: 'Confirm contract', exact: true })
     .click();
-  await expect(
-    page.locator('.od-stat').filter({ hasText: 'Released by offsets' }),
-  ).toContainText('$0.00');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // The collateral policy has no desk control since the Collateral tab
+  // went (5c8cea2); it is still a ledger action, so drive it directly and
+  // check the risk the server reports, before and after a reload.
+  const vault = () =>
+    page.evaluate(async () => {
+      const r = await fetch('/api/vault').then((x) => x.json());
+      return { margin: r.book.margin, released: r.risk.releasedValue };
+    });
+  expect(await vault()).toEqual({ margin: 'cross', released: 10 });
+  await page.evaluate(async () => {
+    const snapshot = await fetch('/api/vault').then((x) => x.json());
+    const response = await fetch('/api/vault/actions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': snapshot.csrf,
+        'Idempotency-Key': `e2e-margin-${crypto.randomUUID()}`,
+      },
+      body: JSON.stringify({
+        revision: snapshot.revision,
+        action: { type: 'margin', mode: 'isolated' },
+      }),
+    });
+    if (!response.ok) throw Error(await response.text());
+  });
   await page.reload();
   await expect(page.locator('.pc-desk')).toHaveAttribute('data-ready', 'true');
-  await nav(page, 'Risk');
-  await expect(
-    page.getByRole('button', { name: 'Isolated collateral', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  expect(await vault()).toEqual({ margin: 'isolated', released: 0 });
 });
 test('lending, recall and a protected short complete through the real API', async ({
   page,
