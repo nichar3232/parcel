@@ -126,6 +126,14 @@ export class VaultService {
   private borrowRate(symbol: string) {
     return borrowRate(symbol, this.utilisation(symbol));
   }
+  /** An onchain vault opened on the 2025 replay, which the live market cannot open. */
+  replayBookOnLive(sessionId: string): boolean {
+    if (!this.chain || !liveMarket()) return false;
+    const row = this.store.db
+      .prepare('SELECT book FROM vault_accounts WHERE owner=?')
+      .get(sessionId) as { book: string } | undefined;
+    return !!row && migrate(JSON.parse(row.book)).clock !== 'live';
+  }
   private read(session: Session): {
     revision: number;
     book: VaultBook;

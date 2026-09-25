@@ -328,7 +328,7 @@ export function createApp(
         if (!agentKey) mutationGuard(req, config, session!.csrf);
       };
       if (url.pathname === '/api/session' && method === 'GET') {
-        if (!session) {
+        if (!session || (!agentKey && vault.replayBookOnLive(session.id))) {
           const created = store.createSession();
           session = created.session;
           res.setHeader(
