@@ -184,22 +184,21 @@ export function TradeView({
   const crossing = invalid ? 0 : spreadCost(effective, reference, session, vol);
   const market = quoteAround(g.price, crossing);
   const trades = g.price + crossing;
-  const referenceBasis =
-    !referenceMark
-      ? 'Snapshot reference'
-      : referenceMark.stale
-        ? `Stale ${referenceMark.source} mark`
-        : referenceMark.source === 'massive-nbbo'
-          ? 'Fresh consolidated NBBO midpoint'
-          : referenceMark.source === 'coinbase'
-            ? 'Fresh Coinbase venue midpoint'
-            : referenceMark.source === 'pyth'
-              ? 'Fresh Pyth oracle mark'
-              : referenceMark.source === 'prestocks'
-                ? 'PreStocks publisher mark'
-                : referenceMark.source === 'yahoo'
-                  ? 'Delayed Yahoo reference'
-                  : 'Simulated reference mark';
+  const referenceBasis = !referenceMark
+    ? 'Snapshot reference'
+    : referenceMark.stale
+      ? `Stale ${referenceMark.source} mark`
+      : referenceMark.source === 'massive-nbbo'
+        ? 'Fresh consolidated NBBO midpoint'
+        : referenceMark.source === 'coinbase'
+          ? 'Fresh Coinbase venue midpoint'
+          : referenceMark.source === 'pyth'
+            ? 'Fresh Pyth oracle mark'
+            : referenceMark.source === 'prestocks'
+              ? 'PreStocks publisher mark'
+              : referenceMark.source === 'yahoo'
+                ? 'Delayed Yahoo reference'
+                : 'Simulated reference mark';
 
   const includedStock =
     !invalid &&
@@ -267,18 +266,25 @@ export function TradeView({
       {tab === 'structures' && (
         <>
           <div className="od-templates">
-            {templatesIn(category).map((t) => (
-              <button
-                key={t.id}
-                className={`od-template ${selected === t.id ? 'selected' : ''}`}
-                aria-pressed={selected === t.id}
-                onClick={() => select(t.id)}
-              >
-                <span>{t.tag}</span>
-                <h3>{t.name}</h3>
-                <p>{t.description}</p>
-              </button>
-            ))}
+            {templatesIn(category)
+              // Dividend contracts settle on the stored 2025 event, which
+              // the live market has no counterpart for.
+              .filter(
+                (t) =>
+                  state.market.clock !== 'live' || t.reference !== 'dividend',
+              )
+              .map((t) => (
+                <button
+                  key={t.id}
+                  className={`od-template ${selected === t.id ? 'selected' : ''}`}
+                  aria-pressed={selected === t.id}
+                  onClick={() => select(t.id)}
+                >
+                  <span>{t.tag}</span>
+                  <h3>{t.name}</h3>
+                  <p>{t.description}</p>
+                </button>
+              ))}
           </div>
         </>
       )}

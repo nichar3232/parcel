@@ -8,6 +8,7 @@ import {
   CircleHelp,
   Scale,
   ShieldCheck,
+  TriangleAlert,
   Wallet,
   X,
 } from 'lucide-react';
@@ -367,16 +368,30 @@ export default function Workspace() {
     : 0;
   const listedNbbo = feed.sources.some(
     (source) =>
-      source.name === 'massive-nbbo' && source.enabled && source.state === 'live',
+      source.name === 'massive-nbbo' &&
+      source.enabled &&
+      source.state === 'live',
   );
   const cryptoBbo = feed.sources.some(
     (source) => source.name === 'coinbase' && source.state === 'live',
   );
   const dataStatus = listedNbbo
-    ? { label: 'Listed NBBO live', detail: 'Fresh consolidated listed-equity NBBO is connected. Modelled option premiums remain separate.' }
+    ? {
+        label: 'Listed NBBO live',
+        detail:
+          'Fresh consolidated listed-equity NBBO is connected. Modelled option premiums remain separate.',
+      }
     : cryptoBbo
-      ? { label: 'Crypto BBO live', detail: 'Fresh Coinbase venue BBO is connected. Listed-equity and option marks retain their own source labels.' }
-      : { label: 'Indicative marks', detail: 'No fresh executable venue book is connected. Source labels identify delayed, publisher, oracle, or simulated marks.' };
+      ? {
+          label: 'Crypto BBO live',
+          detail:
+            'Fresh Coinbase venue BBO is connected. Listed-equity and option marks retain their own source labels.',
+        }
+      : {
+          label: 'Indicative marks',
+          detail:
+            'No fresh executable venue book is connected. Source labels identify delayed, publisher, oracle, or simulated marks.',
+        };
 
   return (
     <div className="pc-desk" data-ready={!!s}>
@@ -576,7 +591,11 @@ export default function Workspace() {
 
       {desk.toast && (
         <output className="od-toast">
-          <ShieldCheck size={17} />
+          {desk.toast.startsWith('Vault updated') ? (
+            <ShieldCheck size={17} />
+          ) : (
+            <TriangleAlert size={17} />
+          )}
           <span>{desk.toast}</span>
           <button
             aria-label="Dismiss notification"
