@@ -489,7 +489,7 @@ export function LiveValueChart({
         top: ((L.y0 + n * (L.y1 - L.y0)) / L.h) * 100,
         label: axisUsd(value),
       };
-    });
+    }).filter((g, i, all) => i === 0 || g.label !== all[i - 1].label);
 
     return {
       xy,

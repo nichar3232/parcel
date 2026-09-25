@@ -716,8 +716,10 @@ export default function Workspace() {
           </ul>
           <p className="od-about-foot">
             {s?.mode === 'localnet'
-              ? 'Runs on a local Solana validator with test tokens.'
-              : 'Sandbox: test balances, no real money.'}
+              ? 'Runs on a local Solana validator with test tokens — not sandbox, not mainnet.'
+              : s?.mode === 'devnet'
+                ? 'Runs on Solana devnet with no-value test tokens — not sandbox, not mainnet.'
+                : 'Sandbox: test balances in SQLite, not onchain, no real money.'}
           </p>
           <Button
             variant="secondary"

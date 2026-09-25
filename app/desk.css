@@ -2052,9 +2052,9 @@
   fill: color-mix(in srgb, var(--pc-text) 3.2%, transparent);
 }
 .od-vline-grid line {
-  stroke: var(--pc-line-soft);
+  stroke: var(--pc-line);
   stroke-width: 1;
-  opacity: 0.9;
+  opacity: 0.45;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
@@ -2068,12 +2068,12 @@
   position: absolute;
   right: 0;
   transform: translateY(-50%);
-  padding: 1px 6px 1px 8px;
+  padding: 1px 7px 1px 9px;
   border-radius: 4px 0 0 4px;
-  background: color-mix(in srgb, var(--pc-void) 72%, transparent);
-  color: var(--pc-faint);
+  background: color-mix(in srgb, var(--pc-void) 78%, transparent);
+  color: var(--pc-muted);
   font-family: var(--pc-mono);
-  font-size: 10px;
+  font-size: 10.5px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -2120,12 +2120,10 @@
   opacity: 0.5;
   vector-effect: non-scaling-stroke;
 }
-/* Open / close hairlines — session shape is carried by soft bands. */
+/* Open / close hairlines — the primary session cue; washes stay soft. */
 .od-vline-session {
-  stroke: var(--pc-line);
+  stroke: color-mix(in srgb, var(--pc-text) 18%, transparent);
   stroke-width: 1;
-  stroke-dasharray: 1.5 3.5;
-  opacity: 0.65;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
@@ -2226,7 +2224,7 @@
   font-weight: 600;
   letter-spacing: -0.025em;
 }
-.od-positions-head span {
+.od-positions-head > span {
   color: var(--pc-muted);
   font-size: 12.5px;
 }
@@ -2236,37 +2234,37 @@
   gap: 14px;
   min-width: 0;
 }
-.od-pos-health {
+.od-positions-title .od-pos-health {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  height: 28px;
-  padding: 0 11px;
-  border: 1px solid color-mix(in srgb, var(--pc-line) 88%, var(--pc-text));
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--pc-line) 70%, var(--pc-text));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--pc-text) 7.5%, transparent);
+  background: color-mix(in srgb, var(--pc-text) 9%, transparent);
   color: var(--pc-body);
   font-family: var(--pc-mono);
-  font-size: 11.5px;
-  letter-spacing: 0.07em;
+  font-size: 12px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
 }
-.od-pos-health b {
+.od-positions-title .od-pos-health b {
   color: var(--pc-text);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
   font-variant-numeric: tabular-nums;
 }
-.od-pos-health.safe b {
+.od-positions-title .od-pos-health.safe b {
   color: var(--pc-up);
 }
-.od-pos-health.watch b {
+.od-positions-title .od-pos-health.watch b {
   color: var(--pc-warn, #d4a017);
 }
-.od-pos-health.risk b {
+.od-positions-title .od-pos-health.risk b {
   color: var(--pc-down);
 }
 
