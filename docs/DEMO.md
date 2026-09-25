@@ -38,7 +38,7 @@ Sandbox and devnet each keep their own vault database, so after switching betwee
    - "short NVIDIA"
    - "lend 2 shares"
 
-   Each one appears in the Portfolio's Activity list tagged **Agent**. On devnet they run through the Parcel program on Solana devnet.
+   Each one appears in the Portfolio's Activity list tagged **Agent**. On devnet each is a Solana devnet transaction: its receipt in Activity, and the confirmation after it, link to the transaction on Solana Explorer.
 
 ## 5. If something goes wrong
 
