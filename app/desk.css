@@ -4641,6 +4641,19 @@
   gap: 8px;
 }
 
+/* The Connect dialog takes the desk's own surface and rule. globals.css
+   still paints every [data-slot='dialog-content'] in the retired desk's
+   warm brown with !important, so only an !important of higher
+   specificity can win it back. Scoped to this dialog alone. */
+.od-dialog.od-connect {
+  background: var(--pc-surface) !important;
+  border: 1px solid var(--pc-line) !important;
+  color: var(--pc-text);
+}
+.od-dialog.od-connect .od-dialog-head {
+  border-bottom-color: var(--pc-line-soft);
+}
+
 /* The Agents dialog. The command is plain monospace text, not a box. */
 .od-agent-fresh {
   display: flex;

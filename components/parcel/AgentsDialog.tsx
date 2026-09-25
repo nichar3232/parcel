@@ -174,7 +174,7 @@ export function AgentsDialog({
   return (
     <Modal
       title="Connect over MCP"
-      description="Use your vault from Claude or Codex."
+      className="od-connect"
       onClose={onClose}
       wide
     >

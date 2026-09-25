@@ -547,12 +547,14 @@ export function Modal({
   children,
   onClose,
   wide = false,
+  className,
 }: {
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  className?: string;
 }) {
   return (
     <Dialog
@@ -562,13 +564,17 @@ export function Modal({
       }}
     >
       <DialogContent
-        className={`od-dialog ${wide ? 'wide' : ''}`}
+        className={['od-dialog', wide && 'wide', className]
+          .filter(Boolean)
+          .join(' ')}
         showCloseButton={false}
       >
         <div className="od-dialog-head">
           <div>
             <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>{description}</DialogDescription>
+            {description && (
+              <DialogDescription>{description}</DialogDescription>
+            )}
           </div>
           <button
             aria-label="Close dialog"
