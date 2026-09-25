@@ -261,12 +261,6 @@ export function OptionsChain({
                 Model size {qty(modelSize(catalog))}
               </li>
             </ul>
-            <p className="od-chain-guidance">
-              Select a premium to open the position simulator. Premiums include
-              modelled per-leg spread and size impact; they are not external
-              options-market quotes. Model size is displayed depth at the
-              touch, not venue volume.
-            </p>
           </header>
           <div className="od-table-wrap od-ladder-scroll od-ladder-window">
             <table className="od-table od-ladder">

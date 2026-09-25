@@ -3644,14 +3644,6 @@
   margin: 0 9px;
   color: var(--pc-faint);
 }
-.od-chain-guidance {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: var(--pc-body);
-  font-size: 12.5px;
-  line-height: 1.5;
-  max-width: 64ch;
-}
 @media (max-width: 900px) {
   .od-chain-head {
     grid-template-columns: minmax(0, 1fr);
