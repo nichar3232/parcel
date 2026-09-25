@@ -118,7 +118,6 @@ try {
       await beat();
       await click(skip);
     }
-    await expect(page.getByText('Portfolio balance', { exact: false }).first()).toBeVisible();
     await beat(1.5);
   });
 
