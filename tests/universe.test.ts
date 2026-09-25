@@ -201,3 +201,11 @@ void test('a version 2 book migrates to NVDA and gains the new symbols', () => {
   const series = valueSeries(book);
   assert.equal(series[0].value, 1000 + 1 * mark('NVDA', '2025-01-24'));
 });
+
+// Bounty rule: a project that integrates any pre-IPO token not issued by
+// PreStocks is ineligible. Every non-listed underlying must be PreStocks.
+void test('every pre-IPO underlying is a PreStocks token', () => {
+  const preIpo = UNDERLYINGS.filter((u) => u.provider !== 'equity');
+  assert.ok(preIpo.length > 0);
+  for (const u of preIpo) assert.equal(u.provider, 'prestocks', u.symbol);
+});
