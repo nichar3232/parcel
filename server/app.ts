@@ -276,9 +276,10 @@ export function createApp(
           }
         }
       }
-      // An agent key stands in for the session cookie. It carries no ambient
-      // browser credential, so its requests need no CSRF token, and every
-      // action it places is marked as the agent's.
+      // An agent key stands in for the session cookie only at the narrowly
+      // scoped vault API. It carries no ambient browser credential, so its
+      // permitted mutation requests need no CSRF token and vault actions are
+      // explicitly marked as agent initiated.
       const agentKey = bearer(req);
       let session = agentKey
         ? store.agentSession(agentKey)
@@ -288,6 +289,21 @@ export function createApp(
           401,
           'AGENT_KEY_INVALID',
           'This agent key is not valid or was revoked.',
+        );
+      if (
+        agentKey &&
+        ![
+          '/api/vault',
+          '/api/vault/actions',
+          '/api/vault/quote',
+          '/api/vault/chain',
+          '/api/vault/size',
+        ].includes(url.pathname)
+      )
+        throw new ApiError(
+          403,
+          'AGENT_KEY_SCOPE',
+          'This agent key may only access the Parcel vault API.',
         );
       const guard = () => {
         if (!agentKey) mutationGuard(req, config, session!.csrf);

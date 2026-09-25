@@ -121,6 +121,17 @@ void test('agent keys: created from the desk, act for its vault only, marked as 
     assert.equal((await a.vault()).book.events[0].via, 'agent');
     assert.equal((await b.vault()).revision, 0);
 
+    // A key cannot reach historical desk endpoints, where its activity would
+    // not carry the vault action's explicit agent provenance.
+    for (const path of ['/api/portfolio/actions', '/api/chain/action']) {
+      const legacy = await fetch(`${f.base}${path}`, {
+        method: 'POST',
+        headers: { ...bearer(created.key), 'Idempotency-Key': randomUUID() },
+        body: JSON.stringify({}),
+      });
+      assert.equal(legacy.status, 403, await legacy.text());
+    }
+
     // A key cannot manage keys, and b cannot revoke a's.
     assert.equal(
       (
