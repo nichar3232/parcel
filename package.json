@@ -22,6 +22,8 @@
     "record:demo": "node scripts/record-parcel.mjs",
     "demo:agent": "node scripts/agent-demo.mjs",
     "demo": "PARCEL_DEMO=1 CHAIN_ENABLED=false tsx server/index.ts",
+    "demo:devnet": "bash scripts/demo-devnet.sh",
+    "demo:sandbox": "bash scripts/demo-sandbox.sh",
     "check:repo": "node scripts/check-repository.mjs",
     "record:legacy": "node scripts/record-demo.mjs",
     "verify:parcel-chain": "tsx scripts/verify-parcel-chain.ts",
