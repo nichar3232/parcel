@@ -4722,6 +4722,7 @@
 .od-agent-url code {
   flex: 1;
   min-width: 0;
+  white-space: pre-wrap;
   color: var(--pc-cyan);
   font-family: var(--pc-mono);
   font-size: 14px;

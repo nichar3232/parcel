@@ -1,0 +1,13 @@
+{
+  "name": "parcel",
+  "owner": {
+    "name": "Parcel"
+  },
+  "plugins": [
+    {
+      "name": "parcel",
+      "description": "Your Parcel vault in Claude Code: balances, products and trades with /parcel.",
+      "source": "./claude-plugin"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "parcel",
+  "version": "1.0.0",
+  "description": "Your Parcel vault in Claude Code: balances, products and trades with /parcel.",
+  "author": {
+    "name": "Parcel"
+  },
+  "homepage": "https://github.com/nichar3232/parcel"
+}

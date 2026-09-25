@@ -351,3 +351,42 @@ void test('oauth: a configured public address is what agents are told', async ()
     /https/,
   );
 });
+
+void test('plugin: the desk serves a /parcel plugin whose server is this desk', async () => {
+  const f = await fixture();
+  try {
+    const market = (await (
+      await fetch(`${f.base}/claude/marketplace.json`)
+    ).json()) as {
+      plugins: { name: string; source: { url: string; sha256: string } }[];
+    };
+    const entry = market.plugins[0];
+    assert.equal(entry.name, 'parcel');
+    const zip = Buffer.from(
+      await (await fetch(entry.source.url)).arrayBuffer(),
+    );
+    assert.equal(
+      createHash('sha256').update(zip).digest('hex'),
+      entry.source.sha256,
+      'the pinned hash matches what is served',
+    );
+    assert.ok(zip.includes(Buffer.from('skills/parcel/SKILL.md')));
+
+    // Claude Code registers a plugin's server with a suffix the owner
+    // should not have to read.
+    const registered = await fetch(`${f.base}/oauth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_name: 'Claude Code (plugin:parcel:parcel)',
+        redirect_uris: ['http://localhost:9999/callback'],
+      }),
+    });
+    assert.equal(
+      ((await registered.json()) as { client_name: string }).client_name,
+      'Claude Code',
+    );
+  } finally {
+    await f.close();
+  }
+});

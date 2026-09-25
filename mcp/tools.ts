@@ -11,6 +11,13 @@ import { join } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { VaultSnapshot } from '../lib/parcel/types';
+import {
+  CATEGORIES,
+  CONTRACTS,
+  templateTerms,
+  templates,
+  templatesIn,
+} from '../lib/parcel/templates';
 
 export interface ParcelMcpOptions {
   /** The running app, e.g. http://localhost:3025. */
@@ -63,7 +70,7 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
       return call('/api/vault').catch((e) => {
         if (e instanceof HttpError && e.status === 401)
           throw Error(
-            'This agent key is not valid or was revoked. Create a new one in the desk under Agents.',
+            'This connection was disconnected or has expired. Reconnect Parcel from Agents in the desk.',
           );
         throw e;
       });
@@ -274,6 +281,28 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
     terms: terms.optional(),
   };
 
+  /**
+   * A quote, with what this trade itself reserves spelled out. The server's
+   * cashRequired and sharesRequired are the vault's totals after the trade,
+   * which read as the trade's own collateral if taken alone.
+   */
+  async function quote(a: Record<string, unknown>) {
+    const before = (await vault()).risk;
+    const q = await ask('/api/vault/quote', a);
+    const on = (q.terms?.symbol as string) || 'NVDA';
+    return {
+      ...q,
+      thisTrade: {
+        cashReserved: Math.round((q.cashRequired - before.cash) * 100) / 100,
+        sharesReserved:
+          Math.round(
+            ((q.sharesRequired ?? 0) - (before.shares[on] ?? 0)) * 1e6,
+          ) / 1e6,
+      },
+      note: "thisTrade is the collateral this trade adds. cashRequired and sharesRequired are the whole vault's reserves after it, and cashAfter is the free cash left.",
+    };
+  }
+
   const server = new McpServer({ name: 'parcel', version: '0.4.0' });
 
   server.registerTool(
@@ -325,7 +354,7 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
         'Price a contract without trading: premium (positive is paid, negative received), greeks, collateral required and whether it is executable. Quotes expire after 30 seconds; to trade, prefer trade_option.',
       inputSchema: target,
     },
-    (a) => run(() => ask('/api/vault/quote', a)),
+    (a) => run(() => quote(a)),
   );
 
   server.registerTool(
@@ -344,7 +373,7 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
     },
     ({ maxPremium, ...a }) =>
       run(async () => {
-        const q = await ask('/api/vault/quote', a);
+        const q = await quote(a);
         if (!q.eligible)
           throw Error(q.reason || 'This quote is not executable.');
         if (q.premium > maxPremium)
@@ -511,6 +540,118 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
     },
     ({ signature }) =>
       run(() => call(`/api/chain/tx/${encodeURIComponent(signature)}`)),
+  );
+
+  server.registerTool(
+    'list_products',
+    {
+      description:
+        "Every contract Parcel offers, single options and structures, grouped by family, each with ready-to-trade terms at the current price and a near expiry. Pass an entry's terms to quote_option or trade_option, changing quantity, strikes or expiry as the user asks.",
+      inputSchema: {
+        symbol: symbol.optional().describe('Defaults to NVDA'),
+        expiry: expiry
+          .optional()
+          .describe('Defaults to the second listed expiry'),
+      },
+    },
+    (a) =>
+      run(async () => {
+        const { market } = await vault();
+        const on = (a.symbol || 'NVDA').toUpperCase();
+        const u = market.underlyings?.find((x) => x.symbol === on);
+        if (!u) throw Error(`${on} is not tradable here. See get_market.`);
+        const expiries = market.dates.filter(
+          (d) => d > market.date && !d.includes('T'),
+        );
+        const when = a.expiry || expiries[1] || expiries[0];
+        const live = market.clock === 'live';
+        const family = (id: string) =>
+          CONTRACTS.includes(id)
+            ? 'Options'
+            : (CATEGORIES.find((c) =>
+                templatesIn(c).some((t) => t.id === id),
+              ) ?? 'Other');
+        return {
+          symbol: on,
+          price: u.price,
+          expiry: when,
+          products: templates
+            // Dividend contracts settle on the stored 2025 event only.
+            .filter((t) => !(live && t.reference === 'dividend'))
+            .map((t) => ({
+              name: t.name,
+              family: family(t.id),
+              description: t.description,
+              terms: templateTerms(t.id, when, on, u.price),
+            })),
+        };
+      }),
+  );
+
+  // Slash commands in Claude Code, and prompts in other MCP apps.
+  server.registerPrompt(
+    'balance',
+    {
+      title: 'Parcel: my vault',
+      description: 'Your balances, open positions and free collateral.',
+    },
+    () => ({
+      messages: [
+        {
+          role: 'user',
+          content: {
+            type: 'text',
+            text: 'Show my Parcel vault. Call get_vault and get_market, then give me: total value, cash and each share balance with its dollar value, free collateral, and a short table of open positions (options, loans, shorts, borrows) with what each is. Keep it brief.',
+          },
+        },
+      ],
+    }),
+  );
+
+  server.registerPrompt(
+    'products',
+    {
+      title: 'Parcel: what I can trade',
+      description: 'Every contract type Parcel offers, by family.',
+      argsSchema: { symbol: z.string().optional() },
+    },
+    ({ symbol: on }) => ({
+      messages: [
+        {
+          role: 'user',
+          content: {
+            type: 'text',
+            text: `Show me what I can trade on Parcel${on ? ` on ${on}` : ''}. Call list_products${on ? ` with symbol ${on}` : ''} and present the contracts grouped by family, one line each on what it does. Mention that any size works, down to fractions of a share.`,
+          },
+        },
+      ],
+    }),
+  );
+
+  server.registerPrompt(
+    'trade',
+    {
+      title: 'Parcel: place a trade',
+      description:
+        'Describe a trade; Claude quotes it and asks before placing it.',
+      argsSchema: {
+        order: z
+          .string()
+          .optional()
+          .describe('e.g. "iron condor on NVDA, half a share, next month"'),
+      },
+    },
+    ({ order }) => ({
+      messages: [
+        {
+          role: 'user',
+          content: {
+            type: 'text',
+            text: `I want to place a trade on Parcel${order ? `: ${order}` : '. Ask me what I want to trade'}. Use list_products or get_options_chain to build the terms, then quote_option. Show me the premium, the most I can lose, the collateral it reserves, and the expiry, and ask me to confirm. Only after I confirm, call trade_option with maxPremium set just above the quoted premium, and show the result.`,
+          },
+        },
+      ],
+    }),
   );
 
   return server;

@@ -12,59 +12,64 @@ interface AgentKey {
   lastUsedAt: number | null;
 }
 
-type App = 'claude' | 'codex' | 'claude-code' | 'other';
+type App = 'claude' | 'codex';
+
+interface Place {
+  /** Parcel's agent address. */
+  url: string;
+  /** An inline control that copies it. */
+  address: React.ReactNode;
+  /** Where Claude Code installs the /parcel plugin from. */
+  plugin: string;
+  /** The desk runs on this computer, out of reach of Claude's app. */
+  local: boolean;
+}
 
 /**
- * How each app adds a remote MCP server. Every one of them ends on Parcel's
- * Allow page; a command, where there is one, is only the way in.
+ * How each app connects. Every one ends on Parcel's Allow page; a command,
+ * where there is one, is only the way in. Claude's app calls in from the
+ * internet, so a desk on this computer is reached from Claude Code, which
+ * also brings /parcel.
  */
 const GUIDES: Record<
   App,
-  (
-    url: string,
-    address: React.ReactNode,
-  ) => { steps: React.ReactNode[]; command?: string; web?: boolean }
+  (p: Place) => { steps: React.ReactNode[]; command?: string }
 > = {
-  claude: (_url, address) => ({
-    web: true,
-    steps: [
-      <>
-        In Claude, open <b>Settings → Connectors</b> and choose{' '}
-        <b>Add custom connector</b>.
-      </>,
-      <>Name it Parcel and paste Parcel’s address: {address}.</>,
-      <>
-        Click <b>Connect</b>, then <b>Allow</b> on the Parcel page that opens.
-      </>,
-    ],
-  }),
-  codex: (url) => ({
+  claude: ({ address, plugin, local }) =>
+    local
+      ? {
+          command: `claude plugin marketplace add ${plugin}\nclaude plugin install parcel@parcel`,
+          steps: [
+            <>Run these in a terminal to add Parcel to Claude Code.</>,
+            <>
+              In Claude Code, type <b>/mcp</b>, choose Parcel, then{' '}
+              <b>Authenticate</b> and click <b>Allow</b>.
+            </>,
+            <>
+              Type <b>/parcel</b> for your balance, <b>/parcel products</b> for
+              what you can trade, or <b>/parcel</b> and a trade to place it.
+            </>,
+          ],
+        }
+      : {
+          steps: [
+            <>
+              In Claude, open <b>Settings → Connectors</b> and choose{' '}
+              <b>Add custom connector</b>.
+            </>,
+            <>Name it Parcel and paste Parcel’s address: {address}.</>,
+            <>
+              Click <b>Connect</b>, then <b>Allow</b> on the Parcel page that
+              opens.
+            </>,
+          ],
+        },
+  codex: ({ url }) => ({
     command: `codex mcp add parcel --url ${url}`,
     steps: [
       <>Run this in a terminal.</>,
       <>
         Codex opens the Parcel page in your browser. Click <b>Allow</b>.
-      </>,
-    ],
-  }),
-  'claude-code': (url) => ({
-    command: `claude mcp add --transport http parcel ${url}`,
-    steps: [
-      <>Run this in a terminal.</>,
-      <>
-        In Claude Code, type <b>/mcp</b>, choose parcel, then{' '}
-        <b>Authenticate</b> and click <b>Allow</b>.
-      </>,
-    ],
-  }),
-  other: (_url, address) => ({
-    steps: [
-      <>
-        Add Parcel’s address as a remote (streamable HTTP) MCP server: {address}
-        .
-      </>,
-      <>
-        When the app opens the Parcel page, click <b>Allow</b>.
       </>,
     ],
   }),
@@ -98,6 +103,7 @@ export function AgentsDialog({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [published, setPublished] = useState<string | null>(null);
+  const [plugin, setPlugin] = useState<string | null>(null);
   const server =
     published ??
     (typeof window === 'undefined' ? '/mcp' : `${window.location.origin}/mcp`);
@@ -113,10 +119,13 @@ export function AgentsDialog({
   // is open: a connection appears here as soon as it is made.
   useEffect(() => {
     const load = () =>
-      api<{ keys: AgentKey[]; mcpUrl: string | null }>('/api/agent/keys')
+      api<{ keys: AgentKey[]; mcpUrl: string | null; plugin: string }>(
+        '/api/agent/keys',
+      )
         .then((r) => {
           setKeys(r.keys);
           setPublished(r.mcpUrl);
+          setPlugin(r.plugin);
         })
         .catch((e: Error) => setError(e.message));
     void load();
@@ -153,21 +162,25 @@ export function AgentsDialog({
     }
   };
 
-  const guide = GUIDES[app](
-    server,
-    <button
-      type="button"
-      className="od-agent-copy"
-      onClick={() => void copy('url', server)}
-    >
-      {copied === 'url' ? 'copied' : 'copy address'}
-    </button>,
-  );
+  const guide = GUIDES[app]({
+    url: server,
+    address: (
+      <button
+        type="button"
+        className="od-agent-copy"
+        onClick={() => void copy('url', server)}
+      >
+        {copied === 'url' ? 'copied' : 'copy address'}
+      </button>
+    ),
+    plugin: plugin ?? `${server.replace(/\/mcp$/, '')}/claude/marketplace.json`,
+    local,
+  });
 
   return (
     <Modal
       title="Connect an agent"
-      description="Let Claude, Codex or any MCP app use your vault."
+      description="Let Claude or Codex check your vault and trade for you."
       onClose={onClose}
       wide
     >
@@ -181,8 +194,6 @@ export function AgentsDialog({
         options={[
           { id: 'claude', label: 'Claude' },
           { id: 'codex', label: 'Codex' },
-          { id: 'claude-code', label: 'Claude Code' },
-          { id: 'other', label: 'Other' },
         ]}
       />
       {guide.command && (
@@ -203,12 +214,6 @@ export function AgentsDialog({
           <li key={i}>{step}</li>
         ))}
       </ol>
-      {local && guide.web && (
-        <p className="od-agent-hint">
-          Claude connects from the internet, so it needs Parcel at a public
-          https address. Codex and Claude Code connect from this computer.
-        </p>
-      )}
 
       <div className="od-lines" aria-label="Connected apps">
         {keys === null ? null : keys.length ? (

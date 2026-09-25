@@ -153,7 +153,12 @@ export async function handleOAuth(
       );
       return true;
     }
-    const name = (str(input.client_name) || 'An MCP app').slice(0, 60);
+    // Claude Code names a plugin's server "Claude Code (plugin:x:y)"; the
+    // owner knows it as Claude Code.
+    const name = (
+      str(input.client_name).replace(/\s*\(plugin:[^)]*\)\s*$/, '') ||
+      'An MCP app'
+    ).slice(0, 60);
     const id = store.registerOAuthClient(name, uris);
     send(res, 201, {
       client_id: id,

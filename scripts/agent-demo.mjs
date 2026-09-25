@@ -179,9 +179,7 @@ try {
   let key;
   await scene('Connect Claude', async () => {
     await click(page.getByRole('button', { name: 'Connect an agent' }));
-    await expect(page.locator('.od-agent-url code').first()).toHaveText(
-      `${base}/mcp`,
-    );
+    await expect(page.getByRole('dialog')).toContainText('/parcel');
     await beat(2.5);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
