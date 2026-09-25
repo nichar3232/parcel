@@ -28,7 +28,9 @@ Fresh localnet sessions provision wallet test capital and actual PDA-controlled 
 4. The program derives the new book, checks reserve/conservation and SPL backing, compares its computed economic hash with the expected projection, and increments its revision.
 5. Reconcile the original signature, then compare the program account with the expected book. Only then commit the SQLite index, quote consumption and receipt together.
 
-Lost sends or verification responses retain the original signed transaction. A restart resumes it. A known program failure or finalized transaction expiry is recorded as failed; a transient RPC failure remains pending. A second intent cannot replace an unresolved operation.
+Lost sends or verification responses retain the original signed transaction. A restart resumes it. A known program failure or finalized transaction expiry is recorded as failed (signed bytes kept for forensics); a transient RPC failure remains pending. A second intent cannot replace an unresolved operation.
+
+Open premiums for bounded claims and curves are clamped in TypeScript (`clampExecutablePremium`) to the same cash envelope `Action::Open` enforces on-chain, so a live modelled ask cannot exceed max payable value and then fail simulation. Naked options stay unconstrained. Close is not envelope-checked on-chain.
 
 Program positions are active economic obligations; closed history and readable event descriptions remain in the index. A vault supports 64 active positions. Account allocation is 64 KiB; the transaction requests 1.4 million compute units and a 256 KiB heap, and the program allocator uses that requested frame. The earlier V1 64-contract fixture consumed approximately 538,000 units when opening the final contract and 111,000 when settling the group; current nonlinear capacity measurements are recorded separately in the product-suite audit. Cash collateral uses the same analytic integer strike envelope as the TypeScript engine. The historical price and dividend observations are compiled into the program, not supplied by a browser. Test premiums are authorized by the operator, not claimed as external oracle prices.
 
@@ -95,6 +97,18 @@ Every committed vault action writes three durable records in one SQLite transact
 Sandbox fills store `mode='sandbox'`. Confirmed Parcel program fills store `mode='localnet'` or `mode='devnet'` and also update `vault_chain_operations` (`action_type`, `signature`, `revision_after`, `proof`). Live-market settlement that occurs on read is recorded as `mode='system'` with a synthetic key; it is not an on-chain event.
 
 Sandbox activity is **not** an on-chain record. Do not describe sandbox receipts, mutations or activity titles as localnet, devnet or mainnet evidence.
+
+## Product coverage on the Parcel program
+
+| Product | Pricing | On-chain status |
+| --- | --- | --- |
+| Options open/close | Black–Scholes mid via `orderGreeks` / `premium`; live market adds modelled bid/ask crossing (`tradedPremium`) | Encoded as `Open` / `Close` with the reviewed premium |
+| Stock lending / recall | Protective call at 150% strike is Black–Scholes mid (`protectionPremium` / `premium`) | `Lend` / `Recall` |
+| Protected short / cover | Protective call is Black–Scholes mid | `Short` / `Cover` |
+| Cash borrow / repay | Pool utilisation APR (two-slope curve) — **not** Black–Scholes | `Borrow` / `Repay` (program stock mint / NVDA). Book layout includes `borrows`; requires a **fresh** ledger after upgrade |
+| Spot transfer / stock | Mark / NBBO path | `Transfer` / `Stock` |
+
+On-chain variable cash loans authorize and lock the APR at open (operator-signed). Sandbox variable loans still reprice each replay session from the pool curve.
 
 ## Live on-chain record: blockers on a bare workstation
 

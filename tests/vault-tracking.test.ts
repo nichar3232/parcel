@@ -250,7 +250,9 @@ class Chain implements VaultChainAdapter {
     this.revision = this.plan.revision + 1;
   }
   async status() {
-    return this.revision === 0 ? ('pending' as const) : ('confirmed' as const);
+    return this.revision === this.plan.revision + 1
+      ? ('confirmed' as const)
+      : ('pending' as const);
   }
   async verify(_owner: string, b: VaultBook, revision: number) {
     assert.equal(revision, this.revision);

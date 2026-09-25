@@ -6,7 +6,7 @@
 
 A unified equity workspace for granular options, covered underwriting, stock lending, protected shorts and structured contracts. Size exposure in share-equivalents, including fractional quantities to six decimals; one share is a denomination, not a minimum lot. A contract must have a nonzero payable obligation.
 
-Parcel is a working **private test-asset product**. The same-origin Node API supports a persistent keyless sandbox and **Parcel program execution on a pinned private Solana validator or on devnet**. In either onchain mode, SPL test tokens back the vault and the program independently executes transfers, option deliveries, lending, protected shorts and cross collateral; SQLite indexes confirmed results. Both modes use funded test counterparties and historical prices. This is not a live brokerage or a source of external liquidity. The original Strata spread desk remains at `/legacy`.
+Parcel is a working **private test-asset product**. The same-origin Node API supports a persistent keyless sandbox and **Parcel program execution on a pinned private Solana validator or on devnet**. In either onchain mode, SPL test tokens back the vault and the program independently executes transfers, option deliveries, stock lending, protected shorts, cash borrow/repay and cross collateral; SQLite indexes confirmed results. Both modes use funded test counterparties and historical prices. This is not a live brokerage or a source of external liquidity. The original Strata spread desk remains at `/legacy`.
 
 ![Parcel vault workspace](docs/audit/parcel/overview.png)
 
@@ -45,7 +45,7 @@ Start by depositing one NVDA share, choose **Underwrite → Covered call**, revi
 
 ## Agent access
 
-Parcel's MCP server (`mcp/tools.ts`) lets Claude, or any MCP client, use the vault through the same HTTP API as the desk, so accounting, risk checks and signing stay on the server. It exposes quotes, options (including spreads and curves), stock, lending, protected shorts, collateral mode and the market replay. Cash borrowing is sandbox-only, and chain mode refuses it.
+Parcel's MCP server (`mcp/tools.ts`) lets Claude, or any MCP client, use the vault through the same HTTP API as the desk, so accounting, risk checks and signing stay on the server. It exposes quotes, options (including spreads and curves), stock, lending, protected shorts, cash borrow/repay, collateral mode and the market replay. Onchain mode supports the same product set against the program stock mint (NVDA); cash-borrow APR is the pool curve (not Black–Scholes), while option and protective-call premiums are Black–Scholes.
 
 **Connect from the desk.** Open **Agents** in the desk's top bar and create a key. The key acts for that vault only; it is shown once and can be revoked there. The dialog gives the command:
 

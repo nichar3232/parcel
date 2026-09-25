@@ -1,6 +1,5 @@
-import { liveMarket } from './market';
-import { optionGreeks, round } from './math';
-import { modelDays } from './market';
+import { liveMarket, modelDays } from './market';
+import { mul, optionGreeks, round } from './math';
 import type { OrderTerms } from './types';
 
 /**
@@ -46,8 +45,11 @@ export function legCrossingCost(mid: number, quantity: number) {
   if (!Number.isFinite(mid) || !Number.isFinite(quantity) || quantity < 0)
     throw new RangeError('Model liquidity needs a finite non-negative size.');
   if (quantity === 0) return 0;
-  const touch = quantity * halfSpread(mid);
-  const participation = Math.sqrt(quantity / MODEL_LIQUIDITY.displayedSize);
+  // Size stays in micro-share units so ratio * quantity never drifts past the
+  // sixth decimal the rest of the vault treats as exact.
+  const size = Math.abs(quantity);
+  const touch = size * halfSpread(mid);
+  const participation = Math.sqrt(size / MODEL_LIQUIDITY.displayedSize);
   return round(touch * (1 + MODEL_LIQUIDITY.impactSlope * participation));
 }
 
@@ -75,12 +77,14 @@ export function spreadCost(
   let cost = 0;
   for (const leg of terms.legs) {
     const mid = optionGreeks(leg.kind, spot, leg.strike, t, vol).price;
-    cost += legCrossingCost(mid, terms.quantity * leg.ratio);
+    cost += legCrossingCost(mid, mul(terms.quantity, leg.ratio));
   }
   return round(cost);
 }
 
 /** Bid and ask around a mid premium (positive: you pay), at this size. */
 export function quoteAround(mid: number, cost: number) {
+  if (!Number.isFinite(mid) || !Number.isFinite(cost) || cost < 0)
+    throw new RangeError('quoteAround needs a finite mid and non-negative cost.');
   return { bid: round(mid - cost), ask: round(mid + cost) };
 }

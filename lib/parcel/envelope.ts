@@ -1,5 +1,6 @@
 import { curveCap } from './curves';
 import { units } from '../engine';
+import { bounded, round } from './math';
 import type { OrderTerms } from './types';
 const SCALE = 1_000_000n;
 const min = (a: bigint, b: bigint) => (a < b ? a : b);
@@ -127,6 +128,23 @@ export function payoffBounds(terms: OrderTerms): Bounds {
     };
   }
   return sweep([terms], false);
+}
+
+/**
+ * Clamp an open premium to the cash envelope the Parcel program enforces on
+ * `Action::Open` for bounded claims (net call ratio zero) and curves. Naked
+ * options are left unconstrained. Live modelled crossing cannot push a debit
+ * past max payable value or a credit past max loss — the same rule the
+ * on-chain vault rejects as `InvalidTerms`.
+ */
+export function clampExecutablePremium(terms: OrderTerms, value: number) {
+  if (!Number.isFinite(value))
+    throw new RangeError('Executable premium must be finite.');
+  if (!terms.curve && !bounded(terms.legs)) return value;
+  const bounds = payoffBounds(terms);
+  const lo = Math.min(0, Number(bounds.cashMin) / 1e6);
+  const hi = Math.max(0, Number(bounds.cashMax) / 1e6);
+  return Math.max(lo, Math.min(hi, round(value)));
 }
 export function deliveryBounds(terms: OrderTerms[]): Bounds {
   if (!terms.length)

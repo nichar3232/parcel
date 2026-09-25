@@ -30,8 +30,7 @@ import {
   health,
   reserveOf,
 } from '../../lib/parcel/lending';
-import { payoffBounds } from '../../lib/parcel/envelope';
-import { bounded } from '../../lib/parcel/math';
+import { clampExecutablePremium, payoffBounds } from '../../lib/parcel/envelope';
 import { assertCollateral, risk } from '../../lib/parcel/risk';
 import { spreadCost } from '../../lib/parcel/spread';
 import { templateTerms } from '../../lib/parcel/templates';
@@ -270,11 +269,7 @@ export function premium(terms: OrderTerms, book: VaultBook) {
   const bounds = payoffBounds(terms);
   if (bounds.cashMin === 0n && bounds.cashMax === 0n)
     throw Error('This contract has no payable value at settlement precision.');
-  if (!bounded(terms.legs)) return value;
-  return Math.max(
-    Math.min(0, Number(bounds.cashMin) / 1e6),
-    Math.min(Math.max(0, Number(bounds.cashMax) / 1e6), value),
-  );
+  return clampExecutablePremium(terms, value);
 }
 
 /**
@@ -282,6 +277,10 @@ export function premium(terms: OrderTerms, book: VaultBook) {
  * market maker: mid from {@link premium}, plus the live per-leg crossing
  * cost (zero off the live market). Open and close both cross; a long pays
  * the ask to open and receives the bid to close.
+ *
+ * Open premiums for bounded claims are clamped to the same payoff envelope
+ * the Parcel program enforces on `Action::Open`, so a live ask cannot exceed
+ * max payable value (or a credit the max loss) and then fail on-chain.
  *
  * Chain indications, funded quotes and durable fills all read this one
  * schedule so the premium on screen is the premium charged.
@@ -301,7 +300,9 @@ export function tradedPremium(
           volatility(terms.symbol),
         )
       : 0;
-  return add(intent === 'close' ? -mid : mid, crossing);
+  const raw = add(intent === 'close' ? -mid : mid, crossing);
+  // Close is not envelope-checked on-chain; only Open is.
+  return intent === 'open' ? clampExecutablePremium(terms, raw) : raw;
 }
 export function addOrder(
   book: VaultBook,
@@ -334,7 +335,10 @@ export function addOrder(
 export function closeOrder(book: VaultBook, id: string, quotedValue?: number) {
   const p = book.options.find((p) => p.id === id && p.status === 'active');
   if (!p) throw Error('This active contract was not found.');
-  const cost = quotedValue ?? premium(p.terms, book);
+  // Default path must match the live close quote: credit the bid (mid less
+  // crossing), never the uncrossed mid. Service execute always passes the
+  // reviewed quote; this keeps direct ledger closes honest too.
+  const cost = quotedValue ?? -tradedPremium(p.terms, book, 'close');
   signedTransfer(book.counterparty, book.vault, 'USDC', cost);
   p.status = 'closed';
   p.cashFlow = cost;

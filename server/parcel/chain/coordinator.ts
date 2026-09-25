@@ -84,9 +84,7 @@ export class VaultChainCoordinator {
         throw new ApiError(
           409,
           'CHAIN_UNSUPPORTED',
-          type === 'borrow' || type === 'repay'
-            ? 'Cash loans against shares run in sandbox mode only; the onchain vault does not support them.'
-            : 'This action is not available on the onchain vault.',
+          'This action is not available on the onchain vault.',
         );
       const pending = this.store.db
         .prepare(
@@ -103,7 +101,8 @@ export class VaultChainCoordinator {
       if (
         plan.book.options.filter((p) => p.status === 'active').length +
           plan.book.loans.filter((p) => p.status === 'active').length +
-          plan.book.shorts.filter((p) => p.status === 'active').length >
+          plan.book.shorts.filter((p) => p.status === 'active').length +
+          plan.book.borrows.filter((p) => p.status === 'active').length >
         64
       )
         throw new ApiError(
@@ -208,9 +207,11 @@ export class VaultChainCoordinator {
           state === 'expired'
             ? 'The original transaction expired without confirmation.'
             : `Program execution failed: ${state.error}`;
+        // Keep signed bytes and signature for forensics; only status/error change.
+        // A new request key can proceed once this row is failed (one-pending index).
         this.store.db
           .prepare(
-            "UPDATE vault_chain_operations SET status='failed',error=? WHERE owner=? AND key=?",
+            "UPDATE vault_chain_operations SET status='failed',error=? WHERE owner=? AND key=? AND status='pending'",
           )
           .run(error, session.id, key);
         throw new ApiError(409, 'CHAIN_FAILED', error);

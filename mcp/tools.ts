@@ -439,7 +439,7 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
     'borrow_usdc',
     {
       description:
-        'Pledge shares as collateral and borrow USDC against them. Sandbox mode only; the onchain vault refuses it.',
+        'Pledge shares as collateral and borrow USDC against them. Onchain mode supports the program stock mint (NVDA); APR is the pool curve, not Black–Scholes.',
       inputSchema: {
         symbol,
         pledged: z.number().positive().describe('Shares pledged'),
@@ -454,7 +454,7 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
   server.registerTool(
     'repay_borrow',
     {
-      description: 'Repay an active USDC borrow. Sandbox mode only.',
+      description: 'Repay an active USDC borrow (sandbox or onchain).',
       inputSchema: { id },
     },
     (a) => run(() => act({ type: 'repay', ...a })),

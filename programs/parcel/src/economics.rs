@@ -45,6 +45,24 @@ pub struct Short {
     pub cap: u64,
     pub interest: u64,
 }
+/// Cash drawn from the market pool against pledged vault stock (program mint).
+/// APR is operator-authorized at open (pool curve is off-chain); interest is
+/// not Black–Scholes. Protective stock-loan / short premiums remain BS-priced
+/// off-chain and are passed into Lend / Short.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Borrow {
+    pub id: [u8; 16],
+    pub pledged: u64,
+    pub principal: u64,
+    /// Annual rate in millionths (1_000_000 = 100%).
+    pub apr: u64,
+    pub fixed: bool,
+    pub opened: u16,
+    /// Meaningful only when `fixed`; otherwise ignored (stored as 0).
+    pub expiry: u16,
+    pub accrued: u64,
+    pub accrued_to: u16,
+}
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Book {
     pub date: u16,
@@ -53,6 +71,7 @@ pub struct Book {
     pub options: Vec<OptionPosition>,
     pub loans: Vec<Loan>,
     pub shorts: Vec<Short>,
+    pub borrows: Vec<Borrow>,
 }
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub enum Action {
@@ -100,6 +119,17 @@ pub enum Action {
         date: u16,
     },
     Restart,
+    Borrow {
+        id: [u8; 16],
+        pledged: u64,
+        principal: u64,
+        apr: u64,
+        fixed: bool,
+        expiry: u16,
+    },
+    Repay {
+        id: [u8; 16],
+    },
 }
 fn valid(ok: bool) -> Result<()> {
     require!(ok, VaultError::InvalidTerms);
@@ -108,8 +138,18 @@ fn valid(ok: bool) -> Result<()> {
 fn mul(a: u64, b: u64) -> u64 {
     ((a as u128 * b as u128) / U as u128) as u64
 }
+/// NVDA test-reserve parameters (matches `lib/parcel/lending.ts`).
+const BORROW_LTV: u128 = 600_000;
+const BORROW_LIQ: u128 = 680_000;
+const BORROW_BONUS: u128 = 90_000;
 fn qty(q: u64) -> Result<()> {
     valid(q > 0 && q <= 1_000_000_000)
+}
+/// Simple interest on a cash loan: principal × apr × hours / (1e6 × 8760).
+fn cash_interest(principal: u64, apr: u64, from: u16, to: u16) -> u64 {
+    let hours = (time(to).saturating_sub(time(from))) as u128;
+    let n = principal as u128 * apr as u128 * hours;
+    ((n + 4_380_000_000) / 8_760_000_000) as u64
 }
 fn price(date: u16) -> Result<u64> {
     PRICES
@@ -336,6 +376,7 @@ impl Book {
             options: vec![],
             loans: vec![],
             shorts: vec![],
+            borrows: vec![],
         }
     }
     pub fn totals(&self) -> [u128; 2] {
@@ -405,6 +446,10 @@ impl Book {
         for p in &self.loans {
             r[4] += p.quantity;
         }
+        for p in &self.borrows {
+            // Pledged stock cannot be withdrawn, sold or lent while the loan runs.
+            r[1] += p.pledged;
+        }
         r
     }
     pub fn collateral(&self) -> Result<()> {
@@ -426,7 +471,8 @@ impl Book {
         valid(
             !self.options.iter().any(|p| &p.id == id)
                 && !self.loans.iter().any(|p| &p.id == id)
-                && !self.shorts.iter().any(|p| &p.id == id),
+                && !self.shorts.iter().any(|p| &p.id == id)
+                && !self.borrows.iter().any(|p| &p.id == id),
         )
     }
     fn recall(&mut self, index: usize, at: u16) -> Result<()> {
@@ -450,6 +496,41 @@ impl Book {
             self.transfer(M, C, 1, p.quantity as i128)?;
         }
         self.transfer(V, C, 0, accrued(p.interest, p.opened, p.expiry, at) as i128)
+    }
+    fn accrue_borrow(&mut self, index: usize, at: u16) -> Result<()> {
+        let p = &mut self.borrows[index];
+        let through = if p.fixed && time(p.expiry) < time(at) {
+            p.expiry
+        } else {
+            at
+        };
+        p.accrued = p
+            .accrued
+            .saturating_add(cash_interest(p.principal, p.apr, p.accrued_to, through));
+        p.accrued_to = through;
+        Ok(())
+    }
+    /// Settle a cash borrow: voluntary/term repay from vault cash when possible,
+    /// otherwise sell the pledge (and take the liquidation bonus when forced).
+    fn settle_borrow(&mut self, index: usize, at: u16, liquidate: bool) -> Result<()> {
+        self.accrue_borrow(index, at)?;
+        let p = self.borrows.remove(index);
+        let debt = p.principal.saturating_add(p.accrued);
+        if !liquidate && self.balances[V][0] >= debt {
+            self.transfer(V, M, 0, debt as i128)?;
+            return Ok(());
+        }
+        let spot = price(at)?;
+        let proceeds = mul(p.pledged, spot);
+        self.transfer(V, M, 1, p.pledged as i128)?;
+        self.transfer(M, V, 0, proceeds as i128)?;
+        let bonus = if liquidate {
+            ((debt as u128 * BORROW_BONUS) / 1_000_000) as u64
+        } else {
+            0
+        };
+        let taken = (debt.saturating_add(bonus)).min(self.balances[V][0]);
+        self.transfer(V, M, 0, taken as i128)
     }
     pub fn apply(&mut self, a: Action) -> Result<()> {
         let original = self.totals();
@@ -622,14 +703,86 @@ impl Book {
                 while let Some(i) = self.loans.iter().position(|p| time(p.expiry) <= time(date)) {
                     self.recall(i, self.loans[i].expiry)?;
                 }
+                while let Some(i) = self
+                    .borrows
+                    .iter()
+                    .position(|p| p.fixed && time(p.expiry) <= time(date))
+                {
+                    self.settle_borrow(i, self.borrows[i].expiry, false)?;
+                }
+                // Accrue remaining variable (and unfixed) loans; liquidate under-covered pledges.
+                let mut i = 0;
+                while i < self.borrows.len() {
+                    self.accrue_borrow(i, date)?;
+                    let p = &self.borrows[i];
+                    let cover =
+                        (mul(p.pledged, price(date)?) as u128 * BORROW_LIQ) / 1_000_000;
+                    if (p.principal as u128 + p.accrued as u128) > cover {
+                        self.settle_borrow(i, date, true)?;
+                    } else {
+                        i += 1;
+                    }
+                }
             }
             Action::Restart => {
-                valid(self.options.is_empty() && self.loans.is_empty() && self.shorts.is_empty())?;
+                valid(
+                    self.options.is_empty()
+                        && self.loans.is_empty()
+                        && self.shorts.is_empty()
+                        && self.borrows.is_empty(),
+                )?;
                 *self = Self::initial();
+            }
+            Action::Borrow {
+                id,
+                pledged,
+                principal,
+                apr,
+                fixed,
+                expiry,
+            } => {
+                qty(pledged)?;
+                valid(principal > 0 && principal <= 1_000_000_000_000)?;
+                valid(apr > 0 && apr <= 1_000_000)?;
+                self.unique(&id)?;
+                if fixed {
+                    self.future(expiry)?;
+                } else {
+                    valid(expiry == 0)?;
+                }
+                valid(self.balances[V][1] >= self.reserves()[1] + pledged)?;
+                let limit = ((mul(pledged, spot) as u128 * BORROW_LTV) / 1_000_000) as u64;
+                valid(principal <= limit)?;
+                valid(self.balances[M][0] >= principal)?;
+                self.transfer(M, V, 0, principal as i128)?;
+                self.borrows.insert(
+                    0,
+                    Borrow {
+                        id,
+                        pledged,
+                        principal,
+                        apr,
+                        fixed,
+                        opened: self.date,
+                        expiry: if fixed { expiry } else { 0 },
+                        accrued: 0,
+                        accrued_to: self.date,
+                    },
+                );
+            }
+            Action::Repay { id } => {
+                let i = self
+                    .borrows
+                    .iter()
+                    .position(|p| p.id == id)
+                    .ok_or(error!(VaultError::Position))?;
+                self.settle_borrow(i, self.date, false)?;
             }
         }
         // Active risk is deliberately capped for transaction compute/account bounds.
-        valid(self.options.len() + self.loans.len() + self.shorts.len() <= 64)?;
+        valid(
+            self.options.len() + self.loans.len() + self.shorts.len() + self.borrows.len() <= 64,
+        )?;
         require!(self.totals() == original, VaultError::Conservation);
         self.collateral()
     }
@@ -707,6 +860,46 @@ mod tests {
         let a = spread(333_333, 100_000_001, 150_000_007, false);
         let b = spread(333_333, 100_000_001, 150_000_007, true);
         assert_eq!(envelope(&[&a, &b]), [0; 4]);
+    }
+    #[test]
+    fn cash_borrow_against_pledge_repays_with_interest() {
+        let mut b = Book::initial();
+        let original = b.totals();
+        b.apply(Action::Transfer {
+            deposit: true,
+            stock: true,
+            amount: 2_000_000,
+        })
+        .unwrap();
+        // One share at 142.62 with 60% LTV → 85.572 USDC max. Stay well inside
+        // so a session that marks lower still clears the liquidation threshold.
+        b.apply(Action::Borrow {
+            id: [9; 16],
+            pledged: 1_000_000,
+            principal: 50_000_000,
+            apr: 50_000, // 5%
+            fixed: false,
+            expiry: 0,
+        })
+        .unwrap();
+        assert_eq!(b.borrows.len(), 1);
+        assert_eq!(b.balances[V][0], 50_000_000);
+        assert!(b
+            .apply(Action::Borrow {
+                id: [10; 16],
+                pledged: 1_000_000,
+                principal: 86_000_000,
+                apr: 50_000,
+                fixed: false,
+                expiry: 0,
+            })
+            .is_err());
+        b.apply(Action::Advance { date: 3 }).unwrap();
+        assert_eq!(b.borrows.len(), 1);
+        assert!(b.borrows[0].accrued > 0);
+        b.apply(Action::Repay { id: [9; 16] }).unwrap();
+        assert!(b.borrows.is_empty());
+        assert_eq!(b.totals(), original);
     }
     #[test]
     fn productive_loan_and_protected_short_conserve_assets() {
