@@ -209,3 +209,9 @@ void test('every pre-IPO underlying is a PreStocks token', () => {
   assert.ok(preIpo.length > 0);
   for (const u of preIpo) assert.equal(u.provider, 'prestocks', u.symbol);
 });
+
+void test('a pre-IPO symbol ending in X is not mistaken for an xStock', async () => {
+  const { categoryOf } = await import('../lib/parcel/lending');
+  assert.equal(categoryOf('SPACEX'), 'preipo');
+  assert.equal(categoryOf('NVDAx'), 'xstocks');
+});

@@ -196,7 +196,7 @@ export function xstockTicker(id: string): string {
 export function categoryOf(symbol: string): MarketCategory | null {
   const known = RESERVES.find((r) => r.symbol === symbol);
   if (known) return known.category;
-  if (symbol.startsWith('xstocks:') || /^[A-Z0-9]+x$/i.test(symbol))
+  if (symbol.startsWith('xstocks:') || /^[A-Z0-9]+x$/.test(symbol))
     return 'xstocks';
   const u = UNDERLYINGS.find((row) => row.symbol === symbol);
   if (u?.provider === 'prestocks') return 'preipo';
@@ -216,7 +216,7 @@ export const reserveOf = (symbol: string): Reserve | null => {
       ...PRIVATE,
     };
   // Tokenized equities from the issuer catalog (markets / watchlist).
-  if (symbol.startsWith('xstocks:') || /^[A-Z0-9]+x$/i.test(symbol)) {
+  if (symbol.startsWith('xstocks:') || /^[A-Z0-9]+x$/.test(symbol)) {
     const ticker = xstockTicker(symbol);
     return {
       symbol,

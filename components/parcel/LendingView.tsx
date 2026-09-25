@@ -179,6 +179,9 @@ const MARKET_SORTS: { id: MarketSort; label: string }[] = [
   { id: 'name', label: 'Name' },
 ];
 
+/** Markets the desk does not list: tokenized-equity wrappers and crypto. */
+const HIDDEN_CATEGORIES = new Set<string>(['xstocks', 'crypto']);
+
 /** First-paint size for the xStocks chip — held + mega-caps + catalog fill. */
 const XSTOCKS_PAGE = 48;
 /** Cap browse-without-search so quote polling stays bounded. */
@@ -425,6 +428,7 @@ function Markets({
     const byLiquidity = (a: (typeof rows)[number], b: (typeof rows)[number]) =>
       b.liquidity - a.liquidity || byName(a, b);
     return rows
+      .filter((p) => !HIDDEN_CATEGORIES.has(p.category))
       .filter((p) => category === 'all' || p.category === category)
       .filter((p) =>
         q ? `${p.name} ${p.symbol}`.toLowerCase().includes(q) : true,
@@ -473,30 +477,15 @@ function Markets({
       }
     }
     for (const symbol of CRYPTO_MARKETS) {
-      if (feed.marks[symbol]) {
-        base.crypto += 1;
-        base.all += 1;
-      }
+      if (feed.marks[symbol]) base.crypto += 1;
     }
     base.stable += 1;
     base.all += 1;
-    // All embeds only held + featured xStocks. The xStocks chip badge
-    // previews the larger browse page so it matches that tab's open size.
-    const curatedForAll =
-      category === 'xstocks'
-        ? xstocks.filter(
-            (a) =>
-              heldTickers.has(a.underlyingSymbol) ||
-              heldTickers.has(xstockTicker(a.id)) ||
-              heldTickers.has(a.symbol) ||
-              FEATURED_XSTOCKS.has(a.symbol),
-          ).length || FEATURED_XSTOCKS.size
-        : listedXstocks.length || FEATURED_XSTOCKS.size;
     base.xstocks =
       category === 'xstocks'
         ? listedXstocks.length || FEATURED_XSTOCKS.size
         : Math.min(XSTOCKS_PAGE, xstocks.length || FEATURED_XSTOCKS.size);
-    base.all += curatedForAll;
+    // All lists neither crypto nor xStocks; the desk does not show them.
     return base;
   }, [
     s.market.underlyings,
@@ -505,7 +494,6 @@ function Markets({
     FEATURED_XSTOCKS,
     category,
     xstocks,
-    heldTickers,
   ]);
 
   const size = pools.reduce(
@@ -579,22 +567,24 @@ function Markets({
           role="tablist"
           aria-label="Market categories"
         >
-          {MARKET_CATEGORIES.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              role="tab"
-              aria-selected={category === c.id}
-              className={category === c.id ? 'active' : undefined}
-              onClick={() => {
-                setCategory(c.id);
-                if (c.id !== 'xstocks') setXstocksLimit(XSTOCKS_PAGE);
-              }}
-            >
-              {c.label}
-              <small>{catalogCounts[c.id]}</small>
-            </button>
-          ))}
+          {MARKET_CATEGORIES.filter((c) => !HIDDEN_CATEGORIES.has(c.id)).map(
+            (c) => (
+              <button
+                key={c.id}
+                type="button"
+                role="tab"
+                aria-selected={category === c.id}
+                className={category === c.id ? 'active' : undefined}
+                onClick={() => {
+                  setCategory(c.id);
+                  if (c.id !== 'xstocks') setXstocksLimit(XSTOCKS_PAGE);
+                }}
+              >
+                {c.label}
+                <small>{catalogCounts[c.id]}</small>
+              </button>
+            ),
+          )}
         </div>
         <div className="od-lm-toolbar-tools">
           <label className="od-lm-sort">
