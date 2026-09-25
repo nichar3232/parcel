@@ -17,5 +17,14 @@ writeFileSync(
         (r) => (Date.parse(r.date) - Date.parse(clockRows[0].date)) / 3600000,
       ),
     ) +
-    `pub const DIVIDEND_DATE: u16 = ${clockRows.findIndex((r) => r.date === DIVIDEND_DATE)};\n`,
+    // Dates are Unix-ms instants counted from the replay's first session.
+    `/// ${clockRows[0].date}T00:00:00Z, the replay's first session, in Unix milliseconds.\n` +
+    `/// \`HOURS\` counts from here; every date the program holds is a Unix-ms instant.\n` +
+    `pub const REPLAY_EPOCH: i64 = ${Date.parse(clockRows[0].date).toLocaleString('en-US').replaceAll(',', '_')};\n` +
+    'pub const HOUR: i64 = 3_600_000;\n' +
+    `/// The replay's last observation, in hours after the epoch.\n` +
+    '/// Anything later is the live market, priced by the operator\'s attestation.\n' +
+    `pub const REPLAY_HOURS: i64 = ${Math.max(...clockRows.map((r) => (Date.parse(r.date) - Date.parse(clockRows[0].date)) / 3600000))};\n` +
+    `/// ${DIVIDEND_DATE}, the replay's dividend observation.\n` +
+    `pub const DIVIDEND_DATE: i64 = REPLAY_EPOCH + ${(Date.parse(DIVIDEND_DATE) - Date.parse(clockRows[0].date)) / 3600000} * HOUR;\n`,
 );

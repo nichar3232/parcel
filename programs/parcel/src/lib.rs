@@ -14,7 +14,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 mod curves;
 pub mod economics;
 mod market;
-use economics::{Action, Book};
+use economics::{Action, Book, Tick};
 // Each deployment declares its own id. The private validator's program keeps
 // the id its recorded audit evidence was produced under; the public devnet
 // deployment is a separate, independently keyed program. Build the devnet
@@ -34,7 +34,7 @@ const OPERATOR: Pubkey = pubkey!("7K12outW8HdaD7McqqGD2nTJW55nd7eYeqxMLVZZiQtS")
 #[program]
 pub mod parcel {
     use super::*;
-    pub fn initialize_v2(ctx: Context<Initialize>) -> Result<()> {
+    pub fn initialize_v3(ctx: Context<Initialize>) -> Result<()> {
         require!(
             ctx.accounts.cash_mint.key() != ctx.accounts.stock_mint.key(),
             VaultError::Mint
@@ -67,10 +67,11 @@ pub mod parcel {
         );
         Ok(())
     }
-    pub fn execute_v2(
+    pub fn execute_v3(
         ctx: Context<Execute>,
         expected_revision: u64,
         deadline: i64,
+        tick: Option<Tick>,
         action: Action,
         expected_hash: [u8; 32],
     ) -> Result<()> {
@@ -82,7 +83,7 @@ pub mod parcel {
         let s = &mut ctx.accounts.ledger;
         require!(s.revision == expected_revision, VaultError::Revision);
         let wallet_before = s.book.balances[0];
-        s.book.apply(action)?;
+        s.book.execute(tick, action)?;
         let actual = solana_sha256_hasher::hash(&s.book.try_to_vec()?).to_bytes();
         require!(actual == expected_hash, VaultError::Projection);
         let state_key = s.key();
@@ -150,8 +151,12 @@ pub mod parcel {
         Ok(())
     }
 }
+// Version three holds every date as a Unix-ms instant and the spot beside it,
+// so the book can run on the live market. The layout differs from version two,
+// so the account and instructions are renamed: a version-two ledger or client
+// fails on its discriminator instead of being read as the wrong layout.
 #[account]
-pub struct Ledger {
+pub struct LedgerV3 {
     pub owner: Pubkey,
     pub operator: Pubkey,
     pub cash_mint: Pubkey,
@@ -162,7 +167,7 @@ pub struct Ledger {
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(zero)]
-    pub ledger: Box<Account<'info, Ledger>>,
+    pub ledger: Box<Account<'info, LedgerV3>>,
     pub owner: Signer<'info>,
     #[account(address=OPERATOR)]
     pub operator: Signer<'info>,
@@ -183,7 +188,7 @@ pub struct Initialize<'info> {
 #[derive(Accounts)]
 pub struct Execute<'info> {
     #[account(mut,has_one=owner,has_one=operator,has_one=cash_mint,has_one=stock_mint)]
-    pub ledger: Box<Account<'info, Ledger>>,
+    pub ledger: Box<Account<'info, LedgerV3>>,
     pub owner: Signer<'info>,
     pub operator: Signer<'info>,
     pub cash_mint: Account<'info, Mint>,

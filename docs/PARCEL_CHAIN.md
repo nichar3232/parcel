@@ -4,7 +4,7 @@
 
 ## V2 compatibility
 
-The product-suite program adds optional curve terms and hourly clock observations; instruction names are `initialize_v2` / `execute_v2`, and signer derivation retains the fixed version-two domain used by the deployed accounts. Configure this separate deployment with a fresh state directory. The prior V1 program and its active accounts remain intact; no account migration, pending-operation conversion or in-place reinterpretation is supported. The always-on application has not been promoted by this task.
+The product-suite program adds optional curve terms and hourly clock observations. Version three (`initialize_v3` / `execute_v3`, account `LedgerV3`) holds every date as a Unix-ms instant with the NVDA spot beside it, so the vault runs on the live market: `execute_v3` takes an optional `Tick` (date, attested spot, the expiry closes positions settle at, the variable-loan rate, whether loans are carried) that brings the book to the wall clock before the action applies. Replay dates must still price at the committed table; past the replay window the program trusts the operator-attested mark and closes up to 10,000 USDC, and a live stock order fills within 10% of that mark. Version-two ledgers are not readable by version three. Signer derivation retains the fixed version-two domain used by the deployed accounts. Configure this separate deployment with a fresh state directory. The prior V1 program and its active accounts remain intact; no account migration, pending-operation conversion or in-place reinterpretation is supported. The always-on application has not been promoted by this task.
 
 It runs as `GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx` on the pinned private validator, where it is deployed and confirmed. Its first devnet identity was `A4NTJ45BZT951nYh5xDXUKtyWij3YrYjcngyMigsq9pG`, **deployed on 2026-09-19** (deploy signature `HF7b9nY6dSqMxV3GHSFjdT2LsjkKDDC3wwyJ2Tb8YTJAHe1w21bR7ygcaZqucNFVRydGSxuamheyf6yRXxoTAqE`) with test mints `5wbtrHgkfssqreoTkyQKwgrUWqyV85otjgNkdEoAiETr` (cash) and `HWhEjmFRxXFQPDV6NPcxaX1zbeiRxWP2qAvJ5ud3vC3z` (stock), both six decimals under that operator. The complete 19-action lifecycle and all 14 adversarial rejections have since been **confirmed on devnet**, against a dedicated RPC endpoint; see "Rate limits" below for why the public one will not do. That deployment is now stranded: its operator key was lost with `trading-01` on 2026-09-23, and the operator is compiled into the program. Devnet is redeployed as `FwEY5cM9vP31LwywoJu1XWQ1nvBeNh2aMsVVpbYayRvC` under its own operator `7K12outW8HdaD7McqqGD2nTJW55nd7eYeqxMLVZZiQtS`; see `ops/README.md`. These are independently keyed programs, not one program on two ledgers: `declare_id!` is compiled in, so the devnet artifact is built with `--features devnet` and is a different binary. The private validator's program keeps the id its recorded audit evidence was produced under, and its deployment key is not held, so it can no longer be upgraded and stands as frozen evidence. A vault book is pinned to the ledger that produced it, and no book is migrated between them.
 
@@ -50,7 +50,7 @@ With the environment configured, run `npm run verify:parcel-chain` and `npm run 
 
 ## Production boundaries
 
-The operator can price quotes, provision test capital and upgrade this test program. Historical market advancement is a user-controlled replay, not a real-time expiry clock. The program does not implement issuer restrictions, corporate actions, live oracle attestations, user-owned wallet signing or independent liquidity. Donations to escrow are not accounted as user deposits. No production or permissionless custody claim is made.
+The operator can price quotes, provision test capital and upgrade this test program. On the replay, market advancement is user-controlled; on the live market the clock and settlement closes are operator attestations, not a permissionless oracle. The program does not implement issuer restrictions, corporate actions, independent oracle verification, user-owned wallet signing or independent liquidity. Donations to escrow are not accounted as user deposits. No production or permissionless custody claim is made.
 
 ## Devnet
 
@@ -108,7 +108,7 @@ Sandbox activity is **not** an on-chain record. Do not describe sandbox receipts
 | Cash borrow / repay | Pool utilisation APR (two-slope curve) — **not** Black–Scholes | `Borrow` / `Repay` (program stock mint / NVDA). Book layout includes `borrows`; requires a **fresh** ledger after upgrade |
 | Spot transfer / stock | Mark / NBBO path | `Transfer` / `Stock` |
 
-On-chain variable cash loans authorize and lock the APR at open (operator-signed). Sandbox variable loans still reprice each replay session from the pool curve.
+Variable cash loans reprice from the pool curve on each session (replay) or new day (live); onchain the operator passes that rate in the advance's `Tick`.
 
 ## Live on-chain record: blockers on a bare workstation
 

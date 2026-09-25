@@ -213,4 +213,12 @@ pub const HOURS: &[u32] = &[
     1628, 1629, 1630, 1631, 1633, 1634, 1635, 1636, 1637, 1638, 1639, 1640, 1641, 1642, 1643, 1644,
     1645, 1646, 1647, 1648, 1649, 1650, 1651, 1652, 1653, 1654, 1655,
 ];
-pub const DIVIDEND_DATE: u16 = 32;
+/// 2025-01-24T00:00:00Z, the replay's first session, in Unix milliseconds.
+/// `HOURS` counts from here; every date the program holds is a Unix-ms instant.
+pub const REPLAY_EPOCH: i64 = 1_737_676_800_000;
+pub const HOUR: i64 = 3_600_000;
+/// The replay's last observation (2025-04-03), in hours after the epoch.
+/// Anything later is the live market, priced by the operator's attestation.
+pub const REPLAY_HOURS: i64 = 1656;
+/// 2025-03-12, the replay's dividend observation (daily index 32).
+pub const DIVIDEND_DATE: i64 = REPLAY_EPOCH + 1128 * HOUR;

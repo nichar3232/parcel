@@ -44,7 +44,9 @@ void test('codec: open and close action premiums match ledger cash polarity', ()
     action: { type: 'execute', quoteId: 'q' },
     hash: 'h',
   };
-  const openBytes = actionBytes(openPlan);
+  // A replay action carries no clock: the `Option<Tick>` is None (0).
+  const openBytes = actionBytes(openPlan).subarray(1);
+  assert.equal(actionBytes(openPlan)[0], 0, 'no tick on the replay');
   assert.equal(openBytes[0], 2, 'Open discriminant');
   const openPremium = openBytes.readBigInt64LE(1 + 16 + terms(t).length);
   assert.equal(openPremium, signedUnits(cost));
@@ -59,7 +61,7 @@ void test('codec: open and close action premiums match ledger cash polarity', ()
     action: { type: 'execute', quoteId: 'q2' },
     hash: 'h2',
   };
-  const closeBytes = actionBytes(closePlan);
+  const closeBytes = actionBytes(closePlan).subarray(1);
   assert.equal(closeBytes[0], 3, 'Close discriminant');
   const closePremium = closeBytes.readBigInt64LE(1 + 16);
   // Program Close premium is cash paid by the vault; a long close credits

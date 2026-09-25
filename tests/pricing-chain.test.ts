@@ -253,12 +253,13 @@ void test('codec: borrow/repay and lend/short are onchain actions; book encodes 
     hash: 'test',
   } as VaultPlan;
   const encoded = actionBytes(plan);
-  assert.equal(encoded[0], 11);
+  // Byte 0 is the absent replay tick; the action follows.
+  assert.deepEqual([...encoded.subarray(0, 2)], [0, 11]);
   assert.equal(
     actionBytes({
       ...plan,
       action: { type: 'repay', id: book.borrows[0].id },
-    })[0],
+    })[1],
     12,
   );
 });

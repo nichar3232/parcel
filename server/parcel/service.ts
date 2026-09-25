@@ -42,6 +42,7 @@ import {
   repayBorrow,
   emit,
   initialVault,
+  chainGenesis,
   migrate,
   seedVault,
   openLoan,
@@ -49,10 +50,16 @@ import {
   tradedPremium,
   setMarketDate,
   syncLive,
+  type LiveTick,
   totals,
   transfer,
   validateLedger,
 } from './ledger';
+/** The live clock an onchain action carries: where the book moved to first. */
+export interface PlanTick extends LiveTick {
+  date: string;
+  spot: number;
+}
 export interface VaultPlan {
   revision: number;
   before: VaultBook;
@@ -60,6 +67,10 @@ export interface VaultPlan {
   action: Record<string, unknown>;
   quoteId?: string;
   hash: string;
+  /** Set on the live market in chain mode: the sync the action ran after. */
+  tick?: PlanTick;
+  /** A stock order's fill price. */
+  fill?: number;
 }
 export interface CommitOptions {
   mode?: 'sandbox' | 'localnet' | 'devnet';
@@ -105,20 +116,38 @@ export class VaultService {
      * is stored on the position, so the ledger replays without it.
      */
     private utilisation: (symbol: string) => number | null = () => null,
+    /**
+     * The book is the onchain program's: nothing is written here that the
+     * chain has not executed. Live, a read projects the book to the wall
+     * clock without saving it, and the next action carries that clock.
+     */
+    private chain = false,
   ) {}
   private borrowRate(symbol: string) {
     return borrowRate(symbol, this.utilisation(symbol));
   }
-  private read(session: Session) {
+  private read(session: Session): {
+    revision: number;
+    book: VaultBook;
+    /** Chain mode on the live market: the book as the program holds it. */
+    stored?: VaultBook;
+    tick?: PlanTick;
+  } {
+    const onchainLive = this.chain && !!liveMarket();
     this.store.db
       .prepare('INSERT OR IGNORE INTO vault_accounts VALUES(?,0,?,?)')
-      .run(session.id, JSON.stringify(seedVault()), this.clock());
+      .run(
+        session.id,
+        JSON.stringify(onchainLive ? chainGenesis() : seedVault()),
+        this.clock(),
+      );
     const row = this.store.db
       .prepare('SELECT revision,book FROM vault_accounts WHERE owner=?')
       .get(session.id) as { revision: number; book: string };
     let revision = row.revision,
       book = migrate(JSON.parse(row.book));
     if (!liveMarket()) return { revision, book };
+    if (onchainLive) return this.project(revision, book);
     const save = (
       next: VaultBook,
       actionType: string,
@@ -202,6 +231,39 @@ export class VaultService {
       book.date = now;
     }
     return { revision, book };
+  }
+  /**
+   * A chain-mode live read: the stored book is the program's, and stays as
+   * it is. The view is that book synced to now; the tick records what the
+   * sync saw so the next action can hand the program the same clock.
+   */
+  private project(revision: number, stored: VaultBook) {
+    if (stored.clock !== 'live')
+      throw new ApiError(
+        409,
+        'CHAIN_REPLAY_BOOK',
+        'This onchain vault was opened on the 2025 replay and cannot move to the live market. Start a new session.',
+      );
+    const now = new Date(this.clock()).toISOString();
+    const book = structuredClone(stored);
+    const record: LiveTick = { carry: false, closes: {} };
+    try {
+      syncLive(book, now, (symbol) => this.borrowRate(symbol), record);
+      const spot = mark(DEFAULT_UNDERLYING, now);
+      book.spot = spot;
+      return {
+        revision,
+        book,
+        stored,
+        tick: { ...record, date: now, spot },
+      };
+    } catch {
+      // No mark yet: the view waits on the stored book, and an action is
+      // refused until there is a price to attest.
+      const view = structuredClone(stored);
+      view.date = now;
+      return { revision, book: view, stored };
+    }
   }
   snapshot(session: Session): VaultSnapshot {
     const { revision, book } = liveMarket()
@@ -411,10 +473,16 @@ export class VaultService {
   private planUnchecked(session: Session, value: unknown): VaultPlan {
     const request = object(value),
       a = object(request.action);
-    const { revision, book } = this.read(session);
+    const { revision, book, stored, tick } = this.read(session);
     this.revision(request, revision);
-    const before = structuredClone(book);
-    let quoteId: string | undefined;
+    if (stored && !tick)
+      throw Error(
+        `No live ${DEFAULT_UNDERLYING} price yet, so the onchain action was not prepared. Try again in a moment.`,
+      );
+    // Chain mode on the live market: `before` is the program's book and the
+    // action applies to it synced to now, the way the program will run it.
+    const before = structuredClone(stored ?? book);
+    let quoteId: string | undefined, fill: number | undefined;
     const original = totals(book);
     if (a.type === 'transfer') {
       if (a.asset !== 'USDC' && !isUnderlying(a.asset))
@@ -475,6 +543,7 @@ export class VaultService {
             })()
           : mark(on, book.date),
         cash = mul(quantity, price);
+      fill = price;
       if (a.side === 'buy') {
         transfer(book.vault, book.market, 'USDC', cash);
         transfer(book.market, book.vault, on, quantity);
@@ -580,7 +649,11 @@ export class VaultService {
           'Close or settle all positions before restarting the replay.',
         );
       const events = book.events;
-      Object.assign(book, initialVault());
+      Object.assign(
+        book,
+        this.chain && liveMarket() ? chainGenesis() : initialVault(),
+      );
+      delete book.spot;
       book.events = events;
       emit(
         book,
@@ -616,6 +689,8 @@ export class VaultService {
       action: a,
       quoteId,
       hash: digest('vault-action:' + JSON.stringify(request)),
+      ...(stored ? { tick } : {}),
+      ...(fill !== undefined ? { fill } : {}),
     };
   }
   commit(

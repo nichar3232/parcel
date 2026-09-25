@@ -264,8 +264,20 @@ void test('the program commits exactly the same historical dates and prices as t
       (r) => (Date.parse(r.date) - Date.parse(marketRows[0].date)) / 3600000,
     ),
   );
+  // The program holds dates as Unix ms from the replay's first session.
+  const constant = (name: string) =>
+    Number(
+      source
+        .match(new RegExp(`${name}: i64 = ([^;]+);`))![1]
+        .replace(/REPLAY_EPOCH \+ /, '')
+        .replace(/ \* HOUR/, '')
+        .replaceAll('_', ''),
+    );
+  const epoch = Date.parse(marketRows[0].date);
+  assert.equal(constant('REPLAY_EPOCH'), epoch);
+  assert.equal(constant('REPLAY_HOURS'), Math.max(...values('HOURS')));
   assert.equal(
-    Number(source.match(/DIVIDEND_DATE: u16 = (\d+)/)![1]),
-    marketRows.findIndex((r) => r.date === DIVIDEND_DATE),
+    constant('DIVIDEND_DATE'),
+    (Date.parse(DIVIDEND_DATE) - epoch) / 3600000,
   );
 });

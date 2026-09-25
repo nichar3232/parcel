@@ -8,6 +8,7 @@ import {
   liveMarket,
   mark,
   volatility,
+  WINDOW_OPENS,
 } from '../../lib/parcel/market';
 import { DEFAULT_UNDERLYING, UNDERLYINGS } from '../../lib/parcel/universe';
 import {
@@ -59,6 +60,14 @@ const balances = (cash: number, of: (symbol: string) => number): Balances =>
     ['USDC', cash],
     ...UNDERLYINGS.map((u) => [u.symbol, of(u.symbol)]),
   ]);
+/**
+ * The book a new onchain ledger starts from: the program's initial book,
+ * dated at the replay's first session. A live book is brought to the wall
+ * clock by its first action, which carries the clock it happened at.
+ */
+export function chainGenesis(): VaultBook {
+  return { ...initialVault(), date: WINDOW_OPENS };
+}
 export function initialVault(): VaultBook {
   const live = !!liveMarket();
   return {
@@ -376,10 +385,24 @@ export function setMarketDate(
  * day. Returns whether a position changed, which is when the book has to
  * be written back.
  */
+/** The clock a live sync ran to, as the onchain program is handed it. */
+export interface LiveTick {
+  carry: boolean;
+  /** Settlement closes by expiry date. */
+  closes: Record<string, number>;
+  /** The pool rate variable loans took, when they were carried. */
+  apr?: number;
+}
 export function syncLive(
   book: VaultBook,
   now: string,
   observe?: (symbol: string) => number,
+  /**
+   * Filled with what the sync observed, so the onchain program can be
+   * handed the same clock: each close a position settled at, the pool
+   * rate variable loans took, and whether loans were carried.
+   */
+  record?: LiveTick,
 ) {
   const live = liveMarket();
   if (!live) throw Error('The live market is not running.');
@@ -391,11 +414,23 @@ export function syncLive(
   const newDay = book.date.slice(0, 10) !== now.slice(0, 10);
   book.date = now;
   const today = now.slice(0, 10);
+  if (record) record.carry = newDay;
   settleDue(
     book,
     now,
-    (expiry, symbol) => expiry <= today && live.close(symbol, expiry) != null,
-    newDay ? observe : undefined,
+    (expiry, symbol) => {
+      if (expiry > today) return false;
+      const close = live.close(symbol, expiry);
+      if (close != null && record) record.closes[expiry] = close;
+      return close != null;
+    },
+    newDay && observe
+      ? (symbol) => {
+          const apr = observe(symbol);
+          if (record) record.apr = apr;
+          return apr;
+        }
+      : undefined,
     newDay,
   );
   assertCollateral(book);
@@ -480,8 +515,9 @@ export function openLoan(
     throw Error(
       'Shares already committed to another obligation cannot be lent.',
     );
+  // 150% of entry, floored to a micro-unit: the program's `spot * 3 / 2`.
   const entry = mark(symbol, book.date),
-    cap = round(entry * 1.5);
+    cap = Number((units(entry) * 3n) / 2n) / 1e6;
   const protection = premium(
     {
       symbol,

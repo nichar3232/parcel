@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { OrderTerms, VaultBook } from '../../../lib/parcel/types';
-import type { VaultPlan } from '../service';
-import { clockRows } from '../../../lib/parcel/market';
+import type { PlanTick, VaultPlan } from '../service';
+import { storedMark } from '../../../lib/parcel/market';
 import { signedUnits } from '../../../lib/parcel/math';
 import { u64 } from '../../solana/codec';
 const cat = (...parts: Uint8Array[]) => Buffer.concat(parts);
@@ -21,11 +21,8 @@ const vec = <T>(items: T[], encode: (item: T) => Buffer) => {
   n.writeUInt32LE(items.length);
   return cat(n, ...items.map(encode));
 };
-const u16 = (n: number) => {
-  const b = Buffer.alloc(2);
-  b.writeUInt16LE(n);
-  return b;
-};
+/** A variable loan's expiry: none, held as 0. */
+const zero = Buffer.alloc(8);
 /** The program stocks a single mint (NVDA in the test deployment). */
 const assertProgramStock = (symbol: string) => {
   if (symbol !== 'NVDA')
@@ -33,13 +30,40 @@ const assertProgramStock = (symbol: string) => {
       'Onchain vault actions support the configured program stock mint (NVDA) only.',
     );
 };
+/**
+ * A date as the program holds it: Unix milliseconds. A replay session
+ * ('2025-02-03'), a replay tick ('2025-02-03T05:00:00Z'), a live instant
+ * and a live expiry date all parse the same way; the program checks that
+ * replay dates are observations it has a close for.
+ */
 export const date = (v: string) => {
-  const n = clockRows.findIndex((r) => r.date === v);
-  if (n < 0) throw Error('Unknown historical date.');
-  return u16(n);
+  const ms = Date.parse(v);
+  if (!Number.isSafeInteger(ms)) throw Error(`Invalid date ${v}.`);
+  const b = Buffer.alloc(8);
+  b.writeBigInt64LE(BigInt(ms));
+  return b;
 };
-export const terms = (t: OrderTerms) =>
-  cat(
+/** NVDA's price at the book's date: the attested live mark, or the stored close. */
+const spot = (b: VaultBook) =>
+  b.spot ?? storedMark('NVDA', b.date);
+/** The clock a live action carries, as `Option<Tick>`. */
+export const tick = (t: PlanTick | undefined) =>
+  t
+    ? cat(
+        byte(1),
+        date(t.date),
+        amount(t.spot),
+        vec(
+          Object.entries(t.closes).sort(([a], [b]) => a.localeCompare(b)),
+          ([at, price]) => cat(date(at), amount(price)),
+        ),
+        amount(t.apr ?? 0),
+        byte(t.carry),
+      )
+    : byte(0);
+export const terms = (t: OrderTerms) => {
+  assertProgramStock(t.symbol);
+  return cat(
     amount(t.quantity),
     date(t.expiry),
     byte(t.settlement === 'physical'),
@@ -64,9 +88,11 @@ export const terms = (t: OrderTerms) =>
         )
       : byte(0),
   );
+};
 export function bookBytes(b: VaultBook) {
   return cat(
     date(b.date),
+    amount(spot(b)),
     byte(b.margin === 'isolated'),
     ...[b.wallet, b.vault, b.counterparty, b.market].map((a) =>
       cat(amount(a.USDC), amount(a.NVDA)),
@@ -116,7 +142,7 @@ export function bookBytes(b: VaultBook) {
           amount(p.apr),
           byte(p.rate === 'fixed'),
           date(p.opened),
-          p.rate === 'fixed' && p.expiry ? date(p.expiry) : u16(0),
+          p.rate === 'fixed' && p.expiry ? date(p.expiry) : zero,
           amount(p.accrued),
           date(p.accruedTo),
         );
@@ -146,7 +172,23 @@ export const ONCHAIN_ACTIONS: ReadonlySet<string> = new Set([
   'borrow',
   'repay',
 ]);
+/**
+ * The instruction's `tick` and `action` arguments. On the live market every
+ * action carries the clock the book was synced to before it applied.
+ */
 export function actionBytes(p: VaultPlan) {
+  if (p.before.clock === 'live' && !p.tick)
+    throw Error('A live onchain action needs the clock it ran at.');
+  return cat(tick(p.tick), action(p));
+}
+/** The variable-loan rate a replay advance repriced to, or 0 for none. */
+function repriced(p: VaultPlan) {
+  const variable = p.before.borrows.find(
+    (o) => o.status === 'active' && o.rate === 'variable',
+  );
+  return variable ? p.book.borrows.find((o) => o.id === variable.id)!.apr : 0;
+}
+function action(p: VaultPlan) {
   const a = p.action,
     b = p.book;
   switch (a.type) {
@@ -158,7 +200,13 @@ export function actionBytes(p: VaultPlan) {
         amount(a.amount as number),
       );
     case 'stock':
-      return cat(byte(1), byte(a.side === 'buy'), amount(a.quantity as number));
+      if (p.fill === undefined) throw Error('A stock order needs its fill.');
+      return cat(
+        byte(1),
+        byte(a.side === 'buy'),
+        amount(a.quantity as number),
+        amount(p.fill),
+      );
     case 'execute': {
       const opened = b.options.find(
         (o) => !p.before.options.some((old) => old.id === o.id),
@@ -210,7 +258,16 @@ export function actionBytes(p: VaultPlan) {
     case 'close-short':
       return cat(byte(8), id(a.id as string));
     case 'advance':
-      return cat(byte(9), date(a.date as string));
+      return cat(
+        byte(9),
+        tick({
+          date: a.date as string,
+          spot: storedMark('NVDA', a.date as string),
+          closes: {},
+          apr: repriced(p),
+          carry: true,
+        }).subarray(1),
+      );
     case 'restart':
       return byte(10);
     case 'borrow': {
@@ -228,7 +285,7 @@ export function actionBytes(p: VaultPlan) {
         byte(opened.rate === 'fixed'),
         opened.rate === 'fixed' && opened.expiry
           ? date(opened.expiry)
-          : u16(0),
+          : zero,
       );
     }
     case 'repay':
