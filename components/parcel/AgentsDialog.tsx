@@ -36,16 +36,16 @@ const GUIDES: Record<
   claude: ({ url, address, local }) =>
     local
       ? {
-          command: `claude mcp add --transport http --scope user parcel ${url}\ncurl -s --create-dirs -o ~/.claude/skills/parcel/SKILL.md ${url.replace(/\/mcp$/, '')}/claude/parcel/SKILL.md`,
+          command: `curl -fsSL ${url.replace(/\/mcp$/, '')}/claude/install | sh`,
           steps: [
-            <>Run these in a terminal to add Parcel to Claude Code.</>,
+            <>Paste this into a terminal.</>,
             <>
-              In Claude Code, type <b>/mcp</b>, choose Parcel, then{' '}
-              <b>Authenticate</b> and click <b>Allow</b>.
+              In Claude Code, type <b>/mcp</b>, pick <b>parcel</b>, choose{' '}
+              <b>Authenticate</b>, then click <b>Allow</b>.
             </>,
             <>
-              Type <b>/parcel</b> for your balance, <b>/parcel products</b> for
-              what you can trade, or <b>/parcel</b> and a trade to place it.
+              Type <b>/parcel</b> and ask for anything: your balance, a trade, a
+              loan.
             </>,
           ],
         }
@@ -65,10 +65,11 @@ const GUIDES: Record<
   codex: ({ url }) => ({
     command: `codex mcp add parcel --url ${url}`,
     steps: [
-      <>Run this in a terminal.</>,
+      <>Paste this into a terminal.</>,
       <>
-        Codex opens the Parcel page in your browser. Click <b>Allow</b>.
+        Click <b>Allow</b> on the Parcel page that opens.
       </>,
+      <>Ask Codex for anything in your vault.</>,
     ],
   }),
 };
@@ -172,8 +173,8 @@ export function AgentsDialog({
 
   return (
     <Modal
-      title="Connect an agent"
-      description="Let Claude or Codex check your vault and trade for you."
+      title="Connect over MCP"
+      description="Use your vault from Claude or Codex."
       onClose={onClose}
       wide
     >

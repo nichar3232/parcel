@@ -16,7 +16,7 @@ import { ChainService } from './domain/chain';
 import { PortfolioService, parseKey } from './domain/portfolio';
 import { ApiError, object } from './http/errors';
 import { handleMcp } from './http/mcp';
-import { approve, challenge, handleOAuth } from './http/oauth';
+import { approve, challenge, handleOAuth, publicOrigin } from './http/oauth';
 import { handleSkill } from './http/plugin';
 import {
   bearer,
@@ -101,7 +101,7 @@ export function createApp(
       const url = new URL(req.url || '/', 'http://localhost'),
         method = req.method || 'GET';
       if (await handleOAuth(req, res, url, store, config)) return;
-      if (handleSkill(url.pathname, res)) return;
+      if (handleSkill(url.pathname, publicOrigin(req, config), res)) return;
       if (url.pathname === '/mcp' || url.pathname === '/mcp/')
         return await handleMcp(
           req,
