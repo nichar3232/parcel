@@ -568,6 +568,11 @@
 
 /* This replaces the generic reference rail. The facts that matter here are
    the rules a reader carries into every product, not a frozen market date. */
+/* A section pads only its top, so the rule that opens this block needs its
+   own distance from whatever ends above it. */
+.lp-section + .lp-principles {
+  margin-top: clamp(64px, 9vh, 104px);
+}
 .lp-principles {
   display: grid;
   grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
