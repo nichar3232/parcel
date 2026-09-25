@@ -5614,10 +5614,9 @@
 }
 .od-lm-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px 20px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
   padding: 2px 0 14px;
   border-bottom: 1px solid var(--pc-line-soft);
   margin-bottom: 4px;
@@ -5654,12 +5653,13 @@
   background: color-mix(in srgb, var(--pc-text) 8%, transparent);
   border-color: color-mix(in srgb, var(--pc-text) 28%, var(--pc-line));
 }
-.od-lm-toolbar-end {
+.od-lm-toolbar-tools {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: flex-end;
+  gap: 14px;
   flex-wrap: wrap;
-  margin-left: auto;
+  min-width: 0;
 }
 .od-lm-sort {
   display: inline-flex;
@@ -5690,20 +5690,20 @@
   outline-offset: 1px;
 }
 .od-lm-health {
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
   min-height: 30px;
-  padding-left: 12px;
+  padding: 5px 2px 5px 14px;
   border-left: 1px solid var(--pc-line-soft);
   color: var(--pc-muted);
   font-size: 12px;
+  white-space: nowrap;
 }
 .od-lm-health-main {
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  white-space: nowrap;
 }
 .od-lm-health-main b {
   font-size: 15px;
@@ -5715,7 +5715,6 @@
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .od-lm-health.safe .od-lm-health-main b {
@@ -5728,9 +5727,8 @@
   color: var(--pc-down);
 }
 @media (max-width: 720px) {
-  .od-lm-toolbar-end {
-    width: 100%;
-    margin-left: 0;
+  .od-lm-toolbar-tools {
+    justify-content: flex-start;
   }
   .od-lm-search {
     flex: 1 1 140px;
@@ -5744,6 +5742,7 @@
   }
 }
 .od-lm-held {
+  flex-shrink: 0;
   font-style: normal;
   font-size: 10px;
   font-weight: 600;
@@ -5797,15 +5796,32 @@
   gap: 12px;
   min-width: 0;
 }
-.od-lm-asset b {
-  display: inline-flex;
+.od-lm-asset-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.od-lm-asset-title {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+.od-lm-asset-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 14px;
   font-weight: 500;
 }
-.od-lm-asset small {
+.od-lm-asset-copy small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--pc-muted);
   font-size: 12px;
 }

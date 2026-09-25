@@ -662,7 +662,7 @@ function Markets({
             </button>
           ))}
         </div>
-        <div className="od-lm-toolbar-end">
+        <div className="od-lm-toolbar-tools">
           <label className="od-lm-sort">
             <span>Sort</span>
             <select
@@ -731,12 +731,12 @@ function Markets({
             <span className="od-lm-asset">
               <AssetLogo symbol={p.symbol} src={p.logo} size={34} />
               <span className="od-lm-asset-copy">
-                <b>
+                <span className="od-lm-asset-title">
                   <span className="od-lm-asset-name">{p.name}</span>
                   {p.held ? (
                     <em className="od-lm-held">Your position</em>
                   ) : null}
-                </b>
+                </span>
                 <small>
                   <span className="od-lm-asset-ticker">{p.symbol}</span>
                   {p.category !== 'equity' ? (
