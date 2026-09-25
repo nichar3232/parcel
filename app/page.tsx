@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { LandingNav } from '@/components/brand/LandingNav';
 import { Mark } from '@/components/brand/Mark';
@@ -9,11 +10,10 @@ import './landing.css';
 
 /** The nav opens each product in the desk; the tabs below preview it. */
 const PRODUCTS = [
-  { name: 'Options', href: '/app?at=options' },
-  { name: 'Underwriting', href: '/app?at=underwriting' },
-  { name: 'Structures', href: '/app?at=structures' },
+  { name: 'Portfolio', href: '/app?at=portfolio' },
+  { name: 'Trade', href: '/app?at=trade', branching: true },
   { name: 'Pre-IPO', href: '/app?at=pre-ipo' },
-  { name: 'Lending', href: '/app?at=lending' },
+  { name: 'Lending', href: '/app?at=lending', branching: true },
 ];
 
 const PRINCIPLES = [
@@ -69,7 +69,8 @@ export default function Landing() {
         <nav aria-label="Products">
           {PRODUCTS.map((p) => (
             <Link key={p.name} href={p.href}>
-              {p.name}
+              <span>{p.name}</span>
+              {p.branching && <ChevronDown size={13} />}
             </Link>
           ))}
         </nav>

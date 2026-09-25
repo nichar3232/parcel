@@ -242,13 +242,23 @@
   margin-right: auto;
 }
 .lp-nav nav a {
-  padding: 7px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 38px;
+  padding: 0 10px;
   border-radius: 6px;
-  color: var(--pc-body);
-  font-size: 13.5px;
+  color: var(--pc-muted);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
   transition:
     color 0.15s,
     background 0.15s;
+}
+.lp-nav nav a svg {
+  opacity: 0.5;
+  transform: rotate(-90deg);
 }
 .lp-nav nav a:hover {
   color: var(--pc-text);
