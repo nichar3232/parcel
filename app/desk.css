@@ -1682,12 +1682,9 @@
   position: relative;
   flex: 1 1 auto;
   min-height: 260px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  scrollbar-width: thin;
+  overflow: hidden;
   cursor: crosshair;
-  touch-action: pan-x;
+  touch-action: pan-y;
   border-radius: calc(var(--pc-r-lg) - 4px);
 }
 .od-payoff-canvas {

@@ -256,13 +256,10 @@ export function PayoffChart({
     else hi = Math.max(hi, highStrike * 1.25, spot * 1.55);
     lo = Math.max(0.01, lo);
 
-    // One viewport shows ~70% of spot; the canvas is wider when the domain is.
+    // The whole price range fits the panel: the chart does not scroll.
+    const plotW = viewW - PAD.left - PAD.right;
+    // The price window around spot the y-scale is read from.
     const focusSpan = Math.max(spot * 0.7, highStrike - lowStrike, spot * 0.35);
-    const domainSpan = hi - lo;
-    const plotW = Math.max(
-      viewW - PAD.left - PAD.right,
-      ((viewW - PAD.left - PAD.right) * domainSpan) / focusSpan,
-    );
     const canvasW = Math.round(plotW + PAD.left + PAD.right);
     const x1 = PAD.left + plotW;
 
@@ -360,7 +357,7 @@ export function PayoffChart({
       lo,
       hi,
       x,
-      Math.max(5, Math.round(domainSpan / (focusSpan / 3.5))),
+      Math.max(4, Math.round(plotW / 140)),
       [x(spot)],
       { lo: yPriceLo, hi: yPriceHi },
     );

@@ -32,13 +32,9 @@ export function StructureHero() {
           key={current.id}
           payoff={current.payoff}
           fadeKey={current.id}
-          title={`${current.name} payoff at expiry. ${current.blurb}`}
+          title={`${current.name} payoff at expiry.`}
         />
       </div>
-
-      <Held index={index} className="lp-viewer-blurb">
-        {(t) => <p>{t.blurb}</p>}
-      </Held>
 
       <dl className="lp-viewer-stats">
         {current.stats.map((_, k) => (

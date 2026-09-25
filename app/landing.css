@@ -495,12 +495,6 @@
 .lp-held > .on {
   visibility: visible;
 }
-.lp-viewer-blurb {
-  margin: 14px 0 0;
-  color: var(--pc-body);
-  font-size: 14px;
-  line-height: 1.55;
-}
 .lp-viewer-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
