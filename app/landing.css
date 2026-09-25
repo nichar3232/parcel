@@ -221,6 +221,14 @@
   align-items: center;
   gap: 10px;
 }
+.lp-nav .pc-mark {
+  /* Set by LandingNav from document scroll. The tiny transition catches a
+     trackpad's discrete scroll events without making the mark autonomous. */
+  transform: rotate(var(--lp-mark-scroll-rotation, 0deg));
+  transform-origin: center;
+  transition: transform 100ms linear;
+  will-change: transform;
+}
 .lp-mark b,
 .pc-wordmark {
   font-size: 14px;
