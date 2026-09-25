@@ -294,10 +294,16 @@ export default function Workspace() {
     null,
   );
 
+  // /app?connect arrives from the landing page's Agents link: open the
+  // Connect dialog as soon as the vault is ready, instead of the tour.
+  const [connect, setConnect] = useState(false);
   useEffect(() => {
-    const at = new URLSearchParams(window.location.search).get('at');
+    const params = new URLSearchParams(window.location.search);
+    const at = params.get('at');
     const entry = (at && ENTRY[at.toLowerCase()]) || null;
-    const welcome = !welcomeSeen();
+    // oxlint-disable-next-line react/react-compiler
+    if (params.has('connect')) setConnect(true);
+    const welcome = !welcomeSeen() && !params.has('connect');
     if (!entry && !welcome) return;
     // The URL and localStorage are external systems, and this reads
     // both of them once, after hydration — the one shape the rule
@@ -320,6 +326,12 @@ export default function Workspace() {
     setUi((current) => ({ ...current, welcome: open }));
 
   const s = desk.state;
+  useEffect(() => {
+    if (!connect || !s) return;
+    // oxlint-disable-next-line react/react-compiler
+    setModal('agents');
+    setConnect(false);
+  }, [connect, s]);
   // The browser shares the ledger's validation code, which reads the
   // market through one hook. On the live market it has to see the same
   // calendar and marks the server does, or it rejects every live expiry

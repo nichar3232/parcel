@@ -15,6 +15,7 @@ import { ApiError, object } from './errors';
 
 /** The address the requester reached this server at, behind a proxy too. */
 export function publicOrigin(req: IncomingMessage, config: Config) {
+  if (config.publicUrl) return config.publicUrl;
   const first = (h: string | string[] | undefined) =>
     (Array.isArray(h) ? h[0] : h)?.split(',')[0].trim();
   const proto =

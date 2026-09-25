@@ -16,6 +16,8 @@ export interface Config {
   marketDataRequired: boolean;
   expirySeconds: number;
   secureCookie: boolean;
+  /** The public https address the desk is reached at, when it has one. */
+  publicUrl?: string;
   parcel?: { program: string; cashMint: string; stockMint: string };
 }
 
@@ -32,6 +34,15 @@ const priorParcelEnv = (
 export function configFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): Config {
+  // Where agents and the OAuth pages say the desk lives. Without it, each
+  // request's own address is used, which on a laptop is localhost.
+  let publicUrl: string | undefined;
+  if (env.PUBLIC_URL) {
+    const u = new URL(env.PUBLIC_URL);
+    if (u.protocol !== 'https:' && u.hostname !== 'localhost')
+      throw Error('PUBLIC_URL must be an https address.');
+    publicUrl = u.origin;
+  }
   const network = env.SOLANA_NETWORK || 'localnet';
   if (network !== 'localnet' && network !== 'devnet')
     throw Error('Only localnet or devnet are allowed.');
@@ -99,10 +110,14 @@ export function configFromEnv(
       env.STRATA_PROGRAM_ID || '3VpPpDGYjxawotjb6xMYdUsZoazszT7NLb1wgVod9Xcm',
     authority:
       env.STRATA_AUTHORITY || '8oheEujy8FS7Nr3bdYT7okWbWeMy3Tp5eM8z4YwRTzfq',
-    allowedOrigins: (env.ALLOWED_ORIGINS || '').split(',').filter(Boolean),
+    allowedOrigins: [
+      ...(env.ALLOWED_ORIGINS || '').split(',').filter(Boolean),
+      ...(publicUrl ? [publicUrl] : []),
+    ],
     chainEnabled: env.CHAIN_ENABLED !== 'false',
     marketDataRequired: env.MARKET_DATA_REQUIRED === 'true',
     expirySeconds,
     secureCookie: env.COOKIE_SECURE === 'true',
+    publicUrl,
   };
 }

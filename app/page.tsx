@@ -47,9 +47,9 @@ const AGENT_ABILITIES = [
       'Each onchain action returns its transaction signature and a Solana Explorer link anyone can open.',
   },
   {
-    title: 'Visible in the desk',
+    title: 'Yours to revoke',
     detail:
-      'Receipts an agent placed carry an Agent label in Activity, beside the ones you placed yourself.',
+      'Each connection acts for one vault. Its trades carry an Agent label in Activity, and disconnecting it cuts the agent off at once.',
   },
 ];
 
@@ -78,6 +78,9 @@ export default function Landing() {
           <a className="lp-nav-about" href="#how">
             How it works
           </a>
+          <Link className="lp-nav-about" href="/app?connect">
+            Agents
+          </Link>
           <ThemeToggle />
           <Link className="lp-cta" href="/app">
             Open the desk
@@ -164,12 +167,18 @@ export default function Landing() {
             <span className="lp-kicker">For agents</span>
             <h2 id="agents-title">An agent can run the desk</h2>
             <p>
-              Parcel ships an MCP server, so Claude or any MCP client can use
-              the same vault you do. Add it from a checkout of the repository:
+              Parcel speaks MCP, the open standard AI agents use to work with
+              apps. Claude, Codex, or any agent that supports it can use the
+              same vault you do. Add Parcel’s URL from Agents in the desk,
+              approve the connection once, and the agent is in.
             </p>
-            <pre className="lp-agents-setup">
-              <code>claude mcp add parcel -- npx tsx mcp/parcel.ts</code>
-            </pre>
+            <Link
+              className="lp-btn lp-btn-primary lp-agents-cta"
+              href="/app?connect"
+            >
+              Connect an agent
+              <span aria-hidden>&rarr;</span>
+            </Link>
           </div>
           <ol className="lp-principles-list">
             {AGENT_ABILITIES.map((ability, index) => (
@@ -208,7 +217,7 @@ export default function Landing() {
           <nav aria-label="Footer">
             <Link href="/app">Desk</Link>
             <a href="#products">Products</a>
-            <a href="#agents">Agents</a>
+            <Link href="/app?connect">Agents</Link>
             <a
               href="https://github.com/nichar3232/parcel"
               target="_blank"

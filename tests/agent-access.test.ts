@@ -339,3 +339,15 @@ void test('oauth: an MCP app registers, the owner allows, and the code becomes a
     await f.close();
   }
 });
+
+void test('oauth: a configured public address is what agents are told', async () => {
+  const cfg = configFromEnv({
+    CHAIN_ENABLED: 'false',
+    PUBLIC_URL: 'https://parcel.example.com/',
+  });
+  assert.equal(cfg.publicUrl, 'https://parcel.example.com');
+  assert.throws(
+    () => configFromEnv({ CHAIN_ENABLED: 'false', PUBLIC_URL: 'http://x.io' }),
+    /https/,
+  );
+});

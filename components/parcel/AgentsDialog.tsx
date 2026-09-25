@@ -91,9 +91,14 @@ export function AgentsDialog({
   const [copied, setCopied] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [published, setPublished] = useState<string | null>(null);
   const server =
-    typeof window === 'undefined' ? '/mcp' : `${window.location.origin}/mcp`;
+    published ??
+    (typeof window === 'undefined' ? '/mcp' : `${window.location.origin}/mcp`);
+  // Claude's connectors call in from the internet, so a desk with no public
+  // address can connect only the apps on this computer.
   const local =
+    !published &&
     typeof window !== 'undefined' &&
     ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
   const [app, setApp] = useState<App>('claude');
@@ -103,8 +108,11 @@ export function AgentsDialog({
   // is open: a connection appears here as soon as it is made.
   useEffect(() => {
     const load = () =>
-      api<{ keys: AgentKey[] }>('/api/agent/keys')
-        .then((r) => setKeys(r.keys))
+      api<{ keys: AgentKey[]; mcpUrl: string | null }>('/api/agent/keys')
+        .then((r) => {
+          setKeys(r.keys);
+          setPublished(r.mcpUrl);
+        })
         .catch((e: Error) => setError(e.message));
     void load();
     const timer = setInterval(load, 3000);

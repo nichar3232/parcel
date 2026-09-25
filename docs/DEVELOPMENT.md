@@ -49,6 +49,7 @@ On the VPS, systemd loads the protected `EnvironmentFile`; see `ops/README.md`.
 | `SOLANA_GENESIS_HASH`   | empty                           | Required chain identity pin before execution                                                                             |
 | `REPLAY_EXPIRY_SECONDS` | `90`                            | Actual-chain demo observation delay                                                                                      |
 | `COOKIE_SECURE`         | `false`                         | Set `true` behind HTTPS                                                                                                  |
+| `PUBLIC_URL`            | empty                           | The desk's public https address. Agents are given `<PUBLIC_URL>/mcp`, and the OAuth pages use it; without it, each request's own address is used |
 | `ALLOWED_ORIGINS`       | empty                           | Optional comma-separated trusted mutation origins                                                                        |
 | `SITE_ORIGIN`           | private host fallback           | Build-time origin for social metadata                                                                                    |
 | `MASSIVE_STOCKS_API_KEY` | empty                          | Server-only Massive market-data credential; required for listed-equity NBBO                                             |

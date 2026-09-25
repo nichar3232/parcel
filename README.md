@@ -45,15 +45,16 @@ Start by depositing one NVDA share, choose **Underwrite → Covered call**, revi
 
 ## Agent access
 
-Parcel's MCP server (`mcp/tools.ts`) lets Claude, or any MCP client, use the vault through the same HTTP API as the desk, so accounting, risk checks and signing stay on the server. It exposes quotes, options (including spreads and curves), stock, lending, protected shorts, cash borrow/repay, collateral mode and the market replay. Onchain mode supports the same product set against the program stock mint (NVDA); cash-borrow APR is the pool curve (not Black–Scholes), while option and protective-call premiums are Black–Scholes.
+Parcel's MCP server (`mcp/tools.ts`) lets any agent that speaks MCP (Claude, Codex, Claude Code and others) use the vault through the same HTTP API as the desk, so accounting, risk checks and signing stay on the server. It exposes quotes, options (including spreads and curves), stock, lending, protected shorts, cash borrow/repay, collateral mode and the market replay. Onchain mode supports the same product set against the program stock mint (NVDA); cash-borrow APR is the pool curve (not Black–Scholes), while option and protective-call premiums are Black–Scholes.
 
-**Connect from the desk.** Open **Agents** in the desk's top bar and create a key. The key acts for that vault only; it is shown once and can be revoked there. The dialog gives the command:
+**Connect from the desk.** Open **Agents** in the desk's top bar and copy the URL, `<desk-url>/mcp`. Add it to the agent as a remote MCP server; the dialog shows the steps for Claude, Codex and Claude Code. The agent opens Parcel's **Allow** page, and approving it connects that agent to this vault. For example:
 
 ```sh
-claude mcp add --transport http parcel <desk-url>/mcp --header "Authorization: Bearer <key>"
+codex mcp add parcel --url <desk-url>/mcp
+claude mcp add --transport http parcel <desk-url>/mcp
 ```
 
-The app serves MCP itself at `/mcp` (stateless Streamable HTTP), so any MCP client works with that URL and header, and nothing needs installing. Requests made with a key need no CSRF token because they carry no browser cookie. Every action a key places is marked as the agent's and labelled **Agent** in Activity. Keys cannot create or revoke keys.
+`/mcp` implements MCP's OAuth flow: protected-resource and authorization-server metadata, dynamic client registration, and an authorization code bound to the agent's PKCE challenge, which it exchanges for a key. Approving goes through the desk's CSRF guard; codes last a minute and work once. Each connected agent is listed by name under **Agents** and can be disconnected there. Everything an agent places is labelled **Agent** in Activity, and an agent cannot connect other agents. Claude's connectors reach the server from the internet, so they need the desk at a public https address; Codex and Claude Code connect from the same machine too.
 
 **Or run it locally** over stdio from a checkout: `.mcp.json` registers `mcp/parcel.ts`, which reads `PARCEL_URL` and `PARCEL_AGENT_KEY` (or `PARCEL_SESSION`, a browser's `strata_session` cookie).
 

@@ -417,7 +417,11 @@ export function createApp(
             'Agent keys are managed from the desk.',
           );
         if (url.pathname === '/api/agent/keys' && method === 'GET')
-          return json(res, 200, { keys: store.agentKeys(session.id) });
+          return json(res, 200, {
+            keys: store.agentKeys(session.id),
+            // The address to hand an agent; absent, the desk's own origin.
+            mcpUrl: config.publicUrl ? `${config.publicUrl}/mcp` : null,
+          });
         if (method !== 'POST')
           throw new ApiError(405, 'METHOD', 'POST required.');
         guard();
