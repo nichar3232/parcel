@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { api } from '@/lib/client/api';
-import { Button, Modal } from './shared';
+import { Button, Modal, Segmented } from './shared';
 
 interface AgentKey {
   id: string;
@@ -11,6 +11,58 @@ interface AgentKey {
   createdAt: number;
   lastUsedAt: number | null;
 }
+
+type App = 'claude' | 'codex' | 'claude-code' | 'other';
+
+/**
+ * How each app adds a remote MCP server. Every one of them ends on Parcel's
+ * Allow page; a command, where there is one, is only the way in.
+ */
+const GUIDES: Record<
+  App,
+  (url: string) => { steps: React.ReactNode[]; command?: string; web?: boolean }
+> = {
+  claude: () => ({
+    web: true,
+    steps: [
+      <>
+        In Claude, open <b>Settings → Connectors</b> and choose{' '}
+        <b>Add custom connector</b>.
+      </>,
+      <>Name it Parcel and paste the URL above.</>,
+      <>
+        Click <b>Connect</b>, then <b>Allow</b> on the Parcel page that opens.
+      </>,
+    ],
+  }),
+  codex: (url) => ({
+    command: `codex mcp add parcel --url ${url}`,
+    steps: [
+      <>Run this in a terminal.</>,
+      <>
+        Codex opens the Parcel page in your browser. Click <b>Allow</b>.
+      </>,
+    ],
+  }),
+  'claude-code': (url) => ({
+    command: `claude mcp add --transport http parcel ${url}`,
+    steps: [
+      <>Run this in a terminal.</>,
+      <>
+        In Claude Code, type <b>/mcp</b>, choose parcel, then{' '}
+        <b>Authenticate</b> and click <b>Allow</b>.
+      </>,
+    ],
+  }),
+  other: () => ({
+    steps: [
+      <>Add the URL above as a remote (streamable HTTP) MCP server.</>,
+      <>
+        When the app opens the Parcel page, click <b>Allow</b>.
+      </>,
+    ],
+  }),
+};
 
 const when = (t: number | null) =>
   t
@@ -44,7 +96,8 @@ export function AgentsDialog({
   const local =
     typeof window !== 'undefined' &&
     ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
-  const code = `claude mcp add --transport http parcel ${server}`;
+  const [app, setApp] = useState<App>('claude');
+  const guide = GUIDES[app](server);
 
   // Approving happens on another page, so keep the list current while this
   // is open: a connection appears here as soon as it is made.
@@ -89,8 +142,8 @@ export function AgentsDialog({
 
   return (
     <Modal
-      title="Connect Claude"
-      description="Use Parcel from a chat with Claude."
+      title="Connect an agent"
+      description="Let Claude, Codex or any MCP app use your vault."
       onClose={onClose}
       wide
     >
@@ -102,20 +155,42 @@ export function AgentsDialog({
         </Button>
       </div>
 
+      <Segmented
+        label="App"
+        value={app}
+        onChange={(next) => {
+          setApp(next);
+          setCopied('');
+        }}
+        options={[
+          { id: 'claude', label: 'Claude' },
+          { id: 'codex', label: 'Codex' },
+          { id: 'claude-code', label: 'Claude Code' },
+          { id: 'other', label: 'Other' },
+        ]}
+      />
+      {guide.command && (
+        <div className="od-agent-url">
+          <code>{guide.command}</code>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => copy('command', guide.command!)}
+          >
+            {copied === 'command' ? <Check size={14} /> : <Copy size={14} />}
+            {copied === 'command' ? 'Copied' : 'Copy'}
+          </Button>
+        </div>
+      )}
       <ol className="od-agent-steps">
-        <li>
-          In Claude, open <b>Settings → Connectors</b> and choose{' '}
-          <b>Add custom connector</b>.
-        </li>
-        <li>Name it Parcel and paste the URL above.</li>
-        <li>
-          Click <b>Connect</b>, then <b>Allow</b> on the Parcel page that opens.
-        </li>
+        {guide.steps.map((step, i) => (
+          <li key={i}>{step}</li>
+        ))}
       </ol>
-      {local && (
+      {local && guide.web && (
         <p className="od-agent-hint">
-          Claude reaches connectors over the internet, so this needs Parcel at a
-          public https address. On this computer, Claude Code connects directly.
+          Claude connects from the internet, so it needs Parcel at a public
+          https address. Codex and Claude Code connect from this computer.
         </p>
       )}
 
@@ -143,25 +218,6 @@ export function AgentsDialog({
           <p className="od-agent-hint">No apps connected yet.</p>
         )}
       </div>
-
-      <details className="od-agent-more">
-        <summary>Claude Code</summary>
-        <p className="od-agent-hint">
-          Run this, then type <b>/mcp</b> in Claude Code and choose Parcel to
-          sign in.
-        </p>
-        <div className="od-agent-url">
-          <code>{code}</code>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => copy('code', code)}
-          >
-            {copied === 'code' ? <Check size={14} /> : <Copy size={14} />}
-            {copied === 'code' ? 'Copied' : 'Copy'}
-          </Button>
-        </div>
-      </details>
 
       {error && <p className="od-note od-agent-error">{error}</p>}
     </Modal>
