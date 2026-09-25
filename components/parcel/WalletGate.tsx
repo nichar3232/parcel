@@ -64,7 +64,7 @@ export function WalletGate({
         new TextEncoder().encode(message),
         'utf8',
       );
-      await api('/api/wallet/signin', {
+      const signed = await api<{ switched: boolean }>('/api/wallet/signin', {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -72,6 +72,12 @@ export function WalletGate({
           signature: btoa(String.fromCharCode(...signature)),
         }),
       });
+      // This wallet already has a vault: the server moved this browser onto
+      // it, so load it fresh.
+      if (signed.switched) {
+        window.location.reload();
+        return;
+      }
       onSignedIn(address);
     } catch (e) {
       const text = (e as Error).message || '';

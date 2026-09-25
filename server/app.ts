@@ -361,8 +361,18 @@ export function createApp(
             200,
             walletChallenge(session, publicOrigin(req, config)),
           );
-        if (url.pathname === '/api/wallet/signin')
-          return json(res, 200, walletSignIn(store, session, await body(req)));
+        if (url.pathname === '/api/wallet/signin') {
+          const signed = walletSignIn(store, session, await body(req));
+          if (signed.token)
+            res.setHeader(
+              'Set-Cookie',
+              `strata_session=${signed.token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${config.secureCookie ? '; Secure' : ''}`,
+            );
+          return json(res, 200, {
+            address: signed.address,
+            switched: !!signed.token,
+          });
+        }
         if (url.pathname === '/api/wallet/signout') {
           store.setSessionWallet(session.id, null);
           return json(res, 200, { address: null });

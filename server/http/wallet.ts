@@ -61,6 +61,10 @@ export function walletSignIn(store: Store, session: Session, input: unknown) {
       'WALLET_SIGNATURE',
       'The signature does not match that wallet.',
     );
+  // A wallet is the account: signing in with one that already has a vault
+  // opens that vault in this browser.
+  const existing = store.sessionForWallet(address, session.id);
+  if (existing) return { address, token: store.reissueSession(existing) };
   store.setSessionWallet(session.id, address);
   return { address };
 }

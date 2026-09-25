@@ -56,7 +56,10 @@ export class Store {
       readFileSync(new URL('./004-agent-keys.sql', import.meta.url), 'utf8'),
     );
     this.db.exec(
-      readFileSync(new URL('./005-vault-mutations.sql', import.meta.url), 'utf8'),
+      readFileSync(
+        new URL('./005-vault-mutations.sql', import.meta.url),
+        'utf8',
+      ),
     );
     this.db.exec(
       readFileSync(new URL('./006-oauth.sql', import.meta.url), 'utf8'),
@@ -83,9 +86,9 @@ export class Store {
   private ensureVaultChainColumns() {
     const cols = new Set(
       (
-        this.db
-          .prepare('PRAGMA table_info(vault_chain_operations)')
-          .all() as { name: string }[]
+        this.db.prepare('PRAGMA table_info(vault_chain_operations)').all() as {
+          name: string;
+        }[]
       ).map((c) => c.name),
     );
     if (!cols.has('action_type'))
@@ -255,6 +258,23 @@ export class Store {
   }
   setSessionWallet(id: string, wallet: string | null) {
     this.db.prepare('UPDATE sessions SET wallet=? WHERE id=?').run(wallet, id);
+  }
+  /** The vault a wallet signed in to before, from another browser. */
+  sessionForWallet(wallet: string, except: string, now = Date.now()) {
+    const row = this.db
+      .prepare(
+        'SELECT id FROM sessions WHERE wallet=? AND id<>? AND expires_at>? ORDER BY created_at DESC LIMIT 1',
+      )
+      .get(wallet, except, now) as { id: string } | undefined;
+    return row?.id;
+  }
+  /** A new cookie for an existing session; any older cookie stops working. */
+  reissueSession(id: string, now = Date.now()) {
+    const token = randomBytes(32).toString('hex');
+    this.db
+      .prepare('UPDATE sessions SET token_hash=?, expires_at=? WHERE id=?')
+      .run(digest(token), now + 30 * 86400_000, id);
+    return token;
   }
   createSession(now = Date.now()) {
     const token = randomBytes(32).toString('hex'),

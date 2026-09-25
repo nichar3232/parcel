@@ -424,15 +424,41 @@ void test('wallet: a signed challenge signs the session in; a wrong signature do
     ).json()) as { address: string | null };
     assert.equal(after.address, address);
 
-    await fetch(`${f.base}/api/wallet/signout`, {
+    // Another browser signing in with the same wallet opens this vault.
+    const browser2 = await f.desk();
+    const challenge2 = (
+      (await (
+        await fetch(`${f.base}/api/wallet/challenge`, {
+          method: 'POST',
+          headers: browser2.headers,
+          body: '{}',
+        })
+      ).json()) as { message: string }
+    ).message;
+    const adopt = await fetch(`${f.base}/api/wallet/signin`, {
       method: 'POST',
-      headers: d.headers,
-      body: '{}',
+      headers: browser2.headers,
+      body: JSON.stringify({
+        address,
+        signature: sign(null, Buffer.from(challenge2), privateKey).toString(
+          'base64',
+        ),
+      }),
     });
-    const out = (await (
-      await fetch(`${f.base}/api/wallet`, { headers: d.headers })
+    assert.equal(
+      ((await adopt.json()) as { switched: boolean }).switched,
+      true,
+    );
+    const moved = adopt.headers.get('set-cookie')!.split(';')[0];
+    const there = (await (
+      await fetch(`${f.base}/api/wallet`, { headers: { Cookie: moved } })
     ).json()) as { address: string | null };
-    assert.equal(out.address, null);
+    assert.equal(there.address, address);
+
+    // The vault now lives in the second browser; the first one's cookie
+    // no longer opens it.
+    const first = await fetch(`${f.base}/api/wallet`, { headers: d.headers });
+    assert.equal(first.status, 401);
   } finally {
     await f.close();
   }
