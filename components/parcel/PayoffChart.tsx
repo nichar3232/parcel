@@ -150,8 +150,16 @@ export function PayoffChart({
     const rising = pnls.at(-1)! - pnls.at(-2)! > 1e-9;
     const falling = pnls.at(-1)! - pnls.at(-2)! < -1e-9;
     const open = !terms.curve && !bounded(terms.legs);
-    const best = open && rising ? Infinity : Math.max(...pnls);
-    const worst = open && falling ? -Infinity : Math.min(...pnls);
+    // A payoff turns at its strikes, which the even samples step over, so
+    // the extremes are read there too: a straddle's max loss is its premium.
+    const extremes = [
+      ...pnls,
+      ...strikes.map((k) =>
+        strategyPnl(terms, k, spot, premium, stockQuantity),
+      ),
+    ];
+    const best = open && rising ? Infinity : Math.max(...extremes);
+    const worst = open && falling ? -Infinity : Math.min(...extremes);
 
     const line = path(rows);
     return {

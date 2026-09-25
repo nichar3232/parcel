@@ -20,6 +20,7 @@
     "verify:backend-chain": "tsx scripts/audit-chain.ts",
     "verify:restart": "node scripts/check-restart.mjs",
     "record:demo": "node scripts/record-parcel.mjs",
+    "demo:agent": "node scripts/agent-demo.mjs",
     "demo": "PARCEL_DEMO=1 CHAIN_ENABLED=false tsx server/index.ts",
     "check:repo": "node scripts/check-repository.mjs",
     "record:legacy": "node scripts/record-demo.mjs",

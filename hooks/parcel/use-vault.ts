@@ -92,14 +92,16 @@ export function useVault() {
       cancelRefresh();
     };
   }, [refresh, cancelRefresh]);
-  // On the live market contracts settle on the wall clock, so an open
-  // desk reads the vault again every minute rather than only on focus.
+  // On the live market contracts settle on the wall clock, and an agent
+  // holding a key can trade this vault from elsewhere, so an open desk reads
+  // it again every few seconds rather than only on focus. A tab a browser
+  // agent drives can report itself hidden, so hidden tabs refresh too.
   const live = state?.market.clock === 'live';
   useEffect(() => {
     if (!live) return;
     const timer = setInterval(() => {
-      if (!document.hidden && !lock.current) void refresh();
-    }, 60_000);
+      if (!lock.current) void refresh();
+    }, 4_000);
     return () => clearInterval(timer);
   }, [live, refresh]);
   useEffect(() => {

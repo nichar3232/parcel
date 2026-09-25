@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import {
   Activity,
+  Bot,
   ChevronDown,
   CircleHelp,
   Scale,
@@ -24,6 +25,7 @@ import { setLiveMarket } from '@/lib/parcel/market';
 import type { MarkFeed } from '@/hooks/parcel/use-marks';
 import type { VaultSnapshot } from '@/lib/parcel/types';
 import { TransferDialog, type Transfer } from './TransferDialog';
+import { AgentsDialog } from './AgentsDialog';
 import { Welcome, markWelcomeSeen, welcomeSeen } from './Welcome';
 import { Button, Modal, markOf, qty, usd } from './shared';
 import '@/app/desk.css';
@@ -292,7 +294,9 @@ export default function Workspace() {
   /** The underlying every ticket is written on until the reader picks another. */
   const [symbol, setSymbol] = useState(DEFAULT_UNDERLYING);
   const [transfer, setTransfer] = useState<Transfer | null>(null);
-  const [modal, setModal] = useState<'wallet' | 'about' | null>(null);
+  const [modal, setModal] = useState<'wallet' | 'about' | 'agents' | null>(
+    null,
+  );
 
   useEffect(() => {
     const at = new URLSearchParams(window.location.search).get('at');
@@ -400,6 +404,16 @@ export default function Workspace() {
         />
 
         <div className="od-bar-right">
+          <button
+            className="od-bar-btn"
+            aria-label="Connect an agent"
+            onClick={() => setModal('agents')}
+            disabled={!s}
+          >
+            <Bot size={15} />
+            <span className="wide">Agents</span>
+          </button>
+
           <button
             className="od-bar-btn"
             aria-label="About Parcel"
@@ -671,6 +685,14 @@ export default function Workspace() {
             </Button>
           </div>
         </Modal>
+      )}
+
+      {modal === 'agents' && s && (
+        <AgentsDialog
+          csrf={s.csrf}
+          mode={s.mode}
+          onClose={() => setModal(null)}
+        />
       )}
 
       {modal === 'about' && (
