@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "parcel": {
-      "type": "http",
-      "url": "${PARCEL_URL:-http://localhost:3025}/mcp"
-    }
-  }
-}

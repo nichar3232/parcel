@@ -10,15 +10,14 @@ import { VaultService } from './parcel/service';
 import { readFile } from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { Config } from './config';
 import { Store } from './db/store';
 import { ChainService } from './domain/chain';
 import { PortfolioService, parseKey } from './domain/portfolio';
 import { ApiError, object } from './http/errors';
 import { handleMcp } from './http/mcp';
-import { approve, challenge, handleOAuth, publicOrigin } from './http/oauth';
-import { handlePlugin } from './http/plugin';
+import { approve, challenge, handleOAuth } from './http/oauth';
+import { handleSkill } from './http/plugin';
 import {
   bearer,
   body,
@@ -102,7 +101,7 @@ export function createApp(
       const url = new URL(req.url || '/', 'http://localhost'),
         method = req.method || 'GET';
       if (await handleOAuth(req, res, url, store, config)) return;
-      if (handlePlugin(url.pathname, publicOrigin(req, config), res)) return;
+      if (handleSkill(url.pathname, res)) return;
       if (url.pathname === '/mcp' || url.pathname === '/mcp/')
         return await handleMcp(
           req,
@@ -424,16 +423,6 @@ export function createApp(
             keys: store.agentKeys(session.id),
             // The address to hand an agent; absent, the desk's own origin.
             mcpUrl: config.publicUrl ? `${config.publicUrl}/mcp` : null,
-            // Where Claude Code installs the /parcel plugin from. Claude
-            // Code takes plugin archives only over https from a public host,
-            // so a desk opened on this machine points at its own checkout.
-            plugin:
-              config.publicUrl ||
-              !/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(
-                req.headers.host || '',
-              )
-                ? `${publicOrigin(req, config)}/claude/marketplace.json`
-                : fileURLToPath(new URL('..', import.meta.url)),
           });
         if (method !== 'POST')
           throw new ApiError(405, 'METHOD', 'POST required.');

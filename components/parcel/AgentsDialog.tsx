@@ -19,8 +19,6 @@ interface Place {
   url: string;
   /** An inline control that copies it. */
   address: React.ReactNode;
-  /** Where Claude Code installs the /parcel plugin from. */
-  plugin: string;
   /** The desk runs on this computer, out of reach of Claude's app. */
   local: boolean;
 }
@@ -35,10 +33,10 @@ const GUIDES: Record<
   App,
   (p: Place) => { steps: React.ReactNode[]; command?: string }
 > = {
-  claude: ({ address, plugin, local }) =>
+  claude: ({ url, address, local }) =>
     local
       ? {
-          command: `claude plugin marketplace add ${plugin}\nclaude plugin install parcel@parcel`,
+          command: `claude mcp add --transport http --scope user parcel ${url}\ncurl -s --create-dirs -o ~/.claude/skills/parcel/SKILL.md ${url.replace(/\/mcp$/, '')}/claude/parcel/SKILL.md`,
           steps: [
             <>Run these in a terminal to add Parcel to Claude Code.</>,
             <>
@@ -103,7 +101,6 @@ export function AgentsDialog({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [published, setPublished] = useState<string | null>(null);
-  const [plugin, setPlugin] = useState<string | null>(null);
   const server =
     published ??
     (typeof window === 'undefined' ? '/mcp' : `${window.location.origin}/mcp`);
@@ -119,13 +116,10 @@ export function AgentsDialog({
   // is open: a connection appears here as soon as it is made.
   useEffect(() => {
     const load = () =>
-      api<{ keys: AgentKey[]; mcpUrl: string | null; plugin: string }>(
-        '/api/agent/keys',
-      )
+      api<{ keys: AgentKey[]; mcpUrl: string | null }>('/api/agent/keys')
         .then((r) => {
           setKeys(r.keys);
           setPublished(r.mcpUrl);
-          setPlugin(r.plugin);
         })
         .catch((e: Error) => setError(e.message));
     void load();
@@ -173,7 +167,6 @@ export function AgentsDialog({
         {copied === 'url' ? 'copied' : 'copy address'}
       </button>
     ),
-    plugin: plugin ?? `${server.replace(/\/mcp$/, '')}/claude/marketplace.json`,
     local,
   });
 

@@ -352,25 +352,13 @@ void test('oauth: a configured public address is what agents are told', async ()
   );
 });
 
-void test('plugin: the desk serves a /parcel plugin whose server is this desk', async () => {
+void test('skill: the desk serves /parcel, and plugin suffixes leave app names', async () => {
   const f = await fixture();
   try {
-    const market = (await (
-      await fetch(`${f.base}/claude/marketplace.json`)
-    ).json()) as {
-      plugins: { name: string; source: { url: string; sha256: string } }[];
-    };
-    const entry = market.plugins[0];
-    assert.equal(entry.name, 'parcel');
-    const zip = Buffer.from(
-      await (await fetch(entry.source.url)).arrayBuffer(),
-    );
-    assert.equal(
-      createHash('sha256').update(zip).digest('hex'),
-      entry.source.sha256,
-      'the pinned hash matches what is served',
-    );
-    assert.ok(zip.includes(Buffer.from('skills/parcel/SKILL.md')));
+    const skill = await (
+      await fetch(`${f.base}/claude/parcel/SKILL.md`)
+    ).text();
+    assert.match(skill, /^---\nname: parcel\n/);
 
     // Claude Code registers a plugin's server with a suffix the owner
     // should not have to read.
