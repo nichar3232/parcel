@@ -114,8 +114,9 @@ test('the shell is four destinations, each with its own sections', async ({
   await expect(page.locator('.od-legs-row')).toHaveCount(1);
   await expect(page.locator('.od-surface > svg')).toBeVisible();
 
-  // Collateral is no longer a Portfolio section; health sits on Holdings.
+  // Collateral is no longer a Portfolio section, and Holdings no longer
+  // carries a health pill; the health factor lives on Lending.
   await nav(page, 'Risk');
   await expect(page.getByRole('heading', { name: 'Positions' })).toBeVisible();
-  await expect(page.getByTitle('Health factor')).toBeVisible();
+  await expect(page.getByTitle('Health factor')).toHaveCount(0);
 });
