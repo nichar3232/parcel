@@ -3,7 +3,28 @@ export interface PendingMutation {
   key: string;
   input: string;
 }
-const storageKey = (csrf: string) => `oddlot-pending-${csrf.slice(0, 16)}`;
+const storageKey = (csrf: string) => `parcel-pending-${csrf.slice(0, 16)}`;
+const recoverySuffix = (csrf: string) => `-pending-${csrf.slice(0, 16)}`;
+
+/** Move a pre-rename recovery record into Parcel's namespace. The slot is
+ * session-bound, so a suffix match cannot expose another session's intent. */
+function recoveredRaw(csrf: string) {
+  const current = storageKey(csrf);
+  const saved = sessionStorage.getItem(current);
+  if (saved) return saved;
+  const suffix = recoverySuffix(csrf);
+  for (let i = 0; i < sessionStorage.length; i++) {
+    const key = sessionStorage.key(i);
+    if (!key || key === current || !key.endsWith(suffix)) continue;
+    const previous = sessionStorage.getItem(key);
+    if (!previous) continue;
+    sessionStorage.setItem(current, previous);
+    sessionStorage.removeItem(key);
+    return previous;
+  }
+  return null;
+}
+
 // Only the original intent/key is stored, never the session cookie or CSRF token.
 // A different session gets a different recovery slot and cannot replay this intent.
 export function savePending(request: PendingMutation) {
@@ -13,7 +34,7 @@ export function savePending(request: PendingMutation) {
   );
 }
 export function loadPending(csrf: string): PendingMutation | null {
-  const raw = sessionStorage.getItem(storageKey(csrf));
+  const raw = recoveredRaw(csrf);
   if (!raw) return null;
   const value = JSON.parse(raw) as { key?: unknown; input?: unknown };
   if (
@@ -28,4 +49,9 @@ export function loadPending(csrf: string): PendingMutation | null {
 }
 export function clearPending(csrf: string) {
   sessionStorage.removeItem(storageKey(csrf));
+  const suffix = recoverySuffix(csrf);
+  for (let i = sessionStorage.length - 1; i >= 0; i--) {
+    const key = sessionStorage.key(i);
+    if (key && key.endsWith(suffix)) sessionStorage.removeItem(key);
+  }
 }

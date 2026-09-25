@@ -1,4 +1,4 @@
-# Oddlot frontend/backend follow-up audit
+# Parcel frontend/backend follow-up audit
 
 September 15, 2026. Baseline: `a3ea7d3a30eb537e457bc000a57831e611af5935`. This report accompanies local fixes; it is not evidence that those fixes have been pushed or deployed. The VPS was inspected read-only and still runs release `20260915T051923Z`.
 
@@ -36,15 +36,15 @@ At the stored NVDA close of **132.80**, their separately truncated cash deliveri
 
 ## Code organization
 
-The [module scan](module-boundaries.json) covered 58 TypeScript/TSX source files. It found **zero import cycles**, no Oddlot view/controller imports of server or Node modules, and no server imports of UI/hooks. This is a static import scan, not a proof of every runtime property.
+The [module scan](module-boundaries.json) covered 58 TypeScript/TSX source files. It found **zero import cycles**, no Parcel view/controller imports of server or Node modules, and no server imports of UI/hooks. This is a static import scan, not a proof of every runtime property.
 
 - `app/page.tsx` composes navigation and views.
-- `components/oddlot` owns forms, confirmations and presentation. It cannot replace ledger balances.
-- `hooks/oddlot/use-vault.ts` owns authoritative snapshots, mutation serialization, pending recovery and session freshness.
+- `components/parcel` owns forms, confirmations and presentation. It cannot replace ledger balances.
+- `hooks/parcel/use-vault.ts` owns authoritative snapshots, mutation serialization, pending recovery and session freshness.
 - `lib/client/api.ts` owns the shared HTTP contract; transport is no longer exported by the legacy portfolio hook.
-- `lib/oddlot/validation.ts` owns shared numeric and contract validation; server validation remains authoritative.
-- `lib/oddlot/math.ts` and `risk.ts` implement base-unit economics and collateral separately from React and database access.
-- `server/oddlot/service.ts` owns quotes, revisions, ownership and atomic action dispatch; `ledger.ts` owns transfers and settlement.
+- `lib/parcel/validation.ts` owns shared numeric and contract validation; server validation remains authoritative.
+- `lib/parcel/math.ts` and `risk.ts` implement base-unit economics and collateral separately from React and database access.
+- `server/parcel/service.ts` owns quotes, revisions, ownership and atomic action dispatch; `ledger.ts` owns transfers and settlement.
 - `Store` owns SQLite transactions and durable receipts. No RPC call runs inside a vault write transaction.
 
 The service dispatcher and feature views are still moderately sized modules. Splitting every branch into a class would add indirection without improving these boundaries. The accounting/recovery fixes and removal of cross-feature transport coupling address demonstrated problems rather than imposing a wholesale rewrite.

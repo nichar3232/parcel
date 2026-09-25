@@ -71,7 +71,7 @@
    already position themselves: the nav is sticky, and giving it a
    position here would silently replace that. */
 .lp > .lp-main,
-.lp > .lp-foot {
+.lp > .lp-ending {
   position: relative;
   z-index: 1;
 }
@@ -132,32 +132,29 @@
   cursor: pointer;
   transition:
     background 0.18s,
-    border-color 0.18s,
-    transform 0.18s;
+    border-color 0.18s;
 }
 .lp-btn:hover {
   background: var(--pc-hover);
   border-color: var(--pc-faint);
 }
-.lp-btn span {
-  transition: transform 0.18s;
-}
-.lp-btn:hover span {
-  transform: translateX(3px);
-}
 .lp-btn-primary {
-  border-color: transparent;
+  border-color: color-mix(in srgb, var(--pc-cyan) 44%, transparent);
+  border-radius: 8px;
   background: var(--pc-cyan);
   color: var(--pc-cyan-ink);
   font-weight: 600;
 }
+.lp-agents-cta {
+  margin-top: 22px;
+}
 .lp-btn-primary:hover {
   background: var(--pc-cyan-soft);
-  border-color: transparent;
-  transform: translateY(-1px);
+  border-color: var(--pc-cyan-soft);
 }
-.lp-btn-quiet {
-  background: transparent;
+.lp-hero-actions .lp-btn {
+  height: 44px;
+  padding: 0 18px;
 }
 
 /* ---------- nav ---------- */
@@ -166,19 +163,71 @@
   position: sticky;
   top: 0;
   z-index: 40;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 40px;
   height: 68px;
   padding: 0 var(--lp-gutter);
-  border-bottom: 1px solid var(--pc-line-soft);
-  background: color-mix(in srgb, var(--pc-void) 82%, transparent);
-  backdrop-filter: blur(14px) saturate(1.3);
+  background: transparent;
+}
+.lp-nav > * {
+  position: relative;
+  z-index: 1;
+}
+.lp-nav::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* A header needs enough opacity to hold its type as the page moves
+     underneath it, but a solid band above an atmospheric canvas makes
+     the two feel like separate pages. Taper the glass into the canvas
+     instead of ending it with a full-width border. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--pc-void) 94%, transparent) 0%,
+    color-mix(in srgb, var(--pc-void) 84%, transparent) 54%,
+    transparent 100%
+  );
+  backdrop-filter: blur(18px) saturate(1.16) contrast(1.03);
+  -webkit-backdrop-filter: blur(18px) saturate(1.16) contrast(1.03);
+  -webkit-mask-image: linear-gradient(#000 0%, #000 60%, transparent 100%);
+  mask-image: linear-gradient(#000 0%, #000 60%, transparent 100%);
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+/* The fade is right at the top, where the header belongs to the hero. As
+   soon as it overlaps text or a figure, it becomes an even, quiet reading
+   surface. This keeps the utility of a sticky nav without the "text under
+   frosted glass" effect. */
+.lp-nav[data-scrolled]::before {
+  /* Keep the reading surface quiet, but let it dissolve at its lower edge.
+     A solid sticky strip is especially noticeable over the landing fades. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--pc-void) 97%, transparent) 0%,
+    color-mix(in srgb, var(--pc-void) 93%, transparent) 62%,
+    transparent 100%
+  );
+  box-shadow: none;
+  -webkit-mask-image: linear-gradient(#000 0%, #000 70%, transparent 100%);
+  mask-image: linear-gradient(#000 0%, #000 70%, transparent 100%);
 }
 .lp-mark {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+.lp-nav .pc-mark {
+  /* Set by LandingNav from document scroll. The tiny transition catches a
+     trackpad's discrete scroll events without making the mark autonomous. */
+  transform: rotate(var(--lp-mark-scroll-rotation, 0deg));
+  transform-origin: center;
+  transition: transform 100ms linear;
+  will-change: transform;
 }
 .lp-mark b,
 .pc-wordmark {
@@ -189,17 +238,27 @@
 .lp-nav nav {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   margin-right: auto;
 }
 .lp-nav nav a {
-  padding: 7px 12px;
-  border-radius: var(--pc-r-sm);
-  color: var(--pc-body);
-  font-size: 13.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--pc-muted);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
   transition:
     color 0.15s,
     background 0.15s;
+}
+.lp-nav nav a svg {
+  opacity: 0.5;
+  transform: rotate(-90deg);
 }
 .lp-nav nav a:hover {
   color: var(--pc-text);
@@ -208,7 +267,7 @@
 .lp-nav-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 .lp-nav-about {
   color: var(--pc-body);
@@ -222,18 +281,25 @@
   align-items: center;
   height: 38px;
   padding: 0 16px;
-  border-radius: var(--pc-r-sm);
+  border: 1px solid color-mix(in srgb, var(--pc-cyan) 42%, transparent);
+  border-radius: 7px;
   background: var(--pc-cyan);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
   color: var(--pc-cyan-ink);
   font-size: 13.5px;
   font-weight: 600;
-  transition: background 0.16s;
+  transition:
+    background 0.16s,
+    border-color 0.16s,
+    transform 0.16s;
 }
 .lp .lp-cta:hover {
   background: var(--pc-cyan-soft);
+  border-color: var(--pc-cyan-soft);
+  transform: none;
 }
 
-.pc-theme {
+.lp .pc-theme {
   display: inline-grid;
   place-items: center;
   width: 34px;
@@ -247,7 +313,7 @@
     color 0.15s,
     border-color 0.15s;
 }
-.pc-theme:hover {
+.lp .pc-theme:hover {
   color: var(--pc-cyan);
   border-color: var(--pc-cyan-edge);
 }
@@ -283,6 +349,12 @@
   align-items: stretch;
   gap: clamp(40px, 5vw, 72px);
   padding: clamp(56px, 9vh, 108px) 0 clamp(40px, 6vh, 72px);
+  /* The first screen is the hero alone: it fills the window under the
+     68px nav, so the next section starts below the fold, not peeking
+     into it. */
+  box-sizing: border-box;
+  min-height: calc(100svh - 68px);
+  align-content: center;
 }
 .lp-hero-copy {
   display: flex;
@@ -306,11 +378,7 @@
   animation: pc-rise 0.6s ease both;
 }
 .lp-viewer header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 .lp-viewer header h2 {
   margin: 0 0 2px;
@@ -319,28 +387,8 @@
 }
 .lp-viewer-contract {
   color: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 12.5px;
-  letter-spacing: -0.01em;
-}
-.lp-viewer-open {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: none;
-  height: 28px;
-  padding: 0 13px;
-  border: 1px solid var(--pc-line);
-  border-radius: 999px;
-  color: var(--pc-body);
-  font-size: 12.5px;
-  transition:
-    color 0.15s,
-    border-color 0.15s;
-}
-.lp-viewer-open:hover {
-  color: var(--pc-cyan);
-  border-color: var(--pc-cyan-edge);
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 /* The one tinted field on the page. No border, no shadow: the plot
@@ -362,7 +410,7 @@
 /* Green where the position pays, red where it costs, split at zero. */
 .lp-curve {
   fill: none;
-  stroke-width: 3.25;
+  stroke-width: 2.75;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
@@ -377,6 +425,31 @@
 .lp-zero {
   stroke: var(--pc-faint);
   stroke-width: 1.25;
+}
+.lp-pnl-grid line {
+  stroke: var(--pc-line-soft);
+  stroke-width: 1;
+  stroke-dasharray: 2 7;
+}
+.lp-pnl-grid text {
+  fill: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.lp-zero-label {
+  fill: var(--pc-body);
+  font-family: var(--pc-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.lp-axis-title {
+  fill: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .lp-strikes text,
 .lp-ticks text,
@@ -420,17 +493,23 @@
   stroke-linejoin: round;
 }
 
-.lp-viewer-blurb {
-  min-height: 3.2em;
-  margin: 16px 0 0;
-  color: var(--pc-body);
-  font-size: 14px;
-  line-height: 1.55;
+/* See Held in StructureHero: every version shares one cell and only
+   the current one shows, so the viewer never changes height. */
+.lp-held {
+  display: grid;
+}
+.lp-held > * {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+.lp-held > .on {
+  visibility: visible;
 }
 .lp-viewer-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 20px;
+  align-items: start;
+  margin-top: 18px;
   padding-top: 16px;
   border-top: 1px solid var(--pc-line-soft);
 }
@@ -450,85 +529,128 @@
   text-transform: uppercase;
 }
 .lp-viewer-stats dd {
+  min-width: 0;
   font-size: 15px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.015em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.lp-viewer-stats dd .multiline {
+  display: block;
+  font-size: 14px;
+  line-height: 1.35;
+  white-space: pre-line;
 }
 
 .lp-viewer-pips {
   display: flex;
-  gap: 6px;
-  margin-top: 16px;
+  gap: 18px;
+  margin-top: 18px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--pc-line-soft);
+  scrollbar-width: none;
 }
 .lp-viewer-pips button {
-  flex: 1;
-  height: 18px;
-  padding: 0;
+  position: relative;
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 0 9px;
   border: 0;
   background: none;
+  color: var(--pc-muted);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
+  transition: color 0.15s;
 }
-.lp-viewer-pips i {
-  display: block;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--pc-line);
-  transform-origin: left;
-}
-.lp-viewer-pips .on i {
+.lp-viewer-pips button::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1.5px;
   background: var(--pc-cyan);
-  animation: pc-fill linear both;
+  content: '';
+  opacity: 0;
+  transition: opacity 0.15s;
 }
-@keyframes pc-fill {
-  from {
-    transform: scaleX(0.04);
-  }
-  to {
-    transform: scaleX(1);
-  }
+.lp-viewer-pips button:hover {
+  color: var(--pc-text);
 }
-.lp-viewer-pips button:hover i {
-  background: var(--pc-faint);
+.lp-viewer-pips button:focus-visible {
+  outline: 0;
+  color: var(--pc-text);
+  text-decoration: underline;
+  text-decoration-color: var(--pc-cyan);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 6px;
 }
-.lp-viewer-pips .on:hover i {
-  background: var(--pc-cyan-soft);
+.lp-viewer-pips .on {
+  color: var(--pc-text);
+}
+.lp-viewer-pips .on::after {
+  opacity: 1;
 }
 
-/* ---------- status rail ---------- */
+/* ---------- the operating model ---------- */
 
-.lp-rail {
+/* This replaces the generic reference rail. The facts that matter here are
+   the rules a reader carries into every product, not a frozen market date. */
+/* A section pads only its top, so the rule that opens this block needs its
+   own distance from whatever ends above it. */
+.lp-section + .lp-principles {
+  margin-top: clamp(64px, 9vh, 104px);
+}
+.lp-principles {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  padding: 22px 0;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  gap: clamp(40px, 6vw, 96px);
+  padding: clamp(52px, 7vh, 84px) 0 clamp(24px, 3vh, 40px);
+}
+.lp-principles-intro .lp-kicker {
+  margin-bottom: 14px;
+}
+.lp-principles-intro h2 {
+  margin-bottom: 12px;
+  font-size: clamp(24px, 2.6vw, 32px);
+}
+.lp-principles-intro p {
+  max-width: 38ch;
+  color: var(--pc-body);
+  font-size: 14.5px;
+}
+.lp-principles-list {
   border-top: 1px solid var(--pc-line-soft);
+}
+.lp-principles-list li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px 0;
   border-bottom: 1px solid var(--pc-line-soft);
 }
-.lp-rail > div {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding-right: 22px;
-}
-.lp-rail > div + div {
-  padding-left: 22px;
-  border-left: 1px solid var(--pc-line-soft);
-}
-.lp-rail span {
-  color: var(--pc-muted);
+.lp-principles-list > li > b {
+  padding-top: 2px;
+  color: var(--pc-cyan);
   font-family: var(--pc-mono);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
 }
-.lp-rail b {
-  font-size: 16px;
+.lp-principles-list strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 14px;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
+}
+.lp-principles-list p {
+  color: var(--pc-body);
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 /* ---------- products showcase ---------- */
@@ -584,6 +706,19 @@
   column-gap: clamp(32px, 4.5vw, 72px);
   row-gap: clamp(44px, 6vh, 72px);
   padding-top: clamp(28px, 3.4vw, 44px);
+  animation: lp-product-enter 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+/* Product tabs are direct, discrete changes: one short lateral settle gives
+   the new panel context without making the reader wait for an effect. */
+@keyframes lp-product-enter {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 .lp-panel-copy {
   display: grid;
@@ -662,25 +797,6 @@
   text-align: right;
   white-space: nowrap;
 }
-.lp-panel-pull .lp-inline-link {
-  margin-top: 26px;
-}
-.lp-inline-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 22px;
-  color: var(--pc-cyan);
-  font-size: 13.5px;
-  font-weight: 500;
-}
-.lp-inline-link span {
-  transition: transform 0.16s;
-}
-.lp-inline-link:hover span {
-  transform: translateX(3px);
-}
-
 .lp-preview {
   display: flex;
   flex-direction: column;
@@ -808,222 +924,65 @@
 .lp-split > div:first-child i {
   background: var(--pc-faint);
 }
-
-/* ---------- how it works ---------- */
-
-/* The claim on the left holds still while the walkthrough on the right
-   moves past it, which is the whole point of the section: four steps
-   that are all the same four steps, whichever product you came for.
-   Sticky rather than fixed — fixed copy follows the reader into the
-   footer, and it cannot be undone by the stacking media query below. */
-.lp-how-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
-  align-items: start;
-  gap: clamp(40px, 6vw, 96px);
-}
-.lp-how-copy {
-  position: sticky;
-  top: calc(68px + clamp(32px, 8vh, 96px));
-}
-.lp-how-copy h2 {
-  margin-bottom: 16px;
-}
-.lp-how-copy p {
-  max-width: 42ch;
-  color: var(--pc-body);
-}
-.lp-how-copy .lp-btn {
-  margin-top: 30px;
-}
-
-.lp-how-steps {
-  display: grid;
-  gap: clamp(48px, 7vh, 88px);
-}
-.lp-how-steps li {
-  display: grid;
-  gap: 22px;
-}
-
-/* A step's figure is a plot, a balance or a ticket — all three are
-   readings off the desk, so all three get the one tint and nothing
-   else. */
-.lp-step-figure {
-  display: grid;
-  gap: 12px;
-  padding: clamp(20px, 2.4vw, 30px);
-  border-radius: var(--pc-r-xl);
-  background: var(--pc-plot);
-}
-.lp-step-chart {
-  display: block;
-  width: 100%;
-  height: auto;
-  overflow: visible;
-}
-.lp-step-note {
-  color: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 11.5px;
-  letter-spacing: -0.01em;
-}
-
-.lp-step-copy {
-  display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
-  align-items: baseline;
-  gap: 4px 12px;
-}
-.lp-step-copy b {
-  grid-row: 1 / span 2;
-  justify-self: start;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--pc-cyan-edge);
-  border-radius: 50%;
-  color: var(--pc-cyan);
-  font-family: var(--pc-mono);
-  font-size: 11.5px;
-  font-weight: 500;
-  /* The circle is optically a line lower than the cap-height it sits
-     beside, because a ring centres on its own box rather than on the
-     text baseline. */
-  transform: translateY(2px);
-}
-.lp-step-copy strong {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-}
-.lp-step-copy p {
-  color: var(--pc-body);
-  font-size: 14px;
-  max-width: 52ch;
-}
-
-/* --- the three non-chart figures --- */
-
-.lp-step-balance b {
-  display: block;
-  margin-bottom: 20px;
-  font-size: clamp(30px, 3.4vw, 40px);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
-}
-.lp-step-balance dl {
-  display: grid;
-  gap: 16px;
-}
-.lp-step-balance dl > div {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px 16px;
-}
-.lp-step-balance dt {
-  color: var(--pc-body);
-  font-size: 13px;
-}
-.lp-step-balance dd {
-  font-family: var(--pc-mono);
-  font-size: 13.5px;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-.lp-step-balance i {
-  grid-column: 1 / -1;
-  height: 6px;
-  min-width: 6px;
-  border-radius: 3px;
-  background: var(--pc-duo);
-}
-.lp-step-balance dl > div:last-child i {
-  background: var(--pc-faint);
-}
-
-.lp-step-sizes > div {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.lp-step-sizes span {
-  display: grid;
-  gap: 8px;
-  padding: 4px 0 4px 16px;
-  border-left: 1px solid var(--pc-line-soft);
-}
-.lp-step-sizes span:first-child {
-  padding-left: 0;
-  border-left: 0;
-}
-.lp-step-sizes em {
-  color: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 11px;
-  font-style: normal;
-  letter-spacing: 0.1em;
-}
-.lp-step-sizes b {
-  font-size: clamp(17px, 1.8vw, 21px);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-.lp-step-sizes .on em {
-  color: var(--pc-cyan);
-}
-.lp-step-sizes .lp-step-note {
-  margin-top: 18px;
-}
-
-.lp-step-review > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 13px 0;
-  border-bottom: 1px solid var(--pc-line-soft);
-}
-.lp-step-review > div:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-.lp-step-review > div:first-child {
-  padding-top: 0;
-}
-.lp-step-review dt {
-  color: var(--pc-body);
-  font-size: 13.5px;
-}
-.lp-step-review dd {
-  font-family: var(--pc-mono);
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-}
-.lp-step-review > div:last-child dd {
-  color: var(--pc-down);
-}
-
 /* ---------- close ---------- */
 
+/* The closing action and footer are one continuous endcap. Its colour lives
+   on a full-bleed parent, rather than on the measured text column, so the
+   atmosphere cannot stop in a visible rectangle at either gutter. */
+.lp-ending {
+  position: relative;
+  isolation: isolate;
+  margin-top: clamp(88px, 12vh, 148px);
+  overflow: clip;
+}
+.lp-ending::before {
+  position: absolute;
+  inset: -1px 0 0;
+  z-index: -1;
+  background:
+    radial-gradient(
+      56% 54% at 66% 40%,
+      color-mix(in srgb, var(--pc-cyan) 10%, transparent) 0%,
+      transparent 74%
+    ),
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      color-mix(in srgb, var(--pc-cyan) 2.5%, transparent) 54%,
+      transparent 100%
+    );
+  content: '';
+  pointer-events: none;
+}
+
 .lp-close {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 28px;
-  margin: clamp(80px, 11vh, 132px) 0 clamp(60px, 8vh, 96px);
-  padding-top: clamp(40px, 5vw, 56px);
+  position: relative;
+  display: grid;
+  place-items: center;
+  max-width: var(--lp-measure);
+  min-height: clamp(320px, 42vh, 440px);
+  margin: 0 auto clamp(48px, 7vh, 84px);
+  padding: clamp(56px, 8vh, 96px) clamp(20px, 6vw, 80px);
   border-top: 1px solid var(--pc-line-soft);
+  text-align: center;
+}
+.lp-close-copy {
+  display: grid;
+  justify-items: center;
+  max-width: 620px;
 }
 .lp-close h2 {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  font-size: clamp(32px, 4.2vw, 52px);
 }
 .lp-close p {
-  max-width: 46ch;
+  max-width: 48ch;
   color: var(--pc-body);
+}
+.lp-close .lp-btn {
+  height: 48px;
+  margin-top: 30px;
+  padding: 0 22px;
 }
 
 /* ---------- footer ---------- */
@@ -1066,14 +1025,6 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 20px;
   }
-  .lp-how-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  /* Once the columns stack, "sticky" would pin the copy over the steps
-     it introduces. */
-  .lp-how-copy {
-    position: static;
-  }
 }
 @media (max-width: 860px) {
   .lp-nav {
@@ -1086,16 +1037,20 @@
   .lp-nav .lp-mark {
     margin-right: auto;
   }
-  .lp-rail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: 22px;
-  }
-  .lp-rail > div:nth-child(odd) {
-    padding-left: 0;
-    border-left: 0;
+  .lp-principles {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
   }
 }
 @media (max-width: 560px) {
+  .lp-close {
+    min-height: 300px;
+    margin-top: 80px;
+    padding: 52px 20px;
+  }
+  .lp-viewer-pips {
+    gap: 16px;
+  }
   .lp-viewer-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     row-gap: 16px;
@@ -1112,14 +1067,6 @@
     border-left: 0;
     border-top: 1px solid var(--pc-line-soft);
     padding-top: 18px;
-  }
-  .lp-step-sizes > div {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px 0;
-  }
-  .lp-step-sizes span:nth-child(odd) {
-    padding-left: 0;
-    border-left: 0;
   }
   .lp-foot {
     flex-direction: column;

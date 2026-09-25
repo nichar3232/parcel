@@ -6,7 +6,6 @@ import {
   ArrowUpRight,
   Check,
   CheckCheck,
-  Clock,
   ExternalLink,
   Link as LinkIcon,
 } from 'lucide-react';
@@ -31,7 +30,7 @@ export function ChainContent({
             Two test wallets · SPL settlement token · immutable replay sample
           </p>
         </div>
-        <span className="pill">{evidence?.network || 'Unavailable'}</span>
+        {evidence?.network && <span className="pill">{evidence.network}</span>}
       </div>
       {evidence ? (
         <>
@@ -108,15 +107,7 @@ export function ChainContent({
             <strong>{new Date(evidence.completedAt).toLocaleString()}</strong>
           </div>
         </>
-      ) : (
-        <div className="empty">
-          <Clock size={25} />
-          <p>
-            Chain evidence is not available from this server yet. The practice
-            simulation remains usable.
-          </p>
-        </div>
-      )}
+      ) : null}
       <Button className="primary full" disabled={chainBusy} onClick={runChain}>
         {chainBusy ? (
           <>

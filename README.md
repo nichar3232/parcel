@@ -6,9 +6,9 @@
 
 A unified equity workspace for granular options, covered underwriting, stock lending, protected shorts and structured contracts. Size exposure in share-equivalents, including fractional quantities to six decimals; one share is a denomination, not a minimum lot. A contract must have a nonzero payable obligation.
 
-Parcel is a working **private test-asset product**. The same-origin Node API supports a persistent keyless sandbox and **Parcel program execution on a pinned private Solana validator**. In localnet mode, SPL test tokens back the vault and the program independently executes transfers, option deliveries, lending, protected shorts and cross collateral; SQLite indexes confirmed results. Both modes use funded test counterparties and historical prices. This is not a live brokerage or a source of external liquidity. The original Strata spread desk remains at `/legacy`.
+Parcel is a working **private test-asset product**. The same-origin Node API supports a persistent keyless sandbox and **Parcel program execution on a pinned private Solana validator or on devnet**. In either onchain mode, SPL test tokens back the vault and the program independently executes transfers, option deliveries, stock lending, protected shorts, cash borrow/repay and cross collateral; SQLite indexes confirmed results. Both modes use funded test counterparties and historical prices. This is not a live brokerage or a source of external liquidity. The original Strata spread desk remains at `/legacy`.
 
-![Parcel vault workspace](docs/audit/oddlot/overview.png)
+![Parcel vault workspace](docs/audit/parcel/overview.png)
 
 ## Start
 
@@ -24,15 +24,15 @@ Use Node 22.23.2 from `.nvmrc`. Open `http://localhost:3025`. This single server
 
 ## What works
 
-- **Portfolio:** four sections — overview, positions, collateral and activity. Open contracts are marked to the same model the desk quotes with, and the combined payoff of the whole book is drawn across the price range.
+- **Portfolio:** holdings, a persistent multi-issuer tokenized-equities/PreStocks watchlist, and activity. The watchlist reads the configured issuers’ declared Solana deployments — currently public xStocks and Superstate Opening Bell, plus Ondo Stocks when its issuer API credential is configured — and only their direct indicative quotes. An unavailable quote is never replaced with a model price. Open contracts are marked to the same model the desk quotes with, and the combined payoff of the whole book is drawn across the price range.
 - **Vault:** deposit/withdraw test USDC and NVDA from the app bar; inspect available, reserved and lent assets. Pledged assets cannot be withdrawn, sold or lent again.
-- **Live marks:** a mark engine polls Pyth and Coinbase and walks anything with no fresh observation forward from its last real price. Every mark carries the source that produced it, and the desk shows it. See [pricing](#pricing-and-release-boundaries).
+- **Market data:** a configured Massive server-side stream supplies listed-equity NBBO updates; Pyth supplies oracle marks and Coinbase supplies one crypto venue's BBO. Every mark carries its source, timestamp and quote provenance. A missing, stale or issuer-unavailable source is never presented as a live quote. Solana tokenized equities use separate issuer catalogs and direct issuer quotes rather than the sandbox path. See [pricing](#pricing-and-release-boundaries).
 - **Options chain:** browse calls and puts by strike, daily or hourly expiry, and fractional exposure. Model buy/write indications show physical backing before a funded quote.
 - **Sizing:** direct share-equivalents, premium budgets, and dollar sensitivity per one-cent reference move; exercise funding stays explicit.
 - **Basic / Advanced:** Basic asks which way you think it goes and sizes it. Advanced adds the leg editor, ratios, settlement, the full Greeks, the options chain and the value surface — what the position marks at on every day between now and expiry.
 - **Options:** fractional calls/puts, physical assignment, server-issued 30-second quotes, priced close-out and atomic expiry settlement.
 - **Underwriting:** covered calls lock shares; cash-secured puts lock strike cash. Counterparty obligations are also reserved.
-- **Pre-IPO:** covered calls on sponsor tokens (Tessera, PreStocks). Every mint is read from mainnet and checked against an escrow policy first; a token that passes is written through the same vault quote, reserve and expiry settlement as everything else, on its own precommitted replay path. No sponsor token moves on chain. See [pre-IPO](docs/PREIPO.md).
+- **PreStocks:** the Portfolio watchlist reads the complete publisher catalog, including mark and token price, valuations, supply, description, logo and source link. Its reviewed mints are read from mainnet before the desk ever offers an escrow workflow. Publisher marks are informational; no sponsor token moves on chain. See [PreStocks](docs/PREIPO.md).
 - **Structures:** call/put spreads, straddles, strangles, iron condors, butterflies, collars, and capped dividend-reference contracts. Edit up to four legs and whole-number ratios. Add fixed-payout boxes, capped quadratic/exponential contracts, dividend floors, ranges and convexity.
 - **Money market:** supply and borrow rates are derived from each reserve's utilisation on the two-slope curve, with per-asset loan-to-value and liquidation thresholds, one health factor over the whole book, and the liquidation price of an open short.
 - **Borrow against stock:** pledge tokenized stock and draw USDC from its pool at a variable or fixed rate. The pledge stays in the vault, reserved, up to the asset's loan-to-value. A fixed loan locks the pool's rate and repays itself at term; a variable loan is repriced every session off the same curve and runs until repaid. A pledge that stops covering the debt at the liquidation threshold is sold up at that session's mark.
@@ -43,26 +43,44 @@ Use Node 22.23.2 from `.nvmrc`. Open `http://localhost:3025`. This single server
 
 Start by depositing one NVDA share, choose **Underwrite → Covered call**, review the actual premium and reserve, and confirm. Use **Market controls** to advance historical sessions; due positions settle at their exact stored expiry observation. The UI does not fabricate balances after an API failure.
 
+## Agent access
+
+Parcel's MCP server (`mcp/tools.ts`) lets any agent that speaks MCP (Claude, Codex, Claude Code and others) use the vault through the same HTTP API as the desk, so accounting, risk checks and signing stay on the server. It exposes quotes, options (including spreads and curves), stock, lending, protected shorts, cash borrow/repay, collateral mode and the market replay. Onchain mode supports the same product set against the program stock mint (NVDA); cash-borrow APR is the pool curve (not Black–Scholes), while option and protective-call premiums are Black–Scholes.
+
+**Connect from the desk.** Open **Agents** in the desk's top bar and copy the URL, `<desk-url>/mcp`. Add it to the agent as a remote MCP server; the dialog shows the steps for Claude, Codex and Claude Code. The agent opens Parcel's **Allow** page, and approving it connects that agent to this vault. For example:
+
+```sh
+codex mcp add parcel --url <desk-url>/mcp
+claude mcp add --transport http parcel <desk-url>/mcp
+```
+
+`/mcp` implements MCP's OAuth flow: protected-resource and authorization-server metadata, dynamic client registration, and an authorization code bound to the agent's PKCE challenge, which it exchanges for a key. Approving goes through the desk's CSRF guard; codes last a minute and work once. Each connected agent is listed by name under **Agents** and can be disconnected there. Everything an agent places is labelled **Agent** in Activity, and an agent cannot connect other agents. Claude's connectors reach the server from the internet, so they need the desk at a public https address; Codex and Claude Code connect from the same machine too.
+
+**Or run it locally** over stdio from a checkout: `.mcp.json` registers `mcp/parcel.ts`, which reads `PARCEL_URL` and `PARCEL_AGENT_KEY` (or `PARCEL_SESSION`, a browser's `strata_session` cookie).
+
+On devnet, every agent action returns its signature and an Explorer link. An agent placed these: [deposit](https://explorer.solana.com/tx/4C6a3zaujC6sZ5N3tjNDU8fYjkLLhWecnbei3YUUuqEWgPbFJqwNEvu6iD4kx4dVV8nv6dmRexxhh5yKnfxEmqPx?cluster=devnet), [stock purchase](https://explorer.solana.com/tx/5fRoLSmoXDXu77iiMMe6JVH7T5gq9ZCxT1cGyya4ooyCXLYexefuGvwQtHhdKP978v6Dq3PZSwgVvHeajZoahuS5?cluster=devnet), [call option](https://explorer.solana.com/tx/62ZVnc9ot1pXPAGLsNU7MdPycWowZsmw7KtKXhSLmXRDJPfd1WqRysxXfTLoM1w3UyXW83hy7PvCnYT1ht974S9N?cluster=devnet). A request whose response is lost is saved and resent with the same idempotency key, so it executes exactly once.
+
 ## Code organization
 
-| Area | Responsibility |
-|---|---|
-| `app/tokens.css` | The palette. Every colour in the product resolves through it |
-| `app/page.tsx`, `components/brand/` | Landing page and the payoff viewer it opens on |
-| `app/desk.css`, `components/oddlot/` | Workspace, views, contract editor, charts and the value surface |
-| `hooks/oddlot/use-vault.ts` | Same-origin requests, revisions, recovery and UI state |
-| `hooks/oddlot/use-marks.ts` | The live mark feed, as the desk sees it |
-| `server/prices/` | Mark engine, its two sources, and the simulated maker |
-| `lib/oddlot/lending.ts` | Reserve parameters, the rate curve and the health factor |
-| `lib/oddlot/` | Types, six-decimal arithmetic, Greeks, templates and collateral envelopes |
-| `server/oddlot/service.ts` | Session ownership, quote lifecycle, atomic actions and receipts |
-| `server/oddlot/ledger.ts` | Asset transfers, loans, protected shorts and net expiry settlement |
-| `server/db/002-vaults.sql`, `003-vault-chain.sql` | Vaults, quotes and recoverable onchain operations |
-| `server/oddlot/chain/`, `programs/oddlot/` | Durable execution coordinator, binary codec and new vault program |
-| `app/legacy/`, `server/domain/`, `server/solana/` | Retained historical desk and durable Solana execution |
-| `programs/strata/` | Audited original Anchor escrow program |
-| `tests/`, `.github/workflows/` | Domain/API regression tests and real-backend browser CI |
-| `ops/` | VPS deployment, backup, rollback and restart verification |
+| Area                                              | Responsibility                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------- |
+| `app/tokens.css`                                  | The palette. Every colour in the product resolves through it              |
+| `app/page.tsx`, `components/brand/`               | Landing page and the payoff viewer it opens on                            |
+| `app/desk.css`, `components/parcel/`              | Workspace, views, contract editor, charts and the value surface           |
+| `hooks/parcel/use-vault.ts`                       | Same-origin requests, revisions, recovery and UI state                    |
+| `hooks/parcel/use-marks.ts`                       | The live mark feed, as the desk sees it                                   |
+| `server/prices/`                                  | Mark engine, NBBO/oracle/venue adapters, and the explicit simulated maker |
+| `lib/parcel/lending.ts`                           | Reserve parameters, the rate curve and the health factor                  |
+| `lib/parcel/`                                     | Types, six-decimal arithmetic, Greeks, templates and collateral envelopes |
+| `server/parcel/service.ts`                        | Session ownership, quote lifecycle, atomic actions and receipts           |
+| `server/parcel/ledger.ts`                         | Asset transfers, loans, protected shorts and net expiry settlement        |
+| `server/db/002-vaults.sql`, `003-vault-chain.sql` | Vaults, quotes and recoverable onchain operations                         |
+| `server/parcel/chain/`, `programs/parcel/`        | Durable execution coordinator, binary codec and new vault program         |
+| `server/solana/network.ts`                        | Genesis-pinned localnet/devnet configuration; mainnet is refused          |
+| `app/legacy/`, `server/domain/`, `server/solana/` | Retained historical desk and durable Solana execution                     |
+| `programs/strata/`                                | Audited original Anchor escrow program                                    |
+| `tests/`, `.github/workflows/`                    | Domain/API regression tests and real-backend browser CI                   |
+| `ops/`                                            | VPS deployment, backup, rollback and restart verification                 |
 
 ## Verify
 
@@ -73,24 +91,26 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-CI runs this flow on Linux from a clean checkout. The suite is 121 application tests and 40 browser journeys. They cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, cash loans against pledged stock including term settlement and liquidation, capped shorts, dividends, browser recovery, and that no view scrolls sideways on a phone. The 0.4 release audit recorded 65 application tests, 25 browser journeys, 6 native Rust tests, a 19-action confirmed Parcel chain lifecycle and 9 rejected adversarial program transactions. Actual Solana program verification remains an explicit operator command. See the [findings and verification evidence](docs/audit/2026-09-15-release/REPORT.md).
+CI runs this flow on Linux from a clean checkout. The suite is 129 application tests and 43 browser journeys. They cover accounting conservation, invalid collateral withdrawal, duplicate and expired quotes, wrong-session access, stale revisions, physical assignment, cross-collateral hedge removal, stock loans, cash loans against pledged stock including term settlement and liquidation, capped shorts, dividends, browser recovery, and that no view scrolls sideways on a phone. The 0.4 release audit recorded 65 application tests, 25 browser journeys, 6 native Rust tests, a 19-action confirmed Parcel chain lifecycle and 9 rejected adversarial program transactions. Actual Solana program verification remains an explicit operator command; it runs against the pinned private validator or devnet, and refuses any other ledger. See the [findings and verification evidence](docs/audit/2026-09-15-release/REPORT.md).
 
 ## Pricing and release boundaries
 
 **Live marks are display and indicative pricing only.** The vault's own accounting stays on the stored session clock, so a contract's premium and its settlement can be reproduced from the ledger. The live feed drives the tape, the markets tables, the pre-IPO valuations and the header.
 
-Marks come from Pyth first and Coinbase second, and anything with no fresh observation is walked forward from its last real price by a geometric Brownian motion. Pyth is the only one of the two that publishes US equities, and its price endpoint now requires a key: without `PYTH_API_KEY` it resolves its feed ids, takes one 401 and stands down, which leaves NVDA and every sponsor token on the walk. Coinbase needs no key, so the crypto collateral is genuinely live out of the box. Every mark carries its source and the time of its last real observation, and the UI shows both — a simulated tick is never presented as a market price.
+When `MASSIVE_STOCKS_API_KEY` is configured with real-time entitlement, one server-side Massive WebSocket consumes listed-equity NBBO and trade events, then fans out coalesced same-origin updates through `/api/marks/stream`. The browser never receives the vendor credential. Its midpoint is the listed-equity model mark and its bid/ask are identified as `nbbo`, including only the displayed top-of-book size the feed publishes. Pyth consumes its authenticated Hermes stream when configured, with its REST endpoint retained only as recovery; it is an oracle mark, so Pyth confidence is deliberately never mislabelled as a bid/ask. Coinbase remains a single-venue crypto BBO. Fresh streamed source priority is enforced server-side: a later oracle or venue event cannot overwrite a current consolidated NBBO merely because it arrived later. Any sandbox asset with no fresh observation is walked forward from its last real price and marked `simulated`; a modelled bid/ask is marked as such. Set `MARKET_DATA_REQUIRED=true` in a monitored deployment to make `/api/ready` fail unless the real-time listed-equity NBBO stream is authenticated.
+
+The portfolio watchlist separately refreshes the complete current Solana registry for each configured issuer: public xStocks, public Superstate Opening Bell, and optional credentialed Ondo Stocks. It requests issuer quotes only for followed symbols. It never synthesizes a token quote from a traditional ticker, previous close, or the sandbox walk. The view shows an issuer observation time only when the issuer supplies one; otherwise it labels Parcel's response receipt time rather than inventing a venue timestamp. The view preserves source-qualified identity and the Solana mint; xStocks use Solana's Token-2022 scaled-UI mechanism for corporate actions. These informational records do not settle the sandbox ledger, and they are not a claim to enumerate every arbitrary SPL token carrying an equity-like name.
 
 Sponsor tokens are mock tokens pegged to whatever their provider publishes, re-anchored whenever that mark moves more than a per cent. The simulated maker prints two or three fills a second across the book, minting on a buy and burning on a sell, which is what moves pool utilisation and therefore the lending rates.
 
-Hourly test-clock ticks carry the committed daily close forward; they are not historical intraday data. NVDA closes are retained historical observations from January–April 2025. Options use an explicitly labeled Black–Scholes test model with 45% volatility and 4% annual interest; dividend-reference pricing uses an illustrative 80% input. These are not live quotes or historical option premiums. Dollar theta scales with quantity; shrinking a contract does not change percentage decay per share.
+Hourly test-clock ticks carry the committed daily close forward; they are not historical intraday data. NVDA closes are retained historical observations from January–April 2025. Options use one explicitly labeled Black–Scholes test model across vanilla legs and nonlinear curves: 45% volatility and 4% continuously compounded annual interest, with zero dividend yield; dividend-reference pricing uses an illustrative 80% input. Live listed-option expiries are valued through the 4pm New York close (with daylight saving handled from the market timezone), not midnight UTC. The ticket, ladder, simulator, Greeks, funding checks and quoted model impact call the same pricing functions. The displayed option bid/ask and 25-share-equivalent depth are modelled liquidity assumptions with a stated spread and participation penalty — not an OPRA or exchange options book. These are not live quotes or historical option premiums. Dollar theta scales with quantity; shrinking a contract does not change percentage decay per share.
 
 Dividend contracts reference the issuer's declared $0.01 dividend for the March 12, 2025 record-date event, payable April 2. They do not transfer dividend ownership or model an xStock multiplier as a cash payment. See [product rules and sources](docs/PRODUCT.md).
 
-Sandbox rules are backend-enforced. Configured localnet vaults execute the matching Parcel program with actual SPL escrow and server-held test signers. Production still requires wallet authentication and client signing, external liquidity, live pricing/oracle feeds, issuer/corporate-action handling and independent program review. Onchain mode limits each vault to 64 active positions for account and transaction compute bounds; sandbox mode supports 500. The original Solana evidence remains local-validator evidence; devnet funding is still an open gate. The prior Bellwether repository has been retired; its history is preserved here as this repository's root commit `ed73929`.
+Sandbox rules are backend-enforced. Configured onchain vaults execute the matching Parcel program with actual SPL escrow and server-held test signers, on either the pinned private validator or devnet. Mainnet is refused by the genesis pin and cannot be configured. Production still requires wallet authentication and client signing, external liquidity, live pricing/oracle feeds, issuer/corporate-action handling and independent program review. The market-data adapter is an operational prerequisite for an accurate display, not a replacement for a signed execution quote or a settlement oracle. Onchain mode limits each vault to 64 active positions for account and transaction compute bounds; sandbox mode supports 500. The program is **also deployed on devnet** as `FwEY5cM9vP31LwywoJu1XWQ1nvBeNh2aMsVVpbYayRvC`, with its own operator and six-decimal test mints (it replaces `A4NTJ45B…`, whose operator key was lost), where the same 19-action lifecycle and all 14 adversarial rejections are confirmed. Devnet needs a dedicated `SOLANA_RPC_URL`: the public endpoint rate limits well below what a complete run, or a desk serving several readers, requires. The prior Bellwether repository has been retired; its history is preserved here as this repository's root commit `ed73929`.
 
 The [original engineering audit](docs/audit/REPORT.md) records the legacy execution review and dependency findings. Two moderate entries remain in an unused upstream streaming parser; there are no critical/high findings in that retained audit. The original audited program artifacts and evidence are preserved. No private keys, runtime databases or real `.env` files belong in this repository.
 
 ## Review the current product
 
-The [product-suite verification](docs/audit/2026-09-15-product-suite/REPORT.md) covers this extension. The [Parcel submission](submission/ENTRY.md), [demo script](submission/DEMO_SCRIPT.md), and [narrated video](submission/oddlot-demo.mp4) remain the prior 0.3 release materials; video/live-provider work is outside this product extension. Previous Bellwether/Strata materials are retained in `submission/legacy/` as historical evidence. A fresh keyless clone starts in sandbox mode. See [Parcel localnet setup](docs/ODDLOT_CHAIN.md) to enable the new program; execution never silently falls back to SQLite.
+The [product-suite verification](docs/audit/2026-09-15-product-suite/REPORT.md) covers this extension. The [Parcel submission](submission/ENTRY.md), [demo script](submission/DEMO_SCRIPT.md), and [narrated video](submission/parcel-demo.mp4) remain the prior 0.3 release materials; video/live-provider work is outside this product extension. Previous Bellwether/Strata materials are retained in `submission/legacy/` as historical evidence. A fresh keyless clone starts in sandbox mode. See [Parcel localnet setup](docs/PARCEL_CHAIN.md) to enable the new program; execution never silently falls back to SQLite.

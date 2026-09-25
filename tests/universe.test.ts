@@ -11,13 +11,13 @@ import {
   totals,
   transfer,
   validateLedger,
-} from '../server/oddlot/ledger';
-import { historyOf, mark, marketRows } from '../lib/oddlot/market';
-import { risk } from '../lib/oddlot/risk';
-import { parseOrderTerms } from '../lib/oddlot/validation';
-import { UNDERLYINGS, underlying } from '../lib/oddlot/universe';
-import { valueSeries } from '../lib/oddlot/value';
-import type { OrderTerms, VaultBook } from '../lib/oddlot/types';
+} from '../server/parcel/ledger';
+import { historyOf, mark, marketRows } from '../lib/parcel/market';
+import { risk } from '../lib/parcel/risk';
+import { parseOrderTerms } from '../lib/parcel/validation';
+import { UNDERLYINGS, underlying } from '../lib/parcel/universe';
+import { valueChartDomain, valueSeries } from '../lib/parcel/value';
+import type { OrderTerms, VaultBook } from '../lib/parcel/types';
 
 void test('every underlying shares one session calendar', () => {
   const dates = marketRows.map((r) => r.date);
@@ -27,6 +27,18 @@ void test('every underlying shares one session calendar', () => {
       dates,
       `${u.symbol} sessions`,
     );
+});
+
+void test('vault chart domains do not magnify sub-basis-point mark noise', () => {
+  const domain = valueChartDomain([
+    { value: 13_279.02 },
+    { value: 13_279.86 },
+  ]);
+  // At least 25 bp, plus a small visual cushion: pennies stay visible in the
+  // number but do not consume an entire 200px chart.
+  assert.ok(domain.hi - domain.lo > 13_279.44 * 0.0025 * 1.19);
+  assert.ok(domain.lo < 13_279.02);
+  assert.ok(domain.hi > 13_279.86);
 });
 
 void test('a simulated path opens at the mark it was struck from', () => {
@@ -92,25 +104,23 @@ void test('loans and shorts carry their symbol through open and close', () => {
   const b = initialVault();
   const original = totals(b);
   transfer(b.wallet, b.vault, 'USDC', 10_000);
-  transfer(b.wallet, b.vault, 'T-OpenAI', 3);
-  openLoan(b, 1, '2025-02-07', 'T-OpenAI');
-  assert.equal(b.loans[0].symbol, 'T-OpenAI');
-  assert.equal(b.vault['T-OpenAI'], 2);
-  const cap = Math.ceil(mark('T-OpenAI', b.date) * 1.2);
-  openShort(b, 1, cap, '2025-02-07', 'T-OpenAI');
-  assert.equal(b.shorts[0].symbol, 'T-OpenAI');
-  assert.equal(risk(b).counterpartyShares['T-OpenAI'], 1);
+  transfer(b.wallet, b.vault, 'OPENAI', 3);
+  openLoan(b, 1, '2025-02-07', 'OPENAI');
+  assert.equal(b.loans[0].symbol, 'OPENAI');
+  assert.equal(b.vault.OPENAI, 2);
+  const cap = Math.ceil(mark('OPENAI', b.date) * 1.2);
+  openShort(b, 1, cap, '2025-02-07', 'OPENAI');
+  assert.equal(b.shorts[0].symbol, 'OPENAI');
+  assert.equal(risk(b).counterpartyShares.OPENAI, 1);
   assert.equal(risk(b).counterpartyShares.NVDA, 0);
   setMarketDate(b, '2025-02-07');
   assert.equal(b.loans[0].status, 'closed');
   assert.equal(b.shorts[0].status, 'closed');
-  assert.equal(b.vault['T-OpenAI'], 3);
+  assert.equal(b.vault.OPENAI, 3);
   validateLedger(b, original);
   // Every event on this book names the token it moved.
   assert.ok(
-    b.events
-      .filter((e) => e.shares !== 0)
-      .every((e) => e.symbol === 'T-OpenAI'),
+    b.events.filter((e) => e.shares !== 0).every((e) => e.symbol === 'OPENAI'),
   );
 });
 
@@ -189,5 +199,23 @@ void test('a version 2 book migrates to NVDA and gains the new symbols', () => {
   assert.equal(mine.shares.NVDA, fresh.shares.NVDA);
   // And it values on the right path.
   const series = valueSeries(book);
-  assert.equal(series[0].value, 1000 + 1 * mark('NVDA', '2025-01-24'));
+  const opened = series.find((p) => p.date === '2025-01-24' && !p.backfill)!;
+  assert.equal(opened.value, 1000 + 1 * mark('NVDA', '2025-01-24'));
+  // Days before the first deposit carry the opening holdings at their
+  // own closes, marked as backfill.
+  assert.ok(series[0].backfill && series[0].date < '2025-01-24');
+});
+
+// Bounty rule: a project that integrates any pre-IPO token not issued by
+// PreStocks is ineligible. Every non-listed underlying must be PreStocks.
+void test('every pre-IPO underlying is a PreStocks token', () => {
+  const preIpo = UNDERLYINGS.filter((u) => u.provider !== 'equity');
+  assert.ok(preIpo.length > 0);
+  for (const u of preIpo) assert.equal(u.provider, 'prestocks', u.symbol);
+});
+
+void test('a pre-IPO symbol ending in X is not mistaken for an xStock', async () => {
+  const { categoryOf } = await import('../lib/parcel/lending');
+  assert.equal(categoryOf('SPACEX'), 'preipo');
+  assert.equal(categoryOf('NVDAx'), 'xstocks');
 });

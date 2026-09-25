@@ -1,6 +1,6 @@
-# Oddlot release hardening — September 15, 2026
+# Parcel release hardening — September 15, 2026
 
-The reported accounting, rendering, confirmation and replay failures are corrected in the local release branch. Current Oddlot vault actions now have a matching Solana program and a recoverable backend integration, demonstrated with actual SPL test-token escrow on the private validator. This is a tested hackathon release candidate, not a production financial service or an independent security certification.
+The reported accounting, rendering, confirmation and replay failures are corrected in the local release branch. Current Parcel vault actions now have a matching Solana program and a recoverable backend integration, demonstrated with actual SPL test-token escrow on the private validator. This is a tested hackathon release candidate, not a production financial service or an independent security certification.
 
 ## Findings and resulting behavior
 
@@ -16,12 +16,12 @@ The reported accounting, rendering, confirmation and replay failures are correct
 | Interrupted browser intent may duplicate | Original request body/key persist before sending. Two lost responses, reload, blocked new action and same-key recovery are reproduced through the real API. The onchain coordinator also survives confirmed execution followed by interrupted indexing. |
 | Last historical session has no reset | Final-date controls offer a new replay. Flat books restore test allocations while revision and receipts continue. |
 | Slow collateral calculation | O(L log L) sorted strike sweeps replace quadratic grids. A 500-position/2,000-leg fixture measured 2.73 ms median and 4.88 ms p95 over 25 runs on this Mac; this is a fixture measurement, not a production SLA. |
-| New products execute only in SQLite | `programs/oddlot` executes the current vault rules, checks collateral/conservation and actual SPL backing, and rejects a mismatched backend projection. SQLite commits only after confirmation and program-account verification. Sandbox mode remains explicitly separate. |
+| New products execute only in SQLite | `programs/parcel` executes the current vault rules, checks collateral/conservation and actual SPL backing, and rejects a mismatched backend projection. SQLite commits only after confirmation and program-account verification. Sandbox mode remains explicitly separate. |
 | Onchain larger books exhaust memory | The 64-position test found the default allocator still used 32 KiB despite a larger transaction heap request. The program now uses the bounded 256 KiB frame. A real 64-contract/256-leg book opens, withdraws all free cash and settles atomically. |
 | Lending has no productive borrowing | New loans sell borrowed stock to the test market, buy covered cap protection and escrow repayment plus interest. Pledged market stock cannot be reused. Old stored loans retain their original repayment rules. |
 | No real liquidity demonstrated | The product explicitly identifies funded test counterparties. No external maker, option demand or live borrow utilization is claimed. This is a remaining production integration, not something a simulator can establish. |
 | Affordability claim hides funding | UI and entry distinguish fractional sizing from premium-only funding. The initial physical call requires approximately $145 exercise cash plus $4.04 premium. A cash-settled spread is a different bounded alternative. |
-| Stale entry and video | Current entry, walkthrough, narration, video and UI evidence describe Oddlot. Prior Bellwether/Strata materials are archived under `submission/legacy/`. |
+| Stale entry and video | Current entry, walkthrough, narration, video and UI evidence describe Parcel. Prior Bellwether/Strata materials are archived under `submission/legacy/`. |
 
 ## Verification
 
@@ -35,11 +35,11 @@ The reported accounting, rendering, confirmation and replay failures are correct
 - Current dependency audit: no high/critical findings; two moderate upstream entries remain (the inherited jayson/stream-json advisory).
 - Separate actual-localnet UI check verifies the proof route, desktop/mobile layout and a definite HTTP 409 for an invalid withdrawal without creating a pending chain operation.
 
-Evidence: [unit output](unit.txt), [browser output](browser.txt), [native tests](rust-test.txt), [lifecycle](chain-lifecycle.json), [adversarial tests](chain-adversarial.json), [capacity](chain-capacity.json), [performance](risk-performance.json), [deployed binary comparison](program-verification.json). The program binary in `artifacts/oddlot-localnet.so` matches the deployed program bytes. Raw current-program transactions are archived in `transaction-proofs/`.
+Evidence: [unit output](unit.txt), [browser output](browser.txt), [native tests](rust-test.txt), [lifecycle](chain-lifecycle.json), [adversarial tests](chain-adversarial.json), [capacity](chain-capacity.json), [performance](risk-performance.json), [deployed binary comparison](program-verification.json). The program binary in `artifacts/parcel-localnet.so` matches the deployed program bytes. Raw current-program transactions are archived in `transaction-proofs/`.
 
 ## Organization and operating limits
 
-The pure TypeScript ledger/risk layer remains separate from HTTP ownership and persistence. Shared funding functions keep reviewed short/loan amounts aligned with execution. `VaultService.plan` prepares without committing; `commit` records a verified result. `server/oddlot/chain` separates encoding, RPC/token preparation and durable orchestration. No RPC waits hold a SQLite write transaction. A database uniqueness constraint permits one unresolved operation per owner; raw signed bytes are stored before broadcasting.
+The pure TypeScript ledger/risk layer remains separate from HTTP ownership and persistence. Shared funding functions keep reviewed short/loan amounts aligned with execution. `VaultService.plan` prepares without committing; `commit` records a verified result. `server/parcel/chain` separates encoding, RPC/token preparation and durable orchestration. No RPC waits hold a SQLite write transaction. A database uniqueness constraint permits one unresolved operation per owner; raw signed bytes are stored before broadcasting.
 
 The program stores active economic obligations; SQLite retains descriptions, closed history and receipts. Localnet supports 64 active positions, with explicit quote/action limits. Sandbox supports 500. Long-lived history/receipt retention is not yet paginated or pruned, and the service has no production rate-limiting/operational capacity claim. Session access uses the existing HttpOnly test cookie, not user wallet identity. Both test owner and operator signers are service-held. The operator prices test quotes and can upgrade the program. Issuer tokens, corporate actions, live oracle attestations, external liquidity and independent program review remain production work.
 

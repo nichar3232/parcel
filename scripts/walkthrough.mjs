@@ -49,7 +49,7 @@ async function run(width, height, tag) {
     .first()
     .click();
   await page.waitForURL('**/app');
-  await page.waitForSelector('.oddlot[data-ready="true"]');
+  await page.waitForSelector('.parcel[data-ready="true"]');
   await shoot(page, `${tag}-03-vault`, { fullPage: true });
 
   const mobile = width < 900;

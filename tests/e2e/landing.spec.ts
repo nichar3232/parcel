@@ -15,11 +15,14 @@ test('the landing page shows the products and routes into the desk', async ({
     page.getByRole('navigation', { name: 'Products' }).getByRole('link'),
   ).toHaveCount(5);
 
-  // The viewer quotes a priced position, with a term, not a mock-up.
+  // The viewer quotes a priced position, not a mock-up.
   const viewer = page.locator('.lp-viewer');
-  for (const k of ['Size', 'Max loss', 'Max gain', 'Break-even'])
+  for (const k of ['Net premium', 'Max loss', 'Max gain', 'Break-even'])
     await expect(viewer.locator('.lp-viewer-stats')).toContainText(k);
-  await expect(viewer.locator('.lp-viewer-contract')).toContainText('$');
+  // Every structure's copy is laid out at once so the hero never
+  // changes height; the one on show is marked `.on`.
+  await expect(viewer.locator('.on .lp-viewer-contract')).toContainText('$');
+  await expect(viewer.getByRole('link')).toHaveCount(0);
 
   // No stat label may wrap: a two-line label pushes its value off the
   // baseline the other three sit on.
@@ -76,19 +79,26 @@ test('the landing page shows the products and routes into the desk', async ({
   await expect(viewer.locator('.lp-viewer-stats')).toContainText('∞');
 
   // Picking another structure changes the shape and the figures.
-  const first = await viewer.locator('h2').textContent();
+  const first = await viewer.locator('.on h2').textContent();
   await viewer.locator('.lp-viewer-pips button').nth(3).click();
-  await expect(viewer.locator('h2')).not.toHaveText(first!);
+  await expect(viewer.locator('.on h2')).not.toHaveText(first!);
 
-  // The status rail states what the desk is actually running on.
-  await expect(page.locator('.lp-rail > div')).toHaveCount(4);
-  await expect(page.locator('.lp-rail')).toContainText(/\$\d+\.\d{2}/);
+  // The landing states its operating model instead of a frozen market-data rail.
+  await expect(page.locator('.lp-rail')).toHaveCount(0);
+  const principles = page.getByRole('region', {
+    name: 'One vault. Defined terms.',
+  });
+  await expect(principles.locator('.lp-principles-list > li')).toHaveCount(3);
+  await expect(principles).toContainText('Reserve first');
+  const agents = page.locator('#agents');
+  await expect(agents).toContainText('An agent can run the desk');
+  await expect(agents.locator('.lp-principles-list > li')).toHaveCount(3);
 
   // one product at a time: five tabs, exactly one open panel
   const tabs = ['Options', 'Underwriting', 'Structures', 'Pre-IPO', 'Lending'];
   await expect(page.getByRole('tab')).toHaveCount(tabs.length);
   await expect(page.locator('.lp-panel')).toHaveCount(1);
-  await expect(page.locator('#how')).toHaveCount(1);
+  await expect(page.locator('#how')).toHaveCount(0);
 
   // each shows a worked figure and a preview of what it does
   for (const name of tabs) {
@@ -148,4 +158,29 @@ test('the landing page fits a phone without horizontal scroll', async ({
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test('the landing mark responds to scroll without compromising navigation', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const nav = page.locator('.lp-nav');
+  const mark = nav.locator('.pc-mark');
+
+  await expect(mark).toBeVisible();
+  await page.evaluate(() => window.scrollTo({ top: 900, behavior: 'instant' }));
+  await expect(nav).toHaveAttribute('data-scrolled', '');
+
+  // The mark rotates with reader input rather than running as a decorative
+  // loader. Its transform is supplied by the scroll position on the header.
+  await expect
+    .poll(() =>
+      nav.evaluate((node) =>
+        node.style.getPropertyValue('--lp-mark-scroll-rotation'),
+      ),
+    )
+    .not.toBe('');
+  expect(
+    await mark.evaluate((node) => getComputedStyle(node).transform),
+  ).not.toBe('none');
 });

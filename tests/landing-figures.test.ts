@@ -10,11 +10,11 @@ import {
   SPOT,
   EXPIRY,
   dayLabel,
-} from '../lib/oddlot/landing';
-import { mark, expiries, VOLATILITY } from '../lib/oddlot/market';
-import { orderGreeks, strategyPnl, days } from '../lib/oddlot/math';
-import { termInterest } from '../lib/oddlot/funding';
-import type { OrderTerms } from '../lib/oddlot/types';
+} from '../lib/parcel/landing';
+import { mark, expiries, VOLATILITY } from '../lib/parcel/market';
+import { orderGreeks, strategyPnl, days } from '../lib/parcel/math';
+import { termInterest } from '../lib/parcel/funding';
+import type { OrderTerms } from '../lib/parcel/types';
 import { EXERCISE_WINDOW_DAYS } from '../lib/preipo/terms';
 
 /**
@@ -62,7 +62,7 @@ void test('the pre-IPO expiry is one exercise window after the open', () => {
   const rows = Object.fromEntries(
     EXAMPLES.find((e) => e.id === 'pre-ipo')!.rows,
   );
-  assert.equal(rows['Escrow 0.25 T-OpenAI'], dayLabel(PREIPO_EXPIRY));
+  assert.equal(rows['Escrow 0.25 OPENAI'], dayLabel(PREIPO_EXPIRY));
 });
 
 void test('the quoted single-call premium is what the engine prices', () => {
@@ -106,7 +106,7 @@ void test('the hero is a long call, whose upside does not stop', () => {
 
   // The drawn path has a point for every sample, inside the viewBox,
   // and rises from left to right.
-  assert.equal(HERO.line.split('L').length, 81);
+  assert.equal(HERO.line.split('L').length, 201);
   const ys = [...HERO.line.matchAll(/[ML]([\d.]+),([\d.]+)/g)].map(
     ([, x, y]) => {
       assert.ok(Number(x) >= 0 && Number(x) <= 760);

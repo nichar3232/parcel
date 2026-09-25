@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../server/db/store';
-import { VaultService } from '../server/oddlot/service';
-import { initialVault, totals, validateLedger } from '../server/oddlot/ledger';
+import { VaultService } from '../server/parcel/service';
+import { initialVault, totals, validateLedger } from '../server/parcel/ledger';
 import {
   add,
   cashPayoff,
@@ -11,14 +11,24 @@ import {
   mul,
   optionGreeks,
   orderGreeks,
-} from '../lib/oddlot/math';
+} from '../lib/parcel/math';
+import { curveCash } from '../lib/parcel/curves';
 import { units } from '../lib/engine';
-import { borrowDebt, borrowInterest } from '../lib/oddlot/funding';
-import { borrowRate } from '../lib/oddlot/lending';
-import { mark } from '../lib/oddlot/market';
-import { marginGroups } from '../lib/oddlot/risk';
-import { templateTerms, templates } from '../lib/oddlot/templates';
-import type { OrderTerms, VaultAction } from '../lib/oddlot/types';
+import {
+  borrowDebt,
+  borrowInterest,
+  protectionPremium,
+} from '../lib/parcel/funding';
+import {
+  borrowRate,
+  rates,
+  reserveOf,
+  RESTING_UTILISATION,
+} from '../lib/parcel/lending';
+import { mark, volatility } from '../lib/parcel/market';
+import { marginGroups } from '../lib/parcel/risk';
+import { strikeStep, templateTerms, templates } from '../lib/parcel/templates';
+import type { OrderTerms, VaultAction } from '../lib/parcel/types';
 function setup() {
   const store = new Store(':memory:'),
     { session } = store.createSession();
@@ -137,6 +147,42 @@ void test('vault: quote execution is owner-bound, revision-bound, expiring and e
     a.setNow(q2.expiresAt);
     assert.throws(() => a.act({ type: 'execute', quoteId: q2.id }), /expired/);
     assert.equal(a.refresh().book.options.length, 1);
+  } finally {
+    a.store.close();
+  }
+});
+void test('vault: an older idempotent receipt is completed with the current market metadata', () => {
+  const a = setup();
+  try {
+    const key = randomUUID(),
+      request = {
+        revision: a.state.revision,
+        action: {
+          type: 'transfer' as const,
+          asset: 'USDC' as const,
+          direction: 'deposit' as const,
+          amount: 1000,
+        },
+      },
+      first = a.service.apply(a.session, key, request),
+      { underlyings: _underlyings, ...legacyMarket } = first.market,
+      legacyReceipt = {
+        ...first,
+        market: { ...legacyMarket, underlyings: [] },
+      };
+
+    // Simulate a durable receipt from a deploy that knew the market-list
+    // field but persisted it empty. It must remain idempotent without
+    // crashing a current client that relies on the catalog for its ticket.
+    a.store.db
+      .prepare('UPDATE receipts SET response=? WHERE owner=? AND key=?')
+      .run(JSON.stringify(legacyReceipt), a.session.id, key);
+
+    const retried = a.service.apply(a.session, key, request);
+    assert.equal(retried.revision, first.revision);
+    assert.deepEqual(retried.book, first.book);
+    assert.equal(retried.market.underlyings.length, 9);
+    assert.equal(retried.market.underlyings[0]?.symbol, 'NVDA');
   } finally {
     a.store.close();
   }
@@ -382,6 +428,50 @@ void test('vault: short above cap exercises reserved stock and stays within maxi
     a.store.close();
   }
 });
+void test('vault: lending previews and execution use the underlying volatility and resting rate', () => {
+  const a = setup();
+  try {
+    const symbol = 'OPENAI',
+      quantity = 0.25,
+      expiry = '2025-01-31',
+      entry = mark(symbol, a.state.book.date),
+      cap = Math.round(entry * 1.5 * 1e6) / 1e6,
+      expectedProtection = protectionPremium(
+        quantity,
+        entry,
+        cap,
+        a.state.book.date,
+        expiry,
+        volatility(symbol),
+      );
+
+    // PreStocks deliberately carries a different model volatility from
+    // NVDA. The displayed protective-call cost must remain the same one
+    // the lender and short ledger actually funds.
+    assert.notEqual(volatility(symbol), 0.45);
+    a.deposit('USDC', 1000);
+    a.act({ type: 'short', quantity, cap, expiry, symbol });
+    assert.equal(a.state.book.shorts[0].premium, expectedProtection);
+
+    a.act({
+      type: 'transfer',
+      direction: 'deposit',
+      asset: symbol,
+      amount: quantity,
+    });
+    a.act({ type: 'lend', quantity, expiry, symbol });
+    assert.equal(a.state.book.loans[0].productive?.premium, expectedProtection);
+
+    const reserve = reserveOf(symbol);
+    assert.ok(reserve);
+    assert.equal(
+      borrowRate(symbol, null),
+      rates(RESTING_UTILISATION, reserve).borrow,
+    );
+  } finally {
+    a.store.close();
+  }
+});
 void test('vault: cash borrowed against pledged stock is capped at loan-to-value, reserves the pledge and repays with interest', () => {
   const a = setup();
   try {
@@ -415,10 +505,18 @@ void test('vault: cash borrowed against pledged stock is capped at loan-to-value
       /available NVDA/,
     );
     // The borrowed cash itself is free to leave: that is what a loan is for.
-    a.act({ type: 'transfer', asset: 'USDC', direction: 'withdraw', amount: 50 });
+    a.act({
+      type: 'transfer',
+      asset: 'USDC',
+      direction: 'withdraw',
+      amount: 50,
+    });
     a.act({ type: 'advance', date: '2025-01-27' });
     // Repaying needs the principal and the interest in the vault.
-    assert.throws(() => a.act({ type: 'repay', id: p.id }), /Insufficient USDC/);
+    assert.throws(
+      () => a.act({ type: 'repay', id: p.id }),
+      /Insufficient USDC/,
+    );
     a.deposit('USDC', 51);
     const owed = borrowDebt(a.state.book.borrows[0], '2025-01-27');
     assert.ok(owed.interest > 0);
@@ -456,7 +554,12 @@ void test('vault: a fixed-rate loan locks its rate, settles at its term and sell
     assert.equal(p.expiry, '2025-01-31');
     const term = borrowInterest(40, p.apr, '2025-01-24', '2025-01-31');
     // Spend the loan, then let the term run out with nothing to repay it from.
-    a.act({ type: 'transfer', asset: 'USDC', direction: 'withdraw', amount: 40 });
+    a.act({
+      type: 'transfer',
+      asset: 'USDC',
+      direction: 'withdraw',
+      amount: 40,
+    });
     a.act({ type: 'advance', date: '2025-01-27' });
     assert.equal(a.state.book.borrows[0].apr, p.apr);
     a.act({ type: 'advance', date: '2025-01-31' });
@@ -605,6 +708,220 @@ void test('math: share quantity scales premium and dollar theta without changing
     150,
   );
 });
+void test('math: Black-Scholes prices, greeks and parity are analytical at any permitted size', () => {
+  // The standard S=K=100, T=1, r=5%, sigma=20% reference case. Vega is
+  // quoted per one volatility point, and theta per calendar day, matching the
+  // values the ticket displays rather than leaving a hidden unit conversion.
+  const model = { riskFreeRate: 0.05, dividendYield: 0 };
+  const call = optionGreeks('call', 100, 100, 365, 0.2, model);
+  const put = optionGreeks('put', 100, 100, 365, 0.2, model);
+  const close = (actual: number, expected: number, tolerance = 1e-5) =>
+    assert.ok(
+      Math.abs(actual - expected) < tolerance,
+      `expected ${actual} to be within ${tolerance} of ${expected}`,
+    );
+
+  close(call.price, 10.450584);
+  close(put.price, 5.573526);
+  close(call.delta, 0.636831);
+  close(call.gamma, 0.018762);
+  close(call.vega, 0.37524);
+  close(call.theta, -0.017573, 2e-5);
+  close(call.price - put.price, 100 - 100 * Math.exp(-0.05));
+
+  const carryModel = { riskFreeRate: 0.04, dividendYield: 0.015 };
+  const carryCall = optionGreeks('call', 100, 105, 180, 0.35, carryModel);
+  const carryPut = optionGreeks('put', 100, 105, 180, 0.35, carryModel);
+  close(
+    carryCall.price - carryPut.price,
+    100 * Math.exp(-0.015 * (180 / 365)) - 105 * Math.exp(-0.04 * (180 / 365)),
+    1e-8,
+  );
+
+  const oneShare = templateTerms('call', '2025-02-07');
+  oneShare.quantity = 1;
+  const microShare = structuredClone(oneShare);
+  microShare.quantity = 0.000001;
+  const full = orderGreeks(oneShare, 142.62, '2025-01-24');
+  const micro = orderGreeks(microShare, 142.62, '2025-01-24');
+  for (const key of ['price', 'delta', 'gamma', 'theta', 'vega'] as const)
+    close(micro[key] * 1_000_000, full[key], 1e-10);
+  assert.equal(cashPayoff(microShare, 160), 0.000015);
+});
+void test('math: every template uses signed Black-Scholes legs and its expiry delivery exactly reproduces payoff', () => {
+  const close = (actual: number, expected: number, label: string) =>
+    assert.ok(
+      Math.abs(actual - expected) < 1e-6,
+      `${label}: expected ${actual} to equal ${expected}`,
+    );
+  const model = { riskFreeRate: 0.031, dividendYield: 0.012 };
+
+  for (const template of templates) {
+    const terms = templateTerms(template.id, '2025-02-07');
+    const spot = terms.reference === 'dividend' ? 0.01 : 142.62;
+    const vol = terms.reference === 'dividend' ? 0.8 : 0.45;
+
+    if (terms.curve) {
+      const base = orderGreeks(terms, spot, '2025-01-24', vol, model);
+      const higherRate = orderGreeks(terms, spot, '2025-01-24', vol, {
+        ...model,
+        riskFreeRate: 0.08,
+      });
+      assert.notEqual(
+        base.price,
+        higherRate.price,
+        `${template.id} curve must use the shared Black-Scholes rate`,
+      );
+      continue;
+    }
+
+    const greeks = orderGreeks(terms, spot, '2025-01-24', vol, model);
+    const independentlyPriced = terms.legs.reduce((total, leg) => {
+      const side = leg.side === 'buy' ? 1 : -1;
+      return (
+        total +
+        optionGreeks(
+          leg.kind,
+          spot,
+          leg.strike,
+          (Date.parse(terms.expiry) - Date.parse('2025-01-24')) / 86400000,
+          vol,
+          model,
+        ).price *
+          terms.quantity *
+          leg.ratio *
+          side
+      );
+    }, 0);
+    close(greeks.price, independentlyPriced, `${template.id} model price`);
+
+    const strikes = terms.legs.map((leg) => leg.strike);
+    const points = [
+      0,
+      ...strikes.flatMap((strike) => [
+        Math.max(0, strike - 0.000001),
+        strike,
+        strike + 0.000001,
+      ]),
+      Math.max(...strikes) * 2,
+    ];
+    for (const settlement of points) {
+      const expected = terms.legs.reduce((total, leg) => {
+        const intrinsic = Math.max(
+          0,
+          leg.kind === 'call'
+            ? settlement - leg.strike
+            : leg.strike - settlement,
+        );
+        return (
+          total +
+          intrinsic * terms.quantity * leg.ratio * (leg.side === 'buy' ? 1 : -1)
+        );
+      }, 0);
+      close(
+        cashPayoff(terms, settlement),
+        expected,
+        `${template.id} cash payoff at ${settlement}`,
+      );
+      if (terms.settlement === 'physical') {
+        const delivery = deliveries(terms, settlement);
+        close(
+          delivery.cash + delivery.shares * settlement,
+          cashPayoff(terms, settlement),
+          `${template.id} physical delivery at ${settlement}`,
+        );
+      }
+    }
+  }
+});
+void test('math: curve templates scale with the selected underlying and keep their full payout envelope', () => {
+  const baseSpot = 142.62;
+  const targetSpot = 1_017.5;
+  const ratio = targetSpot / baseSpot;
+  const step = strikeStep(targetSpot);
+  const close = (actual: number, expected: number, label: string) =>
+    assert.ok(
+      Math.abs(actual - expected) < 0.000002,
+      `${label}: expected ${actual} to equal ${expected}`,
+    );
+
+  for (const template of templates.filter((candidate) => candidate.curve)) {
+    const nvda = templateTerms(template.id, '2025-02-07');
+    const scaled = templateTerms(template.id, '2025-02-07', 'MSFT', targetSpot);
+    assert.ok(nvda.curve && scaled.curve, `${template.id} must retain a curve`);
+    if (nvda.reference === 'stock') {
+      close(
+        scaled.curve.lower,
+        Math.round((nvda.curve.lower * ratio) / step) * step,
+        `${template.id} lower strike scales`,
+      );
+      close(
+        scaled.curve.upper,
+        Math.round((nvda.curve.upper * ratio) / step) * step,
+        `${template.id} upper strike scales`,
+      );
+      close(
+        scaled.curve.cap,
+        nvda.curve.cap * ratio,
+        `${template.id} cap scales`,
+      );
+    } else {
+      assert.deepEqual(scaled.curve, nvda.curve);
+    }
+
+    const curve = scaled.curve;
+    const points = [
+      0,
+      curve.lower,
+      (curve.lower + curve.upper) / 2,
+      curve.upper,
+      curve.upper * 2,
+    ];
+    for (const settlement of points) {
+      const expected = Number(curveCash(scaled, settlement)) / 1e6;
+      close(
+        cashPayoff(scaled, settlement),
+        expected,
+        `${template.id} curve payoff at ${settlement}`,
+      );
+    }
+    assert.equal(
+      cashPayoff(scaled, 0),
+      0,
+      `${template.id} has no low-tail payout`,
+    );
+    close(
+      cashPayoff(scaled, curve.upper * 2),
+      curve.cap,
+      `${template.id} reaches its disclosed cap`,
+    );
+  }
+});
+void test('math: every nonlinear ticket equals its integer settlement curve at expiry', () => {
+  const close = (actual: number, expected: number, label: string) =>
+    assert.ok(
+      Math.abs(actual - expected) < 1e-9,
+      `${label}: expected ${actual} to equal ${expected}`,
+    );
+  for (const template of templates.filter((candidate) => candidate.curve)) {
+    const terms = templateTerms(template.id, '2025-02-07');
+    const curve = terms.curve!;
+    for (const spot of [
+      0,
+      curve.lower - 0.000001,
+      curve.lower,
+      (curve.lower + curve.upper) / 2,
+      curve.upper,
+      curve.upper + 0.000001,
+      curve.upper * 2,
+    ])
+      close(
+        orderGreeks(terms, Math.max(0.000001, spot), terms.expiry).price,
+        cashPayoff(terms, Math.max(0.000001, spot)),
+        `${template.id} at ${spot}`,
+      );
+  }
+});
 void test('vault: a stored book reopens with its positions and revision intact', () => {
   const a = setup();
   try {
@@ -749,4 +1066,36 @@ void test('vault: fractional cross collateral settles after all free cash is wit
   } finally {
     a.store.close();
   }
+});
+
+void test('agent-placed actions mark only their own receipts, and no other source is accepted', () => {
+  const store = new Store(':memory:'),
+    { session } = store.createSession(),
+    service = new VaultService(store);
+  const apply = (revision: number, action: VaultAction, source?: string) =>
+    service.apply(session, randomUUID(), { revision, action, source });
+  let state = apply(0, {
+    type: 'transfer',
+    asset: 'USDC',
+    amount: 1000,
+    direction: 'deposit',
+  });
+  assert.equal(state.book.events[0].via, undefined);
+  state = apply(
+    state.revision,
+    { type: 'stock', side: 'buy', symbol: 'NVDA', quantity: 1 },
+    'agent',
+  );
+  assert.equal(state.book.events[0].via, 'agent');
+  assert.equal(state.book.events.filter((e) => e.via === 'agent').length, 1);
+  assert.throws(
+    () =>
+      apply(
+        state.revision,
+        { type: 'stock', side: 'buy', symbol: 'NVDA', quantity: 1 },
+        'robot',
+      ),
+    /Unsupported request source/,
+  );
+  store.close();
 });

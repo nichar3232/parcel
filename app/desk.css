@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------
    The Parcel desk.
 
-   This replaces oddlot.css and theme.css for the workspace. Those were
+   This replaces parcel.css and theme.css for the workspace. Those were
    a base stylesheet and a skin that overrode it, so half the rules in
    the product existed only to undo the other half, and every new panel
    had to be styled twice to look like one thing. One file, one set of
@@ -121,12 +121,13 @@
   z-index: 50;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 18px;
   height: var(--dk-bar);
-  padding: 0 32px;
-  border-bottom: 1px solid var(--pc-line-soft);
-  background: color-mix(in srgb, var(--pc-void) 84%, transparent);
-  backdrop-filter: blur(16px) saturate(1.4);
+  padding: 0 clamp(20px, 2.5vw, 40px);
+  border-bottom: 0;
+  background: color-mix(in srgb, var(--pc-void) 93%, transparent);
+  box-shadow: inset 0 -1px 0 var(--pc-line-soft);
+  backdrop-filter: blur(18px) saturate(1.08);
 }
 .od-brand {
   display: inline-flex;
@@ -153,27 +154,32 @@
 
 /* The products run across the top of the dashboard, each opening to
    the sections and choices it owns. */
+/* The row fills the bar's height so each group's bottom edge is the
+   bar's, and a menu hung from it opens below the bar, not across it. */
 .od-nav {
   display: flex;
-  align-items: center;
-  gap: 2px;
+  align-self: stretch;
+  align-items: stretch;
+  gap: 4px;
   margin-right: auto;
 }
 .od-nav-group {
   position: relative;
+  display: flex;
+  align-items: center;
 }
 .od-nav-item {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 13px;
+  gap: 5px;
+  height: 38px;
+  padding: 0 10px;
   border: 0;
-  border-radius: var(--pc-r-sm);
+  border-radius: 6px;
   background: none;
   color: var(--pc-muted);
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -181,42 +187,42 @@
     color 0.15s,
     background 0.15s;
 }
-.od-nav-item svg:first-child {
-  opacity: 0.7;
-}
 .od-nav-item:hover {
   color: var(--pc-text);
   background: var(--pc-surface);
 }
 .od-nav-item.active {
-  color: var(--pc-cyan);
-  background: var(--pc-cyan-wash);
-  box-shadow: inset 0 0 0 1px var(--pc-cyan-edge);
+  position: relative;
+  color: var(--pc-text);
+  background: none;
 }
-.od-nav-item.active svg:first-child {
-  opacity: 1;
+.od-nav-item.active::after {
+  position: absolute;
+  right: 10px;
+  bottom: 4px;
+  left: 10px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: var(--pc-cyan);
+  content: '';
 }
 /* Points down only while this product's menu is the open one. */
-.od-nav-item svg:last-child {
+.od-nav-item svg {
   opacity: 0.5;
   transform: rotate(-90deg);
   transition: transform 0.18s;
 }
-.od-nav-item[aria-expanded='true'] svg:last-child {
+.od-nav-item[aria-expanded='true'] svg {
   transform: none;
   opacity: 0.9;
 }
 
-/* Sits flush under the item with the offset drawn as a transparent
-   border, so the pointer travelling from the product to its menu never
-   crosses a gap that would count as leaving. */
+/* Opens just below the bar. Menus open on click, not hover, so the
+   gap between the bar and the menu is never read as leaving it. */
 .od-nav-menu {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 6px);
   left: 0;
-  margin-top: 0;
-  border-top: 6px solid transparent;
-  background-clip: padding-box;
   z-index: 60;
   display: flex;
   gap: 26px;
@@ -285,7 +291,10 @@
 .od-bar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
+  margin-left: 2px;
+  padding-left: 12px;
+  border-left: 1px solid var(--pc-line-soft);
 }
 
 /* The live mark. The dot pulses only while a tick is actually
@@ -341,26 +350,25 @@
 .od-bar-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 12px;
-  border: 1px solid var(--pc-line);
-  border-radius: var(--pc-r-sm);
-  background: var(--pc-surface);
+  gap: 7px;
+  height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
   color: var(--pc-body);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
   transition:
     color 0.15s,
-    border-color 0.15s,
     background 0.15s;
 }
 .od-bar-btn:hover:not(:disabled) {
   color: var(--pc-text);
-  border-color: var(--pc-faint);
+  background: var(--pc-surface);
 }
 .od-bar-btn:disabled {
   opacity: 0.5;
@@ -390,29 +398,76 @@
 .od-main {
   display: flex;
   flex-direction: column;
-  flex: 1 0 auto;
+  flex: 1 1 auto;
   gap: 40px;
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 40px 32px 64px;
+  /* Bottom padding stays tight so the foot sits on the canvas edge
+     rather than floating above a pad of empty void. */
+  padding: 40px 32px 28px;
 }
 .od-main:focus {
   outline: none;
 }
 
+/* Full-bleed protocol strip pinned under the workspace. Brand left,
+   destinations right — no version, network, or feed chrome. */
 .od-foot {
+  flex: none;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  max-width: 1560px;
-  margin: 0 auto;
-  padding: 18px 32px 32px;
+  gap: 24px;
+  margin: 0;
+  /* Match the main column gutters so brand/links line up with content,
+     while the hairline runs edge to edge. */
+  padding: 12px max(32px, calc((100% - 1440px) / 2 + 32px)) 14px;
   border-top: 1px solid var(--pc-line-soft);
   color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-foot-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.od-foot-brand b {
+  color: var(--pc-body);
   font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.od-foot-links {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: none;
+}
+.od-foot-links a,
+.od-foot-links button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--pc-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.od-foot-links a:hover,
+.od-foot-links button:hover {
+  color: var(--pc-text);
+}
+.od-foot-icon {
+  display: grid;
+  place-items: center;
+  color: var(--pc-muted);
+}
+.od-foot-icon:hover {
+  color: var(--pc-text);
 }
 
 /* ==================================================================
@@ -655,6 +710,15 @@
 
 /* ---------- fields ---------- */
 
+/* globals.css still carries the retired desk's `section label` rule — a
+   block label with 23px above and 10px below. Every field in a <section>
+   here inherited it, which is what put a hand's width of air between each
+   label and its box. The workspace sets its own label spacing. */
+.pc-desk section label,
+.od-dialog section label {
+  margin: 0;
+}
+
 .od-field {
   display: flex;
   flex-direction: column;
@@ -693,7 +757,11 @@
 .od-dialog input:not([type]),
 .od-dialog select {
   width: 100%;
-  height: 42px;
+  height: 40px;
+  /* globals.css gives every input a 9px top margin for forms whose
+     label sits above it. Here the field's own gap does that job, and
+     the margin was the extra air between every label and its box. */
+  margin: 0;
   padding: 0 12px;
   border: 1px solid var(--pc-line);
   border-radius: var(--pc-r-sm);
@@ -705,6 +773,21 @@
   transition:
     border-color 0.15s,
     background 0.15s;
+}
+/* Native up/down steppers on type=number. Trade size keeps its own −/+. */
+.pc-desk input[type='number'],
+.od-dialog input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.pc-desk input[type='number']::-webkit-outer-spin-button,
+.pc-desk input[type='number']::-webkit-inner-spin-button,
+.od-dialog input[type='number']::-webkit-outer-spin-button,
+.od-dialog input[type='number']::-webkit-inner-spin-button {
+  display: none;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
 }
 .pc-desk select,
 .od-dialog select {
@@ -797,10 +880,17 @@
 }
 .od-panel-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   padding: 0 0 14px;
+}
+/* On a phone the actions drop below the title instead of squeezing the
+   description to a word per line and running off the edge. */
+.od-panel-head > div:first-child {
+  flex: 1 1 220px;
+  min-width: 0;
 }
 .od-panel-head h2 {
   font-size: 15px;
@@ -819,30 +909,53 @@
   padding: 0;
 }
 /* The greeks read as one row, five columns, the way a stats block on a
-   contract page does: label over value, a rule between columns. */
+   contract page does: label over value, a centred rule between columns. */
 .od-greeks {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0 20px;
-  margin-top: 18px;
-  padding-top: 16px;
+  gap: 0;
+  margin-top: 20px;
+  padding: 18px 0 8px;
   border-top: 1px solid var(--pc-line-soft);
 }
+.od-greeks .od-stat {
+  gap: 6px;
+  padding: 0 16px;
+}
+.od-greeks .od-stat:first-child {
+  padding-left: 0;
+}
+.od-greeks .od-stat:last-child {
+  padding-right: 0;
+}
 .od-greeks .od-stat + .od-stat {
-  padding-left: 20px;
   border-left: 1px solid var(--pc-line-soft);
 }
 .od-greeks .od-stat strong {
   font-size: 17px;
+  line-height: 1.2;
+}
+.od-greeks .od-stat small {
+  line-height: 1.35;
 }
 @media (max-width: 760px) {
   .od-greeks {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: 16px;
+    row-gap: 18px;
   }
+  .od-greeks .od-stat,
+  .od-greeks .od-stat:first-child,
+  .od-greeks .od-stat:last-child,
   .od-greeks .od-stat + .od-stat {
-    padding-left: 0;
+    padding: 0;
     border-left: 0;
+  }
+  .od-greeks .od-stat:nth-child(odd) {
+    padding-right: 16px;
+  }
+  .od-greeks .od-stat:nth-child(even) {
+    padding-left: 16px;
+    border-left: 1px solid var(--pc-line-soft);
   }
 }
 
@@ -910,25 +1023,6 @@
 }
 .od-grid-4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-/* The ticket beside its chart. The ticket gets a fixed, comfortable
-   measure and the chart takes the rest, so the chart never ends up
-   narrower than the form next to it. */
-/* Borrow & short is one ticket and the health it changes, stacked. It
-   used to be a two-column split whose right-hand column held a
-   reference table; with that gone, a column layout leaves a screen of
-   empty canvas beside a form. */
-/* The line that states the collateral mode, and the way to change it.
-   It replaces a whole tab. */
-.od-holdings-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 14px;
-  border-top: 1px solid var(--pc-line-soft);
-  color: var(--pc-muted);
-  font-size: 12.5px;
 }
 
 /* Four contract names do not fit across a 340px ticket, and a control
@@ -1024,7 +1118,9 @@
 .od-borrow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 380px;
-  align-items: start;
+  /* Stretch so the analysis column matches the ticket top-to-bottom;
+     the ticket keeps its natural height via align-self below. */
+  align-items: stretch;
   gap: 34px;
 }
 /* Placement rather than markup order: the screens disagree about which
@@ -1274,6 +1370,16 @@
 .od-table td b {
   font-weight: 600;
 }
+/* Marks receipts an agent placed through MCP. Text only, no box, and the
+   brand accent rather than green, which means a gain on this desk. */
+.od-table .od-agent-tag {
+  margin-left: 8px;
+  color: var(--pc-cyan);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .od-table td small {
   display: block;
   margin-top: 2px;
@@ -1300,20 +1406,29 @@
   text-align: center;
 }
 .od-empty-mark {
-  display: grid;
-  grid-template-columns: repeat(2, 9px);
-  gap: 3px;
+  display: block;
+  width: 36px;
+  height: 36px;
   margin-bottom: 10px;
-  transform: rotate(-12deg);
+  transform-origin: center;
+  animation: od-parcel-mark-spin 3.2s linear infinite;
 }
-.od-empty-mark i {
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-  background: var(--pc-line);
+.od-empty-mark .pc-mark {
+  display: block;
 }
-.od-empty-mark i:first-child {
-  background: var(--pc-faint);
+@keyframes od-parcel-mark-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .od-empty-mark {
+    animation: none;
+    transform: none;
+  }
 }
 .od-empty h3 {
   font-size: 14.5px;
@@ -1478,8 +1593,9 @@
 .od-payoff {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 13px 18px 14px;
+  gap: 12px;
+  height: 100%;
+  padding: 14px 16px 12px;
   border-radius: var(--pc-r-lg);
   background: var(--pc-plot);
 }
@@ -1489,7 +1605,7 @@
   justify-content: space-between;
   gap: 16px;
 }
-.od-payoff-head span {
+.od-payoff-head > div:first-child > span {
   display: block;
   color: var(--pc-muted);
   font-family: var(--pc-mono);
@@ -1497,18 +1613,21 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.od-payoff-head b {
+.od-payoff-head > div:first-child > b {
   font-size: 14px;
   font-weight: 600;
 }
 .od-payoff-read {
   text-align: right;
+  max-width: 42%;
 }
 .od-payoff-read b {
-  font-size: 22px;
+  display: block;
+  font-size: 26px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 .od-payoff-read b.up {
   color: var(--pc-up);
@@ -1516,14 +1635,124 @@
 .od-payoff-read b.down {
   color: var(--pc-down);
 }
-
+.od-payoff-read span {
+  color: var(--pc-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* The three numbers a reader looks for, in one line under the headline. */
+.od-payoff-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-payoff-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+}
+.od-payoff-stats > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.od-payoff-stats dt {
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-payoff-stats dd {
+  font-family: var(--pc-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.od-payoff-stats dd.up {
+  color: var(--pc-up);
+}
+.od-payoff-stats dd.down {
+  color: var(--pc-down);
+}
+/* The plot takes every pixel of height its column offers. A wide canvas
+   scrolls sideways so capped shelves stay in view while unlimited wings
+   keep going — Robinhood-style. */
+.od-payoff-scroller {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 260px;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: pan-y;
+  border-radius: calc(var(--pc-r-lg) - 4px);
+}
+.od-payoff-canvas {
+  position: relative;
+  height: 100%;
+  min-height: 260px;
+}
 .od-payoff-svg {
   display: block;
-  width: 100%;
-  height: auto;
   overflow: visible;
-  touch-action: pan-y;
-  cursor: crosshair;
+}
+.od-payoff-legend {
+  margin-left: auto;
+  display: flex;
+  gap: 14px;
+  color: var(--pc-muted);
+  font-size: 11.5px;
+  pointer-events: none;
+}
+.od-payoff-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.od-payoff-legend i {
+  width: 16px;
+  height: 0;
+  border-top: 2px solid var(--pc-up);
+}
+.od-payoff-legend i.today {
+  border-top: 2px dashed var(--pc-magenta);
+}
+.od-chart-cap line {
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+.od-chart-cap.up line {
+  stroke: var(--pc-up);
+  opacity: 0.55;
+}
+.od-chart-cap.down line {
+  stroke: var(--pc-down);
+  opacity: 0.55;
+}
+.od-chart-cap text {
+  fill: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+.od-chart-cap.up text {
+  fill: var(--pc-up);
+}
+.od-chart-cap.down text {
+  fill: var(--pc-down);
+}
+.od-chart-open {
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.od-chart-open.up {
+  fill: var(--pc-up);
+}
+.od-chart-open.down {
+  fill: var(--pc-down);
 }
 .od-chart-grid line {
   stroke: var(--pc-line-soft);
@@ -1531,7 +1760,9 @@
 }
 .od-chart-grid text,
 .od-chart-ticks text,
-.od-chart-strikes text {
+.od-chart-strikes text,
+.od-chart-spot text,
+.od-chart-toplabels text {
   fill: var(--pc-muted);
   font-family: var(--pc-mono);
   font-size: 11px;
@@ -1542,8 +1773,19 @@
   stroke-width: 1;
   stroke-dasharray: 2 6;
 }
-.od-chart-strikes text {
+.od-chart-toplabels text.strike {
   fill: var(--pc-body);
+  paint-order: stroke;
+  stroke: var(--pc-plot, var(--pc-bg));
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.od-chart-toplabels text.spot {
+  fill: var(--pc-cyan);
+  paint-order: stroke;
+  stroke: var(--pc-plot, var(--pc-bg));
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 .od-chart-zero {
   stroke: var(--pc-faint);
@@ -1551,34 +1793,42 @@
 }
 .od-chart-line {
   fill: none;
-  stroke: var(--pc-cyan);
   stroke-width: 2.5;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
-.od-chart-be circle {
+.od-chart-line.up {
+  stroke: var(--pc-up);
+}
+.od-chart-line.down {
+  stroke: var(--pc-down);
+}
+.od-chart-now {
+  fill: none;
+  stroke: var(--pc-magenta);
+  stroke-width: 1.75;
+  stroke-dasharray: 5 5;
+  opacity: 0.85;
+}
+/* Changing a strike or the size eases the curve into its new shape
+   rather than jumping, which is most of what makes it feel alive. */
+@media (prefers-reduced-motion: no-preference) {
+  .od-chart-line,
+  .od-chart-area,
+  .od-chart-now {
+    transition: d 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+.od-chart-be {
   fill: var(--pc-void);
   stroke: var(--pc-text);
   stroke-width: 1.5;
 }
-/* Break-even is by definition where the curve meets the zero rule, so
-   its label lands on top of both lines unless it is given a halo. The
-   stroke is painted first and the fill over it, which knocks the lines
-   out from behind the glyphs. */
-.od-chart-be text {
-  fill: var(--pc-text);
-  font-family: var(--pc-mono);
-  font-size: 10.5px;
-  paint-order: stroke fill;
-  stroke: var(--pc-void);
-  stroke-width: 4px;
-  stroke-linejoin: round;
-}
 .od-chart-spot line {
-  stroke: var(--pc-magenta);
+  stroke: var(--pc-cyan);
   stroke-width: 1;
-  stroke-dasharray: 1 5;
-  opacity: 0.6;
+  stroke-dasharray: 2 4;
+  opacity: 0.7;
 }
 .od-chart-cursor line {
   stroke: var(--pc-body);
@@ -1601,7 +1851,7 @@
   grid-template-columns: auto minmax(0, 1fr) 56px;
   align-items: center;
   gap: 12px;
-  padding-top: 4px;
+  padding-top: 2px;
 }
 .od-chart-slider > span {
   color: var(--pc-muted);
@@ -1624,20 +1874,35 @@
   height: auto;
   overflow: visible;
 }
-.od-spark path.area {
-  stroke: none;
-}
-.od-spark path.line {
+.od-spark .guide {
   fill: none;
-  stroke-width: 1.75;
-  stroke-linejoin: round;
-  stroke-linecap: round;
+  stroke: var(--pc-line-soft);
+  stroke-dasharray: 1 4;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }
-.od-spark.up path.line {
-  stroke: var(--pc-up);
+.od-spark .line {
+  fill: none;
+  stroke-width: 1.65;
+  stroke-linejoin: bevel;
+  stroke-linecap: square;
+  vector-effect: non-scaling-stroke;
 }
-.od-spark.down path.line {
-  stroke: var(--pc-down);
+.od-spark .last {
+  fill: var(--pc-void);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+.od-spark.tone-reference .line,
+.od-spark.tone-reference .last {
+  stroke: var(--pc-cyan);
+}
+.od-spark.tone-indicative .line,
+.od-spark.tone-indicative .last {
+  stroke: var(--pc-body);
+}
+.od-spark.empty {
+  opacity: 0.7;
 }
 
 /* ==================================================================
@@ -1645,10 +1910,7 @@
    ================================================================== */
 
 .od-open {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  align-items: start;
-  gap: 28px;
+  min-width: 0;
 }
 .od-open-main {
   display: flex;
@@ -1656,20 +1918,26 @@
   gap: 18px;
   min-width: 0;
 }
-.od-open-side {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-}
-/* A rail of headings is a list, not five separate panels, so the
-   sections carry their own rule instead of a gutter each. */
-.od-open-side > .od-panel + .od-panel {
-  padding-top: 10px;
-  border-top: 1px solid var(--pc-line-soft);
-}
-.od-open-side .od-panel-head {
-  padding-bottom: 6px;
+/* The account view is a working screen, not a landing hero. On desktop,
+   keep the value line and the open positions together inside a normal
+   laptop viewport without compressing the data columns themselves. */
+@media (min-width: 901px) {
+  .od-open-main {
+    gap: 12px;
+  }
+  .od-vline {
+    height: 210px;
+  }
+  .od-positions {
+    padding-top: 12px;
+  }
+  .od-positions-head {
+    padding-bottom: 8px;
+  }
+  .od-ptable-row {
+    min-height: 44px;
+    padding: 5px 0;
+  }
 }
 
 .od-open-head > span {
@@ -1691,10 +1959,12 @@
 .od-open-move {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-top: 6px;
-  font-size: 13.5px;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 14.5px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 .od-open-move.up {
   color: var(--pc-up);
@@ -1704,10 +1974,43 @@
 }
 .od-open-move.flat {
   color: var(--pc-muted);
+  font-weight: 400;
+}
+.od-open-move b {
+  font-weight: 600;
 }
 .od-open-move em {
   color: var(--pc-muted);
   font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.od-open-feed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.od-open-feed i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--pc-muted);
+}
+.od-open-feed.live i {
+  background: var(--pc-cyan);
+  box-shadow: 0 0 0 3px var(--pc-cyan-wash);
+}
+.od-open-feed time {
+  margin-left: 4px;
+  color: var(--pc-muted);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .od-value {
@@ -1732,19 +2035,160 @@
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
 }
-/* The chart's own empty state, at the height the chart would be, so
-   the screen does not jump when the line arrives. */
-.od-open-blank {
+
+/* The live value line. A box of its own so the scrub rule, the dot,
+   and the axis labels can be HTML: the SVG stretches to the width,
+   which would squash circles and warp text under preserveAspectRatio
+   none. Clean uniform canvas with subtle open/close session hairlines. */
+.od-vline {
+  position: relative;
   display: flex;
-  align-items: center;
-  height: 210px;
-  border-top: 1px solid var(--pc-line-soft);
-  border-bottom: 1px solid var(--pc-line-soft);
+  flex-direction: column;
+  align-self: stretch;
+  width: 100%;
+  height: 248px;
+  color: var(--pc-up);
+  touch-action: pan-y;
 }
-.od-open-blank p {
-  max-width: 34ch;
+.od-vline.down {
+  color: var(--pc-down);
+}
+.od-vline-plot {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  cursor: crosshair;
+}
+.od-vline-plot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.od-vline-grid line {
+  stroke: var(--pc-line);
+  stroke-width: 1;
+  opacity: 0.72;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.od-vline-y {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.od-vline-y span {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  padding: 2px 8px 2px 10px;
+  border-radius: 4px 0 0 4px;
+  background: color-mix(in srgb, var(--pc-void) 88%, transparent);
+  color: var(--pc-body);
+  font-family: var(--pc-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.od-vline-x {
+  position: relative;
+  flex: 0 0 22px;
+  margin-top: 4px;
+}
+.od-vline-x span {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-50%);
   color: var(--pc-muted);
-  font-size: 13.5px;
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+.od-vline-x span.major {
+  color: var(--pc-body);
+}
+.od-vline-x span:first-child {
+  transform: translateX(0);
+}
+.od-vline-x span:last-child {
+  transform: translateX(-100%);
+}
+.od-vline-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.od-vline-base {
+  stroke: var(--pc-muted);
+  stroke-width: 1;
+  stroke-dasharray: 2 5;
+  opacity: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+.od-vline-session {
+  stroke: var(--pc-line);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  opacity: 0.35;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.od-vline-rule {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--pc-line);
+  pointer-events: none;
+}
+.od-vline-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px var(--pc-bg, #07080b);
+  pointer-events: none;
+  transition:
+    left 0.35s ease-out,
+    top 0.35s ease-out;
+}
+.od-vline:hover .od-vline-dot {
+  transition: none;
+}
+.od-vline-dot.pulse::after {
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: od-vline-pulse 1.8s ease-out infinite;
+  content: '';
+}
+@keyframes od-vline-pulse {
+  from {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(3.4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .od-vline-dot.pulse::after {
+    animation: none;
+  }
 }
 
 .od-range {
@@ -1777,101 +2221,179 @@
   cursor: default;
 }
 
-.od-power {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 0;
-  border-top: 1px solid var(--pc-line-soft);
-  border-bottom: 1px solid var(--pc-line-soft);
+/* Positions: one ruled table under the value line. No panels and no
+   badges — a hairline between rows, the column heads in the muted mono
+   the rest of the desk labels with, and figures right-aligned so a
+   column of values reads down in one line. */
+.od-positions {
+  padding-top: 18px;
 }
-.od-power > div:first-child {
-  margin-right: auto;
-}
-.od-power span {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-}
-.od-power small {
-  color: var(--pc-muted);
-  font-size: 12px;
-}
-.od-power > b {
-  font-size: 19px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ---------- the open-position rail ---------- */
-
-.od-pos {
-  display: flex;
-  flex-direction: column;
-}
-.od-pos-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 9px 18px;
-  border-top: 1px solid var(--pc-line-soft);
-}
-.od-pos-row:first-child {
-  border-top: 0;
-}
-.od-pos-what {
-  min-width: 0;
-  margin-right: auto;
-}
-.od-pos-what b {
-  display: block;
-  font-size: 13.5px;
-  font-weight: 500;
-}
-.od-pos-what small,
-.od-pos-num small {
-  display: block;
-  color: var(--pc-muted);
-  font-size: 11.5px;
-}
-.od-pos-num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.od-pos-num b {
-  font-size: 13.5px;
-  font-weight: 600;
-}
-.od-pos-num small.od-up {
-  color: var(--pc-up);
-}
-.od-pos-num small.od-down {
-  color: var(--pc-down);
-}
-/* A section with nothing in it yet. Quiet enough that a rail of five
-   headings does not read as five things needing attention. */
-.od-pos-none {
+.od-positions-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 0 18px 4px;
+  gap: 16px;
+  padding-bottom: 12px;
 }
-.od-pos-none p {
+.od-positions-head h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.od-positions-head > span {
   color: var(--pc-muted);
   font-size: 12.5px;
 }
-
-/* The stock row carries a logo, and its two transfers sit on their own
-   line under it rather than squeezing a third column into 360px. */
-.od-pos-asset {
-  gap: 11px;
+.od-positions-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
 }
-.od-pos-actions {
+
+.od-ptable-row {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 2.4fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.1fr)
+    104px;
+  align-items: center;
+  gap: 16px;
+  min-height: 48px;
+  padding: 6px 0;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-ptable-row:last-child {
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-ptable-cols {
+  min-height: 0;
+  padding: 0 0 10px;
   border-top: 0;
-  padding: 0 18px 6px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-ptable-cols > span:nth-child(3),
+.od-ptable-cols > span:nth-child(4) {
+  text-align: right;
+}
+.od-ptable-asset {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.od-ptable-asset > div {
+  min-width: 0;
+}
+.od-ptable-asset b {
+  display: block;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.od-ptable-asset small,
+.od-ptable-num small {
+  display: block;
+  margin-top: 1px;
+  overflow: hidden;
+  color: var(--pc-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.od-ptable-type {
+  color: var(--pc-body);
+  font-size: 13px;
+}
+.od-ptable-num {
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.od-ptable-num b {
+  font-size: 14px;
+  font-weight: 600;
+}
+.od-ptable-num .od-up {
+  color: var(--pc-up);
+}
+.od-ptable-num .od-down {
+  color: var(--pc-down);
+}
+.od-ptable-act {
+  display: flex;
   justify-content: flex-end;
+  gap: 4px;
+}
+.od-ptable-act > button:not(.od-button) {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pc-muted);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.od-ptable-act > button:not(.od-button):hover {
+  background: var(--pc-hover, rgba(255, 255, 255, 0.06));
+  color: var(--pc-text);
+}
+.od-positions-start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  padding: 16px 0 0;
+  color: var(--pc-muted);
+  font-size: 13px;
+}
+.od-positions-start button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--pc-cyan);
+  font: inherit;
+  cursor: pointer;
+}
+.od-positions-start button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 760px) {
+  /* Two lines on a phone: value over return beside the asset, and the
+     row's action kept within reach at the end. */
+  .od-ptable-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 2px 12px;
+  }
+  .od-ptable-cols,
+  .od-ptable-type {
+    display: none;
+  }
+  .od-ptable-asset {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  .od-ptable-row > .od-ptable-num {
+    grid-column: 2;
+  }
+  .od-ptable-row > .od-ptable-num small {
+    display: none;
+  }
+  .od-ptable-act {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
 }
 
 /* ==================================================================
@@ -1879,12 +2401,22 @@
    ================================================================== */
 
 @media (max-width: 1180px) {
-  .od-open {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .od-work,
   .od-borrow {
     grid-template-columns: minmax(0, 1fr);
+  }
+  /* The desktop view explicitly pins the analysis and the ticket to the
+     same grid row. Reset both coordinates when the grid becomes one
+     column; otherwise the two panels occupy an implicit column and can
+     visually sit on top of the strike ladder on a phone. */
+  .od-insight,
+  .od-chain,
+  .od-stack,
+  .od-work > .od-panel:not(.od-ticket),
+  .od-borrow > .od-panel:not(.od-ticket),
+  .od-ticket {
+    grid-column: 1;
+    grid-row: auto;
   }
   /* Stacked, the divider is the rule above it. */
   .od-ticket {
@@ -1919,6 +2451,25 @@
     flex-wrap: wrap;
     padding-bottom: 8px;
   }
+  /* A menu can be wider than the space to the right of the button that
+     opened it — Trade and Portfolio both lay their sections out side by
+     side — and .od-nav scrolls horizontally once the four products no
+     longer fit, which would carry an absolutely-positioned menu along
+     with it. .od-bar is already `position: sticky` and never scrolls,
+     so anchoring every menu there (not .od-nav-group's single button,
+     not the scrolling .od-nav) keeps it on screen no matter which
+     button opened it or how far the row has scrolled. */
+  .od-nav-group {
+    position: static;
+  }
+  .od-nav-menu {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    flex-wrap: wrap;
+  }
 }
 @media (max-width: 720px) {
   .od-bar {
@@ -1946,9 +2497,12 @@
     grid-template-columns: minmax(0, 1fr);
   }
   .od-foot {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    padding-inline: 20px;
+  }
+  .od-foot-links {
+    width: 100%;
   }
 }
 
@@ -2157,33 +2711,21 @@
   font-family: var(--pc-mono);
   font-size: 11px;
 }
-.od-row-actions {
-  display: inline-flex;
-  gap: 6px;
-}
-.od-row-actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--pc-line);
-  border-radius: 7px;
-  background: none;
-  color: var(--pc-body);
-  font-family: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  transition:
-    color 0.14s,
-    border-color 0.14s;
-}
-.od-row-actions button:hover {
-  color: var(--pc-cyan);
-  border-color: var(--pc-cyan-edge);
-}
 .od-muted {
   color: var(--pc-muted);
+}
+.pc-desk a.od-tx-link,
+.od-toast a.od-tx-link {
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+}
+.od-toast a.od-tx-link {
+  font-family: inherit;
+  white-space: nowrap;
+}
+.pc-desk a.od-tx-link:hover,
+.od-toast a.od-tx-link:hover {
+  text-decoration: underline;
 }
 .od-up {
   color: var(--pc-up);
@@ -2223,6 +2765,126 @@
   height: 100%;
   border-radius: 4px;
   transition: width 0.3s ease;
+}
+
+/* Collateral is a compact capital summary. It uses a clear available balance
+   and two supporting figures instead of presenting a risk-engine report
+   before a customer has a position to inspect. */
+.od-collateral-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: end;
+  padding: 4px 0 24px;
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-collateral-primary > span,
+.od-collateral-stats dt {
+  display: block;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-collateral-primary strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--pc-text);
+  font-size: clamp(27px, 3vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+.od-collateral-primary p {
+  margin-top: 8px;
+  color: var(--pc-muted);
+  font-size: 12.5px;
+}
+.od-collateral-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.od-collateral-stats > div + div {
+  padding-left: 18px;
+  border-left: 1px solid var(--pc-line-soft);
+}
+.od-collateral-stats dd {
+  margin-top: 5px;
+  color: var(--pc-text);
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.od-collateral-stats dd.up {
+  color: var(--pc-up);
+}
+.od-collateral-stats small {
+  display: block;
+  margin-top: 3px;
+  color: var(--pc-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.od-collateral-section {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-collateral-section .od-panel-head {
+  padding-bottom: 12px;
+}
+.od-collateral-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.od-collateral-meters {
+  display: grid;
+  gap: 14px;
+  max-width: 760px;
+}
+.od-collateral-idle {
+  display: flex;
+  align-items: center;
+  min-height: 104px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-collateral-idle b,
+.od-collateral-check b {
+  display: block;
+  color: var(--pc-text);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.od-collateral-idle p,
+.od-collateral-check p {
+  margin-top: 3px;
+  color: var(--pc-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.od-collateral-check {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 0 4px;
+}
+@media (max-width: 680px) {
+  .od-collateral-hero,
+  .od-collateral-modes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .od-collateral-stats {
+    max-width: 420px;
+  }
+  .od-collateral-check {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 .od-policy {
@@ -2282,8 +2944,10 @@
 
 .od-panel-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 .od-search {
   display: inline-flex;
@@ -2412,18 +3076,19 @@
 .od-main > .od-segmented {
   align-self: flex-start;
 }
-/* The control line belongs to the thing under it, so it sits close to
-   it rather than floating a full 40px section gutter away on either
-   side. */
+/* The control line belongs to the thing under it, but still needs a
+   clear breath before the panel — the old negative margin pulled the
+   Buy/Write row into the chain title. */
 .od-row-end {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 16px;
-  margin-bottom: -26px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-bottom: 8px;
 }
 .od-templates + .od-row-end {
-  margin-top: -26px;
+  margin-top: 0;
 }
 
 /* Not sticky. It was the left column of a two-column screen and stuck
@@ -2435,10 +3100,13 @@
   flex-direction: column;
   gap: 14px;
   min-width: 0;
+  /* Fill the grid row so the chart can grow to the ticket's height. */
+  height: 100%;
+  min-height: 0;
 }
 /* The surface is its own chapter under the chart and the greeks, so it
    carries a rule and a breath of air rather than running on from the
-   pricing basis line. */
+   metrics strip. */
 .od-insight > .od-panel + .od-panel {
   margin-top: 14px;
   padding-top: 26px;
@@ -2480,31 +3148,8 @@
    field is sitting beside something. It is cancelled here, and the
    chips are sized to the input's 42px rather than to their own
    content. */
-.od-size-row {
-  display: grid;
-  grid-template-columns: minmax(96px, 0.8fr) minmax(0, 1.2fr);
-  align-items: center;
-  gap: 8px;
-}
 /* Specific enough to beat it: the globals.css selector carries two
    :not() attribute tests, so a plain class rule loses to it. */
-.pc-desk .od-size-row > input:not([type='range']) {
-  margin: 0;
-}
-.od-size-row .od-chips button {
-  height: 34px;
-}
-.od-chips {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  gap: 4px;
-  padding: 3px;
-  border: 1px solid var(--pc-line);
-  border-radius: var(--pc-r-sm);
-  background: var(--pc-surface-2);
-}
-.od-chips button,
 .od-quick button {
   border: 0;
   border-radius: 6px;
@@ -2517,14 +3162,9 @@
     color 0.14s,
     background 0.14s;
 }
-.od-chips button:hover,
 .od-quick button:hover {
   color: var(--pc-text);
   background: var(--pc-raised);
-}
-.od-chips button.on {
-  background: var(--pc-cyan-wash);
-  color: var(--pc-cyan);
 }
 .od-quick {
   display: grid;
@@ -2551,53 +3191,547 @@
   gap: 8px;
   margin-right: auto;
 }
-/* Fixed width, and specific enough to beat the full-width form
-   select it would otherwise inherit: the hourly test-clock entries
-   are three times the length of a date and were sizing the control
-   to their own longest option.
-
-   38px is the segmented controls' outer height — button 30, padding 3
-   either side, border 1 — so the whole line sits on one baseline. */
-.pc-desk select.od-chain-expiry {
-  width: 210px;
+/* Expiry is a chain dimension, not a generic form select. The trigger
+   carries a short label, and its menu is deliberately bounded: a real
+   daily chain may have dozens of available sessions but should never
+   borrow the entire viewport when it opens. */
+.od-expiry-picker {
+  position: relative;
+  z-index: 4;
+}
+.od-expiry-trigger {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 196px;
   height: 38px;
-  /* The form select carries a 9px top margin for the label that
-     normally sits above it. On a control line there is no label, and
-     the margin was pushing it half that far below the two segmented
-     controls beside it. */
+  padding: 0 10px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-surface);
+  color: var(--pc-body);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    color 0.14s ease;
+}
+.od-expiry-trigger:hover,
+.od-expiry-trigger[aria-expanded='true'] {
+  border-color: var(--pc-faint);
+  background: var(--pc-raised);
+  color: var(--pc-text);
+}
+.od-expiry-trigger > svg:first-child {
+  color: var(--pc-cyan);
+}
+.od-expiry-trigger > svg:last-child {
+  color: var(--pc-muted);
+  transition: transform 0.14s ease;
+}
+.od-expiry-trigger[aria-expanded='true'] > svg:last-child {
+  transform: rotate(180deg);
+}
+.od-expiry-trigger span {
+  min-width: 0;
+}
+.od-expiry-trigger small,
+.od-expiry-trigger b {
+  display: block;
+}
+.od-expiry-trigger small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 8.5px;
+  font-weight: 500;
+  letter-spacing: 0.11em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.od-expiry-trigger b {
+  overflow: hidden;
+  color: var(--pc-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.od-expiry-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  width: 276px;
+  overflow: hidden;
+  border: 1px solid var(--pc-faint);
+  border-radius: var(--pc-r);
+  background: color-mix(in srgb, var(--pc-surface) 96%, var(--pc-void));
+  box-shadow: 0 16px 40px color-mix(in srgb, #000 42%, transparent);
+}
+.od-expiry-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 12px 10px;
+  border-bottom: 1px solid var(--pc-line-soft);
+  color: var(--pc-body);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.od-expiry-menu-head small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+}
+.od-expiry-menu-scroll {
+  max-height: min(352px, calc(100vh - var(--dk-bar) - 72px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 5px;
+}
+.od-expiry-group + .od-expiry-group {
+  margin-top: 5px;
+  padding-top: 6px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-expiry-group > span {
+  display: block;
+  padding: 5px 7px 4px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.od-expiry-group button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--pc-body);
+  font: inherit;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+}
+.od-expiry-group button:hover {
+  background: var(--pc-hover);
+  color: var(--pc-text);
+}
+.od-expiry-group button.selected {
+  background: var(--pc-cyan-wash);
+  color: var(--pc-text);
+}
+.od-expiry-group button small {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+}
+.od-expiry-group button small em {
+  font-style: normal;
+  color: var(--pc-muted);
+}
+.od-expiry-group button small b {
+  color: var(--pc-body);
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+.od-expiry-group button.selected small {
+  color: var(--pc-cyan);
+}
+.od-expiry-group button.selected small b {
+  color: var(--pc-text);
+}
+
+/* Instrument selection follows the expiry control rather than browser-native
+   menu chrome. The selected quote stays visible in the closed state; the
+   menu is bounded even when an issuer catalog grows materially larger. */
+.od-asset-picker {
+  position: relative;
+  z-index: 5;
+}
+.od-asset-trigger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  padding: 6px 11px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-surface-2);
+  color: var(--pc-body);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    color 0.14s ease;
+}
+.od-asset-trigger:hover:not(:disabled),
+.od-asset-trigger[aria-expanded='true'] {
+  border-color: var(--pc-faint);
+  background: var(--pc-raised);
+  color: var(--pc-text);
+}
+.od-asset-trigger:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.od-asset-trigger > span {
+  min-width: 0;
+}
+.od-asset-trigger small,
+.od-asset-trigger b {
+  display: block;
+}
+.od-asset-trigger small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 8.5px;
+  font-weight: 500;
+  letter-spacing: 0.11em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.od-asset-trigger b {
+  overflow: hidden;
+  color: var(--pc-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Optional caps caption above the value (standalone pickers only). */
+.od-asset-trigger small + b {
+  margin-top: 2px;
+}
+.od-asset-trigger em,
+.od-asset-menu button em {
+  color: var(--pc-body);
+  font-family: var(--pc-mono);
+  font-size: 11.5px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.od-asset-trigger > svg {
+  flex: none;
+  color: var(--pc-muted);
+  transition: transform 0.14s ease;
+}
+.od-asset-trigger[aria-expanded='true'] > svg {
+  transform: rotate(180deg);
+}
+.od-asset-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 0;
+  z-index: 8;
+  overflow: hidden;
+  border: 1px solid var(--pc-faint);
+  border-radius: var(--pc-r);
+  background: color-mix(in srgb, var(--pc-surface) 97%, var(--pc-void));
+  box-shadow: 0 16px 40px color-mix(in srgb, #000 42%, transparent);
+}
+.od-asset-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 12px 10px;
+  border-bottom: 1px solid var(--pc-line-soft);
+  color: var(--pc-body);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.od-asset-menu-head small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+}
+.od-asset-menu-scroll {
+  max-height: min(320px, calc(100vh - var(--dk-bar) - 72px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 5px;
+}
+.od-asset-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 42px;
+  gap: 12px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--pc-body);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.od-asset-menu button:hover {
+  background: var(--pc-hover);
+  color: var(--pc-text);
+}
+.od-asset-menu button.selected {
+  background: var(--pc-cyan-wash);
+}
+.od-asset-menu button > span {
+  min-width: 0;
+}
+.od-asset-menu button b,
+.od-asset-menu button small {
+  display: block;
+}
+.od-asset-menu button b {
+  overflow: hidden;
+  color: var(--pc-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.od-asset-menu button small {
+  overflow: hidden;
+  margin-top: 1px;
+  color: var(--pc-muted);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.od-asset-menu button.selected em {
+  color: var(--pc-cyan);
+}
+
+.od-simulation-cue {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-simulation-cue > div {
+  min-width: 0;
+}
+.od-simulation-cue span,
+.od-simulation-cue b {
+  display: block;
+}
+.od-simulation-cue span {
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-simulation-cue b {
+  margin-top: 6px;
+  color: var(--pc-text);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.od-simulation-cue .od-button {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* Chain intro: one head block aligned to the ladder columns, then the
+   table. Title and assumptions share a baseline; guidance sits under
+   them with even air — no orphaned border floating in empty space. */
+.od-chain-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: 28px;
+  row-gap: 10px;
+  /* Match .od-table cell inset so the title lines up with STRIKE. */
+  padding: 0 14px 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-chain-lead {
+  min-width: 0;
+}
+.od-chain-lead > span,
+.od-chain-lead > b {
+  display: block;
+}
+.od-chain-lead > span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-chain-lead > b {
+  margin-top: 5px;
+  color: var(--pc-text);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+.od-chain-assumptions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0;
   margin: 0;
-  padding: 0 32px 0 12px;
-  font-size: 13px;
-  /* The chevron is drawn at a fixed offset tuned for the 42px form
-     select; at 38px it has to come up with the box. */
-  background-position:
-    calc(100% - 17px) 17px,
-    calc(100% - 12px) 17px;
+  padding: 0 0 2px;
+  list-style: none;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+.od-chain-assumptions li {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.od-chain-assumptions li + li::before {
+  content: '·';
+  margin: 0 9px;
+  color: var(--pc-faint);
+}
+@media (max-width: 900px) {
+  .od-chain-head {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  .od-chain-assumptions {
+    justify-content: flex-start;
+    padding-bottom: 0;
+  }
 }
 .od-ladder td,
 .od-ladder th {
   white-space: nowrap;
 }
-.od-ladder td .od-button {
-  min-width: 78px;
-  justify-content: center;
+.od-ladder-quote {
+  min-width: 82px;
+  height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--pc-line);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--pc-raised) 88%, transparent);
+  color: var(--pc-text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease,
+    color 0.14s ease,
+    transform 0.12s ease;
+}
+.od-ladder-quote:hover {
+  border-color: var(--pc-cyan-edge);
+  background: color-mix(in srgb, var(--pc-cyan) 8%, var(--pc-raised));
+  color: var(--pc-cyan);
+}
+.od-ladder-quote:active {
+  transform: translateY(1px);
+}
+.od-ladder-distance.above {
+  color: color-mix(in srgb, var(--pc-cyan) 88%, var(--pc-text));
+}
+.od-ladder-distance.below {
+  color: var(--pc-body);
+}
+.od-ladder-size {
+  color: var(--pc-muted);
   font-variant-numeric: tabular-nums;
 }
-/* The ladder scrolls inside the panel rather than the page, so the
-   controls above it and the ticket beside it stay put while a reader
-   walks the strikes. */
-.od-ladder-scroll {
-  /* Runs to the bottom of the window rather than stopping short and
-     leaving the page half empty under it. */
-  max-height: calc(100vh - var(--dk-bar) - 156px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+/* The initial ladder is a compact, near-the-money decision window. Far wings
+   are a deliberate expansion rather than a full-height internal scroller. */
+.od-ladder-window {
+  overflow-x: auto;
 }
 .od-ladder thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   background: var(--pc-void);
+}
+.od-ladder-more {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 11px;
+  color: var(--pc-muted);
+  font-size: 11.5px;
+}
+.od-ladder-more button {
+  flex: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--pc-cyan);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.od-ladder-more button:hover {
+  color: var(--pc-text);
+}
+
+/* Six columns need room: on a phone the dollar breakeven goes (the
+   percent beside it says the same thing) and model size collapses into
+   the assumptions strip above, so Strike / Move / Bid / Ask stay
+   reachable without sideways scroll. Headers may wrap and cells give
+   up half their padding. The control line above wraps for the same
+   reason: its right-hand toggles were being clipped. */
+@media (max-width: 620px) {
+  .od-ladder-breakeven,
+  .od-ladder-size {
+    display: none;
+  }
+  .od-ladder td,
+  .od-ladder th {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .od-ladder thead th {
+    white-space: normal;
+    line-height: 1.25;
+    vertical-align: bottom;
+  }
+  .od-ladder-quote {
+    min-width: 64px;
+    padding: 0 8px;
+  }
+  .od-row-end {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
 }
 
 /* Where the share price actually falls between two strikes. */
@@ -2610,111 +3744,517 @@
   height: 0;
   padding: 0;
   border: 0;
-  border-top: 1.5px solid var(--pc-up);
+  border-top: 1px solid var(--pc-cyan);
 }
 .od-ladder-spot td b {
   position: absolute;
   left: 50%;
   top: 0;
   transform: translate(-50%, -50%);
-  padding: 5px 14px;
-  border-radius: 999px;
-  background: var(--pc-up);
-  color: var(--pc-void);
-  font-size: 13px;
+  padding: 4px 10px;
+  border: 1px solid var(--pc-cyan-edge);
+  border-radius: 4px;
+  background: var(--pc-void);
+  box-shadow: 0 0 0 3px var(--pc-void);
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.04em;
   line-height: 1.3;
   white-space: nowrap;
 }
 
-/* ---------- the market strip ---------- */
+/* ---------- Portfolio watchlist ---------- */
 
-/* One row per underlying under the vault: mark, day, line. A row is a
-   way into that asset's ticket, so it is a button and reads as one. */
-.od-strip {
-  display: flex;
-  flex-direction: column;
-  margin-top: 10px;
+/* The publisher provides marks, token prices and valuations, not a usable
+   intraday history. This is intentionally a compact quote sheet rather than
+   a decorative market strip that invents a chart for each private company. */
+.od-watchlist {
+  width: min(100%, 1180px);
+  margin: 2px auto 0;
 }
-.od-strip-head {
+.od-watchlist-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 4px 0 30px;
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-watchlist-kicker {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.od-watchlist-head h2 {
+  font-size: clamp(28px, 3.2vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+.od-watchlist-head p {
+  max-width: 520px;
+  margin-top: 10px;
+  color: var(--pc-muted);
+  font-size: 14px;
+}
+.od-watchlist-source {
+  flex: none;
+  min-width: 172px;
+  padding-bottom: 3px;
+  text-align: right;
+}
+.od-watchlist-source b,
+.od-watchlist-source span {
+  display: block;
+}
+.od-watchlist-source b {
+  color: var(--pc-body);
+  font-family: var(--pc-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-watchlist-source span {
+  margin-top: 5px;
+  color: var(--pc-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.od-watchlist-search {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0 12px;
+  min-height: 44px;
+  border: 1px solid var(--pc-line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--pc-surface-2) 92%, transparent);
+  color: var(--pc-muted);
+  transition: border-color 0.15s ease;
+}
+.od-watchlist-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 16px;
+}
+.od-watchlist-toolbar .od-watchlist-search {
+  flex: 1 1 360px;
+}
+.od-watchlist-filter {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--pc-line);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--pc-surface-2) 88%, transparent);
+}
+.od-watchlist-filter button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--pc-muted);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease;
+}
+.od-watchlist-filter button:hover {
+  color: var(--pc-body);
+}
+.od-watchlist-filter button.selected {
+  background: var(--pc-raised);
+  box-shadow: inset 0 0 0 1px var(--pc-line-soft);
+  color: var(--pc-text);
+}
+.od-watchlist-search:focus-within {
+  border-color: var(--pc-cyan-edge);
+}
+.od-watchlist-search input {
+  min-width: 0;
+  padding: 10px 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--pc-text);
+  font: inherit;
+  font-size: 13px;
+}
+.od-watchlist-search input::placeholder {
+  color: var(--pc-muted);
+}
+.od-watchlist-search > span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.od-watchlist-results {
+  margin-bottom: 20px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-watchlist-section {
+  margin-top: 26px;
+}
+.od-watchlist-section-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 0 0 6px;
+  gap: 20px;
+  margin-bottom: 8px;
 }
-.od-strip-head h2 {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-.od-strip-head span {
-  color: var(--pc-muted);
+.od-watchlist-section-head b,
+.od-watchlist-section-head span {
   font-family: var(--pc-mono);
   font-size: 10.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.od-strip-row {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) 120px auto;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  padding: 11px 4px;
-  border: 0;
-  border-top: 1px solid var(--pc-line-soft);
-  border-radius: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.od-strip-row:hover {
-  background: var(--pc-hover);
-}
-.od-strip-what {
-  min-width: 0;
-}
-.od-strip-what b {
-  display: block;
-  font-size: 13.5px;
-  font-weight: 500;
-}
-.od-strip-what small,
-.od-strip-num small {
-  display: block;
-  color: var(--pc-muted);
-  font-size: 11.5px;
-}
-.od-strip-line {
-  height: 34px;
-}
-.od-strip-line .od-spark {
-  height: 100%;
-}
-.od-strip-num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.od-strip-num b {
-  font-size: 13.5px;
+.od-watchlist-section-head b {
+  color: var(--pc-body);
   font-weight: 600;
 }
-.od-strip-num small.od-up {
-  color: var(--pc-up);
+.od-watchlist-section-head span {
+  color: var(--pc-muted);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-align: right;
 }
-.od-strip-num small.od-down {
-  color: var(--pc-down);
+.od-watchlist-results-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0 7px;
 }
-@media (max-width: 720px) {
-  .od-strip-row {
-    grid-template-columns: 30px minmax(0, 1fr) auto;
+.od-watchlist-results-head span,
+.od-watchlist-results-head small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.od-watchlist-results-head small {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.od-watchlist-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px auto;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 0;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-watchlist-result > div:not(.od-watchlist-company) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.od-watchlist-result > div:not(.od-watchlist-company) span {
+  display: block;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.od-watchlist-result > div:not(.od-watchlist-company) b {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+}
+.od-watchlist-result button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--pc-cyan-edge);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--pc-cyan) 8%, transparent);
+  color: var(--pc-cyan);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.od-watchlist-result button:hover {
+  background: color-mix(in srgb, var(--pc-cyan) 15%, transparent);
+}
+.od-watchlist-table {
+  border-top: 1px solid var(--pc-line);
+  border-bottom: 1px solid var(--pc-line);
+}
+.od-watchlist-provider-status {
+  margin: 0;
+  padding: 9px 0;
+  border-top: 1px solid var(--pc-line-soft);
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.025em;
+  line-height: 1.45;
+}
+.od-watchlist-labels,
+.od-watchlist-row {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 1.7fr) repeat(3, minmax(72px, 0.55fr)) minmax(88px, 0.7fr)
+    52px;
+  column-gap: 20px;
+}
+.od-watchlist-tokenized .od-watchlist-labels,
+.od-watchlist-tokenized .od-watchlist-tokenized-row {
+  grid-template-columns: minmax(0, 1fr) 96px minmax(120px, 0.7fr) 52px;
+  column-gap: 24px;
+}
+.od-watchlist-labels {
+  align-items: end;
+  min-height: 34px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--pc-line-soft);
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-watchlist-labels span:not(:first-child) {
+  text-align: right;
+}
+.od-watchlist-row {
+  align-items: center;
+  min-height: 70px;
+  border-top: 1px solid var(--pc-line-soft);
+  transition: background 0.15s ease;
+}
+.od-watchlist-row:first-of-type {
+  border-top: 0;
+}
+.od-watchlist-row:hover {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--pc-surface-2) 68%, transparent),
+    transparent 82%
+  );
+}
+.od-watchlist-company {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.od-watchlist-company > div {
+  min-width: 0;
+}
+.od-watchlist-company b,
+.od-watchlist-company small,
+.od-watchlist-company p {
+  display: block;
+}
+.od-watchlist-company b {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.od-watchlist-company small {
+  margin-top: 2px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.025em;
+}
+.od-watchlist-company p {
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--pc-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.od-watchlist-metric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.od-watchlist-metric span {
+  display: none;
+}
+.od-watchlist-metric b {
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+.od-watchlist-status-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.od-watchlist-status-cell small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.od-watchlist-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 3px;
+}
+.od-watchlist-actions a,
+.od-watchlist-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  color: var(--pc-muted);
+  cursor: pointer;
+  transition:
+    color 0.14s ease,
+    border-color 0.14s ease,
+    background 0.14s ease;
+}
+.od-watchlist-actions a:hover,
+.od-watchlist-actions button:hover {
+  border-color: var(--pc-line);
+  background: var(--pc-surface-2);
+  color: var(--pc-body);
+}
+@media (max-width: 900px) {
+  .od-watchlist-private .od-watchlist-labels,
+  .od-watchlist-private .od-watchlist-private-row {
+    grid-template-columns: minmax(200px, 1.4fr) repeat(2, minmax(72px, 0.55fr)) 52px;
   }
-  .od-strip-line {
+  .od-watchlist-private .od-watchlist-labels span:nth-child(4),
+  .od-watchlist-private .od-watchlist-labels span:nth-child(5),
+  .od-watchlist-private-row .od-watchlist-metric:nth-of-type(4),
+  .od-watchlist-private-row .od-watchlist-metric:nth-of-type(5) {
     display: none;
+  }
+  .od-watchlist-tokenized .od-watchlist-labels,
+  .od-watchlist-tokenized .od-watchlist-tokenized-row {
+    grid-template-columns: minmax(0, 1fr) 88px minmax(110px, 0.7fr) 52px;
+  }
+}
+@media (max-width: 620px) {
+  .od-watchlist-head {
+    display: block;
+    padding-bottom: 22px;
+  }
+  .od-watchlist-source {
+    margin-top: 18px;
+    text-align: left;
+  }
+  .od-watchlist-search {
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+  .od-watchlist-toolbar {
+    display: block;
+  }
+  .od-watchlist-filter {
+    margin-top: 10px;
+  }
+  .od-watchlist-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .od-watchlist-section-head span {
+    text-align: left;
+  }
+  .od-watchlist-search > span {
+    display: none;
+  }
+  .od-watchlist-results-head small {
+    display: none;
+  }
+  .od-watchlist-result {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .od-watchlist-result > div:not(.od-watchlist-company) {
+    display: none;
+  }
+  .od-watchlist-labels {
+    display: none;
+  }
+  .od-watchlist-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 12px;
+    padding: 15px 0;
+  }
+  .od-watchlist-company {
+    grid-column: 1 / -1;
+  }
+  .od-watchlist-company p {
+    white-space: normal;
+  }
+  .od-watchlist-metric {
+    display: flex !important;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    text-align: left;
+  }
+  .od-watchlist-metric span {
+    display: block;
+    color: var(--pc-muted);
+    font-family: var(--pc-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .od-watchlist-row .od-watchlist-metric:nth-of-type(3),
+  .od-watchlist-row .od-watchlist-metric:nth-of-type(4),
+  .od-watchlist-private-row .od-watchlist-metric:nth-of-type(5) {
+    display: flex !important;
+  }
+  .od-watchlist-status-cell {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .od-watchlist-status-cell small {
+    flex: 1 0 100%;
+    text-align: right;
+  }
+  .od-watchlist-actions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-content: flex-start;
   }
 }
 
@@ -2838,6 +4378,18 @@
 .od-rates-supply {
   stroke: var(--pc-up);
 }
+.od-rates-kink line {
+  stroke: var(--pc-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+  opacity: 0.55;
+}
+.od-rates-kink text {
+  fill: var(--pc-muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .od-rates-now line {
   stroke: var(--pc-line);
   stroke-dasharray: 3 4;
@@ -2917,17 +4469,6 @@
 .od-lines {
   display: flex;
   flex-direction: column;
-}
-
-.od-legs-label {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  color: var(--pc-muted);
-  font-family: var(--pc-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 /* The ticket's two interruptions: the tokens are not in the vault yet,
@@ -3028,7 +4569,8 @@
 }
 
 .od-surface-hint {
-  margin-left: auto;
+  color: var(--pc-muted);
+  font-size: 11px;
 }
 
 .od-reasons {
@@ -3110,6 +4652,145 @@
 .od-modal-actions {
   display: flex;
   gap: 8px;
+}
+
+/* Desk dialogs take the desk's own surface, rule and type in both themes.
+   globals.css still paints every [data-slot='dialog-*'] in the retired
+   desk's warm brown with !important, so only an !important of higher
+   specificity can win it back. */
+.od-dialog {
+  background: var(--pc-surface) !important;
+  border: 1px solid var(--pc-line) !important;
+  color: var(--pc-text);
+}
+.od-dialog .od-dialog-head {
+  border-bottom-color: var(--pc-line-soft);
+}
+.od-dialog [data-slot='dialog-title'] {
+  color: var(--pc-text) !important;
+  font-size: 18px !important;
+  letter-spacing: -0.01em !important;
+}
+.od-dialog [data-slot='dialog-description'] {
+  color: var(--pc-muted) !important;
+  font-size: 13px !important;
+}
+
+/* Closing a position: what it is, what you receive, one button. */
+.od-close-summary {
+  margin: 0;
+  color: var(--pc-body);
+  font-size: 14px;
+}
+.od-close-amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--pc-line-soft);
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-close-amount span {
+  color: var(--pc-muted);
+  font-size: 13px;
+}
+.od-close-amount strong {
+  color: var(--pc-text);
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.od-close-clock {
+  margin: 0;
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+
+/* The Agents dialog. The command is plain monospace text, not a box. */
+.od-agent-fresh {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.od-agent-command {
+  max-height: 240px;
+  overflow: auto;
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.od-agent-hint {
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-agent-key > span small {
+  display: block;
+  margin-top: 2px;
+  color: var(--pc-muted);
+  font-size: 11.5px;
+}
+.od-agent-copy {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--pc-cyan);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+/* An address or command to copy: plain text on the canvas, no box. */
+.od-agent-url {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.od-agent-url code {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.od-agent-url > button {
+  flex: none;
+}
+.od-agent-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+  list-style: decimal;
+  color: var(--pc-text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.od-agent-steps i {
+  color: var(--pc-muted);
+}
+.od-agent-more {
+  color: var(--pc-muted);
+  font-size: 13px;
+}
+.od-agent-more summary {
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.od-agent-more .od-agent-fresh {
+  align-items: flex-start;
+}
+.od-agent-more pre {
+  width: 100%;
+}
+.od-agent-error {
+  color: var(--pc-down);
 }
 
 .od-modal-actions > * {
@@ -3295,59 +4976,6 @@
   margin-top: 2px;
 }
 
-.od-sizing {
-  border: 1px solid var(--pc-line);
-  border-radius: var(--pc-r-sm);
-  background: var(--pc-surface-2);
-}
-
-.od-sizing > summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 11px 14px;
-  color: var(--pc-body);
-  font-size: 12.5px;
-  font-weight: 500;
-  cursor: pointer;
-  list-style: none;
-}
-
-.od-sizing > summary::-webkit-details-marker {
-  display: none;
-}
-
-.od-sizing > summary::before {
-  content: '';
-  width: 0;
-  height: 0;
-  border: 4px solid transparent;
-  border-left-color: var(--pc-muted);
-  transition: transform 0.16s;
-}
-
-.od-sizing[open] > summary::before {
-  transform: rotate(90deg) translateX(-1px);
-}
-
-.od-sizing > summary:hover {
-  color: var(--pc-text);
-}
-
-.od-sizing > *:not(summary) {
-  margin: 0 14px 12px;
-}
-
-.od-sizing > output {
-  display: block;
-  padding: 10px 12px;
-  border-radius: var(--pc-r-sm);
-  background: var(--pc-raised);
-  color: var(--pc-body);
-  font-size: 11.5px;
-  line-height: 1.55;
-}
-
 .od-curve-editor {
   display: flex;
   flex-direction: column;
@@ -3364,14 +4992,14 @@
 .od-surface {
   padding: 8px 18px 18px;
 }
-.od-surface svg {
+.od-surface > svg {
   display: block;
   width: 100%;
   height: auto;
   cursor: grab;
   touch-action: pan-y;
 }
-.od-surface svg:active {
+.od-surface > svg:active {
   cursor: grabbing;
 }
 .od-welcome-scrim {
@@ -3383,4 +5011,1224 @@
   padding: 20px;
   background: color-mix(in srgb, var(--pc-void) 76%, transparent);
   backdrop-filter: blur(8px);
+}
+
+/* ==================================================================
+   The ticket's controls
+   ================================================================== */
+
+/* Advanced, as a switch in the ticket's corner rather than a second
+   segmented control in the toolbar above the chart. */
+.od-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  padding: 2px 0;
+  background: none;
+  color: var(--pc-muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.od-switch i {
+  position: relative;
+  width: 26px;
+  height: 15px;
+  border-radius: 8px;
+  background: var(--pc-line);
+  transition: background 0.15s;
+}
+.od-switch i::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--pc-body);
+  transition: transform 0.15s;
+  content: '';
+}
+.od-switch.on {
+  color: var(--pc-text);
+}
+.od-switch.on i {
+  background: var(--pc-cyan);
+}
+.od-switch.on i::after {
+  background: var(--pc-cyan-ink, #04121a);
+  transform: translateX(11px);
+}
+
+/* Shares or dollars: two words, the chosen one lit. */
+.od-unit {
+  display: inline-flex;
+  gap: 2px;
+  border: 0;
+  padding: 0;
+}
+.od-unit button {
+  border: 0;
+  padding: 0 4px;
+  background: none;
+  color: var(--pc-muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.od-unit button.on {
+  color: var(--pc-text);
+  font-weight: 500;
+}
+.od-unit button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* One field with its own steppers: − value unit +. */
+.od-stepper {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto 40px;
+  align-items: center;
+  height: 44px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-surface-2);
+  transition: border-color 0.15s;
+}
+.od-stepper:focus-within {
+  border-color: var(--pc-cyan-edge);
+}
+.pc-desk .od-stepper input[type='number'] {
+  height: 42px;
+  border: 0;
+  background: none;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: center;
+}
+.od-stepper > span {
+  padding-right: 6px;
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-stepper > button {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  border: 0;
+  background: none;
+  color: var(--pc-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.od-stepper > button:hover {
+  color: var(--pc-text);
+}
+
+/* Legs: one line each, the column names said once. */
+.od-legs {
+  display: grid;
+  gap: 6px;
+  padding-top: 4px;
+}
+.od-legs-head,
+.od-legs-row {
+  display: grid;
+  grid-template-columns: 1.05fr 1.05fr minmax(0, 1fr) 58px 22px;
+  align-items: center;
+  gap: 6px;
+}
+.od-legs-head {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.pc-desk .od-legs-row input[type='number'],
+.pc-desk .od-legs-row select {
+  height: 34px;
+  padding: 0 8px;
+  font-size: 13px;
+}
+.pc-desk .od-legs-row select {
+  padding-right: 22px;
+  background-position:
+    calc(100% - 13px) 15px,
+    calc(100% - 8px) 15px;
+}
+.od-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 34px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  padding: 2px;
+  background: var(--pc-surface-2);
+}
+.od-toggle button {
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--pc-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.od-toggle button.on {
+  background: var(--pc-raised, var(--pc-hover));
+  color: var(--pc-text);
+}
+.od-legs-remove {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--pc-muted);
+  cursor: pointer;
+}
+.od-legs-remove:hover {
+  background: var(--pc-hover);
+  color: var(--pc-text);
+}
+.od-legs-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+}
+.od-legs-foot .od-toggle {
+  width: 150px;
+}
+.od-legs-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--pc-cyan);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.od-ticket .od-panel-body {
+  gap: 18px;
+}
+
+/* The surface's floor, axes and labels. */
+.od-surface-floor {
+  fill: color-mix(in srgb, var(--pc-text) 3%, transparent);
+  stroke: var(--pc-line);
+  stroke-width: 1;
+}
+.od-surface-grid {
+  fill: none;
+  stroke: var(--pc-line-soft);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+.od-surface-axis {
+  stroke: var(--pc-line);
+  stroke-width: 1;
+}
+.od-surface-zero {
+  fill: color-mix(in srgb, var(--pc-text) 4%, transparent);
+  stroke: color-mix(in srgb, var(--pc-text) 30%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  pointer-events: none;
+}
+.od-surface-labels text {
+  fill: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 12px;
+  paint-order: stroke;
+  stroke: var(--pc-plot, var(--pc-bg));
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.od-surface-labels text.value {
+  fill: var(--pc-body);
+}
+.od-surface-labels text.title {
+  fill: var(--pc-body);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.od-surface-key i.zero {
+  height: 0;
+  border-top: 1px dashed color-mix(in srgb, var(--pc-text) 45%, transparent);
+}
+.od-surface-turn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.od-surface-turn input[type='range'] {
+  width: 120px;
+}
+.od-surface-reset {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--pc-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.od-surface-reset:hover {
+  color: var(--pc-text);
+}
+
+/* Ticket keeps its natural height; the insight column stretches to match
+   it so the payoff plot fills the same top-to-bottom span. When Advanced
+   adds the surface below, the ticket stays start-aligned rather than
+   growing an empty column beside it.
+
+   :first-of-type, not :first-child — the simulation cue sits above the
+   panel, so :first-child never matched the chart. */
+.od-work > .od-ticket {
+  align-self: start;
+}
+.od-insight > .od-panel:first-of-type {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.od-insight > .od-panel:first-of-type > .od-payoff,
+.od-insight > .od-panel:first-of-type > .od-empty {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Perspective is a live orthographic camera; Grid is the same samples
+   flattened. Labels project onto the near floor edges and cull on collision. */
+.od-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+}
+.od-surface-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.od-surface-toolbar > span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-surface-toolbar-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+.od-surface-view {
+  display: inline-grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 2px;
+  flex: none;
+  margin: 0;
+  padding: 2px;
+  border: 1px solid var(--pc-line);
+  border-radius: 7px;
+  background: var(--pc-surface-2);
+}
+.od-surface-view button {
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  background: none;
+  color: var(--pc-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.od-surface-view button:hover {
+  color: var(--pc-text);
+}
+.od-surface-view button.selected {
+  background: var(--pc-raised, var(--pc-hover));
+  color: var(--pc-text);
+}
+.od-surface > .od-surface-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: default;
+  touch-action: pan-y;
+  user-select: none;
+}
+.od-surface > .od-surface-svg.perspective {
+  cursor: grab;
+  touch-action: none;
+}
+.od-surface > .od-surface-svg.perspective:active {
+  cursor: grabbing;
+}
+.od-surface-grid-frame {
+  fill: color-mix(in srgb, var(--pc-void) 22%, transparent);
+  stroke: var(--pc-line);
+  stroke-width: 1;
+}
+.od-surface-cell {
+  stroke: color-mix(in srgb, var(--pc-void) 56%, transparent);
+  stroke-width: 0.45;
+}
+.od-surface-edge {
+  stroke-linecap: round;
+}
+.od-surface-key {
+  margin-top: 0;
+}
+.od-surface-range {
+  margin-left: auto;
+}
+@media (max-width: 640px) {
+  .od-surface-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .od-surface-range {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+/* The side you would not trade on is still quoted, just quietly, so the
+   width of the market is readable at a glance. */
+.od-ladder-other {
+  display: inline-block;
+  min-width: 82px;
+  padding: 0 11px;
+  color: var(--pc-muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+@media (max-width: 760px) {
+  .od-ladder-other {
+    min-width: 0;
+    padding: 0 4px;
+  }
+}
+
+/* The contract's own market, in one line: bid, mid, ask. */
+.od-bidask {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--pc-line-soft);
+  border-bottom: 1px solid var(--pc-line-soft);
+  color: var(--pc-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.od-bidask b {
+  margin-left: 6px;
+  color: var(--pc-text);
+  font-family: var(--pc-mono);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==================================================================
+   Pre-IPO: the market list and a company's page
+   ================================================================== */
+
+.od-pm-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+}
+.od-pm-head h2 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.od-pm-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--pc-muted);
+  font-size: 12.5px;
+}
+.od-pm-live i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pc-muted);
+}
+.od-pm-live.on i {
+  background: var(--pc-up);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pc-up) 18%, transparent);
+}
+.od-pm-row {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 2.2fr) repeat(3, minmax(0, 1fr)) minmax(0, 0.8fr)
+    minmax(0, 1fr) 96px;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 68px;
+  padding: 10px 12px;
+  border: 0;
+  border-top: 1px solid var(--pc-line-soft);
+  border-radius: 0;
+  background: none;
+  color: var(--pc-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.od-pm-row:last-child {
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-pm-row:not(.od-pm-cols):hover {
+  background: color-mix(in srgb, var(--pc-text) 3.5%, transparent);
+}
+.od-pm-cols {
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 10px;
+  border-top: 0;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: default;
+}
+.od-pm-cols > span:not(:first-child) {
+  text-align: right;
+}
+.od-pm-row > .num {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.od-pm-company {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.od-pm-company b {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+}
+.od-pm-company small {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 11.5px;
+}
+.od-pm-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  color: var(--pc-cyan);
+  font-size: 13px;
+}
+@media (max-width: 860px) {
+  .od-pm-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .od-pm-row > :nth-child(3),
+  .od-pm-row > :nth-child(4),
+  .od-pm-row > :nth-child(6),
+  .od-pm-row > :nth-child(7) {
+    display: none;
+  }
+}
+
+.od-company {
+  display: grid;
+  gap: 14px;
+  margin-bottom: -10px;
+}
+.od-company-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--pc-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.od-company-back:hover {
+  color: var(--pc-text);
+}
+.od-company-id {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.od-company-id h1 {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.od-company-id > div:nth-child(2) > span {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  color: var(--pc-muted);
+  font-size: 13px;
+}
+.od-company-id a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--pc-muted);
+}
+.od-company-id a:hover {
+  color: var(--pc-text);
+}
+.od-company-price {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  margin-left: auto;
+  text-align: right;
+}
+.od-company-price b {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.od-company-price > span {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.od-company-price small {
+  display: flex;
+  gap: 14px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 11.5px;
+}
+.od-company-price .od-up,
+.od-pm-row .od-up {
+  color: var(--pc-up);
+}
+.od-company-price .od-down,
+.od-pm-row .od-down {
+  color: var(--pc-down);
+}
+
+/* ==================================================================
+   Lending markets — the list a money market opens on
+   ================================================================== */
+
+.od-lm-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 16px;
+}
+.od-lm-head h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.od-lm-head dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+}
+.od-lm-head dt {
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-lm-head dd {
+  margin-top: 2px;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.od-lm-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(200px, 100%);
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: transparent;
+  color: var(--pc-muted);
+}
+.pc-desk .od-lm-search input {
+  min-width: 0;
+  height: 28px;
+  border: 0;
+  padding: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 12.5px;
+}
+.pc-desk .od-lm-search input::placeholder {
+  color: var(--pc-muted);
+}
+.od-lm-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 2px 0 14px;
+  border-bottom: 1px solid var(--pc-line-soft);
+  margin-bottom: 4px;
+}
+.od-lm-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.od-lm-cats button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: transparent;
+  color: var(--pc-muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.od-lm-cats button small {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+.od-lm-cats button:hover {
+  color: var(--pc-text);
+  border-color: color-mix(in srgb, var(--pc-text) 28%, var(--pc-line));
+}
+.od-lm-cats button.active {
+  color: var(--pc-text);
+  background: color-mix(in srgb, var(--pc-text) 8%, transparent);
+  border-color: color-mix(in srgb, var(--pc-text) 28%, var(--pc-line));
+}
+.od-lm-toolbar-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.od-lm-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pc-muted);
+  font-size: 12.5px;
+}
+.od-lm-sort span {
+  white-space: nowrap;
+}
+.pc-desk .od-lm-sort select {
+  height: 30px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--pc-line);
+  border-radius: var(--pc-r-sm);
+  background: transparent;
+  color: var(--pc-text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.pc-desk .od-lm-sort select:hover {
+  border-color: color-mix(in srgb, var(--pc-text) 28%, var(--pc-line));
+}
+.pc-desk .od-lm-sort select:focus {
+  outline: 2px solid color-mix(in srgb, var(--pc-cyan) 45%, transparent);
+  outline-offset: 1px;
+}
+.od-lm-health {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  min-height: 30px;
+  padding: 5px 2px 5px 14px;
+  border-left: 1px solid var(--pc-line-soft);
+  color: var(--pc-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.od-lm-health-main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.od-lm-health-main b {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--pc-text);
+}
+.od-lm-health-side {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.od-lm-health.safe .od-lm-health-main b {
+  color: var(--pc-up);
+}
+.od-lm-health.watch .od-lm-health-main b {
+  color: var(--pc-warn, #d4a017);
+}
+.od-lm-health.risk .od-lm-health-main b {
+  color: var(--pc-down);
+}
+@media (max-width: 720px) {
+  .od-lm-toolbar-tools {
+    justify-content: flex-start;
+  }
+  .od-lm-search {
+    flex: 1 1 140px;
+    width: auto;
+  }
+  .od-lm-health {
+    flex: 1 1 100%;
+    padding-left: 0;
+    border-left: 0;
+    padding-top: 2px;
+  }
+}
+.od-lm-row.held {
+  background: color-mix(in srgb, var(--pc-up) 4%, transparent);
+}
+.od-lm-empty {
+  padding: 14px 12px 6px;
+  color: var(--pc-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.od-lm-row {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.8fr) minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1fr)
+    minmax(0, 0.8fr) 96px;
+  align-items: center;
+  gap: 16px;
+  min-height: 70px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-lm-row:last-child {
+  border-bottom: 1px solid var(--pc-line-soft);
+}
+.od-lm-row:not(.od-lm-cols):hover {
+  background: color-mix(in srgb, var(--pc-text) 3%, transparent);
+}
+.od-lm-cols {
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 10px;
+  border-top: 0;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-lm-asset {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.od-lm-asset-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.od-lm-asset-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.od-lm-asset-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+}
+.od-lm-asset-copy small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-lm-num b {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.od-lm-num small {
+  color: var(--pc-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.od-lm-act {
+  display: flex;
+  justify-content: flex-end;
+}
+.od-lm-act button {
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--pc-r-sm);
+  background: var(--pc-raised);
+  color: var(--pc-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.od-lm-act button:hover {
+  background: var(--pc-hover);
+}
+@media (max-width: 860px) {
+  .od-lm-row {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    gap: 10px;
+    padding-inline: 4px;
+  }
+  .od-lm-row > :nth-child(2),
+  .od-lm-row > :nth-child(4) {
+    display: none;
+  }
+  .od-lm-act button {
+    padding: 0 10px;
+  }
+}
+.od-ticket .od-panel-body > .od-segmented {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+}
+
+/* About: three lines with an icon each, no scrolling. */
+.od-about {
+  display: grid;
+  gap: 18px;
+  margin: 4px 0 18px;
+  padding: 0;
+  list-style: none;
+}
+.od-about li {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+.od-about i {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--pc-cyan-wash);
+  color: var(--pc-cyan);
+}
+.od-about b {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.od-about span {
+  color: var(--pc-body);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.od-about-foot {
+  margin-bottom: 14px;
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+
+/* The wallet: three figures, the shares you can move in, two actions. */
+.od-wallet-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.od-wallet-figures dt {
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-wallet-figures dd {
+  margin-top: 3px;
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.od-wallet-kicker {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-wallet-shares {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 20px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+}
+.od-wallet-shares li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--pc-line-soft);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.od-wallet-shares li b {
+  margin-right: 8px;
+  font-weight: 500;
+}
+.od-wallet-shares button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--pc-cyan);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+@media (max-width: 480px) {
+  .od-wallet-figures dd {
+    font-size: 15px;
+  }
+  .od-wallet-shares {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.od-range-note {
+  margin-top: -8px;
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+
+/* ---------- Lending ticket (scoped) ----------
+   Keep term pricing and the expiry menu inside the lending column so a
+   long tenor list does not collide with the pool / read panels. */
+.od-borrow .od-lend-ticket .od-panel-body {
+  gap: 16px;
+}
+.od-borrow .od-lend-ticket .od-expiry-picker {
+  z-index: 8;
+  width: 100%;
+}
+.od-borrow .od-lend-ticket .od-expiry-trigger {
+  width: 100%;
+  height: auto;
+  min-height: 42px;
+  padding: 8px 11px;
+}
+.od-borrow .od-lend-ticket .od-expiry-menu {
+  left: 0;
+  right: 0;
+  width: auto;
+  max-width: 100%;
+}
+.od-borrow .od-lend-ticket .od-expiry-menu-scroll {
+  max-height: min(260px, 38vh);
+}
+.od-borrow .od-lend-rate {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.od-borrow .od-lend-rate-label {
+  color: var(--pc-body);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.od-borrow .od-lend-rate-note {
+  margin: 0;
+  color: var(--pc-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.od-borrow .od-lend-open {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--pc-line-soft);
+  border-radius: var(--pc-r-sm);
+  background: color-mix(in srgb, var(--pc-surface-2) 88%, transparent);
+}
+.od-borrow .od-lend-open > span {
+  grid-column: 1;
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-borrow .od-lend-open > strong {
+  grid-column: 2;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.od-borrow .od-lend-open > p {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  color: var(--pc-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.od-borrow .od-lend-price {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 14px 18px;
+  padding: 12px 0 2px;
+  border-top: 1px solid var(--pc-line-soft);
+}
+.od-borrow .od-lend-price-main,
+.od-borrow .od-lend-price-side {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.od-borrow .od-lend-price-main > span,
+.od-borrow .od-lend-price-side > span {
+  color: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.od-borrow .od-lend-price-main > strong {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.od-borrow .od-lend-price-side > b {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.od-borrow .od-lend-price small {
+  color: var(--pc-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+/* Wallet sign-in: the desk's first screen until a wallet signs in. Plain
+   on the canvas, no card. */
+.od-gate {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px 16px;
+}
+.od-gate-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+}
+.od-gate-inner h1 {
+  margin: 10px 0 0;
+  color: var(--pc-text);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.od-gate-inner p {
+  margin: 0 0 10px;
+  color: var(--pc-body);
+  font-size: 14px;
+}
+.od-gate-inner small {
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-gate-install {
+  color: var(--pc-cyan);
+  font-size: 14px;
+  font-weight: 600;
+}
+.od-gate-error {
+  color: var(--pc-down) !important;
+}
+.od-wallet-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pc-line-soft);
+  color: var(--pc-muted);
+  font-size: 12.5px;
 }

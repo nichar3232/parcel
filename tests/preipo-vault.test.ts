@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../server/db/store';
-import { VaultService } from '../server/oddlot/service';
-import { totals } from '../server/oddlot/ledger';
-import { mark, selectableExpiries } from '../lib/oddlot/market';
-import type { OrderTerms, VaultAction } from '../lib/oddlot/types';
+import { VaultService } from '../server/parcel/service';
+import { totals } from '../server/parcel/ledger';
+import { mark, selectableExpiries } from '../lib/parcel/market';
+import type { OrderTerms, VaultAction } from '../lib/parcel/types';
 
 /**
  * A pre-IPO covered call is a vault contract like any other.
@@ -16,7 +16,7 @@ import type { OrderTerms, VaultAction } from '../lib/oddlot/types';
  * reserved, and expiry settles on the token's own committed close in
  * whichever direction it went.
  */
-const SYMBOL = 'T-OpenAI';
+const SYMBOL = 'OPENAI';
 
 function setup() {
   const store = new Store(':memory:'),
@@ -66,8 +66,8 @@ void test('pre-ipo: a covered call on a sponsor token needs the tokens in the va
     )!;
     const q = a.quote(coveredCall(0.25, 900, expiry));
     assert.equal(q.eligible, false);
-    assert.match(q.reason ?? '', /T-OpenAI/);
-    assert.throws(() => a.act({ type: 'execute', quoteId: q.id }), /T-OpenAI/);
+    assert.match(q.reason ?? '', /OPENAI/);
+    assert.throws(() => a.act({ type: 'execute', quoteId: q.id }), /OPENAI/);
   } finally {
     a.store.close();
   }

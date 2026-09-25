@@ -46,10 +46,14 @@ export async function navTop(page: Page, name: string) {
  * nothing here to click.
  */
 export async function section(page: Page, name: string) {
-  const item = page.locator('.od-side-sub-item', { hasText: name });
-  if ((await item.count()) === 0) return;
-  await item.click();
-  await expect(item).toHaveAttribute('aria-current', 'true');
+  if (name === 'Rates') return;
+  await page.locator('.od-nav-link', { hasText: name }).click();
+}
+
+/** Pick a named contract or lending workflow from its owning product menu. */
+async function pick(page: Page, product: string, name: string) {
+  await navTop(page, product);
+  await page.locator('.od-nav-pick', { hasText: name }).click();
 }
 
 /**
@@ -63,42 +67,40 @@ export async function nav(page: Page, name: string) {
       await navTop(page, 'Portfolio');
       return section(page, 'Holdings');
     // Positions and Collateral are no longer tabs of their own: the
-    // open positions are on Holdings, and the collateral policy is a
-    // setting reached from the line that states it.
+    // open positions and health sit on Holdings.
     case 'Positions':
       await navTop(page, 'Portfolio');
       return section(page, 'Holdings');
     case 'Risk':
     case 'Collateral':
       await navTop(page, 'Portfolio');
-      await section(page, 'Holdings');
-      return page.getByRole('button', { name: 'Change', exact: true }).click();
+      return section(page, 'Holdings');
     case 'Activity':
       await navTop(page, 'Portfolio');
       return section(page, 'Activity');
-    // Buying and writing are one section now; the side is a choice on
-    // the ticket.
+    case 'Watchlist':
+      await navTop(page, 'Portfolio');
+      return section(page, 'Watchlist');
+    // Options always opens the chain; a named contract only seeds the
+    // ticket and the ladder's side/kind from the product menu.
     case 'Trade':
       await navTop(page, 'Trade');
-      await section(page, 'Options');
-      return page
-        .getByRole('button', { name: 'Long call', exact: true })
-        .click();
+      return section(page, 'Options');
     case 'Underwrite':
-      await navTop(page, 'Trade');
-      await section(page, 'Options');
-      return page
-        .getByRole('button', { name: 'Covered call', exact: true })
-        .click();
+      return pick(page, 'Trade', 'Covered call');
     case 'Structures':
       await navTop(page, 'Trade');
       return section(page, 'Structures');
+    case 'Convexity structures':
+      return pick(page, 'Trade', 'Convexity');
     case 'Lending':
-      await navTop(page, 'Lending');
-      return section(page, 'Lend & borrow');
+      return pick(page, 'Lending', 'Lend');
+    case 'Lending short':
+      return pick(page, 'Lending', 'Short');
+    case 'Lending spot':
+      return pick(page, 'Lending', 'Spot');
     case 'Lending markets':
-      await navTop(page, 'Lending');
-      return section(page, 'Rates');
+      return pick(page, 'Lending', 'Markets');
     case 'Lending positions':
       await navTop(page, 'Portfolio');
       return section(page, 'Holdings');
@@ -109,10 +111,32 @@ export async function nav(page: Page, name: string) {
   }
 }
 
-/** Basic hides the leg editor, the chain and the Greeks. */
+/** Basic hides the leg editor and the Greeks; Advanced is a switch. */
 export async function advanced(page: Page, on = true) {
+  const toggle = page.locator('.od-switch');
+  if ((await toggle.getAttribute('aria-pressed')) !== String(on))
+    await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', String(on));
+}
+
+/** Pick a bounded expiry-menu item. The short tenor follows the stable date
+ * in its accessible name, so the date itself stays a reliable test handle. */
+export async function pickExpiry(page: Page, date: string) {
+  const [year, month, day] = date.slice(0, 10).split('-');
+  const label = `${month}/${day}/${year}`;
+  await page.getByLabel('Contract expiry', { exact: true }).click();
   await page
-    .getByRole('button', { name: on ? 'Advanced' : 'Basic', exact: true })
+    .locator('.od-expiry-menu')
+    .getByRole('button', { name: new RegExp(`^${label}`) })
+    .click();
+}
+
+/** Cash moves in and out through the wallet in the top bar. */
+export async function openUsdcDeposit(page: Page) {
+  await page.getByRole('button', { name: 'Wallet', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Deposit USDC', exact: true })
     .click();
 }
 
@@ -122,9 +146,17 @@ export async function deposit(
   amount: string,
 ) {
   await nav(page, 'Vault');
-  await page
-    .getByRole('button', { name: `Deposit ${asset}`, exact: true })
-    .click();
+  // Both move in through the wallet in the top bar. Holdings lists only
+  // stock with a positive vault balance, so a first stock deposit has no
+  // row to start from; the wallet lists the shares it holds.
+  if (asset === 'USDC') await openUsdcDeposit(page);
+  else {
+    await page.getByRole('button', { name: 'Wallet', exact: true }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: `Deposit ${asset} from wallet`, exact: true })
+      .click();
+  }
   await page.getByLabel('Amount', { exact: true }).fill(amount);
   await page
     .getByRole('button', { name: 'Confirm deposit', exact: true })
@@ -142,12 +174,52 @@ export async function execute(page: Page) {
 }
 
 export async function advance(page: Page, date: string) {
-  await page.getByRole('button', { name: 'Market controls' }).click();
-  await page.getByLabel('Advance to session').selectOption(date);
-  await page
-    .getByRole('button', { name: 'Advance & settle due positions' })
-    .click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // Session travel is deliberately absent from the customer desk. It is a
+  // test-harness concern, so drive the same revision-checked endpoint the
+  // former control used and reload the persisted session afterwards.
+  await page.evaluate(async (next) => {
+    const snapshot = await fetch('/api/vault').then((response) =>
+      response.json(),
+    );
+    const response = await fetch('/api/vault/actions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': snapshot.csrf,
+        'Idempotency-Key': `e2e-advance-${crypto.randomUUID()}`,
+      },
+      body: JSON.stringify({
+        revision: snapshot.revision,
+        action: { type: 'advance', date: next },
+      }),
+    });
+    if (!response.ok) throw Error(await response.text());
+  }, date);
+  await page.reload();
+  await expect(page.locator('.pc-desk')).toHaveAttribute('data-ready', 'true');
+}
+
+export async function restartReplay(page: Page) {
+  await page.evaluate(async () => {
+    const snapshot = await fetch('/api/vault').then((response) =>
+      response.json(),
+    );
+    const response = await fetch('/api/vault/actions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': snapshot.csrf,
+        'Idempotency-Key': `e2e-restart-${crypto.randomUUID()}`,
+      },
+      body: JSON.stringify({
+        revision: snapshot.revision,
+        action: { type: 'restart' },
+      }),
+    });
+    if (!response.ok) throw Error(await response.text());
+  });
+  await page.reload();
+  await expect(page.locator('.pc-desk')).toHaveAttribute('data-ready', 'true');
 }
 
 /** The quote the backend actually priced, not what the form claims. */

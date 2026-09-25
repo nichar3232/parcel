@@ -1,4 +1,4 @@
-# Oddlot product suite verification — 2026-09-15
+# Parcel product suite verification — 2026-09-15
 
 The 0.4 product extension is implemented in the local source and verified through the same-origin Node/SQLite application and a separate private Solana validator program. The existing GitHub main branch, always-on app, V1 program/accounts, and previous video remain unchanged by this work. This report covers product mechanics and test-asset execution, not production brokerage readiness or external liquidity.
 
@@ -31,7 +31,7 @@ The 0.4 product extension is implemented in the local source and verified throug
 
 The first 64-exponential settlement simulation exceeded the Solana compute ceiling. The implementation now caches the exact protocol exponential denominator, stops integer series evaluation after a zero term, and returns exact clipped-tail payouts directly. These are arithmetic-preserving changes; the harder near-cap fixture now settles within 903,000 CU. The test did not lower the promised position limit or substitute an offchain settlement.
 
-Visual inspection found the wide chain hid strikes on narrow screens. The mobile layout now uses calls/puts tabs and cards displaying each strike, both execution sides and backing together. A legacy global label margin also added unnecessary form spacing; the Oddlot field styles now explicitly own that spacing.
+Visual inspection found the wide chain hid strikes on narrow screens. The mobile layout now uses calls/puts tabs and cards displaying each strike, both execution sides and backing together. A legacy global label margin also added unnecessary form spacing; the Parcel field styles now explicitly own that spacing.
 
 Two first-pass new browser assertions used exact cell names despite cells containing a contract ID. The executed contracts were present in the persisted table. Assertions were corrected to include those IDs without relaxing the economic checks.
 
@@ -45,6 +45,6 @@ Terms serialization now includes an optional curve. V2 entrypoints and signer de
 
 ## Evidence and reproduction
 
-`check.txt`, `browser.txt`, `native.txt`, `sbf.txt`, `compute.json`, `deploy.json`, the `oddlot-*.json` transaction reports and the PNGs in this directory contain the verification record. See `docs/PRODUCT.md` for exact payoff/funding rules and `docs/ODDLOT_CHAIN.md` for explicit private-validator setup. No private keys, session cookies, CSRF credentials, runtime databases or signed pending-operation payloads are included.
+`check.txt`, `browser.txt`, `native.txt`, `sbf.txt`, `compute.json`, `deploy.json`, the `parcel-*.json` transaction reports and the PNGs in this directory contain the verification record. See `docs/PRODUCT.md` for exact payoff/funding rules and `docs/PARCEL_CHAIN.md` for explicit private-validator setup. No private keys, session cookies, CSRF credentials, runtime databases or signed pending-operation payloads are included.
 
 This extension does not connect external liquidity, live oracles, real issuer tokens or user wallet signing, and does not refresh the earlier submission video. Those boundaries follow the requested product-only scope.

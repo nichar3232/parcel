@@ -7,20 +7,23 @@ import {
 } from './feeds';
 import {
   CoinbaseSource,
+  MassiveStocksSource,
   PythSource,
   type Observation,
   type Source,
+  type SourceHealth,
 } from './sources';
+import { YahooSource } from './yahoo';
 
 /**
  * The live mark engine.
  *
- * Two sources, one number. Pyth is polled for every instrument that has
- * a feed; anything without a fresh observation is walked forward by a
- * geometric Brownian motion seeded from the last real mark it had. The
- * equity feeds stop publishing when the cash market closes and no feed
- * exists for a sponsor token at all, so without the walk most of the
- * desk would be frozen most of the time.
+ * A source priority chain, one number. A configured Massive stream applies
+ * NBBO updates as they arrive; Pyth and Coinbase remain resilient polling
+ * sources. Anything without a fresh observation is walked forward by a
+ * geometric Brownian motion seeded from the last real mark it had. No feed
+ * exists for a sponsor token, so without the walk the simulated maker would
+ * be frozen most of the time.
  *
  * The distinction is never hidden. Every mark carries the source that
  * produced it and the time of the last real observation, and the UI is
@@ -29,12 +32,24 @@ import {
  */
 
 const FRESH_MS = 20_000;
+// Providers and Parcel will not share an exact wall clock, but a timestamp
+// far enough in the future to evade the freshness window is not a usable
+// market observation. Five seconds tolerates ordinary NTP jitter without
+// allowing one malformed event to look live indefinitely.
+const MAX_FUTURE_SKEW_MS = 5_000;
 const TICK_MS = 1000;
-const POLL_MS = 3000;
+const POLL_MS = 2000;
 const YEAR_SECONDS = 365 * 24 * 3600;
 const TAPE_LENGTH = 48;
 
-export type MarkSource = 'pyth' | 'coinbase' | 'simulated';
+export type MarkSource =
+  | 'massive-nbbo'
+  | 'massive-delayed-nbbo'
+  | 'pyth'
+  | 'coinbase'
+  | 'yahoo'
+  | 'prestocks'
+  | 'simulated';
 
 export interface Mark {
   symbol: string;
@@ -46,10 +61,21 @@ export interface Mark {
   change: number;
   bid: number;
   ask: number;
+  /** Displayed shares at each side of an actual venue book, if available. */
+  bidSize: number | null;
+  askSize: number | null;
+  /** Whether the displayed bid/ask is an NBBO, one venue's BBO, or a model. */
+  quoteKind: 'nbbo' | 'venue-bbo' | 'modelled';
   spreadBps: number;
   vol: number;
   source: MarkSource;
   observedAt: number | null;
+  /**
+   * The source of the last mark is known, but it has not published within
+   * the desk freshness window. A stale official close is useful context; it
+   * is not a live quote and must never advance a live chart.
+   */
+  stale: boolean;
   /** Mock-token supply the maker has minted against this instrument. */
   supply: number;
   /** The lending pool standing behind this instrument. */
@@ -79,6 +105,9 @@ interface State extends Instrument {
   realSource: string | null;
   realBid: number | null;
   realAsk: number | null;
+  realBidSize: number | null;
+  realAskSize: number | null;
+  realQuoteKind: Observation['quoteKind'] | null;
   supply: number;
   supplied: number;
   borrowed: number;
@@ -94,17 +123,67 @@ const gaussian = () => {
 };
 
 const day = (at: number) => new Date(at).toISOString().slice(0, 10);
+const freshAt = (at: number, now = Date.now()) =>
+  now - at <= FRESH_MS && at - now <= MAX_FUTURE_SKEW_MS;
+
+/**
+ * A lower number is a more authoritative mark for one instrument.
+ *
+ * Polling already applies this order by walking `sources` from most to least
+ * authoritative. Streamed updates do not share that polling pass, however,
+ * so they need the same guard here: an oracle event that happens to arrive
+ * after a fresh consolidated quote must not erase that book. A source may
+ * take over as soon as the higher-quality observation ages out.
+ */
+const sourcePriority = (source: string | null) => {
+  switch (source) {
+    case 'massive-nbbo':
+      return 0;
+    case 'pyth':
+      return 1;
+    case 'coinbase':
+      return 2;
+    case 'massive-delayed-nbbo':
+      return 3;
+    case 'yahoo':
+      return 4;
+    case 'prestocks':
+      // Publisher marks only exist on their own private-company symbols,
+      // but keep their identity ahead of the sandbox walk if that ever
+      // changes.
+      return 0;
+    default:
+      return 99;
+  }
+};
 
 export class MarkEngine {
   private state = new Map<string, State>();
   private tape: Print[] = [];
   private seq = 0;
-  private sources: Source[] = [new PythSource(), new CoinbaseSource()];
+  private yahoo: YahooSource;
+  private sources: Source[];
   private timers: NodeJS.Timeout[] = [];
+  private sourceStops: (() => void)[] = [];
+  private listeners = new Set<(snapshot: MarkSnapshot) => void>();
   private lastTick = Date.now();
   private started = false;
 
-  constructor(now = Date.now()) {
+  constructor(
+    now = Date.now(),
+    sources?: Source[],
+  ) {
+    // The keyless Yahoo chart endpoint is a deliberately last-resort
+    // listed-equity print. It gives the desk a delayed price when no direct
+    // quote service is configured; it never displaces Massive NBBO or a Pyth
+    // observation, and its modelled spread remains labelled as such.
+    this.yahoo = new YahooSource();
+    this.sources = sources ?? [
+      new MassiveStocksSource(),
+      new PythSource(),
+      new CoinbaseSource(),
+      this.yahoo,
+    ];
     const seed = (i: Instrument, price: number): State => ({
       ...i,
       price,
@@ -115,6 +194,9 @@ export class MarkEngine {
       realSource: null,
       realBid: null,
       realAsk: null,
+      realBidSize: null,
+      realAskSize: null,
+      realQuoteKind: null,
       // Depth is a dollar figure, so units come from dividing by the
       // mark. Seeding units directly meant a pool's size scaled with
       // the price of its asset, and the desk reported a five-trillion
@@ -147,9 +229,8 @@ export class MarkEngine {
    *
    * The sponsor tokens are the case this exists for. Their symbols and
    * their marks come from the providers at request time, so hardcoding
-   * a guessed symbol here produced a mock token that pegged to nothing
-   * — the pre-IPO screen looked up T-OPENAI and the registry called it
-   * T-OpenAI. The route that reads the providers registers them
+   * a guessed symbol here produced a mock token that pegged to nothing.
+   * The route that reads the publisher registers the reviewed symbols
    * instead, and re-pegs each one whenever the provider's mark moves
    * more than a per-cent, so the walk stays anchored to a real number
    * without snapping on every poll.
@@ -182,6 +263,38 @@ export class MarkEngine {
   }
 
   /**
+   * Apply a publisher's own mark without turning it into venue liquidity.
+   *
+   * PreStocks publishes an indicative mark, not an executable order book.
+   * Recording its timestamp lets the UI tell a newly received publisher mark
+   * from the sandbox walk that fills the gap between publisher updates.  The
+   * bid/ask remains modelled in `project`, because the publisher response has
+   * not supplied either side or any displayed size.
+   */
+  publishPreStocks(symbol: string, price: number, at = Date.now()) {
+    if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(at)) return;
+    this.ensure(symbol, price);
+    const state = this.state.get(symbol);
+    if (!state) return;
+    if (state.lastReal && state.realSource === 'prestocks' && at < state.lastReal)
+      return;
+    state.price = price;
+    state.lastReal = at;
+    state.realSource = 'prestocks';
+    state.realBid = null;
+    state.realAsk = null;
+    state.realBidSize = null;
+    state.realAskSize = null;
+    state.realQuoteKind = 'oracle';
+    if (!state.openIsReal) {
+      state.open = price;
+      state.openIsReal = true;
+    }
+    state.openDay = day(at);
+    this.broadcast();
+  }
+
+  /**
    * Begin ticking. Safe to call when the process has no network: feed
    * resolution simply never completes and every instrument stays on the
    * walk. The timers are unref'd so they can never hold the process
@@ -190,6 +303,13 @@ export class MarkEngine {
   start() {
     if (this.started) return;
     this.started = true;
+    for (const source of this.sources) {
+      if (!source.subscribe) continue;
+      const stop = source.subscribe([...this.state.values()], (rows) => {
+        this.accept(rows);
+      });
+      this.sourceStops.push(stop);
+    }
     void this.poll();
     const every = (ms: number, fn: () => void) => {
       const t = setInterval(fn, ms);
@@ -203,6 +323,8 @@ export class MarkEngine {
   stop() {
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
+    for (const stop of this.sourceStops) stop();
+    this.sourceStops = [];
     this.started = false;
   }
 
@@ -223,6 +345,7 @@ export class MarkEngine {
     try {
       const instruments = [...this.state.values()];
       const seen = new Map<string, Observation>();
+      const now = Date.now();
       for (const source of this.sources) {
         if (!source.enabled) continue;
         let rows: Observation[] = [];
@@ -231,32 +354,63 @@ export class MarkEngine {
         } catch {
           rows = [];
         }
-        for (const row of rows) if (!seen.has(row.symbol)) seen.set(row.symbol, row);
-      }
-      const now = Date.now();
-      for (const [symbol, row] of seen) {
-        const s = this.state.get(symbol);
-        if (!s || now - row.at > FRESH_MS) continue;
-        s.price = row.price;
-        s.realBid = row.bid ?? null;
-        s.realAsk = row.ask ?? null;
-        s.lastReal = now;
-        s.realSource = row.source;
-        // The baseline the change column is measured from has to come
-        // from the venue, or at worst from the first real mark. Left on
-        // the boot seed it reports a 40% move on a flat day.
-        if (row.open) {
-          s.open = row.open;
-          s.openIsReal = true;
-        } else if (!s.openIsReal) {
-          s.open = row.price;
-          s.openIsReal = true;
+        for (const row of rows) {
+          // A stale high-priority snapshot must not suppress a fresh lower
+          // priority source. Check age before inserting into the priority map.
+          if (freshAt(row.at, now) && !seen.has(row.symbol))
+            seen.set(row.symbol, row);
         }
-        s.openDay = day(now);
       }
+      this.accept([...seen.values()]);
     } finally {
       this.polling = false;
     }
+  }
+
+  /** Apply direct stream events and recovered polling observations alike. */
+  private accept(rows: Observation[]) {
+    const now = Date.now();
+    let changed = false;
+    for (const row of rows) {
+      const s = this.state.get(row.symbol);
+      if (!s || !freshAt(row.at, now)) continue;
+      // Recovering a cached event after the streaming source has already
+      // delivered a newer one must not move a quote backwards.
+      if (s.lastReal && s.realSource === row.source && row.at < s.lastReal)
+        continue;
+      // Direct subscriptions arrive independently of the two-second recovery
+      // poll. Preserve a fresh, more authoritative source when a lower
+      // priority stream delivers a later timestamp; otherwise an oracle or
+      // one-venue quote could overwrite a current listed NBBO solely because
+      // its packet arrived later.
+      if (
+        s.lastReal &&
+        freshAt(s.lastReal, now) &&
+        sourcePriority(row.source) > sourcePriority(s.realSource)
+      )
+        continue;
+      s.price = row.price;
+      s.realBid = row.bid ?? null;
+      s.realAsk = row.ask ?? null;
+      s.realBidSize = row.bidSize ?? null;
+      s.realAskSize = row.askSize ?? null;
+      s.realQuoteKind = row.quoteKind ?? null;
+      s.lastReal = row.at;
+      s.realSource = row.source;
+      // The baseline the change column is measured from has to come
+      // from the venue, or at worst from the first real mark. Left on
+      // the boot seed it reports a 40% move on a flat day.
+      if (row.open) {
+        s.open = row.open;
+        s.openIsReal = true;
+      } else if (!s.openIsReal) {
+        s.open = row.price;
+        s.openIsReal = true;
+      }
+      s.openDay = day(now);
+      changed = true;
+    }
+    if (changed) this.broadcast();
   }
 
   private rollDay(s: State, now: number) {
@@ -275,6 +429,9 @@ export class MarkEngine {
     for (const s of this.state.values()) {
       this.rollDay(s, now);
       if (s.lastReal && now - s.lastReal < FRESH_MS) continue;
+      // Never walk a real stock. Between prints it is worth its last
+      // trade, and a random walk would draw moves that did not happen.
+      if (s.kind === 'equity' && s.lastReal) continue;
       // A stablecoin is pulled back to its peg rather than allowed to
       // wander; a random walk on USDC would quote a dollar at $0.94.
       if (s.kind === 'stable') {
@@ -286,6 +443,7 @@ export class MarkEngine {
       s.price = Math.max(0.0001, s.price * Math.exp(drift + shock));
     }
     this.makeMarket(now);
+    this.broadcast();
   }
 
   /**
@@ -343,6 +501,11 @@ export class MarkEngine {
     if (this.tape.length > TAPE_LENGTH) this.tape.length = TAPE_LENGTH;
   }
 
+  /** Today's real one-minute prints for a listed equity, if observed. */
+  intraday(symbol: string) {
+    return this.yahoo.intraday(symbol);
+  }
+
   /** One instrument's current mark, or null if it is not tracked. */
   mark(symbol: string): Mark | null {
     const s = this.state.get(symbol.toUpperCase());
@@ -350,12 +513,26 @@ export class MarkEngine {
   }
 
   private project(s: State): Mark {
-    const fresh = !!s.lastReal && Date.now() - s.lastReal < FRESH_MS;
+    // A listed equity may reasonably retain its last official print after
+    // the market closes, but it is not "live" forever. Treat every source
+    // the same here: provenance is retained below while freshness drives the
+    // live badge, venue BBO, and browser-session chart tail.
+    const fresh = !!s.lastReal && freshAt(s.lastReal);
     const half = (s.price * s.spreadBps) / 10_000;
     const round = (n: number) => Math.round(n * 1e6) / 1e6;
     // A venue's own book beats a modelled spread whenever we have one.
-    const bid = fresh && s.realBid ? s.realBid : s.price - half;
-    const ask = fresh && s.realAsk ? s.realAsk : s.price + half;
+    const hasVenueBook =
+      fresh &&
+      s.realBid !== null &&
+      s.realAsk !== null &&
+      (s.realQuoteKind === 'nbbo' || s.realQuoteKind === 'venue-bbo');
+    const bid = hasVenueBook ? s.realBid! : s.price - half;
+    const ask = hasVenueBook ? s.realAsk! : s.price + half;
+    const quoteKind = hasVenueBook
+      ? s.realQuoteKind === 'nbbo'
+        ? 'nbbo'
+        : 'venue-bbo'
+      : 'modelled';
     return {
       symbol: s.symbol,
       name: s.name,
@@ -365,10 +542,17 @@ export class MarkEngine {
       change: s.open ? (s.price - s.open) / s.open : 0,
       bid: round(bid),
       ask: round(ask),
+      bidSize: hasVenueBook ? s.realBidSize : null,
+      askSize: hasVenueBook ? s.realAskSize : null,
+      quoteKind,
       spreadBps: s.spreadBps,
       vol: s.vol,
-      source: fresh ? ((s.realSource as MarkSource) ?? 'simulated') : 'simulated',
+      // Do not erase the provenance of a stale official mark. Consumers can
+      // show "last observed" accurately instead of calling an old Yahoo or
+      // NBBO print a simulated value. `stale` is the operative state.
+      source: s.lastReal ? this.markSource(s.realSource) : 'simulated',
       observedAt: s.lastReal,
+      stale: !fresh,
       supply: round(s.supply),
       supplied: round(s.supplied),
       borrowed: round(s.borrowed),
@@ -376,18 +560,58 @@ export class MarkEngine {
     };
   }
 
+  private markSource(source: string | null): MarkSource {
+    return source === 'massive-nbbo' ||
+      source === 'massive-delayed-nbbo' ||
+      source === 'pyth' ||
+      source === 'coinbase' ||
+      source === 'yahoo' ||
+      source === 'prestocks'
+      ? source
+      : 'simulated';
+  }
+
   snapshot() {
     const marks = [...this.state.values()].map((s) => this.project(s));
     return {
       asOf: Date.now(),
-      /** True once any feed has ever answered, so the UI can say why. */
-      connected: [...this.state.values()].some((s) => s.lastReal !== null),
-      sources: this.sources.map((x) => ({ name: x.name, enabled: x.enabled })),
+      /** True only while at least one provider observation is fresh. */
+      connected: marks.some(
+        (mark) =>
+          !mark.stale &&
+          mark.source !== 'simulated' &&
+          mark.source !== 'yahoo' &&
+          mark.source !== 'massive-delayed-nbbo' &&
+          // A publisher mark is useful and timestamped, but it is neither a
+          // venue BBO nor a streaming oracle. Do not let one make a generic
+          // "live market" badge true for the whole desk.
+          mark.source !== 'prestocks',
+      ),
+      sources: this.sources.map((x): SourceHealth =>
+        x.health?.() ?? {
+          name: x.name,
+          enabled: x.enabled,
+          state: x.enabled ? 'live' : 'disabled',
+          detail: x.enabled ? 'Polling source enabled' : 'Polling source disabled',
+        },
+      ),
       marks,
       tape: this.tape.slice(0, 24),
       minted: [...this.state.values()].reduce((t, s) => t + s.minted, 0),
       burned: [...this.state.values()].reduce((t, s) => t + s.burned, 0),
     };
+  }
+
+  /** Subscribe to source/tick updates for the same-origin SSE endpoint. */
+  subscribe(listener: (snapshot: MarkSnapshot) => void) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private broadcast() {
+    if (!this.listeners.size) return;
+    const snapshot = this.snapshot();
+    for (const listener of this.listeners) listener(snapshot);
   }
 }
 

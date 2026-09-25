@@ -3,6 +3,7 @@ import type { ChainEvidence, ChainPosition, Health } from '@/lib/contracts/api';
 import type { Terms } from '@/lib/engine';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, requestKey, RequestError } from '@/lib/client/api';
+import { chainDownError, shownWarning } from '@/lib/client/chain-copy';
 export function useChain(
   csrf: string,
   terms: Terms,
@@ -66,7 +67,9 @@ export function useChain(
       void api<ChainPosition>(`/api/chain/positions/${remote.id}`)
         .then((value) => {
           if (remote.pending && !value.pending)
-            notify(value.warning || 'Transaction confirmed on Solana.');
+            notify(
+              shownWarning(value.warning) || 'Transaction confirmed on Solana.',
+            );
           updateRemote(value);
         })
         .catch(() => {})
@@ -132,7 +135,7 @@ export function useChain(
       pendingRequest.current = null;
       sessionStorage.removeItem(storageKey);
       notify(
-        result.warning ||
+        shownWarning(result.warning) ||
           (action === 'read'
             ? 'Live escrow refreshed.'
             : 'Transaction confirmed on Solana.'),
@@ -142,7 +145,7 @@ export function useChain(
         pendingRequest.current = null;
         sessionStorage.removeItem(storageKey);
       }
-      notify((e as Error).message);
+      if (!chainDownError(e)) notify((e as Error).message);
     } finally {
       lock.current = false;
       setRemoteBusy(false);
@@ -155,7 +158,7 @@ export function useChain(
       setHealth(await api<Health>('/api/health'));
       notify('Verification evidence refreshed.');
     } catch (e) {
-      notify((e as Error).message);
+      if (!chainDownError(e)) notify((e as Error).message);
     } finally {
       setChainBusy(false);
     }

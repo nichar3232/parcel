@@ -1,7 +1,7 @@
 'use client';
 import { useId } from 'react';
-import { PLOT } from '@/lib/oddlot/landing';
-import type { Payoff } from '@/lib/oddlot/landing';
+import { PLOT } from '@/lib/parcel/landing';
+import type { Payoff } from '@/lib/parcel/landing';
 
 /**
  * The landing page's payoff drawing, shared by the hero, the product
@@ -9,14 +9,12 @@ import type { Payoff } from '@/lib/oddlot/landing';
  *
  * The line is green where the position makes money and red where it
  * loses, and the fill under it is the same, split at the zero rule.
- * There is no P&L grid: the stats beside the chart quote the numbers,
- * and the shape is what the chart is for. What is marked is what a
- * reader looks for first — the strikes, the reference price and the
- * break-even.
+ * A quiet P&L scale keeps the shape grounded in real values. What is
+ * marked most strongly is what a reader looks for first — the strikes,
+ * the reference price and the break-even.
  *
- * The hero morphs one shape into the next, so it passes the line it
- * is drawing this frame and where zero is; everything else defaults
- * to the structure's own payoff.
+ * Compact figures keep the reference lines but drop the scale labels;
+ * they are a visual preview, not a place to read a quoted value.
  */
 export function PayoffGlyph({
   payoff,
@@ -25,6 +23,7 @@ export function PayoffGlyph({
   className,
   title = 'Payoff at expiry',
   fadeKey,
+  density = 'full',
 }: {
   payoff: Payoff;
   line?: string;
@@ -33,6 +32,7 @@ export function PayoffGlyph({
   title?: string;
   /** Changes when the shape does, so the labels replay their rise. */
   fadeKey?: string;
+  density?: 'full' | 'compact';
 }) {
   const uid = useId();
   const up = `${uid}up`,
@@ -42,9 +42,15 @@ export function PayoffGlyph({
   const area = `${line} L${PLOT.x1},${zeroY.toFixed(1)} L${PLOT.x0},${zeroY.toFixed(1)} Z`;
   const spot = payoff.ticks[1];
   const dp = payoff.best - payoff.worst < 1 ? 3 : 2;
+  const zeroLabel =
+    payoff.grid.find((g) => Math.abs(g.y - payoff.zeroY) < 1)?.label ?? '$0';
 
   return (
-    <svg viewBox={`0 0 ${PLOT.w} ${PLOT.h}`} className={className}>
+    <svg
+      viewBox={`0 0 ${PLOT.w} ${PLOT.h}`}
+      className={className}
+      aria-label={title}
+    >
       <title>{title}</title>
       <defs>
         <linearGradient id={up} x1="0" y1="0" x2="0" y2="1">
@@ -76,6 +82,12 @@ export function PayoffGlyph({
         </clipPath>
       </defs>
 
+      {density === 'full' && (
+        <text className="lp-axis-title" x={PLOT.x0} y={PLOT.y0 - 15}>
+          P&amp;L / share
+        </text>
+      )}
+
       <g key={`k${fadeKey ?? ''}`} className="lp-strikes">
         {payoff.strikes.map((k, i) => (
           <g key={`${k.value}-${i}`}>
@@ -94,6 +106,21 @@ export function PayoffGlyph({
       <path d={area} fill={`url(#${up})`} clipPath={`url(#${above})`} />
       <path d={area} fill={`url(#${dn})`} clipPath={`url(#${below})`} />
 
+      <g className="lp-pnl-grid">
+        {payoff.grid
+          .filter((g) => Math.abs(g.y - zeroY) > 1)
+          .map((g) => (
+            <g key={`${g.y}-${g.label}`}>
+              <line x1={PLOT.x0} x2={PLOT.x1} y1={g.y} y2={g.y} />
+              {density === 'full' && (
+                <text x={PLOT.x0 - 12} y={g.y + 4} textAnchor="end">
+                  {g.label}
+                </text>
+              )}
+            </g>
+          ))}
+      </g>
+
       <line
         className="lp-zero"
         x1={PLOT.x0}
@@ -101,6 +128,16 @@ export function PayoffGlyph({
         y1={zeroY}
         y2={zeroY}
       />
+      {density === 'full' && (
+        <text
+          className="lp-zero-label"
+          x={PLOT.x0 - 12}
+          y={zeroY + 4}
+          textAnchor="end"
+        >
+          {zeroLabel}
+        </text>
+      )}
 
       <path d={line} className="lp-curve up" clipPath={`url(#${above})`} />
       <path d={line} className="lp-curve down" clipPath={`url(#${below})`} />
@@ -135,7 +172,7 @@ export function PayoffGlyph({
             textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
             data-mid={i === 1 || undefined}
           >
-            {t.label}
+            {i === 1 ? `Reference ${t.label}` : t.label}
           </text>
         ))}
       </g>

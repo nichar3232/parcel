@@ -2,16 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../server/db/store';
-import { VaultService, type VaultPlan } from '../server/oddlot/service';
-import { VaultChainCoordinator } from '../server/oddlot/chain/coordinator';
+import { VaultService, type VaultPlan } from '../server/parcel/service';
+import { VaultChainCoordinator } from '../server/parcel/chain/coordinator';
 import type {
   PreparedVaultTransaction,
   VaultChainAdapter,
-} from '../server/oddlot/chain/adapter';
-import { initialVault } from '../server/oddlot/ledger';
-import type { VaultBook } from '../lib/oddlot/types';
-import { bookBytes } from '../server/oddlot/chain/codec';
+} from '../server/parcel/chain/adapter';
+import { initialVault } from '../server/parcel/ledger';
+import type { VaultBook } from '../lib/parcel/types';
+import { bookBytes } from '../server/parcel/chain/codec';
 class Chain implements VaultChainAdapter {
+  readonly network = 'localnet' as const;
   book = initialVault();
   revision = 0;
   sends = 0;
@@ -19,6 +20,7 @@ class Chain implements VaultChainAdapter {
   loseVerification = false;
   loseSend = false;
   unavailable = false;
+  signature = 'original-signature';
   private plan!: VaultPlan;
   async prepare(
     _owner: string,
@@ -30,7 +32,7 @@ class Chain implements VaultChainAdapter {
     this.plan = plan;
     return {
       raw: 'signed-original-bytes',
-      signature: 'original-signature',
+      signature: this.signature,
       lastValidHeight: 99,
       ledger: 'test-ledger',
       stage,
@@ -43,9 +45,13 @@ class Chain implements VaultChainAdapter {
     this.revision = this.plan.revision + 1;
     if (this.loseSend) throw Error('lost RPC response');
   }
-  async status() {
-    if (this.unavailable) return 'pending' as const;
-    return this.revision === 0 ? ('pending' as const) : ('confirmed' as const);
+  async status(
+    _tx?: PreparedVaultTransaction,
+  ): Promise<'pending' | 'confirmed' | 'expired' | { error: string }> {
+    if (this.unavailable) return 'pending';
+    // Only this operation's broadcast advances revision. A prior confirmed
+    // action must not make the next signature look settled before send.
+    return this.revision === this.plan.revision + 1 ? 'confirmed' : 'pending';
   }
   async verify(_owner: string, b: VaultBook, revision: number) {
     if (this.loseVerification) {
@@ -83,10 +89,13 @@ void test('onchain success followed by interrupted indexing resumes the original
       new VaultService(store),
       chain,
     );
+    // A client that never saw the saved key (the desk, after the agent's
+    // action stalled) finishes the original first, then reviews fresh terms.
     await assert.rejects(
       restarted.apply(s, randomUUID(), deposit),
-      /original pending action/,
+      /Your vault changed/,
     );
+    assert.equal(vault.snapshot(s).revision, 1);
     const result = await restarted.apply(s, key, deposit);
     assert.equal(result.revision, 1);
     assert.equal(result.book.vault.USDC, 100);
@@ -179,6 +188,259 @@ void test('a rejected chain-mode intent is a definite conflict and never leaves 
       (await c.apply(s, randomUUID(), deposit)).book.vault.USDC,
       100,
     );
+  } finally {
+    store.close();
+  }
+});
+
+void test('an unknown action is refused in chain mode before it can block the session', async () => {
+  const store = new Store(':memory:');
+  try {
+    const s = store.createSession().session,
+      vault = new VaultService(store),
+      chain = new Chain();
+    const c = new VaultChainCoordinator(store, vault, chain);
+    await assert.rejects(
+      c.apply(s, randomUUID(), {
+        revision: 0,
+        action: { type: 'not-a-real-action' },
+      }),
+      (e: unknown) =>
+        !!e &&
+        typeof e === 'object' &&
+        'code' in e &&
+        e.code === 'CHAIN_UNSUPPORTED',
+    );
+    assert.equal(
+      store.db.prepare('SELECT count(*) n FROM vault_chain_operations').get()!
+        .n,
+      0,
+    );
+    assert.equal(chain.prepares, 0);
+    assert.equal(
+      (await c.apply(s, randomUUID(), deposit)).book.vault.USDC,
+      100,
+    );
+  } finally {
+    store.close();
+  }
+});
+
+void test('onchain cash borrow against pledged NVDA commits through the coordinator', async () => {
+  const store = new Store(':memory:');
+  try {
+    const s = store.createSession().session,
+      vault = new VaultService(store),
+      chain = new Chain();
+    const c = new VaultChainCoordinator(store, vault, chain);
+    let state = await c.apply(s, randomUUID(), {
+      revision: 0,
+      action: {
+        type: 'transfer',
+        asset: 'NVDA',
+        direction: 'deposit',
+        amount: 2,
+      },
+    });
+    state = await c.apply(s, randomUUID(), {
+      revision: state.revision,
+      action: {
+        type: 'borrow',
+        symbol: 'NVDA',
+        pledged: 1,
+        amount: 50,
+        rate: 'variable',
+      },
+    });
+    assert.equal(state.mode, 'localnet');
+    assert.equal(state.book.borrows[0].status, 'active');
+    assert.equal(state.book.borrows[0].principal, 50);
+    assert.ok(state.chain?.signature);
+    const mutation = store
+      .mutations(s.id)
+      .find((r) => r.action_type === 'borrow')!;
+    assert.equal(mutation.mode, 'localnet');
+    assert.equal(mutation.revision_after, state.revision);
+  } finally {
+    store.close();
+  }
+});
+
+void test('onchain option execute stores the Black-Scholes traded premium on the fill', async () => {
+  const store = new Store(':memory:');
+  try {
+    const s = store.createSession().session,
+      vault = new VaultService(store),
+      chain = new Chain();
+    const c = new VaultChainCoordinator(store, vault, chain);
+    let state = await c.apply(s, randomUUID(), {
+      revision: 0,
+      action: {
+        type: 'transfer',
+        asset: 'USDC',
+        direction: 'deposit',
+        amount: 1000,
+      },
+    });
+    const { templateTerms } = await import('../lib/parcel/templates');
+    const { tradedPremium } = await import('../server/parcel/ledger');
+    const terms = templateTerms('call', '2025-02-07');
+    terms.quantity = 0.25;
+    const expected = tradedPremium(terms, state.book);
+    const quote = vault.quote(s, randomUUID(), {
+      revision: state.revision,
+      terms,
+    });
+    assert.equal(quote.premium, expected);
+    state = await c.apply(s, randomUUID(), {
+      revision: state.revision,
+      action: { type: 'execute', quoteId: quote.id },
+    });
+    assert.equal(state.book.options[0].premium, expected);
+    assert.equal(state.mode, 'localnet');
+    const mutation = store
+      .mutations(s.id)
+      .find((r) => r.action_type === 'execute')!;
+    assert.equal(mutation.premium, expected);
+    assert.equal(mutation.mode, 'localnet');
+  } finally {
+    store.close();
+  }
+});
+void test('a simulated program rejection fails the op and frees the session for a new key', async () => {
+  const store = new Store(':memory:');
+  try {
+    const s = store.createSession().session,
+      vault = new VaultService(store);
+    const chain = new Chain();
+    chain.prepare = async () => {
+      throw Error(
+        'Parcel program rejected the prepared action: {"InstructionError":[0,"Custom"]}',
+      );
+    };
+    const c = new VaultChainCoordinator(store, vault, chain);
+    const key = randomUUID();
+    await assert.rejects(
+      c.apply(s, key, deposit),
+      (e: unknown) =>
+        !!e &&
+        typeof e === 'object' &&
+        'code' in e &&
+        e.code === 'CHAIN_REJECTED',
+    );
+    const row = store.db
+      .prepare(
+        'SELECT status,error,transaction_json,action_type FROM vault_chain_operations WHERE owner=? AND key=?',
+      )
+      .get(s.id, key) as {
+      status: string;
+      error: string;
+      transaction_json: string | null;
+      action_type: string;
+    };
+    assert.equal(row.status, 'failed');
+    assert.equal(row.transaction_json, null);
+    assert.equal(row.action_type, 'transfer');
+    assert.match(row.error, /Parcel program rejected/);
+    assert.equal(vault.snapshot(s).revision, 0);
+
+    // Failed ops do not occupy the one-pending slot.
+    const chain2 = new Chain();
+    const recovered = await new VaultChainCoordinator(
+      store,
+      vault,
+      chain2,
+    ).apply(s, randomUUID(), deposit);
+    assert.equal(recovered.book.vault.USDC, 100);
+  } finally {
+    store.close();
+  }
+});
+
+void test('an expired signature is recorded as failed without committing balances', async () => {
+  const store = new Store(':memory:');
+  try {
+    const s = store.createSession().session,
+      vault = new VaultService(store),
+      chain = new Chain();
+    chain.status = async () => 'expired' as const;
+    const c = new VaultChainCoordinator(store, vault, chain);
+    const key = randomUUID();
+    await assert.rejects(c.apply(s, key, deposit), /expired without confirmation/);
+    assert.equal(vault.snapshot(s).revision, 0);
+    const row = store.db
+      .prepare(
+        'SELECT status,error,signature,transaction_json FROM vault_chain_operations WHERE owner=? AND key=?',
+      )
+      .get(s.id, key) as {
+      status: string;
+      error: string;
+      signature: string | null;
+      transaction_json: string | null;
+    };
+    assert.equal(row.status, 'failed');
+    assert.ok(row.transaction_json, 'signed bytes retained for forensics');
+    assert.equal(row.signature, 'original-signature');
+    assert.match(row.error, /expired/);
+  } finally {
+    store.close();
+  }
+});
+void test('each receipt a confirmed onchain action wrote carries that transaction signature', async () => {
+  const store = new Store(':memory:');
+  try {
+    const s = store.createSession().session,
+      vault = new VaultService(store),
+      chain = new Chain();
+    const c = new VaultChainCoordinator(store, vault, chain);
+    chain.signature = 'first-signature';
+    const first = await c.apply(s, randomUUID(), deposit);
+    const firstEvents = first.book.events.map((e) => e.id);
+    assert.ok(firstEvents.length > 0);
+    for (const id of firstEvents)
+      assert.equal(first.signatures?.[id], 'first-signature');
+    chain.signature = 'second-signature';
+    const second = await c.apply(s, randomUUID(), {
+      ...deposit,
+      revision: 1,
+    });
+    const snapshot = c.snapshot(s);
+    assert.ok(snapshot.book.events.length > firstEvents.length);
+    for (const e of snapshot.book.events)
+      assert.equal(
+        snapshot.signatures?.[e.id],
+        firstEvents.includes(e.id) ? 'first-signature' : 'second-signature',
+      );
+    assert.deepEqual(second.signatures, snapshot.signatures);
+    assert.equal(snapshot.chain?.signature, 'second-signature');
+    // Sandbox snapshots never claim a transaction.
+    assert.equal(vault.snapshot(s).signatures, undefined);
+  } finally {
+    store.close();
+  }
+});
+void test('a stalled action the program can never encode is failed instead of blocking the session', async () => {
+  const store = new Store(':memory:');
+  try {
+    const s = store.createSession().session,
+      vault = new VaultService(store),
+      chain = new Chain();
+    // As the agent left one: recorded, then refused by the encoder on every retry.
+    const plan = vault.plan(s, deposit);
+    plan.action = { ...plan.action, type: 'execute' };
+    store.db
+      .prepare(
+        "INSERT INTO vault_chain_operations(owner,key,request_hash,plan,status,stage,action_type,created_at) VALUES(?,?,?,?,'preparing','execute','execute',?)",
+      )
+      .run(s.id, randomUUID(), 'stalled', JSON.stringify(plan), Date.now());
+    const c = new VaultChainCoordinator(store, vault, chain);
+    const result = await c.apply(s, randomUUID(), deposit);
+    assert.equal(result.book.vault.USDC, 100);
+    const stalled = store.db
+      .prepare("SELECT status,error FROM vault_chain_operations WHERE request_hash='stalled'")
+      .get() as { status: string; error: string };
+    assert.equal(stalled.status, 'failed');
+    assert.match(stalled.error, /No option transition/);
   } finally {
     store.close();
   }

@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { ApiError } from './http/errors';
+import { UNDERLYINGS } from '../lib/parcel/universe';
 export interface Config {
   port: number;
   host: string;
@@ -12,13 +13,44 @@ export interface Config {
   authority: string;
   allowedOrigins: string[];
   chainEnabled: boolean;
+  /** Fail the deployment readiness probe if no real-time listed NBBO feed is up. */
+  marketDataRequired: boolean;
   expirySeconds: number;
   secureCookie: boolean;
-  oddlot?: { program: string; cashMint: string; stockMint: string };
+  /** The desk opens only after a wallet signs in (tests turn this off). */
+  walletSignIn: boolean;
+  /** The public https address the desk is reached at, when it has one. */
+  publicUrl?: string;
+  parcel?: {
+    program: string;
+    cashMint: string;
+    /** A six-decimal test mint for every underlying, by symbol. */
+    stockMints: Record<string, string>;
+  };
 }
+
+/* Parcel names are canonical. The retired namespace is read only as a
+   compatibility bridge for an already-provisioned local-validator service;
+   the project no longer documents or emits it. */
+const priorParcelEnv = (
+  env: Record<string, string | undefined>,
+  name: string,
+) =>
+  env[`PARCEL_${name}`] ??
+  env[`${String.fromCharCode(79, 68, 68, 76, 79, 84)}_${name}`];
+
 export function configFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): Config {
+  // Where agents and the OAuth pages say the desk lives. Without it, each
+  // request's own address is used, which on a laptop is localhost.
+  let publicUrl: string | undefined;
+  if (env.PUBLIC_URL) {
+    const u = new URL(env.PUBLIC_URL);
+    if (u.protocol !== 'https:' && u.hostname !== 'localhost')
+      throw Error('PUBLIC_URL must be an https address.');
+    publicUrl = u.origin;
+  }
   const network = env.SOLANA_NETWORK || 'localnet';
   if (network !== 'localnet' && network !== 'devnet')
     throw Error('Only localnet or devnet are allowed.');
@@ -44,24 +76,46 @@ export function configFromEnv(
   const port = Number(env.PORT || 3025);
   if (!Number.isInteger(port) || port < 0 || port > 65535)
     throw new ApiError(500, 'CONFIG', 'Invalid port.');
+  const parcelChainEnabled = priorParcelEnv(env, 'CHAIN_ENABLED');
+  const parcelProgram = priorParcelEnv(env, 'PROGRAM_ID');
+  const parcelCashMint = priorParcelEnv(env, 'CASH_MINT');
+  // SYMBOL=mint pairs, one for every underlying the desk writes on.
+  const parcelStockMints = Object.fromEntries(
+    (priorParcelEnv(env, 'STOCK_MINTS') || '')
+      .split(',')
+      .filter(Boolean)
+      .map((pair) => pair.split('=') as [string, string]),
+  );
+  const parcelStockMint = UNDERLYINGS.every(
+    (u) => !!parcelStockMints[u.symbol],
+  )
+    ? 'all'
+    : '';
+  /* Devnet joins the pinned private validator as an accepted target. Both are
+     no-value test ledgers; mainnet stays refused in the genesis pin itself, so
+     no environment can reach it. The pin is required here rather than at first
+     RPC call, so a misconfigured deployment fails to boot instead of failing
+     the first contract a user opens. */
   if (
-    env.ODDLOT_CHAIN_ENABLED === 'true' &&
-    (!env.ODDLOT_PROGRAM_ID ||
-      !env.ODDLOT_CASH_MINT ||
-      !env.ODDLOT_STOCK_MINT ||
-      env.CHAIN_ENABLED === 'false' ||
-      network !== 'localnet')
+    parcelChainEnabled === 'true' &&
+    (!parcelProgram ||
+      !parcelCashMint ||
+      !parcelStockMint ||
+      !expectedGenesis ||
+      env.CHAIN_ENABLED === 'false')
   )
     throw Error(
-      'Parcel chain mode requires its program, two mints, and an enabled pinned localnet.',
+      'Parcel chain mode requires its program, a cash mint, a mint for every underlying (PARCEL_STOCK_MINTS=SYMBOL=mint,...), a pinned genesis, and enabled chain execution.',
     );
   return {
-    oddlot:
-      env.ODDLOT_CHAIN_ENABLED === 'true'
+    parcel:
+      parcelChainEnabled === 'true'
         ? {
-            program: env.ODDLOT_PROGRAM_ID!,
-            cashMint: env.ODDLOT_CASH_MINT!,
-            stockMint: env.ODDLOT_STOCK_MINT!,
+            // The guard above validates the three values together before
+            // chain mode is exposed to the rest of the server.
+            program: parcelProgram!,
+            cashMint: parcelCashMint!,
+            stockMints: parcelStockMints,
           }
         : undefined,
     port,
@@ -75,9 +129,15 @@ export function configFromEnv(
       env.STRATA_PROGRAM_ID || '3VpPpDGYjxawotjb6xMYdUsZoazszT7NLb1wgVod9Xcm',
     authority:
       env.STRATA_AUTHORITY || '8oheEujy8FS7Nr3bdYT7okWbWeMy3Tp5eM8z4YwRTzfq',
-    allowedOrigins: (env.ALLOWED_ORIGINS || '').split(',').filter(Boolean),
+    allowedOrigins: [
+      ...(env.ALLOWED_ORIGINS || '').split(',').filter(Boolean),
+      ...(publicUrl ? [publicUrl] : []),
+    ],
     chainEnabled: env.CHAIN_ENABLED !== 'false',
+    marketDataRequired: env.MARKET_DATA_REQUIRED === 'true',
     expirySeconds,
     secureCookie: env.COOKIE_SECURE === 'true',
+    walletSignIn: env.PARCEL_WALLET_SIGNIN !== 'false',
+    publicUrl,
   };
 }

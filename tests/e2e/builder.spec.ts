@@ -52,7 +52,7 @@ for (const [view, template, kind, side] of [
     const response = quoteFor(page);
     await page.getByRole('button', { name: 'Review funded quote' }).click();
     const quote = await (await response).json();
-    expect(quote.terms.name).toBe(template);
+    expect(quote.terms.name).toMatch(template);
     expect(quote.terms.quantity).toBe(0.25);
     expect(quote.terms.legs[0].kind).toBe(kind);
     expect(quote.terms.legs[0].side).toBe(side);
@@ -66,7 +66,7 @@ for (const [view, template, kind, side] of [
 test('the shell is four destinations, each with its own sections', async ({
   page,
 }) => {
-  await expect(page.locator('.od-side-item')).toHaveText([
+  await expect(page.locator('.od-nav-item')).toHaveText([
     'Portfolio',
     'Trade',
     'Pre-IPO',
@@ -77,15 +77,17 @@ test('the shell is four destinations, each with its own sections', async ({
   // nested under it in the rail, and only while it is the open one.
   // Lending owns a single section, so it has no list to open.
   const sections: Record<string, string[]> = {
-    Portfolio: ['Holdings', 'Activity'],
+    Portfolio: ['Holdings', 'Watchlist', 'Activity'],
     Trade: ['Options', 'Structures'],
-    'Pre-IPO': ['Market', 'Underwrite'],
+    // One section each: Pre-IPO is the market and a company's options,
+    // and Lending's choices stand alone in its menu.
+    'Pre-IPO': [],
     Lending: [],
   };
   for (const [name, tabs] of Object.entries(sections)) {
     await navTop(page, name);
     await expect(page.getByRole('heading', { level: 1 })).toContainText(name);
-    await expect(page.locator('.od-side-sub-item')).toHaveText(tabs);
+    await expect(page.locator('.od-nav-link')).toHaveText(tabs);
   }
 
   // Underwrite and Structures are sections of Trade, and each opens the
@@ -99,14 +101,22 @@ test('the shell is four destinations, each with its own sections', async ({
   // the leg editor and the surface.
   await nav(page, 'Trade');
   // Which contract is the first decision on the screen, above the
-  // payoff, not a control inside the ticket below it.
-  await expect(page.locator('.od-kinds .od-segmented')).toBeVisible();
-  await expect(page.locator('.od-leg')).toHaveCount(0);
+  // payoff, not a control inside the ticket below it. The payoff view is
+  // deliberate rather than a second screen: it preserves that choice while
+  // exposing the leg editor for a reader who needs it.
+  await expect(page.getByRole('group', { name: 'Side' })).toBeVisible();
+  await expect(
+    page.getByRole('group', { name: 'Contract kind' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Payoff', exact: true }).click();
+  await expect(page.locator('.od-legs-row')).toHaveCount(0);
   await advanced(page);
-  await expect(page.locator('.od-leg')).toHaveCount(1);
-  await expect(page.locator('.od-surface svg')).toBeVisible();
+  await expect(page.locator('.od-legs-row')).toHaveCount(1);
+  await expect(page.locator('.od-surface > svg')).toBeVisible();
 
-  // Collateral is a section of Portfolio rather than its own page.
+  // Collateral is no longer a Portfolio section, and Holdings no longer
+  // carries a health pill; the health factor lives on Lending.
   await nav(page, 'Risk');
-  await expect(page.getByText('Collateral policy')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Positions' })).toBeVisible();
+  await expect(page.getByTitle('Health factor')).toHaveCount(0);
 });

@@ -170,9 +170,8 @@ export function FinanceView({
           <div className="info-strip">
             <Lock size={17} />
             <p>
-              Execution is not enabled. Borrowed-out tokens cannot be promised
-              back instantly. Corporate actions, recalls and bad-debt allocation
-              need binding terms first.
+              Borrowed-out tokens cannot be promised back instantly. Corporate
+              actions, recalls and bad-debt allocation need binding terms first.
             </p>
           </div>
           <a

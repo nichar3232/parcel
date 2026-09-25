@@ -1,11 +1,11 @@
 /**
  * The instruments the desk quotes, and where their marks come from.
  *
- * Pyth publishes crypto around the clock and US equities only while the
- * cash market is open, and nobody publishes a pre-IPO sponsor token at
- * all. So every instrument carries the volatility to walk it with when
- * no fresh observation exists, and the engine is honest in the payload
- * about which of the two the reader is looking at.
+ * Pyth publishes crypto around the clock, while nobody publishes a
+ * continuously tradable price for a pre-IPO sponsor token at all. So every
+ * sandbox instrument carries the volatility to walk it with when no fresh
+ * observation exists, and the engine is honest in the payload about which
+ * of the two the reader is looking at.
  *
  * Feed ids are resolved from Hermes by symbol at boot rather than
  * pasted in here. A hardcoded id that is subtly wrong produces a
@@ -24,6 +24,8 @@ export interface Instrument {
   pyth?: string;
   /** The Coinbase product id, for the keyless crypto fallback. */
   coinbase?: string;
+  /** Keyless delayed fallback for a listed equity. Never an NBBO source. */
+  yahoo?: string;
   /** Annualised volatility, used to walk the mark and to price options. */
   vol: number;
   /** Seed mark, for the first tick before any feed answers. */
@@ -39,11 +41,14 @@ export const INSTRUMENTS: Instrument[] = [
     symbol: 'NVDA',
     name: 'NVIDIA',
     kind: 'equity',
+    // Exact Hermes metadata symbol. The resolver intentionally rejects
+    // NVDAX, NVDAON and the index feed returned by a loose NVDA search.
     pyth: 'Equity.US.NVDA/USD',
+    yahoo: 'NVDA',
     vol: 0.45,
     seed: 142.62,
-    spreadBps: 6,
-    depth: 24_000_000,
+    spreadBps: 12,
+    depth: 90_000_000,
   },
   {
     symbol: 'SOL',
@@ -103,9 +108,6 @@ export const INSTRUMENTS: Instrument[] = [
  * the pre-IPO screen.
  */
 export const SPONSOR_SEEDS: Record<string, number> = {
-  'T-OpenAI': 812,
-  'T-Kalshi': 414,
-  'T-SpaceX': 423,
   OPENAI: 966,
   ANTHROPIC: 1007,
   SPACEX: 153,

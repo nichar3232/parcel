@@ -1,8 +1,8 @@
 # Parcel architecture
 
-The new vault engine is specified in [PRODUCT.md](PRODUCT.md) and [DEVELOPMENT.md](DEVELOPMENT.md). It adds owner-scoped `vault_accounts` and `vault_quotes`, a settlement collateral engine with cross-contract rounding protection in `lib/oddlot`, and atomic actions in `server/oddlot`. The browser delegates all execution to that service. Custody is explicitly either persistent sandbox accounting or the current private-validator Parcel protocol.
+The new vault engine is specified in [PRODUCT.md](PRODUCT.md) and [DEVELOPMENT.md](DEVELOPMENT.md). It adds owner-scoped `vault_accounts` and `vault_quotes`, a settlement collateral engine with cross-contract rounding protection in `lib/parcel`, and atomic actions in `server/parcel`. The browser delegates all execution to that service. Custody is explicitly either persistent sandbox accounting or the current private-validator Parcel protocol.
 
-The default Explore view is a presentation layer over the same engine. `lib/oddlot/explore.ts` builds validated fractional presets and model illustrations; `ExploreView` reuses `PayoffChart`, including underlying shares for protective puts and covered calls. Exploring does not mutate the vault. Opening a setup passes its complete terms to `OptionsView`, which requests the normal server-authoritative funded quote before confirmation. Displayed standalone exercise backing is not a portfolio collateral quote.
+The default Explore view is a presentation layer over the same engine. `lib/parcel/explore.ts` builds validated fractional presets and model illustrations; `ExploreView` reuses `PayoffChart`, including underlying shares for protective puts and covered calls. Exploring does not mutate the vault. Opening a setup passes its complete terms to `OptionsView`, which requests the normal server-authoritative funded quote before confirmation. Displayed standalone exercise backing is not a portfolio collateral quote.
 
 ## Vault boundaries
 
@@ -21,12 +21,12 @@ flowchart LR
 
 Views send intent, never replacement balances. `lib/client/api.ts` owns transport; `lib/client/pending-vault.ts` stores only a tab-local pending intent and idempotency key. `useVault` keeps the authoritative snapshot and accepts account changes only through the latest session refresh. A delayed response from another session cannot update the current view. A transport failure, server error, or unreadable response is ambiguous: the original mutation remains recoverable after reload, and new mutations are blocked until it resolves. Session storage contains no session cookie or full CSRF token.
 
-`lib/oddlot/validation.ts` is used before rendering option math and again at the server boundary. Quote responses are discarded when the draft changes. Quotes bind the stored account revision; reviewed stock/lending actions also preserve their original revision and displayed price. SQLite infrastructure failures remain server errors; rejected product rules return a conflict.
+`lib/parcel/validation.ts` is used before rendering option math and again at the server boundary. Quote responses are discarded when the draft changes. Quotes bind the stored account revision; reviewed stock/lending actions also preserve their original revision and displayed price. SQLite infrastructure failures remain server errors; rejected product rules return a conflict.
 
-| Vault route | Input and result |
-|---|---|
-| `GET /api/vault` | Session-owned book, revision, market and collateral |
-| `POST /api/vault/quote` | `{revision, terms}` → owner-bound, expiring quote |
+| Vault route               | Input and result                                              |
+| ------------------------- | ------------------------------------------------------------- |
+| `GET /api/vault`          | Session-owned book, revision, market and collateral           |
+| `POST /api/vault/quote`   | `{revision, terms}` → owner-bound, expiring quote             |
 | `POST /api/vault/actions` | `{revision, action}` → committed snapshot and durable receipt |
 
 The retained Strata/Solana execution architecture below remains available at `/legacy`; its program does not implement the new vault rules.
@@ -69,18 +69,24 @@ Every browser session derives independent holder and maker **test** keys with HM
 
 ## HTTP contract
 
-| Route | Purpose |
-|---|---|
-| `GET /api/session` | Start/resume session, book, revision, CSRF and server time |
-| `GET /api/portfolio` | Authoritative book |
-| `POST /api/portfolio/actions` | `{revision, action}`; CSRF and Idempotency-Key required |
-| `GET /api/chain/positions` | Session-owned contract list |
-| `GET /api/chain/positions/:id` | Reconcile already-authorized operation and read chain |
-| `POST /api/chain/action` | fund/accept/cancel/settle/claim-holder/claim-maker |
-| `GET /api/evidence` | Saved adversarial verification report |
-| `GET /api/chain/tx/:signature` | Live or explicitly archived transaction proof |
-| `GET /api/health` | HTTP/database liveness plus detailed chain status |
-| `GET /api/ready` | 200 only when database and configured chain are ready |
+| Route                                        | Purpose                                                                                  |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `GET /api/session`                           | Start/resume session, book, revision, CSRF and server time                               |
+| `GET /api/portfolio`                         | Authoritative book                                                                       |
+| `POST /api/portfolio/actions`                | `{revision, action}`; CSRF and Idempotency-Key required                                  |
+| `GET /api/chain/positions`                   | Session-owned contract list                                                              |
+| `GET /api/chain/positions/:id`               | Reconcile already-authorized operation and read chain                                    |
+| `POST /api/chain/action`                     | fund/accept/cancel/settle/claim-holder/claim-maker                                       |
+| `GET /api/evidence`                          | Saved adversarial verification report                                                    |
+| `GET /api/chain/tx/:signature`               | Live or explicitly archived transaction proof                                            |
+| `GET /api/health`                            | HTTP/database liveness plus detailed chain status                                        |
+| `GET /api/ready`                             | 200 only when database/chain are ready and, if required, real-time NBBO is authenticated |
+| `GET /api/marks`                             | Current display-mark snapshot with source, timestamp and bid/ask provenance              |
+| `GET /api/marks/stream`                      | Same-origin coalesced Server-Sent Event mark stream; vendor credentials never leave Node |
+| `GET /api/xstocks`                           | Current issuer xStocks catalog filtered to Solana deployments; public, cached read       |
+| `GET /api/xstocks/quotes?symbols=...`        | Current issuer indicative quotes for at most 50 catalog symbols; public, never simulated |
+| `GET /api/tokenized-equities`                | Source-qualified declared Solana equity-token registries across configured issuers       |
+| `GET /api/tokenized-equities/quotes?ids=...` | Direct issuer quotes for at most 50 source-qualified watched tokens; never simulated     |
 
 Mutation bodies are JSON and at most 16 KiB. Cross-site origins and incorrect CSRF tokens are rejected. Errors use `{error, code}`. Static files support GET/HEAD, ETags, video byte ranges and rooted path checks. The long-running contract verifier is a CLI, not a public mutation route.
 
@@ -92,14 +98,14 @@ The market authority is a trusted test oracle. Dataset/feed identity is stored, 
 
 ## Current Parcel onchain mode
 
-The release adds `server/oddlot/chain/{codec,adapter,coordinator}.ts` and `programs/oddlot`. The program independently executes the current vault rules with SPL backing. The keyless sandbox remains explicit. `VaultService.plan` derives a candidate without committing it; `commit` records the result. The chain coordinator saves a plan and signed bytes before RPC sends, verifies confirmation and program state, then commits the index. The database permits one pending operation per owner. See [ODDLOT_CHAIN.md](ODDLOT_CHAIN.md) for configuration, signer trust, limits and recovery.
+The release adds `server/parcel/chain/{codec,adapter,coordinator}.ts` and `programs/parcel`. The program independently executes the current vault rules with SPL backing. The keyless sandbox remains explicit. `VaultService.plan` derives a candidate without committing it; `commit` records the result into the account book, idempotent `receipts`, queryable `vault_mutations`, and `audit_events` in one transaction. The chain coordinator saves a plan and signed bytes before RPC sends, verifies confirmation and program state, then commits the index and stamps `vault_chain_operations` with `action_type`, `signature` and `revision_after`. The database permits one pending operation per owner. See [PARCEL_CHAIN.md](PARCEL_CHAIN.md) for configuration, signer trust, limits and recovery.
 
 The original architecture descriptions above remain specific to their named mode or to the legacy Strata program. Current Parcel program evidence is in `docs/audit/2026-09-15-release`, not the original Strata proof directory.
 
 ## Product suite protocol (0.4)
 
-`server/oddlot/catalog.ts` supplies read-only chain indications and sizing. Shared response contracts live in `lib/oddlot/types.ts`; the browser has no runtime import from server modules. POST `/api/vault/chain` takes `{revision, expiry, quantity}`; POST `/api/vault/size` takes `{revision, terms, mode, target}`. Both reuse session, CSRF, size limits and revision guards. Neither commits balances or creates executable liquidity. All fills still use `/quote` and `/actions` with durable receipt recovery.
+`server/parcel/catalog.ts` supplies read-only chain indications and sizing. Shared response contracts live in `lib/parcel/types.ts`; the browser has no runtime import from server modules. POST `/api/vault/chain` takes `{revision, expiry, quantity}`; POST `/api/vault/size` takes `{revision, terms, mode, target}`. Both reuse session, CSRF, size limits and revision guards. Neither commits balances or creates executable liquidity. All fills still use `/quote` and `/actions` with durable receipt recovery.
 
-`lib/oddlot/curves.ts` defines integer nonlinear settlement and numerical model pricing, `envelope.ts` proves per-group bounds, and `risk.ts` reserves chronological cash prefixes. `CurveEditor`, `SizingControl` and `OptionsChain` are isolated view components. The shared controller owns transport; stale chain/sizing replies cannot replace a newer draft. Basic controls and mobile strike cards are presentation choices, not separate accounting implementations.
+`lib/parcel/curves.ts` defines integer nonlinear settlement and numerical model pricing, `envelope.ts` proves per-group bounds, and `risk.ts` reserves chronological cash prefixes. `CurveEditor`, `SizingControl` and `OptionsChain` are isolated view components. The shared controller owns transport; stale chain/sizing replies cannot replace a newer draft. Basic controls and mobile strike cards are presentation choices, not separate accounting implementations.
 
-The chain codec appends an optional curve to serialized terms. Program entrypoints are `initialize_v2` and `execute_v2`, with a new program identity and `oddlot:v2` signer domain. Daily clock indices remain stable while additional hourly indices are sorted by their compiled time for risk and settlement. Existing SQLite vanilla books remain readable without rewriting balances. V1 program accounts and pending operations must stay with their V1 deployment; they are not reinterpreted or upgraded in place.
+The chain codec appends an optional curve to serialized terms. Program entrypoints are `initialize_v3` and `execute_v3`, with a stable version-two signer domain that preserves the deployed account identity. Dates are Unix-ms instants: replay observations price at the compiled table, and later (live) instants at the operator-attested mark and closes carried in the action's `Tick`. Existing SQLite vanilla books remain readable without rewriting balances. V1 program accounts and pending operations must stay with their V1 deployment; they are not reinterpreted or upgraded in place.

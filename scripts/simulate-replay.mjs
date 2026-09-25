@@ -28,45 +28,92 @@ const dates = nvda.rows.map((r) => r.date);
 // anchors are the marks the feeds published when this table was last
 // refreshed, used only when a feed cannot be reached.
 const TOKENS = [
-  { symbol: 'T-OpenAI', name: 'OpenAI', provider: 'tessera', key: 'T-OpenAI', anchor: 812.79 },
-  { symbol: 'T-Kalshi', name: 'Kalshi', provider: 'tessera', key: 'T-Kalshi', anchor: 413.8 },
-  { symbol: 'T-SpaceX', name: 'SpaceX', provider: 'tessera', key: 'T-SpaceX', anchor: 423 },
-  { symbol: 'OPENAI', name: 'OpenAI', provider: 'prestocks', key: 'OPENAI', anchor: 970.19 },
-  { symbol: 'ANTHROPIC', name: 'Anthropic', provider: 'prestocks', key: 'ANTHROPIC', anchor: 1016.47 },
-  { symbol: 'SPACEX', name: 'SpaceX', provider: 'prestocks', key: 'SPACEX', anchor: 154.99 },
-  { symbol: 'ANDURIL', name: 'Anduril', provider: 'prestocks', key: 'ANDURIL', anchor: 152.34 },
-  { symbol: 'NEURALINK', name: 'Neuralink', provider: 'prestocks', key: 'NEURALINK', anchor: 320.91 },
-  { symbol: 'FIGUREAI', name: 'Figure AI', provider: 'prestocks', key: 'FIGUREAI', anchor: 179.6 },
-  { symbol: 'KALSHI', name: 'Kalshi', provider: 'prestocks', key: 'KALSHI', anchor: 877.74 },
-  { symbol: 'POLYMARKET', name: 'Polymarket', provider: 'prestocks', key: 'POLYMARKET', anchor: 144.51 },
+  {
+    symbol: 'OPENAI',
+    name: 'OpenAI',
+    provider: 'prestocks',
+    key: 'OPENAI',
+    anchor: 970.19,
+  },
+  {
+    symbol: 'ANTHROPIC',
+    name: 'Anthropic',
+    provider: 'prestocks',
+    key: 'ANTHROPIC',
+    anchor: 1016.47,
+  },
+  {
+    symbol: 'SPACEX',
+    name: 'SpaceX',
+    provider: 'prestocks',
+    key: 'SPACEX',
+    anchor: 154.99,
+  },
+  {
+    symbol: 'ANDURIL',
+    name: 'Anduril',
+    provider: 'prestocks',
+    key: 'ANDURIL',
+    anchor: 152.34,
+  },
+  {
+    symbol: 'NEURALINK',
+    name: 'Neuralink',
+    provider: 'prestocks',
+    key: 'NEURALINK',
+    anchor: 320.91,
+  },
+  {
+    symbol: 'FIGUREAI',
+    name: 'Figure AI',
+    provider: 'prestocks',
+    key: 'FIGUREAI',
+    anchor: 179.6,
+  },
+  {
+    symbol: 'KALSHI',
+    name: 'Kalshi',
+    provider: 'prestocks',
+    key: 'KALSHI',
+    anchor: 877.74,
+  },
+  {
+    symbol: 'POLYMARKET',
+    name: 'Polymarket',
+    provider: 'prestocks',
+    key: 'POLYMARKET',
+    anchor: 144.51,
+  },
 ];
 
-const FEEDS = {
-  tessera: 'https://rest-api.tessera.pe/v1/public/token-details',
-  prestocks: 'https://prestocks.com/api/prestocks',
-};
+const PRESTOCKS_FEED = 'https://prestocks.com/api/prestocks';
 
 async function liveMarks() {
   const marks = {};
-  for (const [provider, url] of Object.entries(FEEDS)) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) throw Error(`${res.status}`);
-      const body = await res.json();
-      for (const row of body) {
-        const key = provider === 'tessera' ? row.symbol : row.symbol;
-        if (typeof row.markPrice === 'number') marks[key] = { price: row.markPrice, provider, url };
-      }
-    } catch (e) {
-      console.warn(`${provider}: ${e.message}; using the table's anchor`);
-    }
+  try {
+    const res = await fetch(PRESTOCKS_FEED, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) throw Error(`${res.status}`);
+    const body = await res.json();
+    for (const row of body)
+      if (typeof row.markPrice === 'number' && typeof row.symbol === 'string')
+        marks[row.symbol] = {
+          price: row.markPrice,
+          provider: 'prestocks',
+          url: PRESTOCKS_FEED,
+        };
+  } catch (e) {
+    console.warn(`PreStocks: ${e.message}; using the table's anchor`);
   }
   return marks;
 }
 
 /** Deterministic uniform generator from a symbol. */
 function rng(seed) {
-  let a = Number('0x' + crypto.createHash('sha256').update(seed).digest('hex').slice(0, 8));
+  let a = Number(
+    '0x' + crypto.createHash('sha256').update(seed).digest('hex').slice(0, 8),
+  );
   return () => {
     a |= 0;
     a = (a + 0x6d2b79f5) | 0;
@@ -76,7 +123,8 @@ function rng(seed) {
   };
 }
 const gaussian = (u) => {
-  const a = Math.max(u(), 1e-12), b = u();
+  const a = Math.max(u(), 1e-12),
+    b = u();
   return Math.sqrt(-2 * Math.log(a)) * Math.cos(2 * Math.PI * b);
 };
 
@@ -85,7 +133,9 @@ function path(symbol, anchor) {
   const dt = 1 / 252;
   let level = 1;
   const raw = dates.map(() => {
-    level *= Math.exp(-0.5 * VOL * VOL * dt + VOL * Math.sqrt(dt) * gaussian(u));
+    level *= Math.exp(
+      -0.5 * VOL * VOL * dt + VOL * Math.sqrt(dt) * gaussian(u),
+    );
     return level;
   });
   const at = dates.indexOf(WINDOW_OPENS);
@@ -137,7 +187,18 @@ for (const t of TOKENS) {
     rows,
   };
   fs.writeFileSync(new URL(file, dir), JSON.stringify(doc, null, 2));
-  index.push({ symbol: t.symbol, name: t.name, provider: t.provider, file, anchor });
-  console.log(`${t.symbol.padEnd(11)} ${String(anchor).padStart(8)}  ${mark ? 'live' : 'table'}  -> data/replay/${file}`);
+  index.push({
+    symbol: t.symbol,
+    name: t.name,
+    provider: t.provider,
+    file,
+    anchor,
+  });
+  console.log(
+    `${t.symbol.padEnd(11)} ${String(anchor).padStart(8)}  ${mark ? 'live' : 'table'}  -> data/replay/${file}`,
+  );
 }
-fs.writeFileSync(new URL('index.json', dir), JSON.stringify({ struckAt: struck, tokens: index }, null, 2));
+fs.writeFileSync(
+  new URL('index.json', dir),
+  JSON.stringify({ struckAt: struck, tokens: index }, null, 2),
+);

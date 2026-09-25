@@ -2,12 +2,12 @@
  * Pre-IPO token types.
  *
  * Quantities here are ALWAYS token base units of a sponsor-issued token.
- * They are not company shares. A Tessera T-Token and a PreStocks token are
- * distinct instruments from distinct issuers; nothing in this module may
- * treat them as interchangeable.
+ * They are not company shares. A PreStocks token is a distinct instrument
+ * from the underlying company; nothing in this module may treat the two as
+ * interchangeable.
  */
 
-export type ProviderId = 'tessera' | 'prestocks';
+export type ProviderId = 'prestocks';
 
 export type SolanaNetwork = 'mainnet' | 'devnet' | 'localnet';
 
@@ -34,7 +34,7 @@ export type MintExtension =
 /** What a provider's public API told us. Informational only. */
 export interface ProviderQuote {
   provider: ProviderId;
-  /** The provider's own symbol, e.g. "T-OpenAI" or "ANTHROPIC". */
+  /** The provider's own symbol, e.g. "ANTHROPIC". */
   symbol: string;
   displayName: string;
   /** Base58 mint address as published by the provider. */

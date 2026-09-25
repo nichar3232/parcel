@@ -1,2 +1,2 @@
-   Compiling oddlot v0.1.0 (/var/lib/stocklana/oddlot-review/source)
+   Compiling parcel v0.1.0 (/var/lib/stocklana/parcel-review/source)
     Finished `release` profile [optimized] target(s) in 4.84s

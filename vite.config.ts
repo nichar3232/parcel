@@ -2,6 +2,12 @@ import { sites } from '@openai/sites-vite-plugin';
 import tailwindcss from '@tailwindcss/postcss';
 import vinext from 'vinext';
 import { defineConfig } from 'vite';
+
+// A second local Parcel checkout may already own the default backend port.
+// Keeping the standard target preserves the documented two-process workflow;
+// an explicit origin lets a specific frontend bind to its matching backend.
+const apiOrigin = process.env.PARCEL_API_ORIGIN || 'http://localhost:3025';
+
 export default defineConfig({
   css: { postcss: { plugins: [tailwindcss()] } },
   plugins: [vinext(), sites()],
@@ -17,9 +23,9 @@ export default defineConfig({
        * server answers both and the header is the browser's own.
        */
       '/api': {
-        target: 'http://localhost:3025',
+        target: apiOrigin,
         changeOrigin: true,
-        headers: { origin: 'http://localhost:3025' },
+        headers: { origin: apiOrigin },
       },
     },
   },

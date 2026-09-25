@@ -12,3 +12,4 @@ CREATE TABLE IF NOT EXISTS vault_chain_operations (
  PRIMARY KEY(owner,key)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS vault_chain_one_pending ON vault_chain_operations(owner) WHERE status IN ('preparing','pending');
+INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(3,unixepoch()*1000);

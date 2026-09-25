@@ -23,7 +23,7 @@ export const metadata: Metadata = {
       {
         url: new URL(
           '/og.png',
-          process.env.SITE_ORIGIN || 'http://trading-01:3025',
+          process.env.SITE_ORIGIN || 'http://localhost:3025',
         ).href,
         width: 1733,
         height: 907,
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     title: 'Parcel — Options, by the share.',
     description: 'Precisely sized. Fully accounted for.',
     images: [
-      new URL('/og.png', process.env.SITE_ORIGIN || 'http://trading-01:3025')
+      new URL('/og.png', process.env.SITE_ORIGIN || 'http://localhost:3025')
         .href,
     ],
   },

@@ -1,7 +1,7 @@
 #![allow(unexpected_cfgs)]
 //! Fractional, physically settled covered calls on pre-IPO sponsor tokens.
 //!
-//! Why this is a separate program: the existing `oddlot` program is driven by
+//! Why this is a separate program: the existing `parcel` program is driven by
 //! a fixed OPERATOR key over two 6-decimal test mints it controls. This one
 //! takes arbitrary Token-2022 sponsor mints, is signed by real user wallets,
 //! and has no privileged operator at all.
