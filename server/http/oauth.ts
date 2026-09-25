@@ -367,7 +367,7 @@ function allowPage(request: {
 <button id="allow" class="primary" type="button" disabled>Allow</button>
 </div>
 <p class="error" id="error" hidden></p>
-<small>Everything ${app} does is marked Agent in Activity. Disconnect it at any time from Agents in the desk.</small>`,
+<small>Everything ${app} does is marked Agent in Activity. Disconnect it at any time from MCP in the desk.</small>`,
     `<script>
 const request = ${JSON.stringify(request).replace(/</g, '\\u003c')};
 const $ = (id) => document.getElementById(id);

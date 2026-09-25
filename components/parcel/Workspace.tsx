@@ -406,7 +406,7 @@ export default function Workspace() {
             disabled={!s}
           >
             <Bot size={15} />
-            <span className="wide">Agents</span>
+            <span className="wide">MCP</span>
           </button>
 
           <button

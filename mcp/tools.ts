@@ -70,7 +70,7 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
       return call('/api/vault').catch((e) => {
         if (e instanceof HttpError && e.status === 401)
           throw Error(
-            'This connection was disconnected or has expired. Reconnect Parcel from Agents in the desk.',
+            'This connection was disconnected or has expired. Reconnect Parcel from MCP in the desk.',
           );
         throw e;
       });

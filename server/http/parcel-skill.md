@@ -3,7 +3,7 @@ name: parcel
 description: Your Parcel vault. Check your balance, trade, lend, borrow or short.
 ---
 
-The user ran `/parcel $ARGUMENTS`. Use the Parcel tools (get_vault, get_market, list_products, quote_option, trade_option, trade_stock, open_short, lend_shares, borrow_usdc and the rest). If they are not available, tell the user to open Agents in the Parcel desk and follow the Claude steps.
+The user ran `/parcel $ARGUMENTS`. Use the Parcel tools (get_vault, get_market, list_products, quote_option, trade_option, trade_stock, open_short, lend_shares, borrow_usdc and the rest). If they are not available, tell the user to open MCP in the Parcel desk and follow the Claude steps.
 
 Stay in this role for the rest of the conversation: later messages like "what's my balance" or "short NVIDIA" are about Parcel too.
 

@@ -75,7 +75,7 @@ export default function Landing() {
         </nav>
         <div className="lp-nav-right">
           <Link className="lp-nav-about" href="/app?connect">
-            Agents
+            MCP
           </Link>
           <ThemeToggle />
           <Link className="lp-cta" href="/app">
@@ -150,7 +150,7 @@ export default function Landing() {
             <p>
               Parcel speaks MCP, the open standard AI agents use to work with
               apps. Claude, Codex, or any agent that supports it can use the
-              same vault you do. Add Parcel’s URL from Agents in the desk,
+              same vault you do. Add Parcel’s URL from MCP in the desk,
               approve the connection once, and the agent is in.
             </p>
             <Link
@@ -198,7 +198,7 @@ export default function Landing() {
           <nav aria-label="Footer">
             <Link href="/app">Desk</Link>
             <a href="#products">Products</a>
-            <Link href="/app?connect">Agents</Link>
+            <Link href="/app?connect">MCP</Link>
             <a
               href="https://github.com/nichar3232/parcel"
               target="_blank"
