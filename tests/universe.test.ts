@@ -199,7 +199,11 @@ void test('a version 2 book migrates to NVDA and gains the new symbols', () => {
   assert.equal(mine.shares.NVDA, fresh.shares.NVDA);
   // And it values on the right path.
   const series = valueSeries(book);
-  assert.equal(series[0].value, 1000 + 1 * mark('NVDA', '2025-01-24'));
+  const opened = series.find((p) => p.date === '2025-01-24' && !p.backfill)!;
+  assert.equal(opened.value, 1000 + 1 * mark('NVDA', '2025-01-24'));
+  // Days before the first deposit carry the opening holdings at their
+  // own closes, marked as backfill.
+  assert.ok(series[0].backfill && series[0].date < '2025-01-24');
 });
 
 // Bounty rule: a project that integrates any pre-IPO token not issued by

@@ -1,4 +1,5 @@
 import { historyOf, marketRows } from './market';
+import { underlying } from './universe';
 import { DEFAULT_UNDERLYING } from './universe';
 import { add, mul } from './math';
 import type { VaultBook } from './types';
@@ -83,7 +84,12 @@ export function valueSeries(
     Object.keys(shares).map((symbol) => [
       symbol,
       new Map(
-        (live ? (live.closes[symbol] ?? []) : historyOf(symbol)).map((r) => [
+        // The replay trades from its window, but its price file starts
+        // earlier; the line before the vault's first day may use it.
+        (live
+          ? (live.closes[symbol] ?? [])
+          : [...underlying(symbol).rows, ...historyOf(symbol)]
+        ).map((r) => [
           r.date,
           r.close,
         ]),
@@ -105,8 +111,9 @@ export function valueSeries(
      year, so a range longer than its life would be one point. Before the
      first movement the line carries the opening holdings — the vault as it
      stood at the end of its first day — at each earlier close, and says so
-     per point. The stored replay keeps its strict start. */
-  if (live) {
+     per point. The stored replay does the same from its own closes, so a
+     vault opened today still draws the days before it. */
+  {
     const open = { cash, shares: { ...shares } };
     for (const [day, d] of deltas)
       if (day <= first) {
@@ -114,14 +121,27 @@ export function valueSeries(
         for (const [symbol, n] of Object.entries(d.shares))
           open.shares[symbol] = add(open.shares[symbol] ?? 0, n);
       }
-    for (const row of calendar) {
+    const earlier = live
+      ? calendar
+      : [
+          ...new Set(
+            Object.keys(open.shares).flatMap((symbol) =>
+              underlying(symbol).rows.map((r) => r.date),
+            ),
+          ),
+        ]
+          .sort()
+          .map((date) => ({ date }));
+    for (const row of earlier) {
       if (row.date >= first) break;
+      // The replay's calendar also carries hourly test ticks.
+      if (row.date.includes('T')) continue;
       let value = open.cash;
       for (const [symbol, n] of Object.entries(open.shares)) {
         if (!n) continue;
-        const close = sixDp(
-          closes.get(symbol)?.get(row.date) ?? live.spot[symbol],
-        );
+        const raw = closes.get(symbol)?.get(row.date) ?? live?.spot[symbol];
+        if (raw == null) continue;
+        const close = sixDp(raw);
         if (close != null) value = add(value, mul(n, close));
       }
       points.push({
