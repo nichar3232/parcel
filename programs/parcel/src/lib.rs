@@ -59,10 +59,11 @@ pub mod parcel {
         Ok(())
     }
     /// One action. The wallet and pool token accounts are the asset the
-    /// action moves between wallet and vault (cash when it moves nothing);
-    /// no other asset may leave or enter the wallet in the same action.
-    pub fn execute_v4(
-        ctx: Context<Execute>,
+    /// action moves between wallet and vault, and every further asset it
+    /// moves (a restart returns several) follows as a wallet/pool pair in the
+    /// remaining accounts. An asset without its pair may not move.
+    pub fn execute_v4<'info>(
+        ctx: Context<'_, '_, 'info, 'info, Execute<'info>>,
         expected_revision: u64,
         deadline: i64,
         tick: Option<Tick>,
@@ -76,57 +77,79 @@ pub mod parcel {
         );
         let s = &mut ctx.accounts.ledger;
         require!(s.revision == expected_revision, VaultError::Revision);
-        let mint = ctx.accounts.wallet.mint;
-        require!(ctx.accounts.pool.mint == mint, VaultError::Mint);
-        let asset = s
-            .mints
-            .iter()
-            .position(|m| *m == mint)
-            .ok_or(error!(VaultError::Mint))?;
         let wallet_before = s.book.balances[0];
         s.book.execute(tick, action)?;
         let actual = solana_sha256_hasher::hash(&s.book.try_to_vec()?).to_bytes();
         require!(actual == expected_hash, VaultError::Projection);
         let wallet_after = s.book.balances[0];
-        for i in 0..A {
-            require!(i == asset || wallet_after[i] == wallet_before[i], VaultError::Mint);
-        }
         let state_key = s.key();
         let bump = ctx.bumps.bank;
         let seeds: &[&[u8]] = &[b"bank", state_key.as_ref(), &[bump]];
-        let (after, before) = (wallet_after[asset], wallet_before[asset]);
-        if after > before {
-            token::transfer(
-                CpiContext::new_with_signer(
-                    ctx.accounts.token_program.to_account_info(),
-                    Transfer {
-                        from: ctx.accounts.pool.to_account_info(),
-                        to: ctx.accounts.wallet.to_account_info(),
-                        authority: ctx.accounts.bank.to_account_info(),
-                    },
-                    &[seeds],
-                ),
-                after - before,
-            )?;
-        } else if after < before {
-            token::transfer(
-                CpiContext::new(
-                    ctx.accounts.token_program.to_account_info(),
-                    Transfer {
-                        from: ctx.accounts.wallet.to_account_info(),
-                        to: ctx.accounts.pool.to_account_info(),
-                        authority: ctx.accounts.owner.to_account_info(),
-                    },
-                ),
-                before - after,
-            )?;
+        // The pairs this transaction carries: the constrained pair first,
+        // then each remaining pair, checked here the way the constraints
+        // check the first.
+        require!(ctx.remaining_accounts.len() % 2 == 0, VaultError::Mint);
+        let mut pairs: Vec<(AccountInfo<'info>, AccountInfo<'info>)> = vec![(
+            ctx.accounts.wallet.to_account_info(),
+            ctx.accounts.pool.to_account_info(),
+        )];
+        for pair in ctx.remaining_accounts.chunks(2) {
+            require!(
+                token_account(&pair[0])?.owner == ctx.accounts.owner.key()
+                    && token_account(&pair[1])?.owner == ctx.accounts.bank.key(),
+                VaultError::Mint
+            );
+            pairs.push((pair[0].clone(), pair[1].clone()));
         }
-        ctx.accounts.pool.reload()?;
-        let totals = s.book.totals();
-        require!(
-            ctx.accounts.pool.amount as u128 >= totals[asset] - s.book.balances[0][asset] as u128,
-            VaultError::Backing
-        );
+        let mut carried = [false; A];
+        for (wallet, pool) in &pairs {
+            let mint = token_account(wallet)?.mint;
+            require!(token_account(pool)?.mint == mint, VaultError::Mint);
+            let asset = s
+                .mints
+                .iter()
+                .position(|m| *m == mint)
+                .ok_or(error!(VaultError::Mint))?;
+            require!(!carried[asset], VaultError::Mint);
+            carried[asset] = true;
+            let (after, before) = (wallet_after[asset], wallet_before[asset]);
+            if after > before {
+                token::transfer(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.token_program.to_account_info(),
+                        Transfer {
+                            from: pool.clone(),
+                            to: wallet.clone(),
+                            authority: ctx.accounts.bank.to_account_info(),
+                        },
+                        &[seeds],
+                    ),
+                    after - before,
+                )?;
+            } else if after < before {
+                token::transfer(
+                    CpiContext::new(
+                        ctx.accounts.token_program.to_account_info(),
+                        Transfer {
+                            from: wallet.clone(),
+                            to: pool.clone(),
+                            authority: ctx.accounts.owner.to_account_info(),
+                        },
+                    ),
+                    before - after,
+                )?;
+            }
+            // The escrow backs every claim on this asset after the move.
+            let held = token_account(pool)?.amount;
+            let totals = s.book.totals();
+            require!(
+                held as u128 >= totals[asset] - s.book.balances[0][asset] as u128,
+                VaultError::Backing
+            );
+        }
+        for i in 0..A {
+            require!(carried[i] || wallet_after[i] == wallet_before[i], VaultError::Mint);
+        }
         s.revision = s
             .revision
             .checked_add(1)
@@ -138,6 +161,13 @@ pub mod parcel {
         });
         Ok(())
     }
+}
+/// A token account handed in as a remaining account, read the way the
+/// constrained ones are: owned by the token program and well formed.
+fn token_account(info: &AccountInfo) -> Result<TokenAccount> {
+    require!(info.owner == &token::ID, VaultError::Mint);
+    TokenAccount::try_deserialize(&mut &info.try_borrow_data()?[..])
+        .map_err(|_| error!(VaultError::Mint))
 }
 // Version four holds every stock the desk writes on in one book, with a
 // mint per asset. The layout differs from version three, so the account and

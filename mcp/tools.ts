@@ -498,7 +498,7 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
     'borrow_usdc',
     {
       description:
-        'Pledge shares as collateral and borrow USDC against them. Onchain mode supports the program stock mint (NVDA); APR is the pool curve, not Black–Scholes.',
+        'Pledge shares as collateral and borrow USDC against them.  APR is the pool curve, not Black–Scholes.',
       inputSchema: {
         symbol,
         pledged: z.number().positive().describe('Shares pledged'),

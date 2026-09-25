@@ -27,7 +27,7 @@ import type { VaultBook } from '../../../lib/parcel/types';
 import { UNDERLYINGS } from '../../../lib/parcel/universe';
 import { chainGenesis } from '../ledger';
 import { instruction, key, pk, u64, i64 } from '../../solana/codec';
-import { actionBytes, assetIndex, bookBytes, bookHash, movedAsset } from './codec';
+import { actionBytes, assetIndex, bookBytes, bookHash, movedAssets } from './codec';
 import { pinnedGenesisFailure } from '../../solana/network';
 export interface PreparedVaultTransaction {
   raw: string;
@@ -274,9 +274,9 @@ export class ParcelAdapter implements VaultChainAdapter {
       signers.push(a.ledger);
     } else {
       await this.verify(session, plan.before, plan.revision);
-      // The token accounts are the asset this action moves between wallet
-      // and vault; the program refuses any other asset moving.
-      const moved = a.assets[assetIndex(movedAsset(plan))];
+      // The token accounts are the assets this action moves between wallet
+      // and vault, one pair each; the program refuses any other asset moving.
+      const moved = movedAssets(plan).map((asset) => a.assets[assetIndex(asset)]);
       // The reviewed price is authorized by the dedicated test maker; program checks
       // state revision, integer obligations and the complete resulting projection.
       const deadline = Math.floor(Date.now() / 1000) + 60;
@@ -289,9 +289,10 @@ export class ParcelAdapter implements VaultChainAdapter {
             key(a.owner.publicKey, false, true),
             key(a.operator.publicKey, false, true),
             key(a.bank),
-            key(moved.wallet, true),
-            key(moved.pool, true),
+            key(moved[0].wallet, true),
+            key(moved[0].pool, true),
             key(TOKEN_PROGRAM_ID),
+            ...moved.slice(1).flatMap((x) => [key(x.wallet, true), key(x.pool, true)]),
           ],
           Buffer.concat([
             u64(plan.revision),

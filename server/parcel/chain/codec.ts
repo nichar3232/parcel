@@ -188,12 +188,16 @@ export const ONCHAIN_ACTIONS: ReadonlySet<string> = new Set([
   'repay',
 ]);
 /**
- * The asset an action moves between the test wallet and the vault, whose
- * token accounts the transaction carries. Everything else settles inside
- * the vault's escrow and moves nothing, so cash stands in.
+ * The assets an action moves between the test wallet and the vault, whose
+ * token accounts the transaction carries: a transfer's one asset, the
+ * several a restart returns. An action that moves nothing settles inside
+ * the vault's escrow, and cash stands in.
  */
-export function movedAsset(p: VaultPlan) {
-  return p.action.type === 'transfer' ? String(p.action.asset) : 'USDC';
+export function movedAssets(p: VaultPlan) {
+  const moved = ['USDC', ...UNDERLYINGS.map((u) => u.symbol)].filter(
+    (asset) => (p.before.wallet[asset] ?? 0) !== (p.book.wallet[asset] ?? 0),
+  );
+  return moved.length ? moved : ['USDC'];
 }
 /**
  * The instruction's `tick` and `action` arguments. On the live market every
