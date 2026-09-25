@@ -303,7 +303,15 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
     };
   }
 
-  const server = new McpServer({ name: 'parcel', version: '0.4.0' });
+  const server = new McpServer(
+    { name: 'parcel', version: '0.4.0' },
+    {
+      // Standing guidance for any conversation that has these tools, not
+      // only one started with /parcel.
+      instructions:
+        "Parcel is the user's options and lending vault. Answer questions about their balance or positions with get_vault. To see what can be traded, use list_products: options and structures, plus stock, lending, borrowing cash, and protected shorts (borrow shares and sell them). Before any action that changes the vault, state briefly what it does and its numbers (premium or proceeds, the most they can lose, what it reserves, the expiry) and ask the user to confirm; act only after they do. Quote options with quote_option first; its thisTrade field is what the trade reserves. Keep answers short.",
+    },
+  );
 
   server.registerTool(
     'get_vault',
@@ -546,7 +554,7 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
     'list_products',
     {
       description:
-        "Every contract Parcel offers, single options and structures, grouped by family, each with ready-to-trade terms at the current price and a near expiry. Pass an entry's terms to quote_option or trade_option, changing quantity, strikes or expiry as the user asks.",
+        'Everything Parcel offers: options and structures, each with ready-to-trade terms at the current price and a near expiry (pass them to quote_option or trade_option, changing quantity, strikes or expiry as asked), and stock, lending, borrowing and shorting, each with the tool that does it and example arguments.',
       inputSchema: {
         symbol: symbol.optional().describe('Defaults to NVDA'),
         expiry: expiry
@@ -571,10 +579,49 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
             : (CATEGORIES.find((c) =>
                 templatesIn(c).some((t) => t.id === id),
               ) ?? 'Other');
+        const step = u.price >= 500 ? 5 : u.price >= 50 ? 2.5 : 0.5;
+        const term = expiries[2] || when;
         return {
           symbol: on,
           price: u.price,
           expiry: when,
+          // Not options: each is one vault action with its own tool.
+          stockAndLending: [
+            {
+              name: 'Buy or sell stock',
+              tool: 'trade_stock',
+              description: `Spot ${on} at the live bid/ask, from vault cash or shares.`,
+              example: { side: 'buy', symbol: on, quantity: 1 },
+            },
+            {
+              name: 'Protected short',
+              tool: 'open_short',
+              description: `Borrow ${on} and sell it now. A protective call at the cap limits the loss if the price rises, and the vault reserves the cap times the quantity plus term interest until the short is closed or expires.`,
+              example: {
+                symbol: on,
+                quantity: 1,
+                cap: Math.ceil((u.price * 1.12) / step) * step,
+                expiry: term,
+              },
+            },
+            {
+              name: 'Lend shares',
+              tool: 'lend_shares',
+              description: `Lend ${on} from the vault until an expiry and earn interest. The borrower's repurchase is escrowed with protection.`,
+              example: { symbol: on, quantity: 1, expiry: term },
+            },
+            {
+              name: 'Borrow cash against stock',
+              tool: 'borrow_usdc',
+              description: `Pledge ${on} and draw USDC, up to its loan-to-value, at a variable rate or fixed until an expiry. The pledge stays in the vault.`,
+              example: {
+                symbol: on,
+                pledged: 1,
+                amount: Math.floor(u.price * 0.3),
+                rate: 'variable',
+              },
+            },
+          ],
           products: templates
             // Dividend contracts settle on the stored 2025 event only.
             .filter((t) => !(live && t.reference === 'dividend'))
