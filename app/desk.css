@@ -2714,6 +2714,19 @@
 .od-muted {
   color: var(--pc-muted);
 }
+.pc-desk a.od-tx-link,
+.od-toast a.od-tx-link {
+  color: var(--pc-cyan);
+  font-family: var(--pc-mono);
+}
+.od-toast a.od-tx-link {
+  font-family: inherit;
+  white-space: nowrap;
+}
+.pc-desk a.od-tx-link:hover,
+.od-toast a.od-tx-link:hover {
+  text-decoration: underline;
+}
 .od-up {
   color: var(--pc-up);
 }

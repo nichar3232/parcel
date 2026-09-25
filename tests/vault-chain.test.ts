@@ -20,6 +20,7 @@ class Chain implements VaultChainAdapter {
   loseVerification = false;
   loseSend = false;
   unavailable = false;
+  signature = 'original-signature';
   private plan!: VaultPlan;
   async prepare(
     _owner: string,
@@ -31,7 +32,7 @@ class Chain implements VaultChainAdapter {
     this.plan = plan;
     return {
       raw: 'signed-original-bytes',
-      signature: 'original-signature',
+      signature: this.signature,
       lastValidHeight: 99,
       ledger: 'test-ledger',
       stage,
@@ -378,6 +379,39 @@ void test('an expired signature is recorded as failed without committing balance
     assert.ok(row.transaction_json, 'signed bytes retained for forensics');
     assert.equal(row.signature, 'original-signature');
     assert.match(row.error, /expired/);
+  } finally {
+    store.close();
+  }
+});
+void test('each receipt a confirmed onchain action wrote carries that transaction signature', async () => {
+  const store = new Store(':memory:');
+  try {
+    const s = store.createSession().session,
+      vault = new VaultService(store),
+      chain = new Chain();
+    const c = new VaultChainCoordinator(store, vault, chain);
+    chain.signature = 'first-signature';
+    const first = await c.apply(s, randomUUID(), deposit);
+    const firstEvents = first.book.events.map((e) => e.id);
+    assert.ok(firstEvents.length > 0);
+    for (const id of firstEvents)
+      assert.equal(first.signatures?.[id], 'first-signature');
+    chain.signature = 'second-signature';
+    const second = await c.apply(s, randomUUID(), {
+      ...deposit,
+      revision: 1,
+    });
+    const snapshot = c.snapshot(s);
+    assert.ok(snapshot.book.events.length > firstEvents.length);
+    for (const e of snapshot.book.events)
+      assert.equal(
+        snapshot.signatures?.[e.id],
+        firstEvents.includes(e.id) ? 'first-signature' : 'second-signature',
+      );
+    assert.deepEqual(second.signatures, snapshot.signatures);
+    assert.equal(snapshot.chain?.signature, 'second-signature');
+    // Sandbox snapshots never claim a transaction.
+    assert.equal(vault.snapshot(s).signatures, undefined);
   } finally {
     store.close();
   }

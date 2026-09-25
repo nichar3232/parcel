@@ -14,6 +14,7 @@ import {
   savePending,
   type PendingMutation,
 } from '@/lib/client/pending-vault';
+import { txLink } from '@/lib/parcel/format';
 
 /**
  * Receipts are durable, while the snapshot shape evolves with the desk. A
@@ -45,7 +46,13 @@ export function useVault() {
     [busy, setBusy] = useState(false),
     [pending, setPending] = useState(false),
     [error, setError] = useState(''),
-    [toast, setToast] = useState('');
+    [toast, setToast] = useState(''),
+    // The transaction behind a success toast. It belongs to that one
+    // message: any other toast replaces the message and so hides the link.
+    [toastLink, setToastLink] = useState<{
+      message: string;
+      href: string;
+    } | null>(null);
   const current = useRef<VaultSnapshot | null>(null),
     lock = useRef(false),
     pendingRequest = useRef<PendingMutation | null>(null),
@@ -140,7 +147,12 @@ export function useVault() {
       pendingRequest.current = null;
       setPending(false);
       update(result);
-      setToast('Vault updated. Balances and collateral verified.');
+      const href = txLink(result.chain?.signature, result.mode);
+      if (href) {
+        const message = `Confirmed on ${result.mode}.`;
+        setToastLink({ message, href });
+        setToast(message);
+      } else setToast('Vault updated. Balances and collateral verified.');
       return true;
     } catch (e) {
       if (current.current?.csrf === request.csrf) {
@@ -241,6 +253,7 @@ export function useVault() {
     pending,
     error,
     toast,
+    toastLink: toastLink?.message === toast ? toastLink.href : undefined,
     setToast,
     refresh,
     act,

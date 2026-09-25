@@ -208,6 +208,8 @@ export interface VaultSnapshot {
     network: string;
     revision: number;
   };
+  /** Onchain modes only: the transaction signature behind each receipt, by event id. */
+  signatures?: Record<string, string>;
 }
 export interface MarketUnderlying {
   symbol: string;

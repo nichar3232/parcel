@@ -9,6 +9,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import type { VaultController } from '@/hooks/parcel/use-vault';
+import { shortSignature, txLink } from '@/lib/parcel/format';
 import type { MarkFeed } from '@/hooks/parcel/use-marks';
 import { orderGreeks } from '@/lib/parcel/math';
 import {
@@ -1172,6 +1173,30 @@ const session = (date: string) =>
       })
     : date;
 
+function Receipt({
+  id,
+  signature,
+  mode,
+}: {
+  id: string;
+  signature?: string;
+  mode: 'sandbox' | 'localnet' | 'devnet';
+}) {
+  const href = txLink(signature, mode);
+  if (!href || !signature) return <>{id.slice(0, 8)}</>;
+  return (
+    <a
+      className="od-tx-link"
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      title={signature}
+    >
+      {shortSignature(signature)}
+    </a>
+  );
+}
+
 function Activity({ desk }: { desk: VaultController }) {
   const s = desk.state!;
   const [query, setQuery] = useState('');
@@ -1180,10 +1205,20 @@ function Activity({ desk }: { desk: VaultController }) {
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
+  const onchain = s.mode !== 'sandbox';
 
   const download = () => {
     const rows = [
-      ['date', 'title', 'detail', 'cash', 'shares', 'reference', 'via'],
+      [
+        'date',
+        'title',
+        'detail',
+        'cash',
+        'shares',
+        'reference',
+        'via',
+        ...(onchain ? ['signature'] : []),
+      ],
       ...s.book.events.map((e) => [
         e.date,
         e.title,
@@ -1192,6 +1227,7 @@ function Activity({ desk }: { desk: VaultController }) {
         String(e.shares),
         e.reference || '',
         e.via || '',
+        ...(onchain ? [s.signatures?.[e.id] ?? ''] : []),
       ]),
     ];
     const csv = rows
@@ -1259,7 +1295,13 @@ function Activity({ desk }: { desk: VaultController }) {
                     {e.cash ? usd(e.cash) : '—'}
                   </td>
                   <td className="num">{e.shares ? qty(e.shares) : '—'}</td>
-                  <td className="od-muted">{e.id.slice(0, 8)}</td>
+                  <td className="od-muted">
+                    <Receipt
+                      id={e.id}
+                      signature={s.signatures?.[e.id]}
+                      mode={s.mode}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>

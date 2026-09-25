@@ -26,3 +26,22 @@ export const expiryLabel = (iso: string) => {
   });
   return `${day} at ${time} UTC`;
 };
+
+/**
+ * Where a confirmed vault transaction can be inspected: Solana Explorer on
+ * devnet, the desk's own proof endpoint on a local validator. Sandbox fills
+ * have no transaction, so they get no link.
+ */
+export const txLink = (
+  signature: string | undefined,
+  mode: 'sandbox' | 'localnet' | 'devnet',
+) =>
+  !signature || mode === 'sandbox'
+    ? undefined
+    : mode === 'devnet'
+      ? `https://explorer.solana.com/tx/${signature}?cluster=devnet`
+      : `/api/chain/tx/${signature}`;
+
+/** A signature short enough for a table cell, still recognisable. */
+export const shortSignature = (signature: string) =>
+  `${signature.slice(0, 4)}…${signature.slice(-4)}`;

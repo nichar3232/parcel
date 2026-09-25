@@ -606,12 +606,27 @@ export default function Workspace() {
 
       {desk.toast && (
         <output className="od-toast">
-          {desk.toast.startsWith('Vault updated') ? (
+          {desk.toast.startsWith('Vault updated') || desk.toastLink ? (
             <ShieldCheck size={17} />
           ) : (
             <TriangleAlert size={17} />
           )}
-          <span>{desk.toast}</span>
+          <span>
+            {desk.toast}
+            {desk.toastLink && (
+              <>
+                {' '}
+                <a
+                  className="od-tx-link"
+                  href={desk.toastLink}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View transaction
+                </a>
+              </>
+            )}
+          </span>
           <button
             aria-label="Dismiss notification"
             onClick={() => desk.setToast('')}

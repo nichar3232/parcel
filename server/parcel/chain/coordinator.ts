@@ -41,7 +41,31 @@ export class VaultChainCoordinator {
       ...this.vault.snapshot(session),
       mode: this.adapter.network,
       chain: proof ? JSON.parse(proof.proof) : undefined,
+      signatures: this.signatures(session.id),
     };
+  }
+  /** Each receipt a confirmed program transaction wrote, keyed by event id.
+   * The signature cannot live on the event itself: the book is hashed
+   * onchain before the transaction that carries it is signed. */
+  private signatures(owner: string): Record<string, string> {
+    const rows = this.store.db
+      .prepare(
+        "SELECT o.signature, m.detail FROM vault_chain_operations o JOIN vault_mutations m ON m.owner=o.owner AND m.key=o.key WHERE o.owner=? AND o.status='confirmed' AND o.signature IS NOT NULL",
+      )
+      .all(owner) as { signature: string; detail: string }[];
+    const map: Record<string, string> = {};
+    for (const row of rows) {
+      let events: { id?: unknown }[] = [];
+      try {
+        events = (JSON.parse(row.detail) as { events?: { id?: unknown }[] })
+          .events ?? [];
+      } catch {
+        continue;
+      }
+      for (const e of events)
+        if (typeof e.id === 'string') map[e.id] = row.signature;
+    }
+    return map;
   }
   apply(session: Session, key: string, value: unknown): Promise<VaultSnapshot> {
     // Keep one session's RPC workflow ordered without locking SQLite across awaits.
@@ -137,7 +161,12 @@ export class VaultChainCoordinator {
           key,
           hash,
         ) as VaultSnapshot;
-        return { ...receipt, mode: this.adapter.network, chain: JSON.parse(op.proof!) };
+        return {
+          ...receipt,
+          mode: this.adapter.network,
+          chain: JSON.parse(op.proof!),
+          signatures: this.signatures(session.id),
+        };
       }
       const plan = JSON.parse(op.plan) as VaultPlan;
       if (!op.transaction_json) {
@@ -257,7 +286,12 @@ export class VaultChainCoordinator {
             session.id,
             key,
           );
-        return { ...result, mode: this.adapter.network, chain: proof };
+        return {
+          ...result,
+          mode: this.adapter.network,
+          chain: proof,
+          signatures: this.signatures(session.id),
+        };
       });
     }
     throw new ApiError(
