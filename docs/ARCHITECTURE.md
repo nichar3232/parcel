@@ -98,7 +98,7 @@ The market authority is a trusted test oracle. Dataset/feed identity is stored, 
 
 ## Current Parcel onchain mode
 
-The release adds `server/parcel/chain/{codec,adapter,coordinator}.ts` and `programs/parcel`. The program independently executes the current vault rules with SPL backing. The keyless sandbox remains explicit. `VaultService.plan` derives a candidate without committing it; `commit` records the result. The chain coordinator saves a plan and signed bytes before RPC sends, verifies confirmation and program state, then commits the index. The database permits one pending operation per owner. See [PARCEL_CHAIN.md](PARCEL_CHAIN.md) for configuration, signer trust, limits and recovery.
+The release adds `server/parcel/chain/{codec,adapter,coordinator}.ts` and `programs/parcel`. The program independently executes the current vault rules with SPL backing. The keyless sandbox remains explicit. `VaultService.plan` derives a candidate without committing it; `commit` records the result into the account book, idempotent `receipts`, queryable `vault_mutations`, and `audit_events` in one transaction. The chain coordinator saves a plan and signed bytes before RPC sends, verifies confirmation and program state, then commits the index and stamps `vault_chain_operations` with `action_type`, `signature` and `revision_after`. The database permits one pending operation per owner. See [PARCEL_CHAIN.md](PARCEL_CHAIN.md) for configuration, signer trust, limits and recovery.
 
 The original architecture descriptions above remain specific to their named mode or to the legacy Strata program. Current Parcel program evidence is in `docs/audit/2026-09-15-release`, not the original Strata proof directory.
 

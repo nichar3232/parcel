@@ -80,3 +80,32 @@ After that, **every session that goes onchain allocates a 64 KiB vault account h
 `api.devnet.solana.com` is intended for light use and answers `429` within a handful of calls, which is not enough to complete a lifecycle run or to serve a desk to several readers at once. Point `SOLANA_RPC_URL` at a dedicated devnet endpoint — a free Helius or QuickNode tier is sufficient — before running the verification or demonstrating to anyone. The configuration already requires HTTPS for devnet, so such an endpoint drops straight in.
 
 Two behaviours matter here and are easy to misread. The adapters keep the web3.js rate-limit retry **enabled on devnet and disabled on the private validator**, because a loopback validator answering `429` is a misconfiguration worth surfacing while a public cluster throttling is ordinary. And a throttled RPC is reported as the transport failure it is: only a genuinely absent mint reads as an unprovisioned ledger, so a `429` never sends an operator off to re-provision a ledger that is already correct.
+
+## Durable mutation index
+
+Every committed vault action writes three durable records in one SQLite transaction:
+
+| Record | Role |
+| --- | --- |
+| `receipts` | Idempotent HTTP response for the original request key |
+| `vault_mutations` | Queryable index: revision before/after, action type, quote id, execute premium, mode, event ids |
+| `audit_events` | Compact audit line with type, revision, premium and optional chain signature |
+| Book `events[]` | Human-readable activity feed shown in the desk |
+
+Sandbox fills store `mode='sandbox'`. Confirmed Parcel program fills store `mode='localnet'` or `mode='devnet'` and also update `vault_chain_operations` (`action_type`, `signature`, `revision_after`, `proof`). Live-market settlement that occurs on read is recorded as `mode='system'` with a synthetic key; it is not an on-chain event.
+
+Sandbox activity is **not** an on-chain record. Do not describe sandbox receipts, mutations or activity titles as localnet, devnet or mainnet evidence.
+
+## Live on-chain record: blockers on a bare workstation
+
+A live Parcel program record needs all of the following. This repository's default `npm run demo` path is the explicit sandbox and does not require them.
+
+1. **Agave / Solana CLI** (Agave 4.3 for current SBPFv3) — `solana`, `solana-test-validator`, and `cargo-build-sbf` on `PATH`.
+2. **Platform tools v1.51.1** for SBPFv3 builds (`cargo build-sbf --tools-version v1.51.1 --arch v3`).
+3. **Keys and state**
+   - Localnet: operator key at `$STRATA_STATE_DIR/deployer.json`, program/mint config from `PARCEL_CHAIN.md` operator section, genesis pin from the running validator.
+   - Devnet: keys only under `~/.parcel-devnet/keys` and state under `~/.parcel-devnet/state`. **Never delete or overwrite `~/.parcel-devnet`.** If that directory is missing, recreate it deliberately with new operator keys and redeploy; do not invent keys into a half-configured tree.
+4. **RPC + genesis pin** — `PARCEL_CHAIN_ENABLED=true`, `CHAIN_ENABLED=true`, `PARCEL_PROGRAM_ID`, `PARCEL_CASH_MINT`, `PARCEL_STOCK_MINT`, `SOLANA_NETWORK`, `SOLANA_RPC_URL`, exact `SOLANA_GENESIS_HASH`. Mainnet genesis is refused.
+5. **Fresh session** — nonzero sandbox revision without matching program state is rejected; use a new browser session after enabling chain mode.
+
+When those are present, `npm run verify:parcel-chain` produces a real localnet lifecycle with SPL escrow balances, and `ops/deploy-devnet.sh` plus `npm run verify:parcel-chain` against a dedicated HTTPS RPC produce a public-test-cluster record. Prefer documenting and provisioning that path over installing a partial toolchain that cannot finish a build or deploy.

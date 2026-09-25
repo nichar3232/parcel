@@ -329,7 +329,7 @@ void test('migration: a real version-one SQLite database upgrades additively and
         .prepare('SELECT version FROM schema_migrations ORDER BY version')
         .all()
         .map((r) => r.version),
-      [1, 2],
+      [1, 2, 3, 4, 5],
     );
     assert.equal(
       app.vault.snapshot({

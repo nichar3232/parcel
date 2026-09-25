@@ -10,3 +10,4 @@ CREATE TABLE IF NOT EXISTS agent_keys (
  revoked_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS agent_keys_owner ON agent_keys(owner);
+INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,unixepoch()*1000);

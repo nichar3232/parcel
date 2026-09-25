@@ -32,6 +32,7 @@ export interface Operation {
 }
 export class Store {
   readonly db: DatabaseSync;
+  private txDepth = 0;
   constructor(file: string) {
     if (file !== ':memory:')
       mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
@@ -52,14 +53,48 @@ export class Store {
     this.db.exec(
       readFileSync(new URL('./004-agent-keys.sql', import.meta.url), 'utf8'),
     );
+    this.db.exec(
+      readFileSync(new URL('./005-vault-mutations.sql', import.meta.url), 'utf8'),
+    );
+    this.ensureVaultChainColumns();
+  }
+  /**
+   * Additive columns for clearer on-chain operation records. CREATE TABLE IF
+   * NOT EXISTS cannot add columns to an existing table, so older state
+   * directories are upgraded here without rewriting rows.
+   */
+  private ensureVaultChainColumns() {
+    const cols = new Set(
+      (
+        this.db
+          .prepare('PRAGMA table_info(vault_chain_operations)')
+          .all() as { name: string }[]
+      ).map((c) => c.name),
+    );
+    if (!cols.has('action_type'))
+      this.db.exec(
+        'ALTER TABLE vault_chain_operations ADD COLUMN action_type TEXT',
+      );
+    if (!cols.has('signature'))
+      this.db.exec(
+        'ALTER TABLE vault_chain_operations ADD COLUMN signature TEXT',
+      );
+    if (!cols.has('revision_after'))
+      this.db.exec(
+        'ALTER TABLE vault_chain_operations ADD COLUMN revision_after INTEGER',
+      );
   }
   transaction<T>(fn: () => T): T {
+    if (this.txDepth > 0) return fn();
     this.db.exec('BEGIN IMMEDIATE');
+    this.txDepth = 1;
     try {
       const result = fn();
       this.db.exec('COMMIT');
+      this.txDepth = 0;
       return result;
     } catch (e) {
+      this.txDepth = 0;
       this.db.exec('ROLLBACK');
       throw e;
     }
@@ -173,6 +208,56 @@ export class Store {
     this.db
       .prepare('INSERT INTO receipts VALUES(?,?,?,?,?)')
       .run(owner, key, hash, JSON.stringify(value), Date.now());
+  }
+  saveMutation(row: {
+    owner: string;
+    key: string;
+    request_hash: string;
+    revision_before: number;
+    revision_after: number;
+    action_type: string;
+    detail: unknown;
+    quote_id?: string | null;
+    premium?: number | null;
+    mode: 'sandbox' | 'localnet' | 'devnet' | 'system';
+    created_at?: number;
+  }) {
+    this.db
+      .prepare(
+        'INSERT INTO vault_mutations(owner,key,request_hash,revision_before,revision_after,action_type,detail,quote_id,premium,mode,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+      )
+      .run(
+        row.owner,
+        row.key,
+        row.request_hash,
+        row.revision_before,
+        row.revision_after,
+        row.action_type,
+        JSON.stringify(row.detail),
+        row.quote_id ?? null,
+        row.premium ?? null,
+        row.mode,
+        row.created_at ?? Date.now(),
+      );
+  }
+  mutations(owner: string, limit = 100) {
+    return this.db
+      .prepare(
+        'SELECT owner,key,request_hash,revision_before,revision_after,action_type,detail,quote_id,premium,mode,created_at FROM vault_mutations WHERE owner=? ORDER BY created_at DESC, revision_after DESC LIMIT ?',
+      )
+      .all(owner, limit) as {
+      owner: string;
+      key: string;
+      request_hash: string;
+      revision_before: number;
+      revision_after: number;
+      action_type: string;
+      detail: string;
+      quote_id: string | null;
+      premium: number | null;
+      mode: string;
+      created_at: number;
+    }[];
   }
   saveBook(owner: string, book: Book, revision: number) {
     this.db

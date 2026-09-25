@@ -61,6 +61,38 @@ export interface VaultPlan {
   quoteId?: string;
   hash: string;
 }
+export interface CommitOptions {
+  mode?: 'sandbox' | 'localnet' | 'devnet';
+  chain?: {
+    signature?: string;
+    ledger?: string;
+    slot?: number;
+    network?: string;
+  };
+}
+function mutationEvents(plan: VaultPlan) {
+  return plan.book.events.slice(
+    0,
+    Math.max(0, plan.book.events.length - plan.before.events.length),
+  );
+}
+function executePremium(plan: VaultPlan): number | undefined {
+  if (plan.action.type !== 'execute') return undefined;
+  const opened = plan.book.options.find(
+    (p) => !plan.before.options.some((b) => b.id === p.id),
+  );
+  if (opened) return opened.premium;
+  const closed = plan.book.options.find(
+    (p) =>
+      p.status !== 'active' &&
+      plan.before.options.some((b) => b.id === p.id && b.status === 'active'),
+  );
+  if (closed && closed.cashFlow !== undefined) return -closed.cashFlow;
+  const event = mutationEvents(plan).find(
+    (e) => e.title === 'Contract opened' || e.title === 'Contract closed',
+  );
+  return event ? -event.cash : undefined;
+}
 export class VaultService {
   constructor(
     private store: Store,
@@ -87,25 +119,58 @@ export class VaultService {
     let revision = row.revision,
       book = migrate(JSON.parse(row.book));
     if (!liveMarket()) return { revision, book };
-    const save = () => {
-      this.store.db
+    const save = (
+      next: VaultBook,
+      actionType: string,
+      detail: Record<string, unknown>,
+    ) => {
+      const result = this.store.db
         .prepare(
           'UPDATE vault_accounts SET revision=?,book=?,updated_at=? WHERE owner=? AND revision=?',
         )
         .run(
           revision + 1,
-          JSON.stringify(book),
+          JSON.stringify(next),
           this.clock(),
           session.id,
           revision,
         );
+      if (result.changes !== 1)
+        throw new ApiError(
+          409,
+          'STALE_REVISION',
+          'Your vault changed. Refresh and review the current balances.',
+        );
+      const key = `system:${actionType}:${revision}->${revision + 1}`;
+      this.store.saveMutation({
+        owner: session.id,
+        key,
+        request_hash: digest(`vault-system:${key}`),
+        revision_before: revision,
+        revision_after: revision + 1,
+        action_type: actionType,
+        detail,
+        mode: 'system',
+        created_at: this.clock(),
+      });
+      this.store.audit(
+        session.id,
+        'vault',
+        JSON.stringify({
+          type: actionType,
+          revision: revision + 1,
+          system: true,
+        }),
+      );
       revision += 1;
+      book = next;
     };
     // A book written on the 2025 replay holds 2025 expiries that will
     // never have a live close. It starts over on the live market.
     if (book.clock !== 'live') {
-      book = seedVault();
-      save();
+      save(seedVault(), 'live-market-reset', {
+        reason: 'Replay book replaced for live market clock',
+      });
     }
     const now = new Date(this.clock()).toISOString();
     const synced = structuredClone(book);
@@ -113,8 +178,24 @@ export class VaultService {
       const settled = syncLive(synced, now, (symbol) =>
         this.borrowRate(symbol),
       );
-      book = synced;
-      if (settled) save();
+      if (settled) {
+        const events = synced.events.slice(
+          0,
+          Math.max(0, synced.events.length - book.events.length),
+        );
+        save(synced, 'live-settlement', {
+          date: now,
+          events: events.map((e) => ({
+            id: e.id,
+            title: e.title,
+            detail: e.detail,
+            cash: e.cash,
+            shares: e.shares,
+            symbol: e.symbol,
+            reference: e.reference,
+          })),
+        });
+      } else book = synced;
     } catch {
       // A settlement that cannot run yet (no mark, a close not final)
       // leaves the positions as they were; the next read tries again.
@@ -123,7 +204,9 @@ export class VaultService {
     return { revision, book };
   }
   snapshot(session: Session): VaultSnapshot {
-    const { revision, book } = this.read(session);
+    const { revision, book } = liveMarket()
+      ? this.store.transaction(() => this.read(session))
+      : this.read(session);
     return {
       revision,
       book,
@@ -535,7 +618,12 @@ export class VaultService {
       hash: digest('vault-action:' + JSON.stringify(request)),
     };
   }
-  commit(session: Session, key: string, plan: VaultPlan): VaultSnapshot {
+  commit(
+    session: Session,
+    key: string,
+    plan: VaultPlan,
+    options: CommitOptions = {},
+  ): VaultSnapshot {
     const cached = this.store.receipt(session.id, key, plan.hash) as
       | VaultSnapshot
       | undefined;
@@ -551,20 +639,65 @@ export class VaultService {
       if (result.changes !== 1)
         throw Error('Prepared quote was already consumed.');
     }
-    this.store.db
+    const mode = options.mode ?? 'sandbox';
+    const premium = executePremium(plan);
+    const events = mutationEvents(plan);
+    const updated = this.store.db
       .prepare(
-        'UPDATE vault_accounts SET revision=?,book=?,updated_at=? WHERE owner=?',
+        'UPDATE vault_accounts SET revision=?,book=?,updated_at=? WHERE owner=? AND revision=?',
       )
       .run(
         plan.revision + 1,
         JSON.stringify(plan.book),
         this.clock(),
         session.id,
+        plan.revision,
       );
+    if (updated.changes !== 1)
+      throw new ApiError(
+        409,
+        'STALE_REVISION',
+        'Your vault changed. Refresh and review the current balances.',
+      );
+    const detail = {
+      action: plan.action,
+      events: events.map((e) => ({
+        id: e.id,
+        title: e.title,
+        detail: e.detail,
+        cash: e.cash,
+        shares: e.shares,
+        symbol: e.symbol,
+        reference: e.reference,
+        via: e.via,
+      })),
+      chain: options.chain,
+    };
+    this.store.saveMutation({
+      owner: session.id,
+      key,
+      request_hash: plan.hash,
+      revision_before: plan.revision,
+      revision_after: plan.revision + 1,
+      action_type: String(plan.action.type),
+      detail,
+      quote_id: plan.quoteId,
+      premium: premium ?? null,
+      mode,
+      created_at: this.clock(),
+    });
     this.store.audit(
       session.id,
       'vault',
-      JSON.stringify({ type: plan.action.type, revision: plan.revision + 1 }),
+      JSON.stringify({
+        type: plan.action.type,
+        revision: plan.revision + 1,
+        quoteId: plan.quoteId,
+        premium,
+        mode,
+        events: events.map((e) => e.id),
+        chainSignature: options.chain?.signature,
+      }),
     );
     const result = this.snapshot(session);
     this.store.saveReceipt(session.id, key, plan.hash, result);

@@ -15,6 +15,9 @@ interface Operation {
   transaction_json: string | null;
   proof: string | null;
   error: string | null;
+  action_type: string | null;
+  signature: string | null;
+  revision_after: number | null;
 }
 export class VaultChainCoordinator {
   private running = new Map<string, Promise<VaultSnapshot>>();
@@ -110,9 +113,16 @@ export class VaultChainCoordinator {
         );
       this.store.db
         .prepare(
-          "INSERT INTO vault_chain_operations(owner,key,request_hash,plan,status,stage,created_at) VALUES(?,?,?,?,'preparing','initialize',?)",
+          "INSERT INTO vault_chain_operations(owner,key,request_hash,plan,status,stage,action_type,created_at) VALUES(?,?,?,?,'preparing','initialize',?,?)",
         )
-        .run(session.id, key, hash, JSON.stringify(plan), Date.now());
+        .run(
+          session.id,
+          key,
+          hash,
+          JSON.stringify(plan),
+          String(plan.action.type),
+          Date.now(),
+        );
     });
     for (let stage = 0; stage < 3; stage++) {
       let op = this.row(session.id, key)!;
@@ -162,9 +172,15 @@ export class VaultChainCoordinator {
         }
         this.store.db
           .prepare(
-            "UPDATE vault_chain_operations SET status='pending',transaction_json=? WHERE owner=? AND key=? AND stage=? AND transaction_json IS NULL",
+            "UPDATE vault_chain_operations SET status='pending',transaction_json=?,signature=? WHERE owner=? AND key=? AND stage=? AND transaction_json IS NULL",
           )
-          .run(JSON.stringify(prepared), session.id, key, op.stage);
+          .run(
+            JSON.stringify(prepared),
+            prepared.signature,
+            session.id,
+            key,
+            op.stage,
+          );
         op = this.row(session.id, key)!;
       }
       const tx = JSON.parse(op.transaction_json!) as PreparedVaultTransaction;
@@ -220,12 +236,26 @@ export class VaultChainCoordinator {
         revision: plan.revision + 1,
       };
       return this.store.transaction(() => {
-        const result = this.vault.commit(session, key, plan);
+        const result = this.vault.commit(session, key, plan, {
+          mode: this.adapter.network,
+          chain: {
+            signature: tx.signature,
+            ledger: proof.ledger,
+            slot: proof.slot,
+            network: this.adapter.network,
+          },
+        });
         this.store.db
           .prepare(
-            "UPDATE vault_chain_operations SET status='confirmed',proof=? WHERE owner=? AND key=?",
+            "UPDATE vault_chain_operations SET status='confirmed',proof=?,signature=?,revision_after=? WHERE owner=? AND key=?",
           )
-          .run(JSON.stringify(proof), session.id, key);
+          .run(
+            JSON.stringify(proof),
+            tx.signature,
+            plan.revision + 1,
+            session.id,
+            key,
+          );
         return { ...result, mode: this.adapter.network, chain: proof };
       });
     }
