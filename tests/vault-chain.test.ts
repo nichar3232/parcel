@@ -44,13 +44,13 @@ class Chain implements VaultChainAdapter {
     this.revision = this.plan.revision + 1;
     if (this.loseSend) throw Error('lost RPC response');
   }
-  async status() {
-    if (this.unavailable) return 'pending' as const;
+  async status(
+    _tx?: PreparedVaultTransaction,
+  ): Promise<'pending' | 'confirmed' | 'expired' | { error: string }> {
+    if (this.unavailable) return 'pending';
     // Only this operation's broadcast advances revision. A prior confirmed
     // action must not make the next signature look settled before send.
-    return this.revision === this.plan.revision + 1
-      ? ('confirmed' as const)
-      : ('pending' as const);
+    return this.revision === this.plan.revision + 1 ? 'confirmed' : 'pending';
   }
   async verify(_owner: string, b: VaultBook, revision: number) {
     if (this.loseVerification) {
