@@ -373,19 +373,22 @@ export class VaultService {
       const on = parseSymbol(a.symbol),
         live = liveMarket(),
         // A buyer pays the ask and a seller receives the bid. On a live
-        // session this is deliberately fail-closed: a delayed last, stale
-        // NBBO or modelled spread is never silently used as an execution
-        // price. The stored replay still trades at its committed close.
+        // session a fresh quote is required: a stale or oracle mark never
+        // fills. Displayed size bounds the order only where the feed
+        // publishes one. The stored replay trades at its committed close.
         side = live?.quote?.(on),
         quantity = parseAmount(a.quantity),
         price = live
           ? (() => {
               if (!side)
                 throw Error(
-                  `A fresh consolidated bid/ask for ${on} is required before a stock order can be simulated.`,
+                  `No fresh ${on} bid/ask is available right now, so the stock order was not placed.`,
                 );
               const displayed = a.side === 'buy' ? side.askSize : side.bidSize;
-              if (!Number.isFinite(displayed) || displayed! <= 0)
+              if (
+                displayed !== undefined &&
+                (!Number.isFinite(displayed) || displayed <= 0)
+              )
                 throw Error(
                   `The fresh consolidated ${a.side === 'buy' ? 'ask' : 'bid'} for ${on} has no displayed size.`,
                 );
@@ -394,9 +397,7 @@ export class VaultService {
                   `${Number(quantity.toFixed(6))} ${on} exceeds the current displayed ${a.side === 'buy' ? 'ask' : 'bid'} size of ${Number(displayed!.toFixed(6))}. Reduce the order or wait for depth to refresh.`,
                 );
               return (
-                Math.round(
-                  (a.side === 'buy' ? side.ask : side.bid) * 1e6,
-                ) / 1e6
+                Math.round((a.side === 'buy' ? side.ask : side.bid) * 1e6) / 1e6
               );
             })()
           : mark(on, book.date),

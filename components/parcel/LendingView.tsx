@@ -422,13 +422,16 @@ function Borrow({
   } catch {
     valid = false;
   }
-  // On the live market the server fills spot only against a fresh
-  // consolidated NBBO. Without that feed, say so here rather than letting a
-  // reviewed order fail at confirmation.
+  // On the live market the server fills spot only against a fresh stock
+  // quote. Without one, say so here rather than letting a reviewed order
+  // fail at confirmation.
   const noBook =
     live &&
     mode === 'stock' &&
-    !(quoteMark?.source === 'massive-nbbo' && !quoteMark.stale);
+    !(
+      (quoteMark?.source === 'massive-nbbo' || quoteMark?.source === 'yahoo') &&
+      !quoteMark.stale
+    );
   if (noBook) valid = false;
 
   const interest = valid ? termInterest(q, price, s.book.date, end) : 0;
@@ -736,9 +739,9 @@ function Borrow({
           )}
           {noBook && (
             <p className="od-error" role="alert">
-              <TriangleAlert size={13} /> Spot orders fill only against a live
-              consolidated {symbol} bid/ask, and this desk has no NBBO feed
-              connected. Options, lending, shorts and loans still work.
+              <TriangleAlert size={13} /> {symbol} has no fresh quote right now,
+              so spot orders are paused. Options, lending, shorts and loans
+              still work.
             </p>
           )}
           {loan && loan.factor < 1.25 && (

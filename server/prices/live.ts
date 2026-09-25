@@ -128,11 +128,21 @@ export class LiveMarketService implements LiveMarket {
 
   quote(symbol: string) {
     const m = this.engine.mark(symbol);
-    // A stock transfer is the one sandbox action whose cash amount is based
-    // on a quoted two-sided market. Do not silently substitute Yahoo's delayed
-    // last, an oracle mark, an old NBBO, or the engine's maker spread. Those
-    // remain useful *display* marks and can price a clearly-labelled option
-    // model indication, but are not executable stock liquidity.
+    // A stock transfer's cash amount comes from a two-sided market. A fresh
+    // consolidated NBBO is used when one is connected, with its displayed
+    // size as the limit. Parcel runs without that feed, so a fresh Yahoo mark
+    // fills at the modelled bid/ask the desk shows beside it; the sandbox's
+    // test counterparty takes the other side. An oracle mark, a stale print
+    // or the engine's boot seed never fills.
+    if (
+      m &&
+      !m.stale &&
+      m.kind === 'equity' &&
+      m.source === 'yahoo' &&
+      m.bid > 0 &&
+      m.ask > m.bid
+    )
+      return { bid: m.bid, ask: m.ask };
     if (
       !m ||
       m.stale ||

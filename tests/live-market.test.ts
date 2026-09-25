@@ -7,7 +7,11 @@ import {
   setLiveMarket,
   type LiveMarket,
 } from '../lib/parcel/market';
-import { closeInstant, fridayExpiries, LiveMarketService } from '../server/prices/live';
+import {
+  closeInstant,
+  fridayExpiries,
+  LiveMarketService,
+} from '../server/prices/live';
 import { MarkEngine } from '../server/prices/engine';
 import type { Source } from '../server/prices/sources';
 import { Store } from '../server/db/store';
@@ -169,6 +173,38 @@ void test('live stock transfers only receive a fresh consolidated NBBO', () => {
   }
 });
 
+void test('without an NBBO feed, a fresh Yahoo mark fills at its modelled bid/ask', () => {
+  const now = Date.now();
+  const yahoo: Source = {
+    name: 'yahoo',
+    enabled: true,
+    async observe() {
+      return [{ symbol: 'NVDA', price: 142.62, at: now, source: 'yahoo' }];
+    },
+  };
+  const engine = new MarkEngine(now, [yahoo]);
+  const store = new Store(':memory:');
+  engine.start();
+  return new Promise<void>((done, fail) =>
+    setTimeout(() => {
+      try {
+        const m = engine.mark('NVDA')!;
+        const market = new LiveMarketService(engine, store);
+        const q = market.quote('NVDA');
+        assert.equal(m.source, 'yahoo');
+        assert.deepEqual(q, { bid: m.bid, ask: m.ask });
+        assert.ok(q!.bid < 142.62 && q!.ask > 142.62, 'a two-sided spread');
+        done();
+      } catch (e) {
+        fail(e);
+      } finally {
+        engine.stop();
+        store.close();
+      }
+    }, 50),
+  );
+});
+
 void test('an oracle or delayed modelled mark cannot be used as a stock execution quote', () => {
   const now = Date.now();
   const oracle: Source = {
@@ -196,7 +232,11 @@ void test('an oracle or delayed modelled mark cannot be used as a stock executio
   try {
     const market = new LiveMarketService(engine, store);
     assert.equal(market.spot('NVDA'), 142.62, 'the mark remains displayable');
-    assert.equal(market.quote('NVDA'), null, 'but it is not a two-sided venue book');
+    assert.equal(
+      market.quote('NVDA'),
+      null,
+      'but it is not a two-sided venue book',
+    );
   } finally {
     engine.stop();
     store.close();
@@ -218,14 +258,24 @@ void test('a live stock simulation cannot consume more than the displayed NBBO s
     let state = vault.snapshot(session);
     state = vault.apply(session, randomUUID(), {
       revision: state.revision,
-      action: { type: 'transfer', direction: 'deposit', asset: 'USDC', amount: 1000 },
+      action: {
+        type: 'transfer',
+        direction: 'deposit',
+        asset: 'USDC',
+        amount: 1000,
+      },
     });
 
     assert.throws(
       () =>
         vault.plan(session, {
           revision: state.revision,
-          action: { type: 'stock', side: 'buy', symbol: 'NVDA', quantity: 0.500001 },
+          action: {
+            type: 'stock',
+            side: 'buy',
+            symbol: 'NVDA',
+            quantity: 0.500001,
+          },
         }),
       /exceeds the current displayed ask size/,
     );
