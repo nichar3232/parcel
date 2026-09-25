@@ -157,7 +157,11 @@ export function AgentsDialog({
     >
       <div className="od-agent-url">
         <code>{server}</code>
-        <Button size="sm" onClick={() => copy('url', server)}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => copy('url', server)}
+        >
           {copied === 'url' ? <Check size={14} /> : <Copy size={14} />}
           {copied === 'url' ? 'Copied' : 'Copy'}
         </Button>
