@@ -4265,13 +4265,18 @@
     text-transform: uppercase;
   }
   .od-watchlist-row .od-watchlist-metric:nth-of-type(3),
-  .od-watchlist-row .od-watchlist-metric:nth-of-type(4) {
-    display: flex;
+  .od-watchlist-row .od-watchlist-metric:nth-of-type(4),
+  .od-watchlist-private-row .od-watchlist-metric:nth-of-type(5) {
+    display: flex !important;
   }
   .od-watchlist-status-cell {
-    align-items: stretch;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
   }
   .od-watchlist-status-cell small {
+    flex: 1 0 100%;
     text-align: right;
   }
   .od-watchlist-actions {
