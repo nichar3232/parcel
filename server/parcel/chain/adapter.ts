@@ -8,6 +8,7 @@ import {
   Transaction,
   VersionedTransaction,
   ComputeBudgetProgram,
+  sendAndConfirmTransaction,
   type TransactionInstruction,
 } from '@solana/web3.js';
 import {
@@ -16,15 +17,17 @@ import {
   createAssociatedTokenAccountIdempotentInstruction,
   createMintToInstruction,
   getMint,
+  unpackAccount,
   TokenAccountNotFoundError,
   TokenInvalidAccountOwnerError,
 } from '@solana/spl-token';
 import type { Config } from '../../config';
 import type { VaultPlan } from '../service';
 import type { VaultBook } from '../../../lib/parcel/types';
+import { UNDERLYINGS } from '../../../lib/parcel/universe';
 import { chainGenesis } from '../ledger';
 import { instruction, key, pk, u64, i64 } from '../../solana/codec';
-import { actionBytes, bookBytes, bookHash } from './codec';
+import { actionBytes, assetIndex, bookBytes, bookHash, movedAsset } from './codec';
 import { pinnedGenesisFailure } from '../../solana/network';
 export interface PreparedVaultTransaction {
   raw: string;
@@ -73,6 +76,18 @@ function base58(bytes: Uint8Array) {
 export const SESSION_KEY_DOMAIN = Buffer.from([
   111, 100, 100, 108, 111, 116, 58, 118, 50,
 ]).toString('utf8');
+/* Version-four ledgers hold every stock and live at their own addresses, so
+   a session that opened a version-three vault is never read as one. */
+const LEDGER_VERSION = 'v4';
+
+/** The test capital each side starts with, per asset, in base units. */
+const WALLET_SEED = (asset: string) =>
+  asset === 'USDC' ? 10_000_000_000n : asset === 'NVDA' ? 25_000_000n : 5_000_000n;
+const POOL_SEED = (asset: string) =>
+  asset === 'USDC' ? 4_000_000_000_000n : 20_000_000_000n;
+/** The ledger account: discriminator, owner, operator, ten mints, revision, book. */
+const REVISION_OFFSET = 8 + 32 + 32 + 32 * (UNDERLYINGS.length + 1);
+const BOOK_OFFSET = REVISION_OFFSET + 8;
 
 export class ParcelAdapter implements VaultChainAdapter {
   readonly connection: Connection;
@@ -93,6 +108,17 @@ export class ParcelAdapter implements VaultChainAdapter {
         fetch(input, { ...init, signal: AbortSignal.timeout(12000) }),
     });
   }
+  /** Every asset the vault holds, cash first, with its test mint. */
+  private assets() {
+    const p = this.config.parcel!;
+    return [
+      { asset: 'USDC', mint: pk(p.cashMint) },
+      ...UNDERLYINGS.map((u) => ({
+        asset: u.symbol,
+        mint: pk(p.stockMints[u.symbol]),
+      })),
+    ];
+  }
   private async accounts(session: string) {
     const operator = Keypair.fromSecretKey(
       Uint8Array.from(
@@ -106,33 +132,21 @@ export class ParcelAdapter implements VaultChainAdapter {
     const derive = (role: string) =>
       Keypair.fromSeed(
         createHmac('sha256', operator.secretKey)
-          .update(`${SESSION_KEY_DOMAIN}:${session}:${role}`)
+          .update(`${SESSION_KEY_DOMAIN}:${LEDGER_VERSION}:${session}:${role}`)
           .digest(),
       );
     const owner = derive('owner'),
-      ledger = derive('ledger'),
-      cash = pk(this.config.parcel!.cashMint),
-      stock = pk(this.config.parcel!.stockMint);
+      ledger = derive('ledger');
     const [bank] = PublicKey.findProgramAddressSync(
       [Buffer.from('bank'), ledger.publicKey.toBuffer()],
       this.program,
     );
-    const poolCash = getAssociatedTokenAddressSync(cash, bank, true),
-      poolStock = getAssociatedTokenAddressSync(stock, bank, true),
-      walletCash = getAssociatedTokenAddressSync(cash, owner.publicKey),
-      walletStock = getAssociatedTokenAddressSync(stock, owner.publicKey);
-    return {
-      operator,
-      owner,
-      ledger,
-      cash,
-      stock,
-      bank,
-      poolCash,
-      poolStock,
-      walletCash,
-      walletStock,
-    };
+    const assets = this.assets().map((a) => ({
+      ...a,
+      wallet: getAssociatedTokenAddressSync(a.mint, owner.publicKey),
+      pool: getAssociatedTokenAddressSync(a.mint, bank, true),
+    }));
+    return { operator, owner, ledger, bank, assets };
   }
   async health() {
     const genesis = await this.connection.getGenesisHash();
@@ -147,29 +161,72 @@ export class ParcelAdapter implements VaultChainAdapter {
     const absent = (e: unknown) =>
       e instanceof TokenAccountNotFoundError ||
       e instanceof TokenInvalidAccountOwnerError;
-    const readMint = (mint: string) =>
-      getMint(this.connection, pk(mint)).catch((e) => {
+    const readMint = (mint: PublicKey) =>
+      getMint(this.connection, mint).catch((e) => {
         if (absent(e)) return null;
         throw e;
       });
-    const [program, cash, stock] = await Promise.all([
+    const assets = this.assets();
+    const [program, ...mints] = await Promise.all([
       this.connection.getAccountInfo(this.program),
-      readMint(this.config.parcel!.cashMint),
-      readMint(this.config.parcel!.stockMint),
+      ...assets.map((a) => readMint(a.mint)),
     ]);
+    const authority = pk(this.config.authority);
     if (
-      !cash ||
-      !stock ||
       !program?.executable ||
-      cash.decimals !== 6 ||
-      stock.decimals !== 6 ||
-      cash.address.equals(stock.address) ||
-      !cash.mintAuthority?.equals(pk(this.config.authority)) ||
-      !stock.mintAuthority?.equals(pk(this.config.authority))
+      mints.some(
+        (m) =>
+          !m || m.decimals !== 6 || !m.mintAuthority?.equals(authority),
+      ) ||
+      new Set(assets.map((a) => a.mint.toBase58())).size !== assets.length
     )
       throw Error(
         `Parcel program or test mints are not ready on ${this.config.network}.`,
       );
+  }
+  /**
+   * Give a new session its test capital: the owner's wallet and the vault's
+   * escrow for every asset, created and minted by the operator. Idempotent,
+   * so a retried initialization tops up only what is missing. These are
+   * operator-only transactions and are not the session's recorded operation.
+   */
+  private async fund(a: Awaited<ReturnType<ParcelAdapter['accounts']>>) {
+    const addresses = a.assets.flatMap((x) => [x.wallet, x.pool]);
+    const infos = await this.connection.getMultipleAccountsInfo(addresses);
+    const held = (i: number) => {
+      const info = infos[i];
+      return info ? unpackAccount(addresses[i], info).amount : 0n;
+    };
+    const work: TransactionInstruction[] = [];
+    a.assets.forEach((x, i) => {
+      for (const [address, owner, seed, have] of [
+        [x.wallet, a.owner.publicKey, WALLET_SEED(x.asset), held(2 * i)],
+        [x.pool, a.bank, POOL_SEED(x.asset), held(2 * i + 1)],
+      ] as const) {
+        if (have >= seed) continue;
+        work.push(
+          createAssociatedTokenAccountIdempotentInstruction(
+            a.operator.publicKey,
+            address,
+            owner,
+            x.mint,
+          ),
+          createMintToInstruction(
+            x.mint,
+            address,
+            a.operator.publicKey,
+            seed - have,
+          ),
+        );
+      }
+    });
+    // Six token accounts per transaction keeps each under the size limit.
+    for (let i = 0; i < work.length; i += 12) {
+      const tx = new Transaction().add(...work.slice(i, i + 12));
+      await sendAndConfirmTransaction(this.connection, tx, [a.operator], {
+        commitment: 'confirmed',
+      });
+    }
   }
   async prepare(
     session: string,
@@ -178,18 +235,6 @@ export class ParcelAdapter implements VaultChainAdapter {
   ) {
     await this.health();
     const a = await this.accounts(session);
-    const keys = [
-      key(a.ledger.publicKey, true),
-      key(a.owner.publicKey, false, true),
-      key(a.operator.publicKey, false, true),
-      key(a.cash),
-      key(a.stock),
-      key(a.bank),
-      key(a.poolCash, true),
-      key(a.poolStock, true),
-      key(a.walletCash, true),
-      key(a.walletStock, true),
-    ];
     const instructions: TransactionInstruction[] = [
       ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
       ComputeBudgetProgram.requestHeapFrame({ bytes: 256 * 1024 }),
@@ -208,6 +253,7 @@ export class ParcelAdapter implements VaultChainAdapter {
         throw Error(
           'Onchain mode needs a fresh vault; existing sandbox balances are never silently migrated.',
         );
+      await this.fund(a);
       instructions.push(
         SystemProgram.createAccount({
           fromPubkey: a.operator.publicKey,
@@ -217,35 +263,36 @@ export class ParcelAdapter implements VaultChainAdapter {
             await this.connection.getMinimumBalanceForRentExemption(65536),
           programId: this.program,
         }),
+        instruction(this.program, 'initialize_v4', [
+          key(a.ledger.publicKey, true),
+          key(a.owner.publicKey, false, true),
+          key(a.operator.publicKey, false, true),
+          key(a.bank),
+          ...a.assets.map((x) => key(x.mint)),
+        ]),
       );
-      for (const [address, mint, owner, n] of [
-        [a.poolCash, a.cash, a.bank, 4_000_000_000_000n],
-        [a.poolStock, a.stock, a.bank, 20_000_000_000n],
-        [a.walletCash, a.cash, a.owner.publicKey, 10_000_000_000n],
-        [a.walletStock, a.stock, a.owner.publicKey, 25_000_000n],
-      ] as const) {
-        instructions.push(
-          createAssociatedTokenAccountIdempotentInstruction(
-            a.operator.publicKey,
-            address,
-            owner,
-            mint,
-          ),
-          createMintToInstruction(mint, address, a.operator.publicKey, n),
-        );
-      }
-      instructions.push(instruction(this.program, 'initialize_v3', keys));
       signers.push(a.ledger);
     } else {
       await this.verify(session, plan.before, plan.revision);
+      // The token accounts are the asset this action moves between wallet
+      // and vault; the program refuses any other asset moving.
+      const moved = a.assets[assetIndex(movedAsset(plan))];
       // The reviewed price is authorized by the dedicated test maker; program checks
       // state revision, integer obligations and the complete resulting projection.
       const deadline = Math.floor(Date.now() / 1000) + 60;
       instructions.push(
         instruction(
           this.program,
-          'execute_v3',
-          [...keys, key(TOKEN_PROGRAM_ID)],
+          'execute_v4',
+          [
+            key(a.ledger.publicKey, true),
+            key(a.owner.publicKey, false, true),
+            key(a.operator.publicKey, false, true),
+            key(a.bank),
+            key(moved.wallet, true),
+            key(moved.pool, true),
+            key(TOKEN_PROGRAM_ID),
+          ],
           Buffer.concat([
             u64(plan.revision),
             i64(deadline),
@@ -309,13 +356,16 @@ export class ParcelAdapter implements VaultChainAdapter {
       a.ledger.publicKey,
     );
     const data = result.value?.data;
+    const expected = bookBytes(book);
     if (
       !result.value?.owner.equals(this.program) ||
       !data ||
       !data.subarray(8, 40).equals(a.owner.publicKey.toBuffer()) ||
       !data.subarray(40, 72).equals(a.operator.publicKey.toBuffer()) ||
-      data.readBigUInt64LE(136) !== BigInt(revision) ||
-      !data.subarray(144, 144 + bookBytes(book).length).equals(bookBytes(book))
+      data.readBigUInt64LE(REVISION_OFFSET) !== BigInt(revision) ||
+      !data
+        .subarray(BOOK_OFFSET, BOOK_OFFSET + expected.length)
+        .equals(expected)
     )
       throw Error(
         'Onchain vault does not match the prepared ledger revision. Execution stopped.',

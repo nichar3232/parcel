@@ -6,6 +6,13 @@ const W: usize = 0;
 const V: usize = 1;
 const C: usize = 2;
 const M: usize = 3;
+/// The assets a book holds: cash, then every stock in `CLOSES` order.
+pub const A: usize = STOCKS + 1;
+const CASH: usize = 0;
+/// A stock's column in the balances.
+const fn col(stock: u8) -> usize {
+    stock as usize + 1
+}
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Leg {
     pub call: bool,
@@ -15,6 +22,8 @@ pub struct Leg {
 }
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Terms {
+    /// The stock the contract is written on, as `CLOSES` indexes it.
+    pub stock: u8,
     pub quantity: u64,
     /// Unix milliseconds, like every date the program holds.
     pub expiry: i64,
@@ -31,6 +40,7 @@ pub struct OptionPosition {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Loan {
     pub id: [u8; 16],
+    pub stock: u8,
     pub quantity: u64,
     pub opened: i64,
     pub expiry: i64,
@@ -40,6 +50,7 @@ pub struct Loan {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Short {
     pub id: [u8; 16],
+    pub stock: u8,
     pub quantity: u64,
     pub opened: i64,
     pub expiry: i64,
@@ -53,6 +64,8 @@ pub struct Short {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Borrow {
     pub id: [u8; 16],
+    /// The stock pledged.
+    pub stock: u8,
     pub pledged: u64,
     pub principal: u64,
     /// Annual rate in millionths (1_000_000 = 100%).
@@ -68,11 +81,12 @@ pub struct Borrow {
 pub struct Book {
     /// The book's clock, Unix milliseconds: a replay observation, or a live instant.
     pub date: i64,
-    /// The underlying's price at `date`: the committed close on the replay,
-    /// the operator's attested mark live.
-    pub spot: u64,
+    /// Each stock's price at `date`: the committed close on the replay, the
+    /// operator's attested mark live. Zero until a live mark is attested.
+    pub spots: [u64; STOCKS],
     pub isolated: bool,
-    pub balances: [[u64; 2]; 4],
+    /// Wallet, vault, counterparty and market, each holding cash then every stock.
+    pub balances: [[u64; A]; 4],
     pub options: Vec<OptionPosition>,
     pub loans: Vec<Loan>,
     pub shorts: Vec<Short>,
@@ -82,6 +96,7 @@ pub struct Book {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct Observation {
     pub at: i64,
+    pub stock: u8,
     pub price: u64,
 }
 /// The clock moving forward. On the replay every price must equal the
@@ -91,7 +106,9 @@ pub struct Observation {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct Tick {
     pub date: i64,
-    pub spot: u64,
+    /// Each stock's attested mark at `date`; a zero keeps the book's last one.
+    /// On the replay the committed closes apply and any given must equal them.
+    pub spots: Vec<u64>,
     pub closes: Vec<Observation>,
     /// The pool's rate for variable cash loans from here on; 0 keeps theirs.
     pub apr: u64,
@@ -102,10 +119,12 @@ pub struct Tick {
 pub enum Action {
     Transfer {
         deposit: bool,
-        stock: bool,
+        /// Cash, or a stock's column.
+        asset: u8,
         amount: u64,
     },
     Stock {
+        stock: u8,
         buy: bool,
         quantity: u64,
         /// The fill: the close on the replay, the live bid or ask.
@@ -125,6 +144,7 @@ pub enum Action {
     },
     Lend {
         id: [u8; 16],
+        stock: u8,
         quantity: u64,
         expiry: i64,
         premium: u64,
@@ -134,6 +154,7 @@ pub enum Action {
     },
     Short {
         id: [u8; 16],
+        stock: u8,
         quantity: u64,
         cap: u64,
         expiry: i64,
@@ -148,6 +169,7 @@ pub enum Action {
     Restart,
     Borrow {
         id: [u8; 16],
+        stock: u8,
         pledged: u64,
         principal: u64,
         apr: u64,
@@ -165,10 +187,19 @@ fn valid(ok: bool) -> Result<()> {
 fn mul(a: u64, b: u64) -> u64 {
     ((a as u128 * b as u128) / U as u128) as u64
 }
-/// NVDA test-reserve parameters (matches `lib/parcel/lending.ts`).
-const BORROW_LTV: u128 = 600_000;
-const BORROW_LIQ: u128 = 680_000;
-const BORROW_BONUS: u128 = 90_000;
+/// A stock's test-reserve parameters in millionths (matches `lib/parcel/lending.ts`):
+/// loan-to-value, liquidation threshold, liquidation bonus. NVDA is the
+/// listed equity; every other stock is a private company token.
+fn reserve(stock: u8) -> (u128, u128, u128) {
+    if stock == 0 {
+        (600_000, 680_000, 90_000)
+    } else {
+        (400_000, 500_000, 120_000)
+    }
+}
+fn stock_ok(stock: u8) -> Result<()> {
+    valid((stock as usize) < STOCKS)
+}
 fn qty(q: u64) -> Result<()> {
     valid(q > 0 && q <= 1_000_000_000)
 }
@@ -183,23 +214,31 @@ fn cash_interest(principal: u64, apr: u64, from: i64, to: i64) -> u64 {
     let d = 1_000_000 * YEAR;
     ((n + d / 2) / d) as u64
 }
-/// The committed replay close at `at`, if `at` is a replay observation.
-pub fn replay(at: i64) -> Option<u64> {
+/// The replay session `at` observes, if `at` is a replay observation: a
+/// session's own instant, or one of the 23 hourly ticks after every session
+/// but the last, which carry its close forward.
+fn session(at: i64) -> Option<usize> {
     let rel = at.checked_sub(REPLAY_EPOCH)?;
     if rel < 0 || rel % HOUR != 0 {
         return None;
     }
     let h = u32::try_from(rel / HOUR).ok()?;
-    HOURS.iter().position(|&x| x == h).map(|i| PRICES[i])
+    let i = SESSIONS.binary_search(&(h - h % 24)).ok()?;
+    (h % 24 == 0 || i + 1 < SESSIONS.len()).then_some(i)
+}
+/// A stock's committed replay close at `at`, if `at` is a replay observation.
+pub fn replay(stock: u8, at: i64) -> Option<u64> {
+    session(at).map(|i| CLOSES[stock as usize][i])
 }
 /// Past the replay's last observation: the live market.
 fn live(at: i64) -> bool {
     at > REPLAY_EPOCH + REPLAY_HOURS * HOUR
 }
-/// A price the book may take at `at`: the table on the replay, an attested
+/// A price a stock may take at `at`: the table on the replay, an attested
 /// positive price no higher than `MAX_PRICE` live.
-fn attested(at: i64, price: u64) -> Result<()> {
-    match replay(at) {
+fn attested(stock: u8, at: i64, price: u64) -> Result<()> {
+    stock_ok(stock)?;
+    match replay(stock, at) {
         Some(p) => valid(price == p),
         None => valid(live(at) && price > 0 && price <= MAX_PRICE),
     }
@@ -207,7 +246,7 @@ fn attested(at: i64, price: u64) -> Result<()> {
 /// A date a position can run to from `date`. On the replay it must be an
 /// observation, so it has a close to settle at; live, any later instant.
 fn schedulable(date: i64, expiry: i64) -> Result<()> {
-    valid(expiry > date && (live(date) || replay(expiry).is_some()))
+    valid(expiry > date && (live(date) || session(expiry).is_some()))
 }
 /// 3.5% on the entry value over the term, rounded half up.
 fn interest(q: u64, entry: u64, from: i64, to: i64) -> u64 {
@@ -222,6 +261,7 @@ fn accrued(total: u64, from: i64, expiry: i64, at: i64) -> u64 {
 }
 impl Terms {
     pub fn validate(&self, date: i64) -> Result<()> {
+        stock_ok(self.stock)?;
         qty(self.quantity)?;
         schedulable(date, self.expiry)?;
         if let Some(c) = &self.curve {
@@ -413,34 +453,60 @@ fn envelope(terms: &[&Terms]) -> [i128; 4] {
     b[1] = (b[1] + allowance).min(high);
     b
 }
+/// What the book's obligations reserve: cash for the vault and the test
+/// counterparty, and shares of each stock for the vault, the counterparty
+/// and the market.
+#[derive(Default, Debug, PartialEq, Eq)]
+pub struct Reserves {
+    pub vault_cash: u64,
+    pub counterparty_cash: u64,
+    pub vault_stock: [u64; STOCKS],
+    pub counterparty_stock: [u64; STOCKS],
+    pub market_stock: [u64; STOCKS],
+}
 impl Book {
+    /// The test wallet holds 10,000 USDC, 25 NVDA and 5 of every token; the
+    /// counterparty and the market are deep in all of them.
     pub fn initial() -> Self {
+        let mut wallet = [5_000_000; A];
+        wallet[CASH] = 10_000_000_000;
+        wallet[col(0)] = 25_000_000;
+        let mut other = [10_000_000_000; A];
+        other[CASH] = 2_000_000_000_000;
+        let mut spots = [0; STOCKS];
+        for (i, s) in spots.iter_mut().enumerate() {
+            *s = CLOSES[i][0];
+        }
         Self {
             date: REPLAY_EPOCH,
-            spot: PRICES[0],
+            spots,
             isolated: false,
-            balances: [
-                [10_000_000_000, 25_000_000],
-                [0, 0],
-                [2_000_000_000_000, 10_000_000_000],
-                [2_000_000_000_000, 10_000_000_000],
-            ],
+            balances: [wallet, [0; A], other, other],
             options: vec![],
             loans: vec![],
             shorts: vec![],
             borrows: vec![],
         }
     }
-    pub fn totals(&self) -> [u128; 2] {
-        let mut a = [0; 2];
+    pub fn totals(&self) -> [u128; A] {
+        let mut a = [0; A];
         for b in self.balances {
-            a[0] += b[0] as u128;
-            a[1] += b[1] as u128;
+            for (t, x) in a.iter_mut().zip(b) {
+                *t += x as u128;
+            }
         }
         for p in &self.loans {
-            a[0] += mul(p.quantity, p.cap) as u128 + p.interest as u128;
+            a[CASH] += mul(p.quantity, p.cap) as u128 + p.interest as u128;
         }
         a
+    }
+    /// A stock's price at the book's date; a live stock is priced only once
+    /// a mark has been attested for it.
+    fn spot(&self, stock: u8) -> Result<u64> {
+        stock_ok(stock)?;
+        let spot = self.spots[stock as usize];
+        valid(spot > 0)?;
+        Ok(spot)
     }
     fn transfer(&mut self, from: usize, to: usize, asset: usize, n: i128) -> Result<()> {
         if n < 0 {
@@ -455,11 +521,12 @@ impl Book {
             .ok_or(error!(VaultError::Balance))?;
         Ok(())
     }
-    pub fn reserves(&self) -> [u64; 5] {
-        let mut groups: BTreeMap<(i64, bool, bool, usize), Vec<&Terms>> = BTreeMap::new();
+    pub fn reserves(&self) -> Reserves {
+        let mut groups: BTreeMap<(u8, i64, bool, bool, usize), Vec<&Terms>> = BTreeMap::new();
         for (i, p) in self.options.iter().enumerate() {
             groups
                 .entry((
+                    p.terms.stock,
                     p.terms.expiry,
                     p.terms.physical,
                     p.terms.dividend,
@@ -468,52 +535,56 @@ impl Book {
                 .or_default()
                 .push(&p.terms);
         }
-        let mut r = [0u64; 5];
+        let mut r = Reserves::default();
+        // Cash nets across every stock by expiry; shares of one stock never
+        // deliver against a contract on another.
         let mut calendar: BTreeMap<i64, (i128, i128)> = BTreeMap::new();
         for ts in groups.values() {
             let b = envelope(ts);
+            let s = ts[0].stock as usize;
             let row = calendar.entry(ts[0].expiry).or_default();
             row.0 += b[0];
             row.1 += b[1];
-            r[0] += (-b[0]).max(0) as u64;
-            r[1] += (-b[2]).max(0) as u64;
-            r[2] += b[1].max(0) as u64;
-            r[3] += b[3].max(0) as u64;
+            r.vault_cash += (-b[0]).max(0) as u64;
+            r.vault_stock[s] += (-b[2]).max(0) as u64;
+            r.counterparty_cash += b[1].max(0) as u64;
+            r.counterparty_stock[s] += b[3].max(0) as u64;
         }
         if !self.isolated {
-            r[0] = 0;
-            r[2] = 0;
+            r.vault_cash = 0;
+            r.counterparty_cash = 0;
             let (mut low, mut high) = (0i128, 0i128);
             for (_, (min, max)) in calendar {
                 low += min;
                 high += max;
-                r[0] = r[0].max((-low).max(0) as u64);
-                r[2] = r[2].max(high.max(0) as u64);
+                r.vault_cash = r.vault_cash.max((-low).max(0) as u64);
+                r.counterparty_cash = r.counterparty_cash.max(high.max(0) as u64);
             }
         }
         for p in &self.shorts {
-            r[0] += mul(p.quantity, p.cap) + p.interest;
-            r[3] += p.quantity;
+            r.vault_cash += mul(p.quantity, p.cap) + p.interest;
+            r.counterparty_stock[p.stock as usize] += p.quantity;
         }
         for p in &self.loans {
-            r[4] += p.quantity;
+            r.market_stock[p.stock as usize] += p.quantity;
         }
         for p in &self.borrows {
             // Pledged stock cannot be withdrawn, sold or lent while the loan runs.
-            r[1] += p.pledged;
+            r.vault_stock[p.stock as usize] += p.pledged;
         }
         r
     }
     pub fn collateral(&self) -> Result<()> {
         let r = self.reserves();
-        require!(
-            self.balances[V][0] >= r[0]
-                && self.balances[V][1] >= r[1]
-                && self.balances[C][0] >= r[2]
-                && self.balances[C][1] >= r[3]
-                && self.balances[M][1] >= r[4],
-            VaultError::Collateral
-        );
+        let mut ok = self.balances[V][CASH] >= r.vault_cash
+            && self.balances[C][CASH] >= r.counterparty_cash;
+        for s in 0..STOCKS {
+            ok = ok
+                && self.balances[V][s + 1] >= r.vault_stock[s]
+                && self.balances[C][s + 1] >= r.counterparty_stock[s]
+                && self.balances[M][s + 1] >= r.market_stock[s];
+        }
+        require!(ok, VaultError::Collateral);
         Ok(())
     }
     fn future(&self, e: i64) -> Result<()> {
@@ -531,22 +602,22 @@ impl Book {
         let p = self.loans.remove(index);
         let cost = mul(p.quantity, spot.min(p.cap));
         let earned = accrued(p.interest, p.opened, p.expiry, at);
-        self.balances[M][0] += cost;
-        self.transfer(M, V, 1, p.quantity as i128)?;
-        self.balances[V][0] += earned;
-        self.balances[C][0] += mul(p.quantity, p.cap) - cost + p.interest - earned;
+        self.balances[M][CASH] += cost;
+        self.transfer(M, V, col(p.stock), p.quantity as i128)?;
+        self.balances[V][CASH] += earned;
+        self.balances[C][CASH] += mul(p.quantity, p.cap) - cost + p.interest - earned;
         Ok(())
     }
     fn cover(&mut self, index: usize, at: i64, spot: u64) -> Result<()> {
         let p = self.shorts.remove(index);
         let cost = mul(p.quantity, spot.min(p.cap));
         if spot > p.cap {
-            self.transfer(V, C, 0, cost as i128)?;
+            self.transfer(V, C, CASH, cost as i128)?;
         } else {
-            self.transfer(V, M, 0, cost as i128)?;
-            self.transfer(M, C, 1, p.quantity as i128)?;
+            self.transfer(V, M, CASH, cost as i128)?;
+            self.transfer(M, C, col(p.stock), p.quantity as i128)?;
         }
-        self.transfer(V, C, 0, accrued(p.interest, p.opened, p.expiry, at) as i128)
+        self.transfer(V, C, CASH, accrued(p.interest, p.opened, p.expiry, at) as i128)
     }
     fn accrue_borrow(&mut self, index: usize, at: i64) -> Result<()> {
         let p = &mut self.borrows[index];
@@ -567,20 +638,20 @@ impl Book {
         self.accrue_borrow(index, at)?;
         let p = self.borrows.remove(index);
         let debt = p.principal.saturating_add(p.accrued);
-        if !liquidate && self.balances[V][0] >= debt {
-            self.transfer(V, M, 0, debt as i128)?;
+        if !liquidate && self.balances[V][CASH] >= debt {
+            self.transfer(V, M, CASH, debt as i128)?;
             return Ok(());
         }
         let proceeds = mul(p.pledged, spot);
-        self.transfer(V, M, 1, p.pledged as i128)?;
-        self.transfer(M, V, 0, proceeds as i128)?;
+        self.transfer(V, M, col(p.stock), p.pledged as i128)?;
+        self.transfer(M, V, CASH, proceeds as i128)?;
         let bonus = if liquidate {
-            ((debt as u128 * BORROW_BONUS) / 1_000_000) as u64
+            ((debt as u128 * reserve(p.stock).2) / 1_000_000) as u64
         } else {
             0
         };
-        let taken = (debt.saturating_add(bonus)).min(self.balances[V][0]);
-        self.transfer(V, M, 0, taken as i128)
+        let taken = (debt.saturating_add(bonus)).min(self.balances[V][CASH]);
+        self.transfer(V, M, CASH, taken as i128)
     }
     /// Move the clock to `tick` and settle what has come due, as the
     /// off-chain ledger's session advance and live sync do.
@@ -589,45 +660,69 @@ impl Book {
     fn advance(&mut self, tick: Tick, strict: bool) -> Result<()> {
         let date = tick.date;
         valid((date > self.date || (!strict && date == self.date)) && tick.apr <= 1_000_000)?;
-        attested(date, tick.spot)?;
+        valid(tick.spots.len() <= STOCKS)?;
+        // On the replay every stock takes its committed close, and anything
+        // attested must agree. Live, an attested mark replaces the last one.
+        valid(live(date) || session(date).is_some())?;
+        // Crossing onto the live market, the replay's closes stop being
+        // prices: a stock is priced only once a mark is attested for it.
+        if live(date) && !live(self.date) {
+            self.spots = [0; STOCKS];
+        }
+        for s in 0..STOCKS {
+            let given = tick.spots.get(s).copied().unwrap_or(0);
+            if given != 0 {
+                attested(s as u8, date, given)?;
+                self.spots[s] = given;
+            } else if let Some(p) = replay(s as u8, date) {
+                self.spots[s] = p;
+            }
+        }
         for o in &tick.closes {
             valid(o.at <= date)?;
-            attested(o.at, o.price)?;
+            attested(o.stock, o.at, o.price)?;
         }
-        let close = |at: i64| {
-            replay(at).or_else(|| tick.closes.iter().find(|o| o.at == at).map(|o| o.price))
+        let close = |at: i64, stock: u8| {
+            replay(stock, at).or_else(|| {
+                tick.closes
+                    .iter()
+                    .find(|o| o.at == at && o.stock == stock)
+                    .map(|o| o.price)
+            })
         };
         // Due: expired and its close is known. A live close that is not final
         // yet is simply not attested, and the position waits for it.
-        let due = |at: i64| at <= date && close(at).is_some();
-        let spot = tick.spot;
+        let due = |at: i64, stock: u8| at <= date && close(at, stock).is_some();
         self.date = date;
-        self.spot = spot;
-        let mut deliveries: BTreeMap<i64, (i128, i128)> = BTreeMap::new();
+        // One clearing per stock and expiry, as the ledger settles them.
+        let mut deliveries: BTreeMap<(i64, u8), (i128, i128)> = BTreeMap::new();
         for p in &self.options {
-            if due(p.terms.expiry) {
+            if due(p.terms.expiry, p.terms.stock) {
                 let d = p.terms.delivery(if p.terms.dividend {
                     10_000
                 } else {
-                    close(p.terms.expiry).unwrap()
+                    close(p.terms.expiry, p.terms.stock).unwrap()
                 });
-                let group = deliveries.entry(p.terms.expiry).or_insert((0, 0));
+                let group = deliveries
+                    .entry((p.terms.expiry, p.terms.stock))
+                    .or_insert((0, 0));
                 group.0 += d.0;
                 group.1 += d.1;
             }
         }
-        self.options.retain(|p| !due(p.terms.expiry));
-        for (_, (cash, stock)) in deliveries {
-            self.transfer(C, V, 0, cash)?;
-            self.transfer(C, V, 1, stock)?;
+        self.options
+            .retain(|p| !due(p.terms.expiry, p.terms.stock));
+        for ((_, stock), (cash, shares)) in deliveries {
+            self.transfer(C, V, CASH, cash)?;
+            self.transfer(C, V, col(stock), shares)?;
         }
-        while let Some(i) = self.shorts.iter().position(|p| due(p.expiry)) {
-            let e = self.shorts[i].expiry;
-            self.cover(i, e, close(e).unwrap())?;
+        while let Some(i) = self.shorts.iter().position(|p| due(p.expiry, p.stock)) {
+            let (e, s) = (self.shorts[i].expiry, self.shorts[i].stock);
+            self.cover(i, e, close(e, s).unwrap())?;
         }
-        while let Some(i) = self.loans.iter().position(|p| due(p.expiry)) {
-            let e = self.loans[i].expiry;
-            self.recall(i, e, close(e).unwrap())?;
+        while let Some(i) = self.loans.iter().position(|p| due(p.expiry, p.stock)) {
+            let (e, s) = (self.loans[i].expiry, self.loans[i].stock);
+            self.recall(i, e, close(e, s).unwrap())?;
         }
         if !tick.carry {
             return Ok(());
@@ -638,9 +733,13 @@ impl Book {
         // pledge no longer covers the debt at the liquidation threshold.
         let mut i = 0;
         while i < self.borrows.len() {
-            let (fixed, expiry) = (self.borrows[i].fixed, self.borrows[i].expiry);
-            if fixed && due(expiry) {
-                self.settle_borrow(i, expiry, close(expiry).unwrap(), false)?;
+            let (fixed, expiry, stock) = (
+                self.borrows[i].fixed,
+                self.borrows[i].expiry,
+                self.borrows[i].stock,
+            );
+            if fixed && due(expiry, stock) {
+                self.settle_borrow(i, expiry, close(expiry, stock).unwrap(), false)?;
                 continue;
             }
             if fixed && expiry <= date {
@@ -651,8 +750,9 @@ impl Book {
             if !fixed && tick.apr > 0 {
                 self.borrows[i].apr = tick.apr;
             }
+            let spot = self.spot(stock)?;
             let p = &self.borrows[i];
-            let cover = (mul(p.pledged, spot) as u128 * BORROW_LIQ) / 1_000_000;
+            let cover = (mul(p.pledged, spot) as u128 * reserve(stock).1) / 1_000_000;
             if (p.principal as u128 + p.accrued as u128) > cover {
                 self.settle_borrow(i, date, spot, true)?;
             } else {
@@ -675,35 +775,37 @@ impl Book {
     }
     pub fn apply(&mut self, a: Action) -> Result<()> {
         let original = self.totals();
-        let spot = self.spot;
         match a {
             Action::Transfer {
                 deposit,
-                stock,
+                asset,
                 amount,
             } => {
                 valid(
-                    amount > 0
+                    (asset as usize) < A
+                        && amount > 0
                         && amount
-                            <= if stock {
-                                1_000_000_000
-                            } else {
+                            <= if asset as usize == CASH {
                                 1_000_000_000_000
+                            } else {
+                                1_000_000_000
                             },
                 )?;
                 self.transfer(
                     if deposit { W } else { V },
                     if deposit { V } else { W },
-                    stock as usize,
+                    asset as usize,
                     amount as i128,
                 )?;
             }
             Action::Stock {
+                stock,
                 buy,
                 quantity,
                 price,
             } => {
                 qty(quantity)?;
+                let spot = self.spot(stock)?;
                 // The replay fills at its close. Live, a stock order fills at
                 // the bid or ask, which the operator attests within 10% of spot.
                 valid(if live(self.date) {
@@ -712,8 +814,8 @@ impl Book {
                     price == spot
                 })?;
                 let (from, to) = if buy { (V, M) } else { (M, V) };
-                self.transfer(from, to, 0, mul(quantity, price) as i128)?;
-                self.transfer(to, from, 1, quantity as i128)?;
+                self.transfer(from, to, CASH, mul(quantity, price) as i128)?;
+                self.transfer(to, from, col(stock), quantity as i128)?;
             }
             Action::Open { id, terms, premium } => {
                 self.unique(&id)?;
@@ -735,7 +837,7 @@ impl Book {
                     let b = sweep(&[&terms], false);
                     valid(premium as i128 >= b[0].min(0) && premium as i128 <= b[1].max(0))?;
                 }
-                self.transfer(V, C, 0, premium as i128)?;
+                self.transfer(V, C, CASH, premium as i128)?;
                 self.options.insert(0, OptionPosition { id, terms });
             }
             Action::Close { id, premium } => {
@@ -745,13 +847,14 @@ impl Book {
                     .position(|p| p.id == id)
                     .ok_or(error!(VaultError::Position))?;
                 self.options.remove(i);
-                self.transfer(V, C, 0, premium as i128)?;
+                self.transfer(V, C, CASH, premium as i128)?;
             }
             Action::Margin { isolated } => {
                 self.isolated = isolated;
             }
             Action::Lend {
                 id,
+                stock,
                 quantity,
                 expiry,
                 premium,
@@ -759,21 +862,24 @@ impl Book {
                 qty(quantity)?;
                 self.future(expiry)?;
                 self.unique(&id)?;
-                valid(self.balances[V][1] >= self.reserves()[1] + quantity)?;
+                let spot = self.spot(stock)?;
+                let r = self.reserves();
+                valid(self.balances[V][col(stock)] >= r.vault_stock[stock as usize] + quantity)?;
                 let cap = spot * 3 / 2;
                 let interest = interest(quantity, spot, self.date, expiry);
                 let total = mul(quantity, cap) + interest;
-                valid(self.balances[C][0] >= total + self.reserves()[2])?;
-                self.transfer(V, M, 1, quantity as i128)?;
-                self.transfer(M, C, 0, mul(quantity, spot) as i128)?;
-                self.transfer(C, M, 0, premium as i128)?;
-                self.balances[C][0] = self.balances[C][0]
+                valid(self.balances[C][CASH] >= total + r.counterparty_cash)?;
+                self.transfer(V, M, col(stock), quantity as i128)?;
+                self.transfer(M, C, CASH, mul(quantity, spot) as i128)?;
+                self.transfer(C, M, CASH, premium as i128)?;
+                self.balances[C][CASH] = self.balances[C][CASH]
                     .checked_sub(total)
                     .ok_or(error!(VaultError::Balance))?;
                 self.loans.insert(
                     0,
                     Loan {
                         id,
+                        stock,
                         quantity,
                         opened: self.date,
                         expiry,
@@ -788,10 +894,12 @@ impl Book {
                     .iter()
                     .position(|p| p.id == id)
                     .ok_or(error!(VaultError::Position))?;
+                let spot = self.spot(self.loans[i].stock)?;
                 self.recall(i, self.date, spot)?;
             }
             Action::Short {
                 id,
+                stock,
                 quantity,
                 cap,
                 expiry,
@@ -800,14 +908,16 @@ impl Book {
                 qty(quantity)?;
                 self.future(expiry)?;
                 self.unique(&id)?;
+                let spot = self.spot(stock)?;
                 valid(cap > spot && cap <= spot * 2)?;
-                self.transfer(C, M, 1, quantity as i128)?;
-                self.transfer(M, V, 0, mul(quantity, spot) as i128)?;
-                self.transfer(V, C, 0, premium as i128)?;
+                self.transfer(C, M, col(stock), quantity as i128)?;
+                self.transfer(M, V, CASH, mul(quantity, spot) as i128)?;
+                self.transfer(V, C, CASH, premium as i128)?;
                 self.shorts.insert(
                     0,
                     Short {
                         id,
+                        stock,
                         quantity,
                         opened: self.date,
                         expiry,
@@ -822,6 +932,7 @@ impl Book {
                     .iter()
                     .position(|p| p.id == id)
                     .ok_or(error!(VaultError::Position))?;
+                let spot = self.spot(self.shorts[i].stock)?;
                 self.cover(i, self.date, spot)?;
             }
             Action::Advance { tick } => {
@@ -838,6 +949,7 @@ impl Book {
             }
             Action::Borrow {
                 id,
+                stock,
                 pledged,
                 principal,
                 apr,
@@ -845,6 +957,7 @@ impl Book {
                 expiry,
             } => {
                 qty(pledged)?;
+                let spot = self.spot(stock)?;
                 valid(principal > 0 && principal <= 1_000_000_000_000)?;
                 valid(apr > 0 && apr <= 1_000_000)?;
                 self.unique(&id)?;
@@ -853,15 +966,19 @@ impl Book {
                 } else {
                     valid(expiry == 0)?;
                 }
-                valid(self.balances[V][1] >= self.reserves()[1] + pledged)?;
-                let limit = ((mul(pledged, spot) as u128 * BORROW_LTV) / 1_000_000) as u64;
+                valid(
+                    self.balances[V][col(stock)]
+                        >= self.reserves().vault_stock[stock as usize] + pledged,
+                )?;
+                let limit = ((mul(pledged, spot) as u128 * reserve(stock).0) / 1_000_000) as u64;
                 valid(principal <= limit)?;
-                valid(self.balances[M][0] >= principal)?;
-                self.transfer(M, V, 0, principal as i128)?;
+                valid(self.balances[M][CASH] >= principal)?;
+                self.transfer(M, V, CASH, principal as i128)?;
                 self.borrows.insert(
                     0,
                     Borrow {
                         id,
+                        stock,
                         pledged,
                         principal,
                         apr,
@@ -879,6 +996,7 @@ impl Book {
                     .iter()
                     .position(|p| p.id == id)
                     .ok_or(error!(VaultError::Position))?;
+                let spot = self.spot(self.borrows[i].stock)?;
                 self.settle_borrow(i, self.date, spot, false)?;
             }
         }
@@ -896,22 +1014,23 @@ mod tests {
     use super::*;
     /// The replay observation at clock index `i`.
     fn at(i: usize) -> i64 {
-        REPLAY_EPOCH + HOURS[i] as i64 * HOUR
+        REPLAY_EPOCH + SESSIONS[i] as i64 * HOUR
     }
     fn tick(date: i64, spot: u64, closes: Vec<Observation>) -> Tick {
         Tick {
             date,
-            spot,
+            spots: vec![spot],
             closes,
             apr: 0,
             carry: true,
         }
     }
     fn replay_tick(i: usize) -> Tick {
-        tick(at(i), PRICES[i], vec![])
+        tick(at(i), CLOSES[0][i], vec![])
     }
     fn spread(q: u64, low: u64, high: u64, sell: bool) -> Terms {
         Terms {
+            stock: 0,
             curve: None,
             quantity: q,
             expiry: at(10),
@@ -986,7 +1105,7 @@ mod tests {
         let original = b.totals();
         b.apply(Action::Transfer {
             deposit: true,
-            stock: true,
+            asset: 1,
             amount: 2_000_000,
         })
         .unwrap();
@@ -994,6 +1113,7 @@ mod tests {
         // so a session that marks lower still clears the liquidation threshold.
         b.apply(Action::Borrow {
             id: [9; 16],
+            stock: 0,
             pledged: 1_000_000,
             principal: 50_000_000,
             apr: 50_000, // 5%
@@ -1006,6 +1126,7 @@ mod tests {
         assert!(b
             .apply(Action::Borrow {
                 id: [10; 16],
+                stock: 0,
                 pledged: 1_000_000,
                 principal: 86_000_000,
                 apr: 50_000,
@@ -1026,27 +1147,29 @@ mod tests {
         let original = b.totals();
         b.apply(Action::Transfer {
             deposit: true,
-            stock: true,
+            asset: 1,
             amount: 1_000_000,
         })
         .unwrap();
         b.apply(Action::Transfer {
             deposit: true,
-            stock: false,
+            asset: 0,
             amount: 1_000_000_000,
         })
         .unwrap();
         b.apply(Action::Lend {
             id: [1; 16],
+            stock: 0,
             quantity: 333_333,
             expiry: at(10),
             premium: 17,
         })
         .unwrap();
         assert_eq!(b.balances[C][1], 10_000_000_000);
-        assert_eq!(b.reserves()[4], 333_333);
+        assert_eq!(b.reserves().market_stock[0], 333_333);
         b.apply(Action::Short {
             id: [2; 16],
+            stock: 0,
             quantity: 333_333,
             cap: 160_000_000,
             expiry: at(10),
@@ -1080,24 +1203,149 @@ mod tests {
     }
     #[test]
     fn replay_constants_match_the_table() {
-        assert_eq!(REPLAY_HOURS, *HOURS.iter().max().unwrap() as i64);
+        assert_eq!(REPLAY_HOURS, *SESSIONS.last().unwrap() as i64);
         assert_eq!(DIVIDEND_DATE, at(32));
-        assert_eq!(replay(at(0)), Some(PRICES[0]));
-        assert_eq!(replay(at(0) + 1), None);
-        assert_eq!(Book::initial().spot, PRICES[0]);
-        // A replay advance takes the committed close and nothing else.
+        assert_eq!(replay(0, at(0)), Some(CLOSES[0][0]));
+        assert_eq!(replay(0, at(0) + 1), None);
+        // Hourly ticks carry a session's close forward, except after the last.
+        assert_eq!(replay(3, at(0) + 5 * HOUR), Some(CLOSES[3][0]));
+        assert_eq!(replay(3, at(48) + 5 * HOUR), None);
+        assert_eq!(replay(3, at(1) - HOUR), None);
+        assert_eq!(Book::initial().spots[0], CLOSES[0][0]);
+        assert_eq!(Book::initial().spots[8], CLOSES[8][0]);
+        // A replay advance takes every committed close and nothing else.
         let mut b = Book::initial();
         assert!(b
             .apply(Action::Advance {
-                tick: tick(at(3), PRICES[3] + 1, vec![])
+                tick: tick(at(3), CLOSES[0][3] + 1, vec![])
             })
             .is_err());
         // An instant inside the replay that is not an observation has no price.
         assert!(b
             .apply(Action::Advance {
-                tick: tick(at(3) + 1, PRICES[3], vec![])
+                tick: tick(at(3) + 1, CLOSES[0][3], vec![])
             })
             .is_err());
+        b.apply(Action::Advance {
+            tick: tick(at(3), 0, vec![]),
+        })
+        .unwrap();
+        for s in 0..STOCKS {
+            assert_eq!(b.spots[s], CLOSES[s][3]);
+        }
+    }
+    #[test]
+    fn every_stock_trades_in_one_book_with_its_own_reserves() {
+        let original = Book::initial().totals();
+        let mut b = live_book(178_190_000);
+        // OPENAI (stock 1) has no attested mark yet, so no order fills on it.
+        let mut t = spread(1_000_000, 900_000_000, 1_000_000_000, false);
+        t.stock = 1;
+        t.expiry = FRIDAY;
+        assert!(b
+            .execute(
+                Some(tick(NOW + 1, 178_190_000, vec![])),
+                Action::Stock {
+                    stock: 1,
+                    buy: true,
+                    quantity: 1_000_000,
+                    price: 950_000_000,
+                },
+            )
+            .is_err());
+        let mut spots = Tick {
+            date: NOW + 2,
+            spots: vec![0, 950_000_000],
+            closes: vec![],
+            apr: 0,
+            carry: false,
+        };
+        b.execute(
+            Some(spots.clone()),
+            Action::Transfer {
+                deposit: true,
+                asset: 2,
+                amount: 3_000_000,
+            },
+        )
+        .unwrap();
+        assert_eq!(b.spots[0], 178_190_000);
+        assert_eq!(b.spots[1], 950_000_000);
+        // A covered call on OPENAI reserves OPENAI shares, not NVDA.
+        t.physical = true;
+        t.legs.truncate(1);
+        t.legs[0].buy = false;
+        spots.date = NOW + 3;
+        b.execute(
+            Some(spots.clone()),
+            Action::Open {
+                id: [22; 16],
+                terms: t,
+                premium: -20_000_000,
+            },
+        )
+        .unwrap();
+        let r = b.reserves();
+        assert_eq!(r.vault_stock[1], 1_000_000);
+        assert_eq!(r.vault_stock[0], 0);
+        // The reserved OPENAI cannot leave; the other 2 can.
+        assert!(b
+            .clone()
+            .apply(Action::Transfer {
+                deposit: false,
+                asset: 2,
+                amount: 2_000_001,
+            })
+            .is_err());
+        b.apply(Action::Transfer {
+            deposit: false,
+            asset: 2,
+            amount: 2_000_000,
+        })
+        .unwrap();
+        // A private-company pledge lends 40%, not NVDA's 60%.
+        b.apply(Action::Transfer {
+            deposit: true,
+            asset: 2,
+            amount: 1_000_000,
+        })
+        .unwrap();
+        assert!(b
+            .clone()
+            .apply(Action::Borrow {
+                id: [23; 16],
+                stock: 1,
+                pledged: 1_000_000,
+                principal: 400_000_000,
+                apr: 50_000,
+                fixed: false,
+                expiry: 0,
+            })
+            .is_err());
+        b.apply(Action::Borrow {
+            id: [23; 16],
+            stock: 1,
+            pledged: 1_000_000,
+            principal: 380_000_000,
+            apr: 50_000,
+            fixed: false,
+            expiry: 0,
+        })
+        .unwrap();
+        // OPENAI settles at its own recorded close: 900 strike call sold,
+        // close 1000, physical: one share delivered for 900.
+        let vault = b.balances[V][CASH];
+        spots.date = FRIDAY + 7_200_000;
+        spots.closes = vec![Observation {
+            at: FRIDAY,
+            stock: 1,
+            price: 1_000_000_000,
+        }];
+        b.apply(Action::Advance { tick: spots }).unwrap();
+        assert!(b.options.is_empty());
+        assert_eq!(b.balances[V][col(1)], 1_000_000);
+        assert_eq!(b.balances[V][CASH], vault + 900_000_000);
+        assert_eq!(b.totals(), original);
     }
     // 2026-09-25T15:00:00Z and the Friday a week later, 2026-10-02.
     const NOW: i64 = 1_790_348_400_000;
@@ -1108,7 +1356,7 @@ mod tests {
             Some(tick(NOW, spot, vec![])),
             Action::Transfer {
                 deposit: true,
-                stock: false,
+                asset: 0,
                 amount: 1_000_000_000,
             },
         )
@@ -1119,7 +1367,7 @@ mod tests {
     fn live_actions_run_on_the_attested_clock_and_settle_at_the_recorded_close() {
         let original = Book::initial().totals();
         let mut b = live_book(178_190_000);
-        assert_eq!((b.date, b.spot), (NOW, 178_190_000));
+        assert_eq!((b.date, b.spots[0]), (NOW, 178_190_000));
         // A live expiry need not be a replay observation.
         let mut t = spread(1_000_000, 170_000_000, 190_000_000, false);
         t.expiry = FRIDAY;
@@ -1146,6 +1394,7 @@ mod tests {
                 181_000_000,
                 vec![Observation {
                     at: FRIDAY,
+                    stock: 0,
                     price: 185_000_000,
                 }],
             ),
@@ -1160,19 +1409,27 @@ mod tests {
         let mut b = live_book(178_190_000);
         let transfer = || Action::Transfer {
             deposit: true,
-            stock: false,
+            asset: 0,
             amount: 1,
         };
-        // Backwards, a zero price, and a price over the ceiling all fail.
+        // Backwards, a stock the book does not hold, and a price over the
+        // ceiling all fail.
         for bad in [
             tick(NOW - 1, 178_000_000, vec![]),
-            tick(NOW + 1, 0, vec![]),
+            Tick {
+                date: NOW + 1,
+                spots: vec![178_000_000; STOCKS + 1],
+                closes: vec![],
+                apr: 0,
+                carry: false,
+            },
             tick(NOW + 1, MAX_PRICE + 1, vec![]),
             tick(
                 NOW + 1,
                 178_000_000,
                 vec![Observation {
                     at: NOW + 2,
+                    stock: 0,
                     price: 1,
                 }],
             ),
@@ -1190,6 +1447,7 @@ mod tests {
             .is_err());
         // Live stock fills within 10% of the attested spot.
         let buy = |price| Action::Stock {
+            stock: 0,
             buy: true,
             quantity: 1_000_000,
             price,
@@ -1202,24 +1460,25 @@ mod tests {
         let mut r = Book::initial();
         r.apply(Action::Transfer {
             deposit: true,
-            stock: false,
+            asset: 0,
             amount: 1_000_000_000,
         })
         .unwrap();
-        assert!(r.clone().apply(buy(PRICES[0] + 1)).is_err());
-        r.apply(buy(PRICES[0])).unwrap();
+        assert!(r.clone().apply(buy(CLOSES[0][0] + 1)).is_err());
+        r.apply(buy(CLOSES[0][0])).unwrap();
     }
     #[test]
     fn live_stock_loan_prices_off_the_attested_spot() {
         let mut b = live_book(178_190_001);
         b.apply(Action::Transfer {
             deposit: true,
-            stock: true,
+            asset: 1,
             amount: 1_000_000,
         })
         .unwrap();
         b.apply(Action::Lend {
             id: [3; 16],
+            stock: 0,
             quantity: 1_000_000,
             expiry: FRIDAY,
             premium: 100,

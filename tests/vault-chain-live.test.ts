@@ -15,6 +15,7 @@ import { setLiveMarket, type LiveMarket } from '../lib/parcel/market';
 import { borrowRate } from '../lib/parcel/lending';
 import { fridayExpiries } from '../server/prices/live';
 import type { VaultBook } from '../lib/parcel/types';
+import { UNDERLYINGS } from '../lib/parcel/universe';
 
 /**
  * A chain that holds what the program would: it takes each plan's book,
@@ -146,11 +147,15 @@ void test('chain mode runs on the live market: every action carries its clock, a
     assert.equal(first.args[0], 1, 'Some(tick)');
     assert.ok(first.args.subarray(1, 9).equals(le64(clock)));
     assert.ok(first.args.subarray(1, 9).equals(date(state.book.date)));
-    assert.equal(first.args.readBigUInt64LE(9), 178_190_000n);
+    // One attested mark per stock, NVDA first.
+    assert.equal(first.args.readUInt32LE(9), 9);
+    assert.equal(first.args.readBigUInt64LE(13), 178_190_000n);
+    assert.equal(first.args.readBigUInt64LE(21), 100_000_000n);
     assert.ok(first.before.subarray(0, 8).equals(le64(ms('2025-01-24'))));
     assert.equal(first.before.readBigUInt64LE(8), 142_620_000n);
     assert.ok(first.after.subarray(0, 8).equals(le64(clock)));
-    assert.equal(state.book.spot, 178.19);
+    assert.equal(state.book.spots!.NVDA, 178.19);
+    assert.equal(state.book.spots!.OPENAI, 100);
 
     clock += 60_000;
     spot = 178.4;
@@ -185,6 +190,24 @@ void test('chain mode runs on the live market: every action carries its clock, a
       amount: 50,
       rate: 'variable',
     });
+    // The pre-IPO sleeve trades in the same book, on its own marks.
+    await act({
+      type: 'transfer',
+      asset: 'OPENAI',
+      direction: 'deposit',
+      amount: 2,
+    });
+    const openai = templateTerms('call', friday, 'OPENAI', 100);
+    openai.quantity = 0.5;
+    const openaiQuote = vault.quote(s, randomUUID(), {
+      revision: state.revision,
+      terms: openai,
+    });
+    await act({ type: 'execute', quoteId: openaiQuote.id });
+    assert.equal(state.book.options[0].terms.symbol, 'OPENAI');
+    await act({ type: 'lend', symbol: 'OPENAI', quantity: 1, expiry: friday });
+    assert.equal(state.book.loans[0].symbol, 'OPENAI');
+    assert.equal(state.risk.freeShares.OPENAI, 1);
     const stored = chain.records.length;
 
     // Friday's close is in. Reading the vault shows it settled, but nothing
@@ -192,6 +215,7 @@ void test('chain mode runs on the live market: every action carries its clock, a
     clock = ms('2026-10-05T14:30:00.000Z');
     spot = 181.2;
     closes[`NVDA|${friday}`] = 185.5;
+    closes[`OPENAI|${friday}`] = 104;
     state = vault.snapshot(s);
     assert.equal(state.book.options[0].status, 'settled');
     assert.equal(state.book.loans[0].status, 'closed');
@@ -205,10 +229,12 @@ void test('chain mode runs on the live market: every action carries its clock, a
     const settled = chain.plans.at(-1)!;
     assert.deepEqual(settled.tick, {
       carry: true,
-      closes: { [friday]: 185.5 },
+      closes: { [`${friday}|NVDA`]: 185.5, [`${friday}|OPENAI`]: 104 },
       apr: borrowRate('NVDA', null),
       date: '2026-10-05T14:30:00.000Z',
-      spot: 181.2,
+      spots: Object.fromEntries(
+        UNDERLYINGS.map((u) => [u.symbol, u.symbol === 'NVDA' ? 181.2 : 100]),
+      ),
     });
     assert.equal(settled.before.options[0].status, 'active');
     assert.equal(state.book.options[0].status, 'settled');

@@ -58,7 +58,8 @@ import {
 /** The live clock an onchain action carries: where the book moved to first. */
 export interface PlanTick extends LiveTick {
   date: string;
-  spot: number;
+  /** Each underlying's attested mark at `date`; 0 keeps the program's last. */
+  spots: Record<string, number>;
 }
 export interface VaultPlan {
   revision: number;
@@ -257,13 +258,21 @@ export class VaultService {
     const record: LiveTick = { carry: false, closes: {} };
     try {
       syncLive(book, now, (symbol) => this.borrowRate(symbol), record);
-      const spot = mark(DEFAULT_UNDERLYING, now);
-      book.spot = spot;
+      // The marks the program is handed: every underlying priced now, and
+      // the last attested mark for one that is not, as the program keeps it.
+      const live = liveMarket()!;
+      const spots = Object.fromEntries(
+        UNDERLYINGS.map((u) => [
+          u.symbol,
+          live.spot(u.symbol) ?? stored.spots?.[u.symbol] ?? 0,
+        ]),
+      );
+      book.spots = spots;
       return {
         revision,
         book,
         stored,
-        tick: { ...record, date: now, spot },
+        tick: { ...record, date: now, spots },
       };
     } catch {
       // No mark yet: the view waits on the stored book, and an action is
@@ -661,7 +670,7 @@ export class VaultService {
         book,
         this.chain && liveMarket() ? chainGenesis() : initialVault(),
       );
-      delete book.spot;
+      delete book.spots;
       book.events = events;
       emit(
         book,

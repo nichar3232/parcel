@@ -388,7 +388,7 @@ export function setMarketDate(
 /** The clock a live sync ran to, as the onchain program is handed it. */
 export interface LiveTick {
   carry: boolean;
-  /** Settlement closes by expiry date. */
+  /** Settlement closes, by `expiry|symbol`. */
   closes: Record<string, number>;
   /** The pool rate variable loans took, when they were carried. */
   apr?: number;
@@ -421,7 +421,7 @@ export function syncLive(
     (expiry, symbol) => {
       if (expiry > today) return false;
       const close = live.close(symbol, expiry);
-      if (close != null && record) record.closes[expiry] = close;
+      if (close != null && record) record.closes[`${expiry}|${symbol}`] = close;
       return close != null;
     },
     newDay && observe

@@ -114,10 +114,12 @@ export interface VaultBook {
   clock?: 'live';
   date: string;
   /**
-   * NVDA's mark at `date` as the onchain program holds it. Only a live
-   * book on the chain carries it; on the replay it is the stored close.
+   * Each underlying's mark at `date` as the onchain program holds it,
+   * by symbol. Only a live book on the chain carries them; a stock no
+   * live mark has been attested for is 0. On the replay every price is
+   * the stored close and nothing is carried.
    */
-  spot?: number;
+  spots?: Record<string, number>;
   margin: 'cross' | 'isolated';
   wallet: Balances;
   vault: Balances;

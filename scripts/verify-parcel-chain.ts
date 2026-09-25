@@ -213,7 +213,7 @@ try {
   const stock = await getAccount(
     adapter.connection,
     getAssociatedTokenAddressSync(
-      new PublicKey(config.parcel.stockMint),
+      new PublicKey(config.parcel.stockMints.NVDA),
       bank,
       true,
     ),

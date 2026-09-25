@@ -254,13 +254,24 @@ void test('the program commits exactly the same historical dates and prices as t
       .map((n) => n.trim())
       .filter(Boolean)
       .map(Number);
-  assert.deepEqual(
-    values('PRICES'),
-    marketRows.map((r) => Math.round(r.close * 1e6)),
+  const { UNDERLYINGS } = await import('../lib/parcel/universe');
+  const { historyOf } = await import('../lib/parcel/market');
+  const closes = source.match(/CLOSES: \[&\[u64\]; STOCKS\] = \[([\s\S]*?)\n\];/)![1];
+  const tables = [...closes.matchAll(/\/\/ (\w+)\n\s*&\[([\s\S]*?)\]/g)].map(
+    (m) => [m[1], m[2].split(',').map((n) => n.trim()).filter(Boolean).map(Number)],
   );
   assert.deepEqual(
-    values('HOURS'),
-    marketRows.map(
+    tables,
+    UNDERLYINGS.map((u) => [
+      u.symbol,
+      historyOf(u.symbol).map((r) => Math.round(r.close * 1e6)),
+    ]),
+  );
+  assert.equal(Number(source.match(/STOCKS: usize = (\d+)/)![1]), UNDERLYINGS.length);
+  const sessions = marketRows.filter((r) => !r.date.includes('T'));
+  assert.deepEqual(
+    values('SESSIONS'),
+    sessions.map(
       (r) => (Date.parse(r.date) - Date.parse(marketRows[0].date)) / 3600000,
     ),
   );
@@ -275,7 +286,7 @@ void test('the program commits exactly the same historical dates and prices as t
     );
   const epoch = Date.parse(marketRows[0].date);
   assert.equal(constant('REPLAY_EPOCH'), epoch);
-  assert.equal(constant('REPLAY_HOURS'), Math.max(...values('HOURS')));
+  assert.equal(constant('REPLAY_HOURS'), Math.max(...values('SESSIONS')));
   assert.equal(
     constant('DIVIDEND_DATE'),
     (Date.parse(DIVIDEND_DATE) - epoch) / 3600000,

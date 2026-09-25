@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { ApiError } from './http/errors';
+import { UNDERLYINGS } from '../lib/parcel/universe';
 export interface Config {
   port: number;
   host: string;
@@ -20,7 +21,12 @@ export interface Config {
   walletSignIn: boolean;
   /** The public https address the desk is reached at, when it has one. */
   publicUrl?: string;
-  parcel?: { program: string; cashMint: string; stockMint: string };
+  parcel?: {
+    program: string;
+    cashMint: string;
+    /** A six-decimal test mint for every underlying, by symbol. */
+    stockMints: Record<string, string>;
+  };
 }
 
 /* Parcel names are canonical. The retired namespace is read only as a
@@ -73,7 +79,18 @@ export function configFromEnv(
   const parcelChainEnabled = priorParcelEnv(env, 'CHAIN_ENABLED');
   const parcelProgram = priorParcelEnv(env, 'PROGRAM_ID');
   const parcelCashMint = priorParcelEnv(env, 'CASH_MINT');
-  const parcelStockMint = priorParcelEnv(env, 'STOCK_MINT');
+  // SYMBOL=mint pairs, one for every underlying the desk writes on.
+  const parcelStockMints = Object.fromEntries(
+    (priorParcelEnv(env, 'STOCK_MINTS') || '')
+      .split(',')
+      .filter(Boolean)
+      .map((pair) => pair.split('=') as [string, string]),
+  );
+  const parcelStockMint = UNDERLYINGS.every(
+    (u) => !!parcelStockMints[u.symbol],
+  )
+    ? 'all'
+    : '';
   /* Devnet joins the pinned private validator as an accepted target. Both are
      no-value test ledgers; mainnet stays refused in the genesis pin itself, so
      no environment can reach it. The pin is required here rather than at first
@@ -88,7 +105,7 @@ export function configFromEnv(
       env.CHAIN_ENABLED === 'false')
   )
     throw Error(
-      'Parcel chain mode requires its program, two mints, a pinned genesis, and enabled chain execution.',
+      'Parcel chain mode requires its program, a cash mint, a mint for every underlying (PARCEL_STOCK_MINTS=SYMBOL=mint,...), a pinned genesis, and enabled chain execution.',
     );
   return {
     parcel:
@@ -98,7 +115,7 @@ export function configFromEnv(
             // chain mode is exposed to the rest of the server.
             program: parcelProgram!,
             cashMint: parcelCashMint!,
-            stockMint: parcelStockMint!,
+            stockMints: parcelStockMints,
           }
         : undefined,
     port,

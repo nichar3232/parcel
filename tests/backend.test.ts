@@ -520,7 +520,19 @@ const parcelEnv = (over: Record<string, string> = {}) => ({
   PARCEL_CHAIN_ENABLED: 'true',
   PARCEL_PROGRAM_ID: 'GmWcUUpydUumJ5eSaXzN7SVryLjD6vvaJMDtj3W3Wcbx',
   PARCEL_CASH_MINT: 'So11111111111111111111111111111111111111112',
-  PARCEL_STOCK_MINT: 'So11111111111111111111111111111111111111113',
+  PARCEL_STOCK_MINTS: [
+    'NVDA',
+    'OPENAI',
+    'ANTHROPIC',
+    'SPACEX',
+    'ANDURIL',
+    'NEURALINK',
+    'FIGUREAI',
+    'KALSHI',
+    'POLYMARKET',
+  ]
+    .map((s, i) => `${s}=So1111111111111111111111111111111111111111${i + 3}`)
+    .join(','),
   SOLANA_GENESIS_HASH: 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG',
   SOLANA_NETWORK: 'devnet',
   SOLANA_RPC_URL: 'https://api.devnet.solana.com',
