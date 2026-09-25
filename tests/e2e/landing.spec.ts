@@ -93,17 +93,12 @@ test('the landing page shows the products and routes into the desk', async ({
   const agents = page.locator('#agents');
   await expect(agents).toContainText('An agent can run the desk');
   await expect(agents.locator('.lp-principles-list > li')).toHaveCount(3);
-  expect(
-    await page
-      .locator('.lp-how-copy')
-      .evaluate((node) => getComputedStyle(node).position),
-  ).toBe('static');
 
   // one product at a time: five tabs, exactly one open panel
   const tabs = ['Options', 'Underwriting', 'Structures', 'Pre-IPO', 'Lending'];
   await expect(page.getByRole('tab')).toHaveCount(tabs.length);
   await expect(page.locator('.lp-panel')).toHaveCount(1);
-  await expect(page.locator('#how')).toHaveCount(1);
+  await expect(page.locator('#how')).toHaveCount(0);
 
   // each shows a worked figure and a preview of what it does
   for (const name of tabs) {

@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { LandingNav } from '@/components/brand/LandingNav';
 import { Mark } from '@/components/brand/Mark';
 import { Showcase } from '@/components/brand/Showcase';
-import { Steps } from '@/components/brand/Steps';
 import { StructureHero } from '@/components/brand/StructureHero';
 import { ThemeToggle } from '@/components/brand/Theme';
 import { EXAMPLES } from '@/lib/parcel/landing';
@@ -75,9 +74,6 @@ export default function Landing() {
           ))}
         </nav>
         <div className="lp-nav-right">
-          <a className="lp-nav-about" href="#how">
-            How it works
-          </a>
           <Link className="lp-nav-about" href="/app?connect">
             Agents
           </Link>
@@ -143,21 +139,6 @@ export default function Landing() {
           <Showcase products={EXAMPLES} />
         </section>
 
-        <section className="lp-section lp-how" id="how">
-          <Steps>
-            <span className="lp-kicker">How it works</span>
-            <h2>Deposit, position, settle.</h2>
-            <p>
-              All five products run on one vault and one collateral rule. Every
-              position is funded from assets you already hold, and nothing is
-              borrowed on your behalf.
-            </p>
-            <Link className="lp-btn lp-btn-primary" href="/app">
-              Open the desk
-              <span aria-hidden>&rarr;</span>
-            </Link>
-          </Steps>
-        </section>
         <section
           className="lp-principles"
           id="agents"
