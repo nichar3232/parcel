@@ -181,10 +181,32 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
 
   function summary(v: VaultSnapshot) {
     const b = v.book;
+    const price = Object.fromEntries(
+      (v.market.underlyings ?? []).map((u) => [u.symbol, u.price]),
+    );
+    const round = (n: number) => Math.round(n * 100) / 100;
+    // The desk's "Vault value": vault cash plus vault shares at the mark.
+    // Lent shares have left the vault and are reported beside it, not in it.
+    const vaultValue = round(
+      Object.entries(b.vault).reduce(
+        (t, [asset, qty]) =>
+          t + (asset === 'USDC' ? qty : qty * (price[asset] ?? 0)),
+        0,
+      ),
+    );
+    const lentOut = active(b.loans).map((l) => ({
+      symbol: l.symbol,
+      quantity: l.quantity,
+      marketValue: round(l.quantity * (price[l.symbol] ?? 0)),
+      expiry: l.expiry,
+    }));
     return {
       mode: v.mode,
       revision: v.revision,
       marketDate: b.date,
+      vaultValue,
+      prices: price,
+      lentOut,
       margin: b.margin,
       wallet: b.wallet,
       vault: b.vault,
@@ -317,7 +339,7 @@ export function createParcelMcp(opts: ParcelMcpOptions) {
     'get_vault',
     {
       description:
-        'Current vault: settlement mode, market date, wallet and vault balances, free collateral, and every active option, loan, short and borrow with its id.',
+        "Current vault: settlement mode, market date (UTC), vaultValue (the desk's Vault value: vault cash plus vault shares at the mark; lent shares are not in it), prices, lentOut, wallet and vault balances, free collateral, and every active option, loan, short and borrow with its id.",
     },
     () => run(async () => summary(await vault())),
   );
