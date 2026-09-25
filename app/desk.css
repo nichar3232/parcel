@@ -2031,6 +2031,34 @@
   opacity: 0.6;
   vector-effect: non-scaling-stroke;
 }
+/* Venue day: pre and after are quieter; regular hours sit clearer. */
+.od-vline-band rect {
+  pointer-events: none;
+}
+.od-vline-band.pre rect,
+.od-vline-band.post rect {
+  fill: color-mix(in srgb, var(--pc-text) 3.5%, transparent);
+}
+.od-vline-band.regular rect {
+  fill: color-mix(in srgb, var(--pc-text) 7%, transparent);
+}
+.od-vline-band text {
+  fill: var(--pc-muted);
+  font-family: var(--pc-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  pointer-events: none;
+}
+.od-vline-session {
+  stroke: var(--pc-line);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  opacity: 0.75;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
 .od-vline-rule {
   position: absolute;
   top: 0;
@@ -5496,10 +5524,25 @@
 .od-lm-health.risk b {
   color: var(--pc-down);
 }
+.od-lm-held {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pc-up);
+  padding: 2px 6px;
+  border-radius: var(--pc-r-sm);
+  background: color-mix(in srgb, var(--pc-up) 14%, transparent);
+}
+.od-lm-row.held {
+  background: color-mix(in srgb, var(--pc-up) 4%, transparent);
+}
 .od-lm-empty {
-  padding: 28px 12px;
+  padding: 14px 12px 6px;
   color: var(--pc-muted);
-  font-size: 13.5px;
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 .od-lm-row {
   display: grid;
@@ -5536,7 +5579,10 @@
   min-width: 0;
 }
 .od-lm-asset b {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   font-size: 14px;
   font-weight: 500;
 }

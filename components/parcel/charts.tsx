@@ -259,7 +259,14 @@ export interface ValueTick {
   value: number;
 }
 
-const L = { w: 1000, h: 240, y0: 14, y1: 226 };
+/** Venue session windows for a 1D time axis, in ms. */
+export interface MarketSessions {
+  pre?: { start: number; end: number } | null;
+  regular?: { start: number; end: number } | null;
+  post?: { start: number; end: number } | null;
+}
+
+const L = { w: 1000, h: 240, y0: 22, y1: 226 };
 
 /**
  * The vault's value line, drawn to be read by pointing at it.
@@ -267,14 +274,17 @@ const L = { w: 1000, h: 240, y0: 14, y1: 226 };
  * A time axis when `domain` is given: the day runs from the first print
  * to the close, so the line grows to the right as the session goes on
  * rather than stretching to fill the width. The dashed rule is the
- * reference the move is measured from (yesterday's close on 1D). The
- * last point pulses while the feed is live; pointing anywhere scrubs the
- * headline to that moment.
+ * reference the move is measured from (yesterday's close on 1D). On a
+ * 1D axis, pre-market / regular / after-hours bands mark the venue's
+ * day so the line's shape reads against the clock. The last point
+ * pulses while the feed is live; pointing anywhere scrubs the headline
+ * to that moment.
  */
 export function LiveValueChart({
   points,
   domain,
   baseline,
+  sessions,
   live,
   label,
   onScrub,
@@ -282,6 +292,8 @@ export function LiveValueChart({
   points: ValueTick[];
   domain?: [number, number];
   baseline?: number | null;
+  /** Pre / regular / after windows; only drawn on a timed 1D domain. */
+  sessions?: MarketSessions | null;
   live?: boolean;
   label: string;
   onScrub?: (point: ValueTick | null) => void;
@@ -298,9 +310,10 @@ export function LiveValueChart({
     const lo = min - pad,
       hi = max + pad;
     const [d0, d1] = domain ?? [0, Math.max(1, points.length - 1)];
+    const span = Math.max(1, d1 - d0);
     const fx = (p: ValueTick, i: number) =>
       domain
-        ? Math.min(1, Math.max(0, (p.t - d0) / Math.max(1, d1 - d0)))
+        ? Math.min(1, Math.max(0, (p.t - d0) / span))
         : i / Math.max(1, d1);
     const fy = (v: number) => (hi - v) / (hi - lo);
     const xy = points.map(
@@ -310,6 +323,47 @@ export function LiveValueChart({
       ([x, y]) => [x * L.w, L.y0 + y * (L.y1 - L.y0)] as [number, number],
     );
     const reference = baseline ?? points[0]?.value ?? 0;
+    const xAt = (t: number) =>
+      Math.min(L.w, Math.max(0, ((t - d0) / span) * L.w));
+    const bands: {
+      id: string;
+      label: string;
+      x: number;
+      width: number;
+      kind: 'pre' | 'regular' | 'post';
+    }[] = [];
+    const dividers: number[] = [];
+    if (domain && sessions) {
+      const clip = (start: number, end: number) => {
+        const a = Math.max(d0, start);
+        const b = Math.min(d1, end);
+        if (b <= a) return null;
+        return { x: xAt(a), width: xAt(b) - xAt(a) };
+      };
+      if (sessions.pre) {
+        const box = clip(sessions.pre.start, sessions.pre.end);
+        if (box) bands.push({ id: 'pre', label: 'Pre', kind: 'pre', ...box });
+      }
+      if (sessions.regular) {
+        const box = clip(sessions.regular.start, sessions.regular.end);
+        if (box)
+          bands.push({
+            id: 'regular',
+            label: 'Market',
+            kind: 'regular',
+            ...box,
+          });
+        if (sessions.regular.start > d0 && sessions.regular.start < d1)
+          dividers.push(xAt(sessions.regular.start));
+        if (sessions.regular.end > d0 && sessions.regular.end < d1)
+          dividers.push(xAt(sessions.regular.end));
+      }
+      if (sessions.post) {
+        const box = clip(sessions.post.start, sessions.post.end);
+        if (box)
+          bands.push({ id: 'post', label: 'After', kind: 'post', ...box });
+      }
+    }
     return {
       xy,
       line: path(scaled),
@@ -318,8 +372,10 @@ export function LiveValueChart({
         : '',
       base: baseline != null ? L.y0 + fy(baseline) * (L.y1 - L.y0) : null,
       up: (points.at(-1)?.value ?? 0) >= reference,
+      bands,
+      dividers,
     };
-  }, [points, domain, baseline]);
+  }, [points, domain, baseline, sessions]);
 
   const pick = (clientX: number) => {
     const r = box.current?.getBoundingClientRect();
@@ -361,6 +417,30 @@ export function LiveValueChart({
             <stop offset="1" stopColor="currentColor" stopOpacity="0" />
           </linearGradient>
         </defs>
+        {plot.bands.map((band) => (
+          <g key={band.id} className={`od-vline-band ${band.kind}`}>
+            <rect x={band.x} y={0} width={band.width} height={L.h} />
+            {band.width > 48 && (
+              <text
+                x={band.x + band.width / 2}
+                y={12}
+                textAnchor="middle"
+              >
+                {band.label}
+              </text>
+            )}
+          </g>
+        ))}
+        {plot.dividers.map((x) => (
+          <line
+            key={x}
+            className="od-vline-session"
+            x1={x}
+            x2={x}
+            y1={0}
+            y2={L.h}
+          />
+        ))}
         {plot.base != null && (
           <line
             className="od-vline-base"

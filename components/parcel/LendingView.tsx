@@ -193,8 +193,8 @@ function Markets({
       (tokenized?.assets ?? []).filter((a) => a.provider === 'xstocks'),
     [tokenized],
   );
-  // Featured mega-caps always appear under All; the full catalog lives
-  // behind the xStocks chip so a thousand rows never land on first paint.
+  // Mega-caps the desk always surfaces; everything else waits on search
+  // or a matching vault position.
   const FEATURED_XSTOCKS = useMemo(
     () =>
       new Set([
@@ -208,20 +208,58 @@ function Markets({
       ]),
     [],
   );
+
+  /** Symbols the vault actually holds or owes against — those lead the list. */
+  const heldTickers = useMemo(() => {
+    const held = new Set<string>();
+    if (s.book.vault.USDC > 0) held.add('USDC');
+    for (const [symbol, amount] of Object.entries(s.book.vault))
+      if (amount > 0) held.add(symbol);
+    for (const p of s.book.shorts.filter((row) => row.status === 'active'))
+      held.add(p.symbol);
+    for (const p of (s.book.borrows ?? []).filter(
+      (row) => row.status === 'active',
+    ))
+      held.add(p.symbol);
+    for (const p of (s.book.loans ?? []).filter(
+      (row) => row.status === 'active',
+    ))
+      held.add(p.symbol);
+    return held;
+  }, [s.book]);
+
   const listedXstocks = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const heldX = (a: (typeof xstocks)[number]) =>
+      heldTickers.has(a.underlyingSymbol) ||
+      heldTickers.has(xstockTicker(a.id)) ||
+      heldTickers.has(a.symbol);
     if (category === 'xstocks') {
-      const q = query.trim().toLowerCase();
-      const matched = q
-        ? xstocks.filter((a) =>
+      if (q) {
+        return xstocks
+          .filter((a) =>
             `${a.name} ${a.symbol} ${a.underlyingSymbol}`
               .toLowerCase()
               .includes(q),
           )
-        : xstocks;
-      return matched.slice(0, 80);
+          .sort((a, b) => Number(heldX(b)) - Number(heldX(a)))
+          .slice(0, 40);
+      }
+      // No dump of the catalog: positions first, then featured.
+      const preferred = xstocks.filter(
+        (a) => heldX(a) || FEATURED_XSTOCKS.has(a.symbol),
+      );
+      return preferred.sort(
+        (a, b) =>
+          Number(heldX(b)) - Number(heldX(a)) ||
+          a.symbol.localeCompare(b.symbol),
+      );
     }
-    return xstocks.filter((a) => FEATURED_XSTOCKS.has(a.symbol));
-  }, [category, query, xstocks, FEATURED_XSTOCKS]);
+    // All / other chips: only held matches + featured mega-caps.
+    return xstocks.filter(
+      (a) => heldX(a) || FEATURED_XSTOCKS.has(a.symbol),
+    );
+  }, [category, query, xstocks, FEATURED_XSTOCKS, heldTickers]);
   const xstockIds = useMemo(
     () => listedXstocks.map((a) => a.id),
     [listedXstocks],
@@ -273,12 +311,32 @@ function Markets({
       tradeable: boolean;
       priced: boolean;
       logo: string | null;
+      held: boolean;
+      liquidity: number;
     }[] = [];
 
-    const push = (row: (typeof rows)[number]) => {
+    const isHeld = (symbol: string, key = symbol) =>
+      heldTickers.has(symbol) ||
+      heldTickers.has(xstockTicker(key)) ||
+      heldTickers.has(key);
+
+    const push = (
+      row: Omit<(typeof rows)[number], 'held' | 'liquidity'> & {
+        held?: boolean;
+      },
+    ) => {
       if (seen.has(row.key)) return;
       seen.add(row.key);
-      rows.push(row);
+      const price = row.price ?? 0;
+      const liquidity =
+        row.priced && price > 0
+          ? (row.supplied + row.borrowed) * price
+          : 0;
+      rows.push({
+        ...row,
+        held: row.held ?? isHeld(row.symbol, row.key),
+        liquidity,
+      });
     };
 
     for (const u of s.market.underlyings ?? EMPTY_UNDERLYINGS) {
@@ -372,26 +430,23 @@ function Markets({
         tradeable: false,
         priced: price != null,
         logo: asset.logo,
+        held:
+          heldTickers.has(asset.underlyingSymbol) ||
+          heldTickers.has(xstockTicker(asset.id)),
       });
     }
 
+    const q = query.trim().toLowerCase();
     return rows
       .filter((p) => category === 'all' || p.category === category)
       .filter((p) =>
-        `${p.name} ${p.symbol}`
-          .toLowerCase()
-          .includes(query.trim().toLowerCase()),
+        q ? `${p.name} ${p.symbol}`.toLowerCase().includes(q) : true,
       )
       .sort((a, b) => {
-        const order: MarketCategory[] = [
-          'equity',
-          'crypto',
-          'preipo',
-          'xstocks',
-          'stable',
-        ];
-        const d = order.indexOf(a.category) - order.indexOf(b.category);
-        return d !== 0 ? d : a.name.localeCompare(b.name);
+        // Positions first, then deepest pools, then name.
+        if (a.held !== b.held) return a.held ? -1 : 1;
+        if (b.liquidity !== a.liquidity) return b.liquidity - a.liquidity;
+        return a.name.localeCompare(b.name);
       });
   }, [
     s.market.underlyings,
@@ -400,6 +455,7 @@ function Markets({
     quotes,
     category,
     query,
+    heldTickers,
   ]);
 
   const catalogCounts = useMemo(() => {
@@ -426,10 +482,19 @@ function Markets({
     }
     base.stable += 1;
     base.all += 1;
-    base.xstocks += xstocks.length;
-    base.all += xstocks.length;
+    // Chip count is the curated list size, not the searchable catalog.
+    // Search still reaches every xStock; the badge stays honest about
+    // what the table opens with.
+    const curatedX = listedXstocks.length || FEATURED_XSTOCKS.size;
+    base.xstocks = curatedX;
+    base.all += curatedX;
     return base;
-  }, [s.market.underlyings, feed.marks, xstocks.length]);
+  }, [
+    s.market.underlyings,
+    feed.marks,
+    listedXstocks.length,
+    FEATURED_XSTOCKS.size,
+  ]);
 
   const size = pools.reduce(
     (t, p) => t + (p.priced && p.price != null ? p.supplied * p.price : 0),
@@ -552,21 +617,34 @@ function Markets({
           <span />
         </div>
         {pools.length === 0 && (
-          <p className="od-lm-empty">No markets match this filter.</p>
-        )}
-        {category === 'xstocks' && xstocks.length > listedXstocks.length && (
           <p className="od-lm-empty">
-            Showing {listedXstocks.length} of {xstocks.length} xStocks
-            {query.trim() ? ' matching this search' : ''}. Refine the search to
-            find a ticker.
+            {query.trim()
+              ? 'No markets match this search.'
+              : 'No markets in this category yet.'}
+          </p>
+        )}
+        {category === 'xstocks' && !query.trim() && xstocks.length > 0 && (
+          <p className="od-lm-empty">
+            Showing your positions and liquid mega-caps. Search the full{' '}
+            {xstocks.length.toLocaleString()} xStocks catalog by name or
+            ticker.
+          </p>
+        )}
+        {category === 'all' && !query.trim() && (
+          <p className="od-lm-empty">
+            Sorted by your positions, then pool depth. Search to reach the
+            wider xStocks catalog.
           </p>
         )}
         {pools.map((p) => (
-          <div key={p.key} className="od-lm-row">
+          <div key={p.key} className={`od-lm-row${p.held ? ' held' : ''}`}>
             <span className="od-lm-asset">
               <AssetLogo symbol={p.symbol} src={p.logo} size={34} />
               <span>
-                <b>{p.name}</b>
+                <b>
+                  {p.name}
+                  {p.held ? <em className="od-lm-held">Your position</em> : null}
+                </b>
                 <small>
                   {p.symbol}
                   {p.category !== 'equity' ? ` · ${labelOf(p.category)}` : ''}

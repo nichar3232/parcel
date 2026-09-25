@@ -26,7 +26,7 @@ import { QuoteReview } from './QuoteReview';
 import type { MarketUnderlying, Quote, VaultAction } from '@/lib/parcel/types';
 import { AssetLogo } from './AssetLogo';
 import { logoOf } from '@/lib/preipo/registry';
-import { LiveValueChart, Meter, type ValueTick } from './charts';
+import { LiveValueChart, Meter, type MarketSessions, type ValueTick } from './charts';
 import { WatchlistView } from './WatchlistView';
 import type { Transfer } from './TransferDialog';
 import {
@@ -244,17 +244,33 @@ export function PortfolioView({
        the prints themselves. */
     const lastObservation = points.at(-1)!.t;
     /* A current execution-grade mark is plotted across the full trading
-       session. A last-mark view ends at its last real observation instead:
-       reserving the rest of the session made a stale chart look unfinished
-       and implied a time axis it could not support. */
+       day (pre through after-hours). A last-mark view ends at its last
+       real observation instead: reserving the rest of the session made
+       a stale chart look unfinished and implied a time axis it could
+       not support. */
+    const sessionEnd = Math.max(
+      0,
+      ...days.map((d) => d.session?.end ?? 0),
+      ...days.map((d) => d.post?.end ?? 0),
+    );
     const end = hasLiveMark
-      ? Math.max(lastObservation, ...days.map((d) => d.session?.end ?? 0))
+      ? Math.max(lastObservation, sessionEnd)
       : lastObservation;
+    const primary = days.find((d) => d.session) ?? days[0];
+    const sessions: MarketSessions | null =
+      todayOnly && primary?.session
+        ? {
+            pre: primary.pre,
+            regular: primary.session,
+            post: primary.post,
+          }
+        : null;
     return {
       points: todayOnly ? points : points.map((p, i) => ({ ...p, t: i })),
       times: points.map((p) => p.t),
       base,
       domain: todayOnly ? ([points[0].t, end] as [number, number]) : undefined,
+      sessions,
     };
   }, [intraday, book.vault, underlyings, liveSpots, liveSamples, hasLiveMark]);
 
@@ -378,6 +394,7 @@ export function PortfolioView({
           points={chart}
           domain={onDay ? today!.domain : undefined}
           baseline={onDay ? today!.base : null}
+          sessions={onDay ? today!.sessions : null}
           live={hasLiveMark}
           onScrub={setScrub}
           label={`Vault value ${onDay ? 'today' : `across ${drawn.length} sessions`}, now ${usd(displayedNav)}`}
@@ -416,6 +433,8 @@ interface IntradayDay {
   bars: { t: number; price: number }[];
   dayStart: number | null;
   session: { start: number; end: number } | null;
+  pre?: { start: number; end: number } | null;
+  post?: { start: number; end: number } | null;
 }
 
 /** "NVDA $232.50 call" for a single option; the structure's name otherwise. */

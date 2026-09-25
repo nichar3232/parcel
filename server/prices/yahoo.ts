@@ -34,6 +34,10 @@ export interface Intraday {
   dayStart: number | null;
   /** Regular session bounds, in ms, when the venue publishes them. */
   session: { start: number; end: number } | null;
+  /** Pre-market window, when the venue publishes one. */
+  pre: { start: number; end: number } | null;
+  /** After-hours window, when the venue publishes one. */
+  post: { start: number; end: number } | null;
   asOf: number;
 }
 
@@ -48,6 +52,7 @@ interface ChartBody {
         currentTradingPeriod?: {
           pre?: { start: number; end: number };
           regular?: { start: number; end: number };
+          post?: { start: number; end: number };
         };
       };
       timestamp?: number[];
@@ -114,6 +119,7 @@ export class YahooSource implements Source {
         if (!price || !Number.isFinite(price) || price <= 0) return null;
         const regular = r.meta?.currentTradingPeriod?.regular;
         const pre = r.meta?.currentTradingPeriod?.pre;
+        const post = r.meta?.currentTradingPeriod?.post;
         // Before today's open the venue's "regular market price" is still
         // yesterday's close, which is the reference today's move is
         // measured from; once the session is open it is the live price
@@ -123,14 +129,18 @@ export class YahooSource implements Source {
           (beforeOpen
             ? r.meta?.regularMarketPrice
             : (r.meta?.previousClose ?? r.meta?.chartPreviousClose)) ?? null;
+        const bound = (period?: { start: number; end: number }) =>
+          period
+            ? { start: period.start * 1000, end: period.end * 1000 }
+            : null;
         this.days.set(i.symbol, {
           symbol: i.symbol,
           previousClose,
           bars,
           dayStart: pre ? pre.start * 1000 : null,
-          session: regular
-            ? { start: regular.start * 1000, end: regular.end * 1000 }
-            : null,
+          session: bound(regular),
+          pre: bound(pre),
+          post: bound(post),
           asOf: Date.now(),
         });
         return {
