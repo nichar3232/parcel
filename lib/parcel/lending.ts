@@ -1,4 +1,4 @@
-import { isUnderlying, nameOf } from './universe';
+import { nameOf, UNDERLYINGS } from './universe';
 /**
  * The money-market model behind the lending screen.
  *
@@ -16,9 +16,31 @@ import { isUnderlying, nameOf } from './universe';
  * "post a sponsor token, short the stock".
  */
 
+/** How the markets list groups a reserve — Aave-style category chips. */
+export type MarketCategory =
+  | 'equity'
+  | 'crypto'
+  | 'stable'
+  | 'preipo'
+  | 'xstocks';
+
+export const MARKET_CATEGORIES: {
+  id: MarketCategory | 'all';
+  label: string;
+}[] = [
+  { id: 'all', label: 'All' },
+  { id: 'equity', label: 'Equities' },
+  { id: 'crypto', label: 'Crypto' },
+  { id: 'preipo', label: 'Pre-IPO' },
+  { id: 'xstocks', label: 'xStocks' },
+  { id: 'stable', label: 'Stable' },
+];
+
 export interface Reserve {
   symbol: string;
   name: string;
+  /** Markets list group. */
+  category: MarketCategory;
   /** Maximum fraction of this asset's value that can be borrowed against. */
   ltv: number;
   /** Where liquidation begins. Always above the LTV. */
@@ -42,6 +64,7 @@ export const RESERVES: Reserve[] = [
   {
     symbol: 'USDC',
     name: 'USD Coin',
+    category: 'stable',
     ltv: 0.85,
     liquidation: 0.88,
     bonus: 0.04,
@@ -57,6 +80,7 @@ export const RESERVES: Reserve[] = [
   {
     symbol: 'SOL',
     name: 'Solana',
+    category: 'crypto',
     ltv: 0.7,
     liquidation: 0.75,
     bonus: 0.07,
@@ -72,6 +96,7 @@ export const RESERVES: Reserve[] = [
   {
     symbol: 'BTC',
     name: 'Bitcoin',
+    category: 'crypto',
     ltv: 0.75,
     liquidation: 0.8,
     bonus: 0.06,
@@ -87,6 +112,7 @@ export const RESERVES: Reserve[] = [
   {
     symbol: 'ETH',
     name: 'Ethereum',
+    category: 'crypto',
     ltv: 0.75,
     liquidation: 0.8,
     bonus: 0.06,
@@ -102,6 +128,7 @@ export const RESERVES: Reserve[] = [
   {
     symbol: 'NVDA',
     name: 'NVIDIA',
+    category: 'equity',
     ltv: 0.6,
     liquidation: 0.68,
     bonus: 0.09,
@@ -124,7 +151,7 @@ export const RESERVES: Reserve[] = [
  * liquidation bonus, because a mark that walks on a sponsor's print
  * can gap the way an illiquid equity does.
  */
-const PRIVATE: Omit<Reserve, 'symbol' | 'name'> = {
+const PRIVATE: Omit<Reserve, 'symbol' | 'name' | 'category'> = {
   ltv: 0.4,
   liquidation: 0.5,
   bonus: 0.12,
@@ -137,9 +164,86 @@ const PRIVATE: Omit<Reserve, 'symbol' | 'name'> = {
   borrowable: true,
   note: 'A private mark: thin credit, dear to borrow, and a wide bonus for whoever takes it over.',
 };
-export const reserveOf = (symbol: string): Reserve | null =>
-  RESERVES.find((r) => r.symbol === symbol) ||
-  (isUnderlying(symbol) ? { symbol, name: nameOf(symbol), ...PRIVATE } : null);
+
+/**
+ * Tokenized public equities (xStocks): equity-like credit, priced from
+ * the issuer catalog — never a modelled stand-in for a missing quote.
+ */
+const XSTOCK: Omit<Reserve, 'symbol' | 'name' | 'category'> = {
+  ltv: 0.55,
+  liquidation: 0.62,
+  bonus: 0.1,
+  base: 0.005,
+  slope1: 0.085,
+  slope2: 1.7,
+  optimal: 0.7,
+  reserveFactor: 0.2,
+  collateral: true,
+  borrowable: true,
+  note: 'A tokenized listed equity. Credit tracks the equity book; the mark is the issuer quote.',
+};
+
+const CRYPTO = new Set(
+  RESERVES.filter((r) => r.category === 'crypto').map((r) => r.symbol),
+);
+
+/** Strip provider prefixes / trailing x so NVDAx and xstocks:NVDAx match. */
+export function xstockTicker(id: string): string {
+  const raw = id.includes(':') ? id.slice(id.indexOf(':') + 1) : id;
+  return raw.endsWith('x') && raw.length > 1 ? raw.slice(0, -1) : raw;
+}
+
+export function categoryOf(symbol: string): MarketCategory | null {
+  const known = RESERVES.find((r) => r.symbol === symbol);
+  if (known) return known.category;
+  if (symbol.startsWith('xstocks:') || /^[A-Z0-9]+x$/i.test(symbol))
+    return 'xstocks';
+  const u = UNDERLYINGS.find((row) => row.symbol === symbol);
+  if (u?.provider === 'prestocks') return 'preipo';
+  if (u?.provider === 'equity') return 'equity';
+  return null;
+}
+
+export const reserveOf = (symbol: string): Reserve | null => {
+  const hit = RESERVES.find((r) => r.symbol === symbol);
+  if (hit) return hit;
+  // Remaining vault underlyings are PreStocks (NVDA is already in RESERVES).
+  if (UNDERLYINGS.some((u) => u.symbol === symbol))
+    return {
+      symbol,
+      name: nameOf(symbol),
+      category: 'preipo',
+      ...PRIVATE,
+    };
+  // Tokenized equities from the issuer catalog (markets / watchlist).
+  if (symbol.startsWith('xstocks:') || /^[A-Z0-9]+x$/i.test(symbol)) {
+    const ticker = xstockTicker(symbol);
+    return {
+      symbol,
+      name: ticker,
+      category: 'xstocks',
+      ...XSTOCK,
+    };
+  }
+  return null;
+};
+
+/** Crypto reserves that have live marks but are not vault underlyings. */
+export const CRYPTO_MARKETS = [...CRYPTO];
+
+/**
+ * Cash a desk can still draw under cross-margin health, given an
+ * additional single-asset pledge LTV cap (PRODUCT: pledges stay isolated).
+ */
+export function crossBorrowCap(
+  pledgeLimit: number,
+  availablePower: number,
+) {
+  return Math.max(
+    0,
+    Math.floor(Math.min(pledgeLimit, availablePower) * 1e6) / 1e6,
+  );
+}
 
 /**
  * The two-slope curve.

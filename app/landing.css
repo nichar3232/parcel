@@ -218,14 +218,6 @@
   align-items: center;
   gap: 10px;
 }
-.lp-nav .pc-mark {
-  /* Set by LandingNav from document scroll. The tiny transition catches a
-     trackpad's discrete scroll events without making the mark autonomous. */
-  transform: rotate(var(--lp-mark-scroll-rotation, 0deg));
-  transform-origin: center;
-  transition: transform 100ms linear;
-  will-change: transform;
-}
 .lp-mark b,
 .pc-wordmark {
   font-size: 14px;
@@ -336,12 +328,6 @@
   align-items: stretch;
   gap: clamp(40px, 5vw, 72px);
   padding: clamp(56px, 9vh, 108px) 0 clamp(40px, 6vh, 72px);
-  /* The first screen is the hero alone: it fills the window under the
-     68px nav, so the next section starts below the fold, not peeking
-     into it. */
-  box-sizing: border-box;
-  min-height: calc(100svh - 68px);
-  align-content: center;
 }
 .lp-hero-copy {
   display: flex;
@@ -480,18 +466,6 @@
   stroke-linejoin: round;
 }
 
-/* See Held in StructureHero: every version shares one cell and only
-   the current one shows, so the viewer never changes height. */
-.lp-held {
-  display: grid;
-}
-.lp-held > * {
-  grid-area: 1 / 1;
-  visibility: hidden;
-}
-.lp-held > .on {
-  visibility: visible;
-}
 .lp-viewer-blurb {
   margin: 14px 0 0;
   color: var(--pc-body);
@@ -529,8 +503,7 @@
   letter-spacing: -0.015em;
   line-height: 1.3;
 }
-.lp-viewer-stats dd .multiline {
-  display: block;
+.lp-viewer-stats dd.multiline {
   font-size: 14px;
   line-height: 1.35;
   white-space: pre-line;
@@ -649,6 +622,7 @@
   font-family: var(--pc-mono);
   font-size: 12.5px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- products showcase ---------- */
@@ -925,33 +899,36 @@
 
 /* ---------- how it works ---------- */
 
-/* The walkthrough is a plain 2×2 grid. Each step spans two subgrid rows,
-   figure then caption, so both figures in a row share one height and both
-   captions start on one line — the rows no longer stagger when one figure
-   is taller than its neighbour. */
+/* The walkthrough uses normal document flow. Its introduction leads a
+   complete four-step grid rather than pinning a short left column beside a
+   much longer one; the page remains a straightforward progression. */
 .lp-how-grid {
   display: grid;
-  gap: clamp(32px, 4vh, 44px);
+  gap: clamp(40px, 6vh, 72px);
+}
+.lp-how-copy {
+  max-width: 58ch;
 }
 .lp-how-copy h2 {
-  margin: 0;
+  margin-bottom: 16px;
 }
-.lp-how-copy .lp-kicker {
-  margin-bottom: 14px;
+.lp-how-copy p {
+  max-width: 42ch;
+  color: var(--pc-body);
+}
+.lp-how-copy .lp-btn {
+  margin-top: 30px;
 }
 
 .lp-how-steps {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 clamp(32px, 5vw, 72px);
+  gap: clamp(44px, 6vh, 72px) clamp(28px, 4vw, 56px);
 }
 .lp-how-steps li {
   display: grid;
-  grid-row: span 2;
-  grid-template-rows: subgrid;
-  row-gap: 20px;
-  padding: 28px 0 44px;
-  border-top: 1px solid var(--pc-line-soft);
+  align-content: start;
+  gap: 22px;
 }
 /* Steps reveal once as they reach the reading area. This is intentionally a
    different motion language from the product tabs: vertical progression,
@@ -976,14 +953,12 @@
 /* A step's figure is a plot, a balance or a ticket — all three are
    readings off the desk, so all three get the one tint and nothing
    else. */
-/* No box around a figure: the balance, the sizes and the ticket are
-   text on the canvas like every other readout, and the payoff sits on the
-   canvas beside them so the row reads as one surface. */
 .lp-step-figure {
   display: grid;
-  align-content: center;
   gap: 12px;
-  min-height: 188px;
+  padding: clamp(20px, 2.4vw, 30px);
+  border-radius: var(--pc-r-xl);
+  background: var(--pc-plot);
 }
 .lp-step-chart {
   display: block;
@@ -1000,7 +975,6 @@
 
 .lp-step-copy {
   display: grid;
-  align-content: start;
   grid-template-columns: 26px minmax(0, 1fr);
   align-items: baseline;
   gap: 4px 12px;
@@ -1144,7 +1118,7 @@
 .lp-ending {
   position: relative;
   isolation: isolate;
-  margin-top: clamp(24px, 4vh, 48px);
+  margin-top: clamp(88px, 12vh, 148px);
   overflow: clip;
 }
 .lp-ending::before {
@@ -1172,8 +1146,9 @@
   display: grid;
   place-items: center;
   max-width: var(--lp-measure);
-  margin: 0 auto;
-  padding: clamp(64px, 9vh, 104px) clamp(20px, 6vw, 80px);
+  min-height: clamp(320px, 42vh, 440px);
+  margin: 0 auto clamp(48px, 7vh, 84px);
+  padding: clamp(56px, 8vh, 96px) clamp(20px, 6vw, 80px);
   border-top: 1px solid var(--pc-line-soft);
   text-align: center;
 }
@@ -1260,6 +1235,8 @@
 }
 @media (max-width: 560px) {
   .lp-close {
+    min-height: 300px;
+    margin-top: 80px;
     padding: 52px 20px;
   }
   .lp-viewer-pips {
@@ -1293,12 +1270,5 @@
   .lp-foot {
     flex-direction: column;
     align-items: flex-start;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .lp-nav .pc-mark {
-    transform: none;
-    transition: none;
   }
 }

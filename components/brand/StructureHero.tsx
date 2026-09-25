@@ -17,14 +17,10 @@ export function StructureHero() {
   return (
     <div className="lp-viewer">
       <header>
-        <Held index={index}>
-          {(t) => (
-            <div>
-              <h2>{t.name}</h2>
-              <p className="lp-viewer-contract">{t.contract}</p>
-            </div>
-          )}
-        </Held>
+        <div>
+          <h2>{current.name}</h2>
+          <p className="lp-viewer-contract">{current.contract}</p>
+        </div>
       </header>
 
       <div className="lp-viewer-plot">
@@ -36,23 +32,13 @@ export function StructureHero() {
         />
       </div>
 
-      <Held index={index} className="lp-viewer-blurb">
-        {(t) => <p>{t.blurb}</p>}
-      </Held>
+      <p className="lp-viewer-blurb">{current.blurb}</p>
 
       <dl className="lp-viewer-stats">
-        {current.stats.map((_, k) => (
-          <div key={k}>
-            <Held index={index} as="dt">
-              {(t) => <span>{t.stats[k].k}</span>}
-            </Held>
-            <Held index={index} as="dd">
-              {(t) => (
-                <span className={t.stats[k].multiline ? 'multiline' : undefined}>
-                  {t.stats[k].v}
-                </span>
-              )}
-            </Held>
+        {current.stats.map((s) => (
+          <div key={s.k}>
+            <dt>{s.k}</dt>
+            <dd className={s.multiline ? 'multiline' : undefined}>{s.v}</dd>
           </div>
         ))}
       </dl>
@@ -73,35 +59,5 @@ export function StructureHero() {
         ))}
       </nav>
     </div>
-  );
-}
-
-/**
- * Text that changes with the structure but must not move the page.
- *
- * Every structure's version sits in the same grid cell and only the
- * current one is visible, so the cell is always as tall as the longest
- * version at the current width. Switching structures then changes what
- * is written, never where anything else on the page sits.
- */
-function Held({
-  index,
-  as: Tag = 'div',
-  className,
-  children,
-}: {
-  index: number;
-  as?: 'div' | 'dt' | 'dd';
-  className?: string;
-  children: (t: (typeof STRUCTURES)[number]) => React.ReactNode;
-}) {
-  return (
-    <Tag className={`lp-held ${className ?? ''}`}>
-      {STRUCTURES.map((t, i) => (
-        <div key={t.id} className={i === index ? 'on' : ''} aria-hidden={i !== index}>
-          {children(t)}
-        </div>
-      ))}
-    </Tag>
   );
 }

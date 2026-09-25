@@ -16,17 +16,30 @@ import {
 } from '@/lib/parcel/funding';
 import {
   borrowLimit,
+  categoryOf,
+  crossBorrowCap,
+  CRYPTO_MARKETS,
   health,
+  healthTone,
   liquidationPrice,
+  MARKET_CATEGORIES,
   pledgeLiquidationPrice,
   RESTING_UTILISATION,
   rates,
   reserveOf,
+  xstockTicker,
   type Holding,
+  type MarketCategory,
 } from '@/lib/parcel/lending';
+import {
+  useTokenizedEquities,
+  useTokenizedEquityQuotes,
+} from '@/hooks/parcel/use-tokenized-equities';
 import { offeredExpiries } from '@/lib/parcel/market';
 import { RateCurve } from './charts';
+import { ExpiryPicker } from './ExpiryPicker';
 import {
+  AssetPicker,
   markOf,
   Button,
   Field,
@@ -159,12 +172,8 @@ export function LendingView({
 
 /**
  * Every pool the vault can supply to or borrow from, the way a money
- * market lists them.
- *
- * The ticket used to be the whole page: one asset's rates and one form,
- * with the other eight pools behind a dropdown. A lending venue opens on
- * the list instead — what is in each pool, what is out, and what it pays
- * and costs — and a row opens that pool's ticket.
+ * market lists them — equities, crypto, Pre-IPO, xStocks and stables,
+ * sorted with category chips at the top.
  */
 function Markets({
   desk,
@@ -177,41 +186,259 @@ function Markets({
 }) {
   const s = desk.state!;
   const [query, setQuery] = useState('');
-  const pools = [
-    ...(s.market.underlyings ?? EMPTY_UNDERLYINGS).map((u) => ({
-      symbol: u.symbol,
-      name: u.name,
-      cash: false,
-    })),
-    { symbol: 'USDC', name: 'USD Coin', cash: true },
-  ]
-    .map((p) => {
-      const mark = feed.marks[p.symbol];
-      const reserve = reserveOf(p.symbol);
-      const price =
-        mark?.price ??
-        s.market.underlyings.find((u) => u.symbol === p.symbol)?.price ??
-        1;
-      const u = mark?.utilisation ?? RESTING_UTILISATION;
-      const r = reserve ? rates(u, reserve) : null;
-      return {
-        ...p,
+  const [category, setCategory] = useState<MarketCategory | 'all'>('all');
+  const { data: tokenized } = useTokenizedEquities();
+  const xstocks = useMemo(
+    () =>
+      (tokenized?.assets ?? []).filter((a) => a.provider === 'xstocks'),
+    [tokenized],
+  );
+  // Featured mega-caps always appear under All; the full catalog lives
+  // behind the xStocks chip so a thousand rows never land on first paint.
+  const FEATURED_XSTOCKS = useMemo(
+    () =>
+      new Set([
+        'NVDAx',
+        'AAPLx',
+        'MSFTx',
+        'AMZNx',
+        'GOOGLx',
+        'METAx',
+        'TSLAx',
+      ]),
+    [],
+  );
+  const listedXstocks = useMemo(() => {
+    if (category === 'xstocks') {
+      const q = query.trim().toLowerCase();
+      const matched = q
+        ? xstocks.filter((a) =>
+            `${a.name} ${a.symbol} ${a.underlyingSymbol}`
+              .toLowerCase()
+              .includes(q),
+          )
+        : xstocks;
+      return matched.slice(0, 80);
+    }
+    return xstocks.filter((a) => FEATURED_XSTOCKS.has(a.symbol));
+  }, [category, query, xstocks, FEATURED_XSTOCKS]);
+  const xstockIds = useMemo(
+    () => listedXstocks.map((a) => a.id),
+    [listedXstocks],
+  );
+  const quotes = useTokenizedEquityQuotes(xstockIds);
+
+  const position = useMemo(() => {
+    const priceOf = (of: string) =>
+      (s.market.underlyings ?? EMPTY_UNDERLYINGS).find((u) => u.symbol === of)
+        ?.price ??
+      feed.marks[of]?.price ??
+      1;
+    const collateral: Holding[] = [
+      { symbol: 'USDC', amount: s.book.vault.USDC, price: 1 },
+      ...(s.market.underlyings ?? EMPTY_UNDERLYINGS).map((u) => ({
+        symbol: u.symbol,
+        amount: s.book.vault[u.symbol] ?? 0,
+        price: u.price,
+      })),
+    ].filter((h) => h.amount > 0);
+    const debt: Holding[] = [];
+    const shortedBy: Record<string, number> = {};
+    for (const p of s.book.shorts.filter((p) => p.status === 'active'))
+      shortedBy[p.symbol] = (shortedBy[p.symbol] ?? 0) + p.quantity;
+    for (const [of, amount] of Object.entries(shortedBy))
+      debt.push({ symbol: of, amount, price: priceOf(of) });
+    for (const p of (s.book.borrows ?? []).filter((p) => p.status === 'active'))
+      debt.push({
+        symbol: 'USDC',
+        amount: borrowDebt(p, s.book.date).total,
+        price: 1,
+      });
+    return health(collateral, debt);
+  }, [s, feed.marks]);
+
+  const pools = useMemo(() => {
+    const seen = new Set<string>();
+    const rows: {
+      key: string;
+      symbol: string;
+      name: string;
+      category: MarketCategory;
+      price: number | null;
+      supplied: number;
+      borrowed: number;
+      supply: number;
+      borrow: number;
+      cash: boolean;
+      tradeable: boolean;
+      priced: boolean;
+      logo: string | null;
+    }[] = [];
+
+    const push = (row: (typeof rows)[number]) => {
+      if (seen.has(row.key)) return;
+      seen.add(row.key);
+      rows.push(row);
+    };
+
+    for (const u of s.market.underlyings ?? EMPTY_UNDERLYINGS) {
+      const reserve = reserveOf(u.symbol);
+      if (!reserve) continue;
+      const mark = feed.marks[u.symbol];
+      const price = mark?.price ?? u.price;
+      const util = mark?.utilisation ?? RESTING_UTILISATION;
+      const r = rates(util, reserve);
+      push({
+        key: u.symbol,
+        symbol: u.symbol,
+        name: u.name,
+        category: reserve.category,
         price,
         supplied: mark?.supplied ?? 0,
         borrowed: mark?.borrowed ?? 0,
-        supply: r?.supply ?? 0,
-        borrow: r?.borrow ?? 0,
-        reserve,
-      };
-    })
-    .filter((p) => p.reserve)
-    .filter((p) =>
-      `${p.name} ${p.symbol}`
-        .toLowerCase()
-        .includes(query.trim().toLowerCase()),
-    );
-  const size = pools.reduce((t, p) => t + p.supplied * p.price, 0);
-  const out = pools.reduce((t, p) => t + p.borrowed * p.price, 0);
+        supply: r.supply,
+        borrow: r.borrow,
+        cash: false,
+        tradeable: true,
+        priced: true,
+        logo: logoOf(u.symbol),
+      });
+    }
+
+    for (const symbol of CRYPTO_MARKETS) {
+      const reserve = reserveOf(symbol);
+      const mark = feed.marks[symbol];
+      if (!reserve || !mark) continue;
+      const r = rates(mark.utilisation ?? RESTING_UTILISATION, reserve);
+      push({
+        key: symbol,
+        symbol,
+        name: reserve.name,
+        category: 'crypto',
+        price: mark.price,
+        supplied: mark.supplied,
+        borrowed: mark.borrowed,
+        supply: r.supply,
+        borrow: r.borrow,
+        cash: false,
+        tradeable: false,
+        priced: true,
+        logo: null,
+      });
+    }
+
+    {
+      const reserve = reserveOf('USDC')!;
+      const mark = feed.marks.USDC;
+      const r = rates(mark?.utilisation ?? RESTING_UTILISATION, reserve);
+      push({
+        key: 'USDC',
+        symbol: 'USDC',
+        name: 'USD Coin',
+        category: 'stable',
+        price: mark?.price ?? 1,
+        supplied: mark?.supplied ?? 0,
+        borrowed: mark?.borrowed ?? 0,
+        supply: r.supply,
+        borrow: r.borrow,
+        cash: true,
+        tradeable: true,
+        priced: true,
+        logo: null,
+      });
+    }
+
+    for (const asset of listedXstocks) {
+      const reserve = reserveOf(asset.id);
+      if (!reserve) continue;
+      const quote = quotes[asset.id];
+      const price =
+        quote?.state === 'live' && quote.quote != null ? quote.quote : null;
+      // Depth is not published by the issuer; rates still follow the
+      // Aave two-slope model at resting utilisation so the APY columns
+      // stay comparable without inventing a pool.
+      const r = rates(RESTING_UTILISATION, reserve);
+      push({
+        key: asset.id,
+        symbol: asset.symbol,
+        name: asset.name,
+        category: 'xstocks',
+        price,
+        supplied: 0,
+        borrowed: 0,
+        supply: r.supply,
+        borrow: r.borrow,
+        cash: false,
+        tradeable: false,
+        priced: price != null,
+        logo: asset.logo,
+      });
+    }
+
+    return rows
+      .filter((p) => category === 'all' || p.category === category)
+      .filter((p) =>
+        `${p.name} ${p.symbol}`
+          .toLowerCase()
+          .includes(query.trim().toLowerCase()),
+      )
+      .sort((a, b) => {
+        const order: MarketCategory[] = [
+          'equity',
+          'crypto',
+          'preipo',
+          'xstocks',
+          'stable',
+        ];
+        const d = order.indexOf(a.category) - order.indexOf(b.category);
+        return d !== 0 ? d : a.name.localeCompare(b.name);
+      });
+  }, [
+    s.market.underlyings,
+    feed.marks,
+    listedXstocks,
+    quotes,
+    category,
+    query,
+  ]);
+
+  const catalogCounts = useMemo(() => {
+    const base = {
+      all: 0,
+      equity: 0,
+      crypto: 0,
+      preipo: 0,
+      xstocks: 0,
+      stable: 0,
+    };
+    for (const u of s.market.underlyings ?? EMPTY_UNDERLYINGS) {
+      const cat = categoryOf(u.symbol);
+      if (cat) {
+        base[cat] += 1;
+        base.all += 1;
+      }
+    }
+    for (const symbol of CRYPTO_MARKETS) {
+      if (feed.marks[symbol]) {
+        base.crypto += 1;
+        base.all += 1;
+      }
+    }
+    base.stable += 1;
+    base.all += 1;
+    base.xstocks += xstocks.length;
+    base.all += xstocks.length;
+    return base;
+  }, [s.market.underlyings, feed.marks, xstocks.length]);
+
+  const size = pools.reduce(
+    (t, p) => t + (p.priced && p.price != null ? p.supplied * p.price : 0),
+    0,
+  );
+  const out = pools.reduce(
+    (t, p) => t + (p.priced && p.price != null ? p.borrowed * p.price : 0),
+    0,
+  );
   const units = (n: number) =>
     n >= 1e9
       ? `${(n / 1e9).toFixed(2)}B`
@@ -222,6 +449,33 @@ function Markets({
           : n.toFixed(2);
   const pct = (n: number) =>
     n > 0 && n < 0.0001 ? '< 0.01%' : `${(n * 100).toFixed(2)}%`;
+  const tone = healthTone(position.factor);
+  const pledge =
+    (s.market.underlyings ?? EMPTY_UNDERLYINGS).find(
+      (u) => (s.risk.freeShares[u.symbol] ?? 0) > 0,
+    )?.symbol ?? 'NVDA';
+
+  const openDetails = (p: (typeof pools)[number]) => {
+    if (p.cash) {
+      onOpen('borrow', pledge);
+      return;
+    }
+    if (p.tradeable) {
+      onOpen('lend', p.symbol);
+      return;
+    }
+    if (p.category === 'xstocks') {
+      const ticker = xstockTicker(p.key);
+      const vaulted = (s.market.underlyings ?? EMPTY_UNDERLYINGS).some(
+        (u) => u.symbol === ticker,
+      );
+      onOpen(vaulted ? 'lend' : 'borrow', vaulted ? ticker : pledge);
+      return;
+    }
+    // Crypto: show the cash-loan ticket against vault stock; rates for
+    // SOL/BTC/ETH stay on the list (live marks) without a vault mint.
+    onOpen('borrow', pledge);
+  };
 
   return (
     <section className="od-lm" aria-labelledby="lm-title">
@@ -235,7 +489,7 @@ function Markets({
             </div>
             <div>
               <dt>Total available</dt>
-              <dd>{compactUsd(size - out)}</dd>
+              <dd>{compactUsd(Math.max(0, size - out))}</dd>
             </div>
             <div>
               <dt>Total borrowed</dt>
@@ -255,6 +509,39 @@ function Markets({
         </label>
       </div>
 
+      <div className="od-lm-toolbar">
+        <div
+          className="od-lm-cats"
+          role="tablist"
+          aria-label="Market categories"
+        >
+          {MARKET_CATEGORIES.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              role="tab"
+              aria-selected={category === c.id}
+              className={category === c.id ? 'active' : undefined}
+              onClick={() => setCategory(c.id)}
+            >
+              {c.label}
+              <small>{catalogCounts[c.id]}</small>
+            </button>
+          ))}
+        </div>
+        <div className={`od-lm-health ${tone}`} title={reserveOf('NVDA')?.note}>
+          <span>Cross margin</span>
+          <b>
+            {Number.isFinite(position.factor)
+              ? position.factor.toFixed(2)
+              : '∞'}
+          </b>
+          <small>
+            {usd(position.available)} free · {usd(position.owed)} owed
+          </small>
+        </div>
+      </div>
+
       <div className="od-lm-table">
         <div className="od-lm-row od-lm-cols">
           <span>Asset</span>
@@ -264,35 +551,63 @@ function Markets({
           <span>Borrow APY</span>
           <span />
         </div>
+        {pools.length === 0 && (
+          <p className="od-lm-empty">No markets match this filter.</p>
+        )}
+        {category === 'xstocks' && xstocks.length > listedXstocks.length && (
+          <p className="od-lm-empty">
+            Showing {listedXstocks.length} of {xstocks.length} xStocks
+            {query.trim() ? ' matching this search' : ''}. Refine the search to
+            find a ticker.
+          </p>
+        )}
         {pools.map((p) => (
-          <div key={p.symbol} className="od-lm-row">
+          <div key={p.key} className="od-lm-row">
             <span className="od-lm-asset">
-              <AssetLogo symbol={p.symbol} src={logoOf(p.symbol)} size={34} />
+              <AssetLogo symbol={p.symbol} src={p.logo} size={34} />
               <span>
                 <b>{p.name}</b>
-                <small>{p.symbol}</small>
+                <small>
+                  {p.symbol}
+                  {p.category !== 'equity' ? ` · ${labelOf(p.category)}` : ''}
+                  {p.price != null ? ` · ${usd(p.price)}` : ' · Price pending'}
+                </small>
               </span>
             </span>
             <span className="od-lm-num">
-              <b>{units(p.supplied)}</b>
-              <small>{compactUsd(p.supplied * p.price)}</small>
+              <b>
+                {p.category === 'xstocks'
+                  ? p.priced
+                    ? 'Issuer'
+                    : '—'
+                  : units(p.supplied)}
+              </b>
+              <small>
+                {p.category === 'xstocks'
+                  ? p.priced
+                    ? 'Live quote'
+                    : quoteState(quotes[p.key]?.state)
+                  : p.priced && p.price != null
+                    ? compactUsd(p.supplied * p.price)
+                    : '—'}
+              </small>
             </span>
             <span className="od-lm-num">
-              <b>{p.cash ? '—' : pct(p.supply)}</b>
+              <b>{p.cash ? pct(p.supply) : pct(p.supply)}</b>
             </span>
             <span className="od-lm-num">
-              <b>{units(p.borrowed)}</b>
-              <small>{compactUsd(p.borrowed * p.price)}</small>
+              <b>{p.category === 'xstocks' ? '—' : units(p.borrowed)}</b>
+              <small>
+                {p.category === 'xstocks' || !p.priced || p.price == null
+                  ? '—'
+                  : compactUsd(p.borrowed * p.price)}
+              </small>
             </span>
             <span className="od-lm-num">
               <b>{pct(p.borrow)}</b>
             </span>
             <span className="od-lm-act">
-              <button
-                onClick={() =>
-                  onOpen(p.cash ? 'borrow' : 'lend', p.cash ? 'NVDA' : p.symbol)
-                }
-              >
+              <button type="button" onClick={() => openDetails(p)}>
                 Details
               </button>
             </span>
@@ -302,6 +617,16 @@ function Markets({
     </section>
   );
 }
+
+const labelOf = (c: MarketCategory) =>
+  MARKET_CATEGORIES.find((row) => row.id === c)?.label ?? c;
+
+const quoteState = (state?: string) =>
+  state === 'unavailable'
+    ? 'Unavailable'
+    : state === 'pending'
+      ? 'Pending'
+      : '—';
 
 /** $4.80B, $62.89M, $154.80K — the way a money market prints size. */
 const compactUsd = (n: number) =>
@@ -404,7 +729,10 @@ function Borrow({
   const q = Number(quantity);
   const k = Number(cap);
   const b = Number(amount_);
-  const limit = reserve ? borrowLimit(q || 0, price, reserve) : 0;
+  const pledgeLimit = reserve ? borrowLimit(q || 0, price, reserve) : 0;
+  // Cross-margin: the pledge LTV still caps the draw, and portfolio
+  // borrow power (all vault collateral vs all debt) caps it again.
+  const limit = crossBorrowCap(pledgeLimit, position.available);
   const termed =
     mode !== 'stock' && !(mode === 'borrow' && rateKind === 'variable');
 
@@ -641,7 +969,7 @@ function Borrow({
               label: 'Loan-to-value',
               value: `${((loan?.ltv ?? 0) * 100).toFixed(0)}%`,
               detail: reserve
-                ? `Up to ${usd(limit)} at ${Math.round(reserve.ltv * 100)}%`
+                ? `Up to ${usd(limit)} · ${Math.round(reserve.ltv * 100)}% LTV · ${usd(position.available)} free`
                 : undefined,
             },
             {
@@ -732,9 +1060,12 @@ function Borrow({
           )}
           {mode === 'borrow' && reserve && b > limit && (
             <p className="od-error" role="alert">
-              <TriangleAlert size={13} /> {symbol} lends up to{' '}
-              {Math.round(reserve.ltv * 100)}% of its value. Pledge more shares
-              or draw at most {usd(limit)}.
+              <TriangleAlert size={13} /> Cross-margin room is{' '}
+              {usd(limit)}
+              {pledgeLimit < position.available
+                ? ` (${Math.round(reserve.ltv * 100)}% of this pledge)`
+                : ' (portfolio borrow power)'}
+              . Pledge more or draw at most {usd(limit)}.
             </p>
           )}
           {noBook && (
@@ -774,7 +1105,11 @@ function Borrow({
                 {pool?.source === 'simulated' ? ', simulated depth.' : '.'}
               </p>
             </div>
-            <RateCurve curve={curve} at={{ ...here, u: utilisation }} />
+            <RateCurve
+              curve={curve}
+              at={{ ...here, u: utilisation }}
+              optimal={reserve.optimal}
+            />
           </section>
         )}
       </div>
@@ -794,18 +1129,18 @@ function Borrow({
             ]}
           />
           <Field label="Underlying">
-            <select
-              aria-label="Underlying"
+            <AssetPicker
+              label="Underlying"
               value={symbol}
-              onChange={(e) => onSymbol(e.target.value)}
-            >
-              {underlyings.map((u) => (
-                <option key={u.symbol} value={u.symbol}>
-                  {u.name} ({u.symbol}){'  '}
-                  {usd(markOf(s, feed, u.symbol)?.price ?? u.price)}
-                </option>
-              ))}
-            </select>
+              onChange={onSymbol}
+              options={underlyings.map((u) => ({
+                id: u.symbol,
+                name: u.name,
+                symbol: u.symbol,
+                price: usd(markOf(s, feed, u.symbol)?.price ?? u.price),
+                detail: 'Pool reference',
+              }))}
+            />
           </Field>
           <Field
             label={mode === 'borrow' ? 'Shares pledged' : 'Shares'}
@@ -825,7 +1160,11 @@ function Borrow({
             <>
               <Field
                 label="Borrow"
-                hint={reserve ? `Up to ${usd(limit)} USDC` : undefined}
+                hint={
+                  reserve
+                    ? `Up to ${usd(limit)} USDC · ${usd(position.available)} free`
+                    : undefined
+                }
               >
                 <input
                   aria-label="Borrow amount"
@@ -861,23 +1200,25 @@ function Borrow({
 
           {mode === 'stock' ? (
             <Field label="Direction">
-              <select
+              <Segmented
+                label="Spot direction"
                 value={side}
-                onChange={(e) => setSide(e.target.value as 'buy' | 'sell')}
-              >
-                <option value="buy">Buy, fully cash funded</option>
-                <option value="sell">Sell, owned shares only</option>
-              </select>
+                onChange={setSide}
+                options={[
+                  { id: 'buy', label: 'Buy' },
+                  { id: 'sell', label: 'Sell' },
+                ]}
+              />
             </Field>
           ) : !termed ? null : (
             <Field label="Term ends">
-              <select value={end} onChange={(e) => setExpiry(e.target.value)}>
-                {future.map((d) => (
-                  <option key={d} value={d}>
-                    {expiryLabel(d)}
-                  </option>
-                ))}
-              </select>
+              <ExpiryPicker
+                label="Term ends"
+                dates={future}
+                value={end}
+                asOf={s.book.date}
+                onChange={setExpiry}
+              />
             </Field>
           )}
 

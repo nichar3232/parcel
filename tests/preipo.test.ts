@@ -321,3 +321,29 @@ void test('an unseen publisher outage is a single clear warning', async () => {
   assert.equal(payload.warnings.filter((w) => w.includes('prices')).length, 1);
   assert.ok(payload.warnings[0].startsWith('PreStocks prices'));
 });
+
+void test('asset reads share one in-flight publisher and mint refresh', async () => {
+  resetAssetCache();
+  let calls = 0;
+  let release: (() => void) | undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const impl = (async () => {
+    calls++;
+    await gate;
+    return jsonResponse(PRESTOCKS_BODY);
+  }) as unknown as typeof fetch;
+  const config = {
+    verifyRpcUrl: 'http://127.0.0.1:1',
+    verifyNetwork: 'mainnet' as const,
+    programId: null,
+    usdcMint: null,
+  };
+  const first = loadAssets(config, 1_000, impl, noSleep);
+  const second = loadAssets(config, 1_000, impl, noSleep);
+  assert.equal(calls, 1);
+  release!();
+  assert.equal((await first).catalog.length, 1);
+  assert.equal((await second).catalog.length, 1);
+});

@@ -255,11 +255,9 @@ export class XStocksService {
    * background. This keeps a slow issuer endpoint from making a watchlist
    * feel stuck, while the browser's short poll picks up each completed mark.
    */
-  async quotes(input: readonly string[]): Promise<XStockQuote[]> {
-    const catalog = await this.catalog();
-    const allowed = new Set(catalog.assets.map((asset) => asset.symbol));
+  private quoteSnapshot(input: readonly string[]): XStockQuote[] {
     const symbols = [...new Set(input.map((symbol) => symbol.trim()))]
-      .filter((symbol) => allowed.has(symbol))
+      .filter(Boolean)
       .slice(0, MAX_QUOTES_PER_REQUEST);
     const now = this.now();
     const refresh = symbols.filter((symbol) => {
@@ -286,5 +284,24 @@ export class XStocksService {
         source: 'xstocks' as const,
       };
     });
+  }
+
+  /**
+   * Issuer prices for symbols that a caller has already resolved from the
+   * issuer's own catalog. This avoids making a persisted catalog wait for a
+   * second full pagination walk before its direct price refresh can start.
+   */
+  async quotesForVerifiedSymbols(
+    input: readonly string[],
+  ): Promise<XStockQuote[]> {
+    return this.quoteSnapshot(input);
+  }
+
+  async quotes(input: readonly string[]): Promise<XStockQuote[]> {
+    const catalog = await this.catalog();
+    const allowed = new Set(catalog.assets.map((asset) => asset.symbol));
+    return this.quoteSnapshot(
+      input.filter((symbol) => allowed.has(symbol.trim())),
+    );
   }
 }

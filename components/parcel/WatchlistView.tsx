@@ -448,11 +448,26 @@ export function WatchlistView() {
   const showTokenized = scope !== 'prestocks';
   const showPreStocks = scope !== 'tokenized';
   const totalListed = tokenizedCatalog.length + preStocksCatalog.length;
-  const liveSources =
-    tokenized?.sources.filter((source) => source.state === 'live') ?? [];
-  const sourceSummary = liveSources
-    .map((source) => `${source.name} ${source.assets}`)
+  const availableSources =
+    tokenized?.sources.filter(
+      (source) => source.state === 'live' || source.state === 'cached',
+    ) ?? [];
+  const sourceSummary = availableSources
+    .map((source) =>
+      source.state === 'cached'
+        ? `${source.name} ${source.assets} cached`
+        : `${source.name} ${source.assets}`,
+    )
     .join(' · ');
+  const issuerCatalogPending =
+    tokenized?.sources.some((source) => source.state === 'pending') ?? false;
+  const issuerCatalogCached =
+    tokenized?.sources.some((source) => source.state === 'cached') ?? false;
+  const sourceStatus = sourceSummary
+    ? sourceSummary
+    : issuerCatalogPending
+      ? 'Updating issuer inventory'
+      : 'Issuer inventory unavailable';
 
   return (
     <section className="od-watchlist" aria-labelledby="watchlist-title">
@@ -468,8 +483,7 @@ export function WatchlistView() {
         <div className="od-watchlist-source">
           <b>Equities + PreStocks</b>
           <span>
-            {sourceSummary || 'Reading issuer registries'} ·{' '}
-            {preStocksCatalog.length} PreStocks
+            {sourceStatus} · {preStocksCatalog.length} PreStocks
             {preipo?.priceState === 'stale' ? ' · publisher marks stale' : ''}
           </span>
         </div>
@@ -547,8 +561,10 @@ export function WatchlistView() {
               tokenizedError
                 ? 'Issuer catalog temporarily unavailable'
                 : tokenized
-                  ? `${tokenizedCatalog.length} issuer assets · ${liveQuotes}/${watchedTokenized.length} current quotes`
-                  : 'Reading issuer registries'
+                  ? issuerCatalogPending
+                    ? 'Updating issuer inventory'
+                    : `${tokenizedCatalog.length} ${issuerCatalogCached ? 'cached' : 'issuer'} assets · ${liveQuotes}/${watchedTokenized.length} current quotes`
+                  : 'Loading tokenized-equity catalog'
             }
           />
           {tokenized && (
@@ -557,7 +573,9 @@ export function WatchlistView() {
                 .map((source) =>
                   source.state === 'live'
                     ? `${source.name}: ${source.assets} listed`
-                    : `${source.name}: ${source.detail.toLowerCase()}`,
+                    : source.state === 'cached'
+                      ? `${source.name}: ${source.assets} cached; refreshing`
+                      : `${source.name}: ${source.detail.toLowerCase()}`,
                 )
                 .join(' · ')}
             </p>
@@ -586,7 +604,7 @@ export function WatchlistView() {
                     ? 'No watched tokenized equities match'
                     : 'No tokenized equities watched'
                 }
-                description="Search the issuer registries above to add a Solana tokenized equity."
+                description="Search the catalog above to add a Solana tokenized equity."
               />
             )}
           </div>

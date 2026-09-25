@@ -173,10 +173,11 @@ export class SuperstateService {
     return run;
   }
 
-  async quotes(input: readonly string[]): Promise<TokenizedEquityQuote[]> {
-    const assets = await this.catalog();
+  private quoteSnapshot(
+    assets: readonly TokenizedEquityAsset[],
+  ): TokenizedEquityQuote[] {
     const byId = new Map(assets.map((asset) => [asset.id, asset]));
-    const ids = [...new Set(input)].filter((id) => byId.has(id));
+    const ids = [...byId.keys()];
     const now = this.now();
     const refresh = ids.filter((id) => {
       const quote = this.quoteCache.get(id);
@@ -200,5 +201,18 @@ export class SuperstateService {
         provider: 'superstate' as const,
       };
     });
+  }
+
+  /** Prices only assets already verified in Superstate's issuer registry. */
+  async quotesForVerifiedAssets(
+    assets: readonly TokenizedEquityAsset[],
+  ): Promise<TokenizedEquityQuote[]> {
+    return this.quoteSnapshot(assets);
+  }
+
+  async quotes(input: readonly string[]): Promise<TokenizedEquityQuote[]> {
+    const assets = await this.catalog();
+    const wanted = new Set(input);
+    return this.quoteSnapshot(assets.filter((asset) => wanted.has(asset.id)));
   }
 }

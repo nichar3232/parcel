@@ -120,6 +120,18 @@ export async function advanced(page: Page, on = true) {
   await expect(toggle).toHaveAttribute('aria-pressed', String(on));
 }
 
+/** Pick a bounded expiry-menu item. The short tenor follows the stable date
+ * in its accessible name, so the date itself stays a reliable test handle. */
+export async function pickExpiry(page: Page, date: string) {
+  const [year, month, day] = date.slice(0, 10).split('-');
+  const label = `${month}/${day}/${year}`;
+  await page.getByLabel('Contract expiry', { exact: true }).click();
+  await page
+    .locator('.od-expiry-menu')
+    .getByRole('button', { name: new RegExp(`^${label}`) })
+    .click();
+}
+
 /** Cash moves in and out through the wallet in the top bar. */
 export async function openUsdcDeposit(page: Page) {
   await page.getByRole('button', { name: 'Wallet', exact: true }).click();

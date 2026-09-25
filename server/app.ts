@@ -64,7 +64,13 @@ export function createApp(
   // never as the sandbox engine's modelled walk.
   const xstocks = options.xstocks || new XStocksService();
   const tokenizedEquities =
-    options.tokenizedEquities || new TokenizedEquitiesService(xstocks);
+    options.tokenizedEquities ||
+    new TokenizedEquitiesService(xstocks, undefined, undefined, Date.now, {
+      cacheFile: path.join(config.stateDir, 'tokenized-equities.json'),
+    });
+  // Warm issuer inventories before a visitor opens Watchlist. `snapshot()`
+  // still remains non-blocking if the app has only just started.
+  tokenizedEquities.warm();
   const vault = new VaultService(
     store,
     Date.now,
@@ -168,7 +174,9 @@ export function createApp(
         let timer: NodeJS.Timeout | null = null;
         const write = () => {
           if (ended || res.writableEnded) return;
-          res.write(`event: marks\ndata: ${JSON.stringify(marks.snapshot())}\n\n`);
+          res.write(
+            `event: marks\ndata: ${JSON.stringify(marks.snapshot())}\n\n`,
+          );
         };
         const flush = () => {
           if (timer) clearTimeout(timer);
@@ -221,7 +229,7 @@ export function createApp(
         return json(res, 200, { quotes: await xstocks.quotes(symbols) });
       }
       if (url.pathname === '/api/tokenized-equities' && method === 'GET')
-        return json(res, 200, await tokenizedEquities.catalog());
+        return json(res, 200, tokenizedEquities.snapshot());
       if (
         url.pathname === '/api/tokenized-equities/quotes' &&
         method === 'GET'

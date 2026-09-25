@@ -25,6 +25,7 @@ import { QuoteReview } from './QuoteReview';
 import { ContractLegEditor } from './ContractLegEditor';
 import { Surface3D } from './Surface3D';
 import {
+  AssetPicker,
   Badge,
   Button,
   Empty,
@@ -34,7 +35,6 @@ import {
   PanelHead,
   Segmented,
   Stat,
-  expiryLabel,
   markOf,
   qty,
   usd,
@@ -115,19 +115,22 @@ export function TradeView({
   /**
    * What the left column shows.
    *
-   * Options opens on the ladder, because the first question is which
-   * strike; the payoff is there for whoever wants to see what the one
-   * they picked turns into. Structures and Underwrite have no ladder,
-   * so they are always the picture.
+   * Options always opens on the chain — a nav pick only seeds the ticket
+   * and the ladder's side/kind. The payoff opens when the reader chooses
+   * a premium (or flips Chain → Payoff), not when they pick a template.
    */
-  // Entering Options opens the ladder on the plain long call. Selecting a
-  // named contract from the navigation is a more specific intention, so it
-  // opens its ticket and payoff instead of asking the reader to choose it
-  // again from the chain.
+  const chainSeed =
+    opening === 'covered-call'
+      ? ({ side: 'sell', kind: 'call' } as const)
+      : opening === 'secured-put'
+        ? ({ side: 'sell', kind: 'put' } as const)
+        : opening === 'put'
+          ? ({ side: 'buy', kind: 'put' } as const)
+          : ({ side: 'buy', kind: 'call' } as const);
   const [browse, setBrowse] = useState(tab === 'trade' && choice === 'call');
   /** Which ladder the chain shows, steered from the screen's top line. */
-  const [chainSide, setChainSide] = useState<'buy' | 'sell'>('buy');
-  const [chainKind, setChainKind] = useState<'call' | 'put'>('call');
+  const [chainSide, setChainSide] = useState<'buy' | 'sell'>(chainSeed.side);
+  const [chainKind, setChainKind] = useState<'call' | 'put'>(chainSeed.kind);
   const [chainExpiry, setChainExpiry] = useState(
     () => future.find((d) => !d.includes('T')) || future[0] || '',
   );
@@ -317,6 +320,7 @@ export function TradeView({
               dates={future}
               value={chainDate}
               asOf={state.book.date}
+              ariaLabel="Chain expiration"
               onChange={setChainExpiry}
             />
           </div>
@@ -518,23 +522,23 @@ export function TradeView({
           />
           <div className="od-panel-body">
             <Field label="Underlying">
-              <select
-                aria-label="Underlying"
+              <AssetPicker
+                label="Underlying"
                 value={symbol}
-                onChange={(e) => onSymbol(e.target.value)}
-              >
-                {underlyings
+                onChange={onSymbol}
+                options={underlyings
                   .filter((u) => !symbols || symbols.includes(u.symbol))
-                  .map((u) => (
-                    <option key={u.symbol} value={u.symbol}>
-                      {u.name} ({u.symbol}){'  '}
-                      {usd(markOf(state, feed, u.symbol)?.price ?? u.price)}
-                      {u.simulated && state.market.clock !== 'live'
-                        ? ', simulated path'
-                        : ''}
-                    </option>
-                  ))}
-              </select>
+                  .map((u) => ({
+                    id: u.symbol,
+                    name: u.name,
+                    symbol: u.symbol,
+                    price: usd(markOf(state, feed, u.symbol)?.price ?? u.price),
+                    detail:
+                      u.simulated && state.market.clock !== 'live'
+                        ? 'Simulated reference'
+                        : 'Model reference',
+                  }))}
+              />
             </Field>
 
             <SizeField
@@ -584,21 +588,17 @@ export function TradeView({
             )}
 
             <Field label="Expiry">
-              <select
-                aria-label="Expiration"
+              <ExpiryPicker
+                label="Expiry"
+                ariaLabel="Contract expiry"
+                asOf={session}
                 value={effective.expiry}
-                onChange={(e) => update({ expiry: e.target.value })}
+                onChange={(expiry) => update({ expiry })}
                 disabled={effective.reference === 'dividend'}
-              >
-                {(effective.reference === 'dividend'
-                  ? ['2025-03-12']
-                  : future
-                ).map((d) => (
-                  <option key={d} value={d}>
-                    {expiryLabel(d)}
-                  </option>
-                ))}
-              </select>
+                dates={
+                  effective.reference === 'dividend' ? ['2025-03-12'] : future
+                }
+              />
             </Field>
 
             {advanced &&

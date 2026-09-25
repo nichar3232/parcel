@@ -42,6 +42,8 @@ export interface AssetsPayload {
 // pretending to have tick data or opening one request per browser tab.
 const TTL_MS = 15_000;
 let cache: { at: number; payload: AssetsPayload } | null = null;
+/** One publisher/RPC refresh is shared across all browser sessions. */
+let refresh: Promise<AssetsPayload> | null = null;
 
 /**
  * The last quotes each provider successfully served.
@@ -68,7 +70,20 @@ export async function loadAssets(
   retry?: RetryOptions,
 ): Promise<AssetsPayload> {
   if (cache && now - cache.at < TTL_MS) return cache.payload;
+  if (refresh) return refresh;
+  const run = loadUncached(config, now, fetchImpl, retry).finally(() => {
+    if (refresh === run) refresh = null;
+  });
+  refresh = run;
+  return run;
+}
 
+async function loadUncached(
+  config: PreIpoConfig,
+  now: number,
+  fetchImpl: typeof fetch,
+  retry?: RetryOptions,
+): Promise<AssetsPayload> {
   const warnings: string[] = [];
   let catalog: ProviderQuote[] = [];
   let priceState: AssetsPayload['priceState'] = 'unavailable';
@@ -128,5 +143,6 @@ export async function loadAssets(
 
 export const resetAssetCache = () => {
   cache = null;
+  refresh = null;
   lastGood = null;
 };

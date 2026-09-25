@@ -2,11 +2,14 @@
 import {
   Children,
   cloneElement,
+  useEffect,
   useId,
+  useRef,
+  useState,
   type ReactElement,
   type ReactNode,
 } from 'react';
-import { ArrowUpRight, X } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, X } from 'lucide-react';
 import { Mark } from '@/components/brand/Mark';
 export { expiryLabel } from '@/lib/parcel/format';
 import {
@@ -302,6 +305,125 @@ export function Field({
         'aria-describedby': help ? `${id}-help` : undefined,
       })}
       {help && <small id={`${id}-help`}>{help}</small>}
+    </div>
+  );
+}
+
+/**
+ * A bounded picker for market instruments.
+ *
+ * Browser-native selects are reliable for a couple of static values, but a
+ * growing instrument set hands the visual hierarchy and scroll boundary to
+ * the browser. This keeps the same deliberate, grouped vocabulary as the
+ * expiry picker: one compact trigger and a short, contained menu.
+ */
+export function AssetPicker({
+  id,
+  label = 'Underlying',
+  options,
+  value,
+  onChange,
+  disabled = false,
+}: {
+  id?: string;
+  label?: string;
+  options: {
+    id: string;
+    name: string;
+    symbol: string;
+    price: string;
+    detail?: string;
+  }[];
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  const selected = options.find((option) => option.id === value) ?? options[0];
+
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('keydown', closeEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('keydown', closeEscape);
+    };
+  }, []);
+
+  if (!selected) {
+    return (
+      <button
+        id={id}
+        type="button"
+        className="od-asset-trigger"
+        aria-label={label}
+        disabled
+      >
+        No instruments available
+      </button>
+    );
+  }
+
+  return (
+    <div className="od-asset-picker" ref={root}>
+      <button
+        id={id}
+        type="button"
+        className="od-asset-trigger"
+        aria-label={label}
+        aria-expanded={open}
+        aria-controls={menuId}
+        disabled={disabled}
+        onClick={() => setOpen((shown) => !shown)}
+      >
+        <span>
+          <small>{label}</small>
+          <b>
+            {selected.name} ({selected.symbol})
+          </b>
+        </span>
+        <em>{selected.price}</em>
+        <ChevronDown aria-hidden size={15} />
+      </button>
+
+      {open && (
+        <div className="od-asset-menu" id={menuId}>
+          <div className="od-asset-menu-head">
+            <span>Available instruments</span>
+            <small>{options.length} listed</small>
+          </div>
+          <div className="od-asset-menu-scroll">
+            {options.map((option) => (
+              <button
+                type="button"
+                key={option.id}
+                aria-pressed={selected.id === option.id}
+                className={selected.id === option.id ? 'selected' : ''}
+                onClick={() => {
+                  onChange(option.id);
+                  setOpen(false);
+                }}
+              >
+                <span>
+                  <b>
+                    {option.name} ({option.symbol})
+                  </b>
+                  {option.detail && <small>{option.detail}</small>}
+                </span>
+                <em>{option.price}</em>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

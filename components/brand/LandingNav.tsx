@@ -14,19 +14,7 @@ export function LandingNav({ children }: { children: ReactNode }) {
     let frame = 0;
     const sync = () => {
       frame = 0;
-      const header = headerRef.current;
-      if (!header) return;
-      header.toggleAttribute('data-scrolled', window.scrollY > 12);
-      /* The mark answers the reader's scroll rather than running on its own.
-         It stays a quiet logo when the page is still, then turns once for
-         roughly every 1,800px of travel. That gives the long landing a
-         tactile wayfinding detail without becoming a loader or a flourish
-         competing with the payoff charts. */
-      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-        header.style.setProperty(
-          '--lp-mark-scroll-rotation',
-          `${Math.round(window.scrollY / 5)}deg`,
-        );
+      headerRef.current?.toggleAttribute('data-scrolled', window.scrollY > 12);
     };
     const onScroll = () => {
       if (!frame) frame = window.requestAnimationFrame(sync);

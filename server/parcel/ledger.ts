@@ -24,7 +24,7 @@ import {
   termInterest,
   shortCloseAmounts,
 } from '../../lib/parcel/funding';
-import { reserveOf } from '../../lib/parcel/lending';
+import { crossBorrowCap, health, reserveOf } from '../../lib/parcel/lending';
 import { payoffBounds } from '../../lib/parcel/envelope';
 import { bounded } from '../../lib/parcel/math';
 import { assertCollateral, risk } from '../../lib/parcel/risk';
@@ -554,10 +554,37 @@ export function openBorrow(
       'Shares already committed to another obligation cannot be pledged.',
     );
   const price = mark(symbol, book.date),
-    limit = Math.floor(pledged * price * reserve.ltv * 1e6) / 1e6;
+    pledgeLimit = Math.floor(pledged * price * reserve.ltv * 1e6) / 1e6;
+  // Cross-margin: every vault holding already counts toward borrow power,
+  // so a new draw cannot exceed what health() says is still free — on top
+  // of the isolated pledge LTV (PRODUCT: pledges never net).
+  const collateral = [
+    { symbol: 'USDC', amount: book.vault.USDC, price: 1 },
+    ...UNDERLYINGS.map((u) => ({
+      symbol: u.symbol,
+      amount: book.vault[u.symbol] ?? 0,
+      price: mark(u.symbol, book.date),
+    })),
+  ].filter((h) => h.amount > 0);
+  const debt: { symbol: string; amount: number; price: number }[] = [];
+  const shorted: Record<string, number> = {};
+  for (const p of book.shorts.filter((p) => p.status === 'active'))
+    shorted[p.symbol] = (shorted[p.symbol] ?? 0) + p.quantity;
+  for (const [of, qty] of Object.entries(shorted))
+    debt.push({ symbol: of, amount: qty, price: mark(of, book.date) });
+  for (const p of book.borrows.filter((p) => p.status === 'active'))
+    debt.push({
+      symbol: 'USDC',
+      amount: borrowDebt(p, book.date).total,
+      price: 1,
+    });
+  const power = health(collateral, debt).available;
+  const limit = crossBorrowCap(pledgeLimit, power);
   if (amount > limit)
     throw Error(
-      `${symbol} lends up to ${Math.round(reserve.ltv * 100)}% of its value: at most ${limit.toFixed(2)} USDC against this pledge.`,
+      limit < pledgeLimit
+        ? `Cross-margin borrow power is ${limit.toFixed(2)} USDC after existing debt.`
+        : `${symbol} lends up to ${Math.round(reserve.ltv * 100)}% of its value: at most ${limit.toFixed(2)} USDC against this pledge.`,
     );
   transfer(book.market, book.vault, 'USDC', amount);
   const p: BorrowPosition = {

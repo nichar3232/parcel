@@ -163,10 +163,13 @@ export class OndoService {
     }
   }
 
-  private refreshQuotes(ids: readonly string[]) {
+  private refreshQuotes(
+    ids: readonly string[],
+    knownAssets?: readonly TokenizedEquityAsset[],
+  ) {
     if (this.quoteRefresh) return this.quoteRefresh;
     const run = Promise.all([
-      this.catalog(),
+      knownAssets ? Promise.resolve(knownAssets) : this.catalog(),
       this.get<RawPrice[]>('/v1/assets/all/prices/latest'),
     ])
       .then(([assets, response]) => {
@@ -188,7 +191,9 @@ export class OndoService {
           this.quoteCache.set(id, {
             id,
             quote,
-            observedAt: observedAt(entry.primaryMarket?.timestamp ?? entry.timestamp),
+            observedAt: observedAt(
+              entry.primaryMarket?.timestamp ?? entry.timestamp,
+            ),
             receivedAt,
             state: quote === null ? 'unavailable' : 'live',
             provider: 'ondo',
@@ -229,11 +234,11 @@ export class OndoService {
     return run;
   }
 
-  async quotes(input: readonly string[]): Promise<TokenizedEquityQuote[]> {
+  async quotesForVerifiedAssets(
+    assets: readonly TokenizedEquityAsset[],
+  ): Promise<TokenizedEquityQuote[]> {
     if (!this.configured) return [];
-    const assets = await this.catalog();
-    const allowed = new Set(assets.map((asset) => asset.id));
-    const ids = [...new Set(input)].filter((id) => allowed.has(id));
+    const ids = [...new Set(assets.map((asset) => asset.id))];
     const now = this.now();
     if (
       ids.some(
@@ -241,7 +246,7 @@ export class OndoService {
           !this.quoteCache.get(id) || now >= this.quoteCache.get(id)!.refreshAt,
       )
     )
-      void this.refreshQuotes(ids);
+      void this.refreshQuotes(ids, assets);
     return ids.map((id) => {
       const quote = this.quoteCache.get(id);
       if (quote) {
@@ -257,5 +262,14 @@ export class OndoService {
         provider: 'ondo' as const,
       };
     });
+  }
+
+  async quotes(input: readonly string[]): Promise<TokenizedEquityQuote[]> {
+    if (!this.configured) return [];
+    const assets = await this.catalog();
+    const wanted = new Set(input);
+    return this.quotesForVerifiedAssets(
+      assets.filter((asset) => wanted.has(asset.id)),
+    );
   }
 }

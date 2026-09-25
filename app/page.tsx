@@ -47,9 +47,9 @@ const AGENT_ABILITIES = [
       'Each onchain action returns its transaction signature and a Solana Explorer link anyone can open.',
   },
   {
-    title: 'Yours to revoke',
+    title: 'Visible in the desk',
     detail:
-      'Each key acts for one vault. Its trades carry an Agent label in Activity, and revoking it cuts the agent off at once.',
+      'Receipts an agent placed carry an Agent label in Activity, beside the ones you placed yourself.',
   },
 ];
 
@@ -77,9 +77,6 @@ export default function Landing() {
         <div className="lp-nav-right">
           <a className="lp-nav-about" href="#how">
             How it works
-          </a>
-          <a className="lp-nav-about" href="#agents">
-            Agents
           </a>
           <ThemeToggle />
           <Link className="lp-cta" href="/app">
@@ -146,7 +143,16 @@ export default function Landing() {
         <section className="lp-section lp-how" id="how">
           <Steps>
             <span className="lp-kicker">How it works</span>
-            <h2>Four steps, one vault</h2>
+            <h2>Deposit, position, settle.</h2>
+            <p>
+              All five products run on one vault and one collateral rule. Every
+              position is funded from assets you already hold, and nothing is
+              borrowed on your behalf.
+            </p>
+            <Link className="lp-btn lp-btn-primary" href="/app">
+              Open the desk
+              <span aria-hidden>&rarr;</span>
+            </Link>
           </Steps>
         </section>
         <section
@@ -158,15 +164,11 @@ export default function Landing() {
             <span className="lp-kicker">For agents</span>
             <h2 id="agents-title">An agent can run the desk</h2>
             <p>
-              Parcel serves MCP, so Claude or any MCP client can use the same
-              vault you do. Open the desk, choose Agents, create a key, and
-              paste the command it gives you:
+              Parcel ships an MCP server, so Claude or any MCP client can use
+              the same vault you do. Add it from a checkout of the repository:
             </p>
             <pre className="lp-agents-setup">
-              <code>
-                claude mcp add --transport http parcel &lt;desk&gt;/mcp --header
-                &quot;Authorization: Bearer &lt;key&gt;&quot;
-              </code>
+              <code>claude mcp add parcel -- npx tsx mcp/parcel.ts</code>
             </pre>
           </div>
           <ol className="lp-principles-list">
@@ -186,11 +188,10 @@ export default function Landing() {
       <div className="lp-ending">
         <section className="lp-close" aria-labelledby="desk-title">
           <div className="lp-close-copy">
-            <h2 id="desk-title">Deposit, position, settle.</h2>
+            <h2 id="desk-title">Open the desk</h2>
             <p>
-              All five products run on one vault and one collateral rule. Every
-              position is funded from assets you already hold, and nothing is
-              borrowed on your behalf.
+              A funded vault, live model pricing and the full contract workflow.
+              Nothing to install and no wallet to connect.
             </p>
             <Link className="lp-btn lp-btn-primary" href="/app">
               Launch Parcel

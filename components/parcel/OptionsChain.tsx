@@ -47,6 +47,13 @@ export function OptionsChain({
   const [catalog, setCatalog] = useState<ChainCatalog | null>(null),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(false);
+  // A ladder is a decision surface, not a complete strike archive. Start
+  // with a deliberate window around spot and let readers expand it only
+  // when they need farther wings.
+  const [expandedRows, setExpandedRows] = useState({
+    listing: '',
+    count: 11,
+  });
   const read = useRef(desk.chain);
   // A slower request can finish after an event-driven reprice. Only the
   // newest request may update the ladder, otherwise the UI can briefly show
@@ -183,27 +190,34 @@ export function OptionsChain({
     state.market.underlyings?.find((u) => u.symbol === symbol)?.volatility ??
     state.market.volatility;
 
-  /**
-   * Open the ladder on the money.
-   *
-   * Strikes run high to low, so the top of the list is the deepest
-   * out-of-the-money contract there is — the one nobody opens a chain
-   * to read. The scroller starts with the share price in the middle of
-   * the view: as much of what is in the money below it as of what is
-   * not above it, and the rest a scroll away in either direction.
-   */
-  const scroller = useRef<HTMLDivElement>(null);
-  const marker = useRef<HTMLTableRowElement>(null);
-  // Only when what is listed changes, not on every live re-price.
+  // An expanded window belongs to one instrument / expiry / selected size.
+  // A changed ladder gets its compact window immediately; live reprices keep
+  // the reader's intentional expansion without an effect-induced flash.
   const listing = catalog
     ? `${catalog.expiry}|${catalog.symbol}|${catalog.quantity}|${kind}|${side}`
     : '';
-  useLayoutEffect(() => {
-    const box = scroller.current,
-      at = marker.current;
-    if (!box || !at || !listing) return;
-    box.scrollTop = Math.max(0, at.offsetTop - box.clientHeight / 2);
-  }, [listing]);
+  const visibleRows =
+    expandedRows.listing === listing ? expandedRows.count : 11;
+
+  const orderedRows = catalog
+    ? [...catalog.rows].sort((a, b) => b.strike - a.strike)
+    : [];
+  const nearest = orderedRows.reduce(
+    (closest, row, index) =>
+      Math.abs(row.strike - spot) < Math.abs(orderedRows[closest].strike - spot)
+        ? index
+        : closest,
+    0,
+  );
+  const start = Math.max(
+    0,
+    Math.min(
+      orderedRows.length - visibleRows,
+      nearest - Math.floor((visibleRows - 1) / 2),
+    ),
+  );
+  const rows = orderedRows.slice(start, start + visibleRows);
+  const hasMoreRows = rows.length < orderedRows.length;
 
   return (
     <Panel className="od-chain">
@@ -218,43 +232,45 @@ export function OptionsChain({
 
       {current && catalog && (
         <>
-          <div className="od-chain-summary">
-            <div>
+          <header className="od-chain-head">
+            <div className="od-chain-lead">
               <span>Model bid / ask</span>
               <b>
-                {side === 'buy' ? 'Buy' : 'Write'} {kind} · {qty(catalog.quantity)} {catalog.symbol}
+                {side === 'buy' ? 'Buy' : 'Write'} {kind} ·{' '}
+                {qty(catalog.quantity)} {catalog.symbol}
               </b>
             </div>
-            <div className="od-chain-assumptions" aria-label="Pricing assumptions">
-              <span>Spot {usd(catalog.spot)}</span>
-              <span>{(volatility * 100).toFixed(0)}% IV</span>
-              <span>4.00% assumed rate</span>
-              <span>Per selected size</span>
-            </div>
-          </div>
-          <p className="od-chain-guidance">
-            Select a premium to open the position simulator. Premiums include
-            modelled per-leg spread and size impact; they are not external
-            options-market quotes.
-          </p>
-          <div className="od-table-wrap od-ladder-scroll" ref={scroller}>
+            <ul
+              className="od-chain-assumptions"
+              aria-label="Pricing assumptions"
+            >
+              <li>Spot {usd(catalog.spot)}</li>
+              <li>{(volatility * 100).toFixed(0)}% IV</li>
+              <li>4.00% assumed rate</li>
+              <li>Per selected size</li>
+            </ul>
+            <p className="od-chain-guidance">
+              Select a premium to open the position simulator. Premiums include
+              modelled per-leg spread and size impact; they are not external
+              options-market quotes.
+            </p>
+          </header>
+          <div className="od-table-wrap od-ladder-scroll od-ladder-window">
             <table className="od-table od-ladder">
-            <thead>
-              <tr>
-                <th>Strike</th>
-                <th className="num od-ladder-breakeven">Break-even</th>
-                <th className="num">Move to B/E</th>
-                <th className="num">Model bid</th>
-                <th className="num">Model ask</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Highest strike first, the way a ladder is read, with
+              <thead>
+                <tr>
+                  <th>Strike</th>
+                  <th className="num od-ladder-breakeven">Break-even</th>
+                  <th className="num">Move to B/E</th>
+                  <th className="num">Model bid</th>
+                  <th className="num">Model ask</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Highest strike first, the way a ladder is read, with
                   the spot marked where it actually falls between two
                   of them. */}
-              {[...catalog.rows]
-                .sort((a, b) => b.strike - a.strike)
-                .map((row, i, all) => {
+                {rows.map((row, i) => {
                   const c = row.contracts.find((c) => c.kind === kind)!;
                   // Buy and write prices have opposite cash signs. Break-even
                   // uses the absolute debit/credit in either direction: a
@@ -263,7 +279,7 @@ export function OptionsChain({
                   const breakeven =
                     kind === 'call' ? row.strike + per : row.strike - per;
                   const away = (breakeven / spot - 1) * 100;
-                  const next = all[i + 1];
+                  const next = rows[i + 1];
                   const crosses =
                     row.strike >= spot && (!next || next.strike < spot);
                   return (
@@ -310,7 +326,7 @@ export function OptionsChain({
                         })}
                       </tr>
                       {crosses && (
-                        <tr className="od-ladder-spot" ref={marker}>
+                        <tr className="od-ladder-spot">
                           <td colSpan={5}>
                             <b>Reference {usd(spot)}</b>
                           </td>
@@ -319,9 +335,27 @@ export function OptionsChain({
                     </Fragment>
                   );
                 })}
-            </tbody>
+              </tbody>
             </table>
           </div>
+          {hasMoreRows && (
+            <div className="od-ladder-more">
+              <span>
+                Showing {rows.length} strikes nearest the reference price
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setExpandedRows({
+                    listing,
+                    count: Math.min(orderedRows.length, visibleRows + 6),
+                  })
+                }
+              >
+                Show 6 more
+              </button>
+            </div>
+          )}
         </>
       )}
     </Panel>

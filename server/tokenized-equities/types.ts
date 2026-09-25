@@ -38,7 +38,12 @@ export interface TokenizedEquityQuote {
 export interface TokenizedEquitySource {
   id: TokenizedEquityProvider;
   name: string;
-  state: 'live' | 'unavailable' | 'not-configured';
+  /**
+   * `pending` is deliberately distinct from `unavailable`: it means Parcel
+   * has started a cold issuer-registry read and is serving an immediate
+   * snapshot while that one shared read completes.
+   */
+  state: 'live' | 'cached' | 'pending' | 'unavailable' | 'not-configured';
   assets: number;
   detail: string;
 }

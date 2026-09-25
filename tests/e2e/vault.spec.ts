@@ -7,6 +7,7 @@ import {
   nav,
   openDesk,
   openUsdcDeposit,
+  pickExpiry,
   restartReplay,
 } from './desk-helpers';
 
@@ -66,9 +67,7 @@ test('vault deposits, fractional covered underwriting, blocked withdrawal and ex
   });
   await page.getByLabel('Contract quantity').fill('0.333333');
   await page.getByLabel('Leg 1 strike', { exact: true }).fill('100');
-  await page
-    .getByLabel('Expiration', { exact: true })
-    .selectOption('2025-01-27');
+  await pickExpiry(page, '2025-01-27');
   await execute(page);
   await nav(page, 'Positions');
   await expect(
@@ -540,9 +539,9 @@ test('final historical session offers a fresh replay with usable expiries', asyn
   await advance(page, '2025-04-03');
   await restartReplay(page);
   await nav(page, 'Trade');
-  await expect(
-    page.getByLabel('Expiration', { exact: true }).locator('option'),
-  ).not.toHaveCount(0);
+  await page.getByLabel('Chain expiration', { exact: true }).click();
+  await expect(page.locator('.od-expiry-menu button')).not.toHaveCount(0);
+  await page.getByLabel('Chain expiration', { exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Review funded quote' }),
   ).toBeEnabled();
@@ -573,6 +572,13 @@ test('options chain selects a contract into the same funded quote workflow', asy
   await page.getByLabel('Chain expiration').click();
   await page.getByRole('button', { name: /02\/07\/2025/ }).click();
   await expect(page.locator('.od-ladder tbody tr')).not.toHaveCount(0);
+  // The first chain view is a deliberate near-the-money window rather than
+  // an endless page of wings. The reference divider can add one table row.
+  expect(await page.locator('.od-ladder tbody tr').count()).toBeLessThanOrEqual(
+    12,
+  );
+  await page.getByRole('button', { name: 'Show 6 more' }).click();
+  expect(await page.locator('.od-ladder tbody tr').count()).toBeGreaterThan(11);
   const row = page
     .locator('.od-ladder tbody tr')
     .filter({ hasText: /^\$145\b/ });
@@ -656,9 +662,7 @@ test('short-dated contracts settle through the session harness', async ({
 }) => {
   await deposit(page, 'USDC', '100');
   await nav(page, 'Structures');
-  await page
-    .getByLabel('Expiration', { exact: true })
-    .selectOption('2025-01-27');
+  await pickExpiry(page, '2025-01-27');
   await execute(page);
   await advance(page, '2025-01-27');
   await nav(page, 'Positions');

@@ -32,7 +32,7 @@ export interface TokenizedEquityQuote {
 export interface TokenizedEquitySource {
   id: TokenizedEquityProvider;
   name: string;
-  state: 'live' | 'unavailable' | 'not-configured';
+  state: 'live' | 'cached' | 'pending' | 'unavailable' | 'not-configured';
   assets: number;
   detail: string;
 }
@@ -44,6 +44,8 @@ export interface TokenizedEquityCatalog {
 }
 
 const CATALOG_POLL_MS = 15 * 60_000;
+const CATALOG_WARMUP_POLL_MS = 2_000;
+const CATALOG_RETRY_POLL_MS = 30_000;
 // Issuer endpoints are quote snapshots, not event streams. Keep a modest
 // cadence for the visible watchlist while preserving the provider timestamp
 // (when one exists) separately from Parcel's receipt time.
@@ -59,6 +61,23 @@ export function useTokenizedEquities() {
 
   useEffect(() => {
     let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = (payload?: TokenizedEquityCatalog) => {
+      const warming = payload?.sources.some(
+        (source) => source.state === 'pending',
+      );
+      const retrying = payload?.sources.some(
+        (source) => source.state === 'unavailable' || source.state === 'cached',
+      );
+      timer = setTimeout(
+        () => void load(),
+        warming
+          ? CATALOG_WARMUP_POLL_MS
+          : retrying
+            ? CATALOG_RETRY_POLL_MS
+            : CATALOG_POLL_MS,
+      );
+    };
     const load = () =>
       fetch('/api/tokenized-equities', { cache: 'no-store' })
         .then((response) =>
@@ -70,13 +89,17 @@ export function useTokenizedEquities() {
           if (!live) return;
           setData(payload);
           setError('');
+          schedule(payload);
         })
-        .catch((reason) => live && setError((reason as Error).message));
+        .catch((reason) => {
+          if (!live) return;
+          setError((reason as Error).message);
+          schedule();
+        });
     void load();
-    const timer = setInterval(load, CATALOG_POLL_MS);
     return () => {
       live = false;
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
     };
   }, []);
 

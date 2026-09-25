@@ -30,15 +30,24 @@ const termLabel = (date: string, asOf: string) => {
  * the near-term dates easy to scan and the rest intentionally scrollable.
  */
 export function ExpiryPicker({
+  id,
+  label = 'Expiry',
+  ariaLabel,
   dates,
   value,
   asOf,
   onChange,
+  disabled = false,
 }: {
+  id?: string;
+  label?: string;
+  /** Distinguishes concurrent pickers while preserving the short visual label. */
+  ariaLabel?: string;
   dates: string[];
   value: string;
   asOf: string;
   onChange: (date: string) => void;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -83,16 +92,18 @@ export function ExpiryPicker({
   return (
     <div className="od-expiry-picker" ref={root}>
       <button
+        id={id}
         type="button"
         className="od-expiry-trigger"
-        aria-label="Chain expiration"
+        aria-label={ariaLabel ?? label}
         aria-expanded={open}
         aria-controls={menuId}
+        disabled={disabled}
         onClick={() => setOpen((shown) => !shown)}
       >
         <CalendarDays aria-hidden size={15} />
         <span>
-          <small>Expiry</small>
+          <small>{label}</small>
           <b>{selected ? expiryLabel(selected) : 'No expiry available'}</b>
         </span>
         <ChevronDown aria-hidden size={15} />

@@ -38,7 +38,6 @@ import {
   Money,
   Panel,
   PanelHead,
-  Stat,
   dateLabel,
   expiryLabel,
   isLiveMark,
@@ -124,9 +123,7 @@ export function PortfolioView({
     heldSymbols.every((symbol) => isLiveMark(markOf(s, feed, symbol)));
   const lastObservedAt = Math.max(
     0,
-    ...heldSymbols.map(
-      (symbol) => markOf(s, feed, symbol)?.observedAt ?? 0,
-    ),
+    ...heldSymbols.map((symbol) => markOf(s, feed, symbol)?.observedAt ?? 0),
   );
   // The most recent official mark remains more useful than a boot/session
   // seed even when the provider is delayed or currently stale. Its status is
@@ -278,7 +275,6 @@ export function PortfolioView({
     ...(drawn.length ? drawn : [{ date: book.date }]).map((p) => p.date),
     ...(liveSamples.length ? ['now'] : []),
   ];
-  const backfilled = drawn.filter((p) => p.backfill).length;
 
   const onDay = range === '1D' && !!today;
   const chart = onDay ? today!.points : history;
@@ -365,20 +361,14 @@ export function PortfolioView({
           )}
           <div className={`od-open-feed ${hasLiveMark ? 'live' : ''}`}>
             <i aria-hidden />
-            <span>
-              {hasLiveMark
-                ? 'Live'
-                : 'Last mark'}
-            </span>
+            <span>{hasLiveMark ? 'Live' : 'Last mark'}</span>
             {lastObservedAt > 0 && (
               <time
                 dateTime={new Date(
                   hasLiveMark ? feed.asOf : lastObservedAt,
                 ).toISOString()}
               >
-                {hasLiveMark
-                  ? clock(feed.asOf)
-                  : clock(lastObservedAt)}
+                {hasLiveMark ? clock(feed.asOf) : clock(lastObservedAt)}
               </time>
             )}
           </div>
@@ -392,13 +382,6 @@ export function PortfolioView({
           onScrub={setScrub}
           label={`Vault value ${onDay ? 'today' : `across ${drawn.length} sessions`}, now ${usd(displayedNav)}`}
         />
-        {!onDay && backfilled > 0 && (
-          <p className="od-range-note">
-            Before your first deposit the line shows your opening holdings at
-            each day&apos;s close.
-          </p>
-        )}
-
         <div className="od-range">
           {[{ id: '1D' as const, label: '1D' }, ...RANGES].map((r) => (
             <button
@@ -547,7 +530,8 @@ function useLiveValueSamples(
         )
         .map((mark) => mark.observedAt ?? 0),
     );
-    if (!feed.ready || !hasLiveMark || !observedAt || !Number.isFinite(value)) return;
+    if (!feed.ready || !hasLiveMark || !observedAt || !Number.isFinite(value))
+      return;
     if (observedAt <= lastObservation.current) return;
     lastObservation.current = observedAt;
     const point = { date: new Date(observedAt).toISOString(), value };
@@ -977,51 +961,51 @@ function Collateral({ desk }: { desk: VaultController }) {
   const r = s.risk;
   return (
     <>
-      <div className="od-grid-3">
-        <Panel>
-          <Stat
-            label="Collateral committed"
-            value={<Money value={r.collateralValue} />}
-            detail={`${usd(r.cash)} plus ${qty(r.shares.NVDA)} NVDA`}
-          />
-        </Panel>
-        <Panel>
-          <Stat
-            label="Released by offsets"
-            value={<Money value={r.releasedValue} />}
-            detail="Against standalone position reserves"
-            tone={r.releasedValue > 0 ? 'positive' : ''}
-          />
-        </Panel>
-        <Panel>
-          <Stat
-            label="Free to withdraw"
-            value={<Money value={r.availableValue} />}
-            detail="Lent and reserved assets excluded"
-          />
-        </Panel>
-      </div>
+      <section className="od-collateral-hero" aria-label="Collateral overview">
+        <div className="od-collateral-primary">
+          <span>Available to withdraw</span>
+          <strong>
+            <Money value={r.availableValue} />
+          </strong>
+          <p>Funds not supporting an open position or a loan.</p>
+        </div>
+        <dl className="od-collateral-stats">
+          <div className="od-stat">
+            <dt>Collateral committed</dt>
+            <dd>
+              <Money value={r.collateralValue} />
+            </dd>
+            <small>{usd(r.cash)} cash reserve</small>
+          </div>
+          <div className="od-stat">
+            <dt>Released by offsets</dt>
+            <dd className={r.releasedValue > 0 ? 'up' : ''}>
+              <Money value={r.releasedValue} />
+            </dd>
+            <small>Netted across eligible terms</small>
+          </div>
+        </dl>
+      </section>
 
-      <Panel>
+      <section className="od-collateral-section">
         <PanelHead
           title="Collateral policy"
-          description="Switching modes recalculates every reserve. An underfunded switch is rejected."
-          action={<Badge tone="green">Enforced by the backend</Badge>}
+          description="Choose how the vault reserves capital for your positions."
+          action={<Badge tone="accent">Ledger enforced</Badge>}
         />
-        <div className="od-panel-body od-grid-2">
+        <div className="od-collateral-modes">
           {(
             [
               {
                 id: 'cross',
                 title: 'Cross collateral',
                 description:
-                  'Net matching settlement obligations. Earlier guaranteed cash receipts can fund later obligations, with every intermediate deficit reserved.',
+                  'Net eligible positions to use capital efficiently.',
               },
               {
                 id: 'isolated',
                 title: 'Isolated collateral',
-                description:
-                  'Reserve each contract independently. Capital offsets across separate positions do not release collateral.',
+                description: 'Keep every position independently reserved.',
               },
             ] as const
           ).map((m) => (
@@ -1041,40 +1025,36 @@ function Collateral({ desk }: { desk: VaultController }) {
             </button>
           ))}
         </div>
-      </Panel>
+      </section>
 
-      <Panel>
+      <section className="od-collateral-section">
         <PanelHead
-          title="Requirement"
-          description="What each contract would need alone, against what the vault actually reserves."
+          title="Reserve coverage"
+          description="Your available balance is always checked before a position can open or funds can leave the vault."
         />
-        <div className="od-panel-body">
+        <div className="od-collateral-meters">
           <Meter
-            label="Cash requirement"
+            label="Cash reserved"
             value={r.cash}
             of={Math.max(r.grossCash, r.cash, 1)}
-            note={`${usd(r.cash)} of ${usd(r.grossCash)} standalone`}
+            note={`${usd(r.cash)} held against ${usd(r.grossCash)} standalone requirement`}
           />
           <Meter
-            label="Share requirement"
+            label="Shares reserved"
             value={r.shares.NVDA}
             of={Math.max(r.grossShares.NVDA, r.shares.NVDA, 0.000001)}
-            note={`${qty(r.shares.NVDA)} of ${qty(r.grossShares.NVDA)} NVDA standalone`}
+            note={`${qty(r.shares.NVDA)} of ${qty(r.grossShares.NVDA)} NVDA standalone requirement`}
             color="var(--pc-magenta)"
           />
-          <p className="od-note">
-            A share has one job at a time. Withdrawals and sales must leave
-            every remaining commitment fully funded.
-          </p>
         </div>
-      </Panel>
+      </section>
 
-      <Panel>
-        <PanelHead
-          title="Settlement groups"
-          description="Worst-case delivery is checked at every strike boundary and price tail, before calendar offsets."
-        />
-        {r.groups.length ? (
+      {r.groups.length ? (
+        <section className="od-collateral-section">
+          <PanelHead
+            title="Position reserves"
+            description="Separate settlement dates retain a visible, fully funded reserve."
+          />
           <div className="od-table-wrap">
             <table className="od-table">
               <thead>
@@ -1113,28 +1093,28 @@ function Collateral({ desk }: { desk: VaultController }) {
               </tbody>
             </table>
           </div>
-        ) : (
-          <Empty
-            title="No option obligations yet"
-            description="Each funded contract creates a visible reserve here. Protected-short reserves are added separately."
-          />
-        )}
-      </Panel>
-
-      <Panel>
-        <div className="od-panel-body od-reconcile">
+        </section>
+      ) : (
+        <section className="od-collateral-idle">
           <div>
-            <b>Vault integrity</b>
-            <p className="od-note">
-              Re-read every balance and reserve from the ledger and compare it
-              with what this screen shows.
+            <b>No position reserves</b>
+            <p>
+              Open option positions will appear here with the capital held for
+              them.
             </p>
           </div>
-          <Button variant="secondary" onClick={() => void desk.refresh()}>
-            Reconcile vault
-          </Button>
+        </section>
+      )}
+
+      <section className="od-collateral-check">
+        <div>
+          <b>Verify balances</b>
+          <p>Reconcile the current ledger before acting on a discrepancy.</p>
         </div>
-      </Panel>
+        <Button variant="secondary" onClick={() => void desk.refresh()}>
+          Refresh balances
+        </Button>
+      </section>
     </>
   );
 }

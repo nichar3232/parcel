@@ -402,10 +402,13 @@ const R = { w: 880, h: 300, x0: 60, x1: 858, y0: 26, y1: 246, axisY: 276 };
 export function RateCurve({
   curve,
   at,
+  optimal,
 }: {
   curve: { u: number; borrow: number; supply: number }[];
   /** Where the pool is sitting now. */
   at: { u: number; borrow: number; supply: number };
+  /** Aave kink — where slope1 hands off to slope2. */
+  optimal?: number;
 }) {
   const plot = useMemo(() => {
     const top = Math.max(...curve.map((p) => p.borrow), at.borrow) * 1.08 || 1;
@@ -413,6 +416,16 @@ export function RateCurve({
     const y = (v: number) => R.y1 - (v / top) * (R.y1 - R.y0);
     const line = (k: 'borrow' | 'supply') =>
       path(curve.map((p) => [x(p.u), y(p[k])] as [number, number]));
+    const kink =
+      optimal != null && optimal > 0 && optimal < 1
+        ? {
+            x: x(optimal),
+            borrow: y(
+              curve.find((p) => Math.abs(p.u - optimal) < 0.006)?.borrow ??
+                at.borrow,
+            ),
+          }
+        : null;
     return {
       borrow: line('borrow'),
       supply: line('supply'),
@@ -425,14 +438,16 @@ export function RateCurve({
         label: `${u * 100}%`,
       })),
       now: { x: x(at.u), borrow: y(at.borrow), supply: y(at.supply) },
+      kink,
+      optimal,
     };
-  }, [curve, at]);
+  }, [curve, at, optimal]);
 
   return (
     <svg
       className="od-rates"
       viewBox={`0 0 ${R.w} ${R.h}`}
-      aria-label={`Borrow and supply rates across utilisation, currently ${(at.u * 100).toFixed(1)}% utilised`}
+      aria-label={`Borrow and supply rates across utilisation, currently ${(at.u * 100).toFixed(1)}% utilised${optimal != null ? `, optimal ${(optimal * 100).toFixed(0)}%` : ''}`}
     >
       <g className="od-chart-grid">
         {plot.grid.map((g) => (
@@ -444,6 +459,19 @@ export function RateCurve({
           </g>
         ))}
       </g>
+      {plot.kink && (
+        <g className="od-rates-kink">
+          <line
+            x1={plot.kink.x}
+            x2={plot.kink.x}
+            y1={R.y0}
+            y2={R.y1}
+          />
+          <text x={plot.kink.x} y={R.y0 - 6} textAnchor="middle">
+            Optimal {(plot.optimal! * 100).toFixed(0)}%
+          </text>
+        </g>
+      )}
       <path d={plot.supply} className="od-rates-supply" />
       <path d={plot.borrow} className="od-rates-borrow" />
       <g className="od-rates-now">
