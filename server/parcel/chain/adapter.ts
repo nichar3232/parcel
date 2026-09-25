@@ -353,24 +353,34 @@ export class ParcelAdapter implements VaultChainAdapter {
   }
   async verify(session: string, book: VaultBook, revision: number) {
     const a = await this.accounts(session);
-    const result = await this.connection.getAccountInfoAndContext(
-      a.ledger.publicKey,
-    );
-    const data = result.value?.data;
     const expected = bookBytes(book);
-    if (
-      !result.value?.owner.equals(this.program) ||
-      !data ||
-      !data.subarray(8, 40).equals(a.owner.publicKey.toBuffer()) ||
-      !data.subarray(40, 72).equals(a.operator.publicKey.toBuffer()) ||
-      data.readBigUInt64LE(REVISION_OFFSET) !== BigInt(revision) ||
-      !data
-        .subarray(BOOK_OFFSET, BOOK_OFFSET + expected.length)
-        .equals(expected)
-    )
-      throw Error(
-        'Onchain vault does not match the prepared ledger revision. Execution stopped.',
+    // A shared RPC can answer a read from a node that has not yet seen the
+    // confirmation the last call reported, so a mismatch is re-read a few
+    // times before it is taken as real.
+    for (let attempt = 0; ; attempt++) {
+      const result = await this.connection.getAccountInfoAndContext(
+        a.ledger.publicKey,
       );
-    return { ledger: a.ledger.publicKey.toBase58(), slot: result.context.slot };
+      const data = result.value?.data;
+      if (
+        result.value?.owner.equals(this.program) &&
+        data &&
+        data.subarray(8, 40).equals(a.owner.publicKey.toBuffer()) &&
+        data.subarray(40, 72).equals(a.operator.publicKey.toBuffer()) &&
+        data.readBigUInt64LE(REVISION_OFFSET) === BigInt(revision) &&
+        data
+          .subarray(BOOK_OFFSET, BOOK_OFFSET + expected.length)
+          .equals(expected)
+      )
+        return {
+          ledger: a.ledger.publicKey.toBase58(),
+          slot: result.context.slot,
+        };
+      if (attempt >= 4)
+        throw Error(
+          'Onchain vault does not match the prepared ledger revision. Execution stopped.',
+        );
+      await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+    }
   }
 }
