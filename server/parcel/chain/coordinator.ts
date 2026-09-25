@@ -4,7 +4,7 @@ import { parseKey } from '../../domain/portfolio';
 import { VaultService, type VaultPlan } from '../service';
 import type { VaultSnapshot } from '../../../lib/parcel/types';
 import type { PreparedVaultTransaction, VaultChainAdapter } from './adapter';
-import { ONCHAIN_ACTIONS } from './codec';
+import { ONCHAIN_ACTIONS, actionBytes } from './codec';
 interface Operation {
   owner: string;
   key: string;
@@ -18,6 +18,16 @@ interface Operation {
   action_type: string | null;
   signature: string | null;
   revision_after: number | null;
+}
+/** Why the program could never carry this plan, or null. Encoding is local
+ * and deterministic, so a plan that fails it must never be left pending. */
+function unencodable(plan: VaultPlan) {
+  try {
+    actionBytes(plan);
+    return null;
+  } catch (error) {
+    return (error as Error).message;
+  }
 }
 export class VaultChainCoordinator {
   private running = new Map<string, Promise<VaultSnapshot>>();
@@ -90,6 +100,18 @@ export class VaultChainCoordinator {
     parseKey(key);
     const request = object(value),
       hash = digest('vault-action:' + JSON.stringify(request));
+    // An action another client started (the agent, another tab) holds the
+    // session until it resolves. Drive it here from its stored plan instead of
+    // refusing a client that never saw its request key.
+    const blocker = this.store.db
+      .prepare(
+        "SELECT key,request_hash FROM vault_chain_operations WHERE owner=? AND key<>? AND status IN ('preparing','pending')",
+      )
+      .get(session.id, key) as { key: string; request_hash: string } | undefined;
+    if (blocker)
+      await this.drive(session, blocker.key, blocker.request_hash).catch(
+        () => undefined,
+      );
     this.store.transaction(() => {
       const cached = this.row(session.id, key);
       if (cached) {
@@ -119,9 +141,11 @@ export class VaultChainCoordinator {
         throw new ApiError(
           409,
           'VAULT_PENDING',
-          'Resolve the original pending action before submitting another.',
+          'An earlier action is still confirming onchain. Try again in a moment.',
         );
       const plan = this.vault.plan(session, value);
+      const refused = unencodable(plan);
+      if (refused) throw new ApiError(409, 'CHAIN_UNSUPPORTED', refused);
       if (
         plan.book.options.filter((p) => p.status === 'active').length +
           plan.book.loans.filter((p) => p.status === 'active').length +
@@ -147,6 +171,13 @@ export class VaultChainCoordinator {
           Date.now(),
         );
     });
+    return this.drive(session, key, hash);
+  }
+  private async drive(
+    session: Session,
+    key: string,
+    hash: string,
+  ): Promise<VaultSnapshot> {
     for (let stage = 0; stage < 3; stage++) {
       let op = this.row(session.id, key)!;
       if (op.status === 'failed')
@@ -170,6 +201,16 @@ export class VaultChainCoordinator {
       }
       const plan = JSON.parse(op.plan) as VaultPlan;
       if (!op.transaction_json) {
+        // Rows recorded before the encode check above existed.
+        const refused = unencodable(plan);
+        if (refused) {
+          this.store.db
+            .prepare(
+              "UPDATE vault_chain_operations SET status='failed',error=? WHERE owner=? AND key=? AND transaction_json IS NULL",
+            )
+            .run(refused, session.id, key);
+          throw new ApiError(409, 'CHAIN_UNSUPPORTED', refused);
+        }
         let prepared: PreparedVaultTransaction | null;
         try {
           prepared = await this.adapter.prepare(session.id, plan, op.stage);

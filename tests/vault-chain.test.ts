@@ -89,10 +89,13 @@ void test('onchain success followed by interrupted indexing resumes the original
       new VaultService(store),
       chain,
     );
+    // A client that never saw the saved key (the desk, after the agent's
+    // action stalled) finishes the original first, then reviews fresh terms.
     await assert.rejects(
       restarted.apply(s, randomUUID(), deposit),
-      /original pending action/,
+      /Your vault changed/,
     );
+    assert.equal(vault.snapshot(s).revision, 1);
     const result = await restarted.apply(s, key, deposit);
     assert.equal(result.revision, 1);
     assert.equal(result.book.vault.USDC, 100);
@@ -412,6 +415,32 @@ void test('each receipt a confirmed onchain action wrote carries that transactio
     assert.equal(snapshot.chain?.signature, 'second-signature');
     // Sandbox snapshots never claim a transaction.
     assert.equal(vault.snapshot(s).signatures, undefined);
+  } finally {
+    store.close();
+  }
+});
+void test('a stalled action the program can never encode is failed instead of blocking the session', async () => {
+  const store = new Store(':memory:');
+  try {
+    const s = store.createSession().session,
+      vault = new VaultService(store),
+      chain = new Chain();
+    // As the agent left one: recorded, then refused by the encoder on every retry.
+    const plan = vault.plan(s, deposit);
+    plan.action = { ...plan.action, type: 'execute' };
+    store.db
+      .prepare(
+        "INSERT INTO vault_chain_operations(owner,key,request_hash,plan,status,stage,action_type,created_at) VALUES(?,?,?,?,'preparing','execute','execute',?)",
+      )
+      .run(s.id, randomUUID(), 'stalled', JSON.stringify(plan), Date.now());
+    const c = new VaultChainCoordinator(store, vault, chain);
+    const result = await c.apply(s, randomUUID(), deposit);
+    assert.equal(result.book.vault.USDC, 100);
+    const stalled = store.db
+      .prepare("SELECT status,error FROM vault_chain_operations WHERE request_hash='stalled'")
+      .get() as { status: string; error: string };
+    assert.equal(stalled.status, 'failed');
+    assert.match(stalled.error, /No option transition/);
   } finally {
     store.close();
   }
