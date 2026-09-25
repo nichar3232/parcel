@@ -113,6 +113,11 @@ export interface VaultBook {
   /** 'live' when the book runs on the wall clock and live marks; absent on the replay. */
   clock?: 'live';
   date: string;
+  /**
+   * NVDA's mark at `date` as the onchain program holds it. Only a live
+   * book on the chain carries it; on the replay it is the stored close.
+   */
+  spot?: number;
   margin: 'cross' | 'isolated';
   wallet: Balances;
   vault: Balances;

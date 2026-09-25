@@ -52,12 +52,11 @@ export function createApp(
   // is priced, and the rate that produces is stored on the loan.
   const marks = new MarkEngine();
   marks.start();
-  // The vault's own chain program settles on the replay clock, so the
-  // live market runs only with the ledger-backed sandbox.
-  const live =
-    options.live && !config.parcel
-      ? new LiveMarketService(marks, store)
-      : undefined;
+  // On the chain, every live action carries the clock it ran at: the
+  // attested NVDA mark and any expiry closes it settled at. The program
+  // takes those past the replay window and still holds replay dates to
+  // the committed table.
+  const live = options.live ? new LiveMarketService(marks, store) : undefined;
   if (live) {
     setLiveMarket(live);
     live.start();
@@ -79,6 +78,7 @@ export function createApp(
     Date.now,
     config.parcel ? 64 : 500,
     (symbol) => marks.mark(symbol)?.utilisation ?? null,
+    !!config.parcel,
   );
   const parcelAdapter = config.parcel ? new ParcelAdapter(config) : undefined;
   const vaultChain = config.parcel

@@ -22,7 +22,7 @@ import {
 import type { Config } from '../../config';
 import type { VaultPlan } from '../service';
 import type { VaultBook } from '../../../lib/parcel/types';
-import { initialVault } from '../ledger';
+import { chainGenesis } from '../ledger';
 import { instruction, key, pk, u64, i64 } from '../../solana/codec';
 import { actionBytes, bookBytes, bookHash } from './codec';
 import { pinnedGenesisFailure } from '../../solana/network';
@@ -203,7 +203,7 @@ export class ParcelAdapter implements VaultChainAdapter {
       }
       if (
         plan.revision !== 0 ||
-        !bookBytes(plan.before).equals(bookBytes(initialVault()))
+        !bookBytes(plan.before).equals(bookBytes(chainGenesis()))
       )
         throw Error(
           'Onchain mode needs a fresh vault; existing sandbox balances are never silently migrated.',
@@ -234,7 +234,7 @@ export class ParcelAdapter implements VaultChainAdapter {
           createMintToInstruction(mint, address, a.operator.publicKey, n),
         );
       }
-      instructions.push(instruction(this.program, 'initialize_v2', keys));
+      instructions.push(instruction(this.program, 'initialize_v3', keys));
       signers.push(a.ledger);
     } else {
       await this.verify(session, plan.before, plan.revision);
@@ -244,7 +244,7 @@ export class ParcelAdapter implements VaultChainAdapter {
       instructions.push(
         instruction(
           this.program,
-          'execute_v2',
+          'execute_v3',
           [...keys, key(TOKEN_PROGRAM_ID)],
           Buffer.concat([
             u64(plan.revision),
