@@ -27,6 +27,8 @@ import type { MarkFeed } from '@/hooks/parcel/use-marks';
 import type { VaultSnapshot } from '@/lib/parcel/types';
 import { TransferDialog, type Transfer } from './TransferDialog';
 import { AgentsDialog } from './AgentsDialog';
+import { WalletGate, shortAddress } from './WalletGate';
+import { api } from '@/lib/client/api';
 import { Welcome, markWelcomeSeen, welcomeSeen } from './Welcome';
 import { Button, Modal, markOf, qty, usd } from './shared';
 import '@/app/desk.css';
@@ -326,6 +328,28 @@ export default function Workspace() {
     setUi((current) => ({ ...current, welcome: open }));
 
   const s = desk.state;
+  // Which wallet signed in to this vault, and whether one must.
+  const [account, setAccount] = useState<{
+    required: boolean;
+    address: string | null;
+  } | null>(null);
+  const csrf = s?.csrf;
+  useEffect(() => {
+    if (!csrf) return;
+    api<{ required: boolean; address: string | null }>('/api/wallet')
+      .then(setAccount)
+      .catch(() => undefined);
+  }, [csrf]);
+  const signOut = async () => {
+    if (!csrf) return;
+    await api('/api/wallet/signout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+      body: '{}',
+    }).catch(() => undefined);
+    setModal(null);
+    setAccount((a) => (a ? { ...a, address: null } : a));
+  };
   useEffect(() => {
     if (!connect || !s) return;
     // oxlint-disable-next-line react/react-compiler
@@ -373,6 +397,21 @@ export default function Workspace() {
     ? s.book.wallet.USDC +
       s.book.wallet.NVDA * (markOf(s, feed, 'NVDA')?.price ?? s.market.price)
     : 0;
+  // The vault and its positions are loaded, but stay behind a wallet
+  // sign-in until one is made.
+  // A backend outage shows the desk's own reconnect screen instead.
+  if (!desk.error && (!account || (account.required && !account.address)))
+    return (
+      <div className="pc-desk" data-ready={false}>
+        <WalletGate
+          csrf={account ? csrf : undefined}
+          onSignedIn={(address) =>
+            setAccount((a) => ({ required: a?.required ?? true, address }))
+          }
+        />
+      </div>
+    );
+
   return (
     <div className="pc-desk" data-ready={!!s}>
       <div className="pc-aurora" aria-hidden>
@@ -425,7 +464,13 @@ export default function Workspace() {
             disabled={!s}
           >
             <Wallet size={15} />
-            <b>{s ? usd(walletValue, 0) : '—'}</b>
+            <b>
+              {account?.address
+                ? shortAddress(account.address)
+                : s
+                  ? usd(walletValue, 0)
+                  : '—'}
+            </b>
             <ChevronDown size={13} />
           </button>
 
@@ -673,6 +718,16 @@ export default function Workspace() {
               Withdraw USDC
             </Button>
           </div>
+          {account?.address && (
+            <div className="od-wallet-account">
+              <span title={account.address}>
+                Signed in as {shortAddress(account.address)}
+              </span>
+              <Button variant="quiet" size="sm" onClick={() => void signOut()}>
+                Sign out
+              </Button>
+            </div>
+          )}
         </Modal>
       )}
 

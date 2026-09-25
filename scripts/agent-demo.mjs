@@ -31,6 +31,8 @@ if (!base) {
       STRATA_STATE_DIR: state,
       PARCEL_DEMO: '1',
       CHAIN_ENABLED: 'false',
+      // Phantom cannot be clicked through headless.
+      PARCEL_WALLET_SIGNIN: 'false',
     },
     stdio: ['ignore', 'ignore', 'inherit'],
   });

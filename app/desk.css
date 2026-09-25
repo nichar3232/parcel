@@ -6139,3 +6139,55 @@
   font-size: 11.5px;
   line-height: 1.4;
 }
+
+/* Wallet sign-in: the desk's first screen until a wallet signs in. Plain
+   on the canvas, no card. */
+.od-gate {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px 16px;
+}
+.od-gate-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+}
+.od-gate-inner h1 {
+  margin: 10px 0 0;
+  color: var(--pc-text);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.od-gate-inner p {
+  margin: 0 0 10px;
+  color: var(--pc-body);
+  font-size: 14px;
+}
+.od-gate-inner small {
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+.od-gate-install {
+  color: var(--pc-cyan);
+  font-size: 14px;
+  font-weight: 600;
+}
+.od-gate-error {
+  color: var(--pc-down) !important;
+}
+.od-wallet-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pc-line-soft);
+  color: var(--pc-muted);
+  font-size: 12.5px;
+}

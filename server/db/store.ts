@@ -67,6 +67,12 @@ export class Store {
     }[];
     if (!columns.some((c) => c.name === 'label'))
       this.db.exec('ALTER TABLE agent_keys ADD COLUMN label TEXT');
+    // The wallet a session signed in with, if it has.
+    const sessionColumns = this.db
+      .prepare('PRAGMA table_info(sessions)')
+      .all() as { name: string }[];
+    if (!sessionColumns.some((c) => c.name === 'wallet'))
+      this.db.exec('ALTER TABLE sessions ADD COLUMN wallet TEXT');
     this.ensureVaultChainColumns();
   }
   /**
@@ -241,6 +247,15 @@ export class Store {
       return row;
     });
   }
+  sessionWallet(id: string): string | null {
+    const row = this.db
+      .prepare('SELECT wallet FROM sessions WHERE id=?')
+      .get(id) as { wallet: string | null } | undefined;
+    return row?.wallet ?? null;
+  }
+  setSessionWallet(id: string, wallet: string | null) {
+    this.db.prepare('UPDATE sessions SET wallet=? WHERE id=?').run(wallet, id);
+  }
   createSession(now = Date.now()) {
     const token = randomBytes(32).toString('hex'),
       s = {
@@ -250,7 +265,9 @@ export class Store {
       };
     this.transaction(() => {
       this.db
-        .prepare('INSERT INTO sessions VALUES(?,?,?,?,?)')
+        .prepare(
+          'INSERT INTO sessions(id,token_hash,csrf,created_at,expires_at) VALUES(?,?,?,?,?)',
+        )
         .run(s.id, digest(token), s.csrf, now, s.expires_at);
       this.db
         .prepare('INSERT INTO portfolios VALUES(?,0,?,?)')

@@ -16,6 +16,8 @@ export interface Config {
   marketDataRequired: boolean;
   expirySeconds: number;
   secureCookie: boolean;
+  /** The desk opens only after a wallet signs in (tests turn this off). */
+  walletSignIn: boolean;
   /** The public https address the desk is reached at, when it has one. */
   publicUrl?: string;
   parcel?: { program: string; cashMint: string; stockMint: string };
@@ -118,6 +120,7 @@ export function configFromEnv(
     marketDataRequired: env.MARKET_DATA_REQUIRED === 'true',
     expirySeconds,
     secureCookie: env.COOKIE_SECURE === 'true',
+    walletSignIn: env.PARCEL_WALLET_SIGNIN !== 'false',
     publicUrl,
   };
 }

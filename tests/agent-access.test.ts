@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomUUID, sign } from 'node:crypto';
+import { PublicKey } from '@solana/web3.js';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -374,6 +375,64 @@ void test('skill: the desk serves /parcel, and plugin suffixes leave app names',
       ((await registered.json()) as { client_name: string }).client_name,
       'Claude Code',
     );
+  } finally {
+    await f.close();
+  }
+});
+
+void test('wallet: a signed challenge signs the session in; a wrong signature does not', async () => {
+  const f = await fixture();
+  try {
+    const d = await f.desk();
+    const before = (await (
+      await fetch(`${f.base}/api/wallet`, { headers: d.headers })
+    ).json()) as { required: boolean; address: string | null };
+    assert.deepEqual(before, { required: true, address: null });
+
+    const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+    const raw = publicKey.export({ format: 'der', type: 'spki' }).subarray(-32);
+    const address = new PublicKey(raw).toBase58();
+    const challenge = async () =>
+      (
+        (await (
+          await fetch(`${f.base}/api/wallet/challenge`, {
+            method: 'POST',
+            headers: d.headers,
+            body: '{}',
+          })
+        ).json()) as { message: string }
+      ).message;
+    const signIn = (signature: Buffer) =>
+      fetch(`${f.base}/api/wallet/signin`, {
+        method: 'POST',
+        headers: d.headers,
+        body: JSON.stringify({
+          address,
+          signature: signature.toString('base64'),
+        }),
+      });
+
+    // Signed by another key: refused.
+    const other = generateKeyPairSync('ed25519').privateKey;
+    const forged = sign(null, Buffer.from(await challenge()), other);
+    assert.equal((await signIn(forged)).status, 401);
+
+    const good = sign(null, Buffer.from(await challenge()), privateKey);
+    assert.equal((await signIn(good)).status, 200);
+    const after = (await (
+      await fetch(`${f.base}/api/wallet`, { headers: d.headers })
+    ).json()) as { address: string | null };
+    assert.equal(after.address, address);
+
+    await fetch(`${f.base}/api/wallet/signout`, {
+      method: 'POST',
+      headers: d.headers,
+      body: '{}',
+    });
+    const out = (await (
+      await fetch(`${f.base}/api/wallet`, { headers: d.headers })
+    ).json()) as { address: string | null };
+    assert.equal(out.address, null);
   } finally {
     await f.close();
   }

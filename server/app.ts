@@ -18,6 +18,7 @@ import { ApiError, object } from './http/errors';
 import { handleMcp } from './http/mcp';
 import { approve, challenge, handleOAuth, publicOrigin } from './http/oauth';
 import { handleSkill } from './http/plugin';
+import { walletChallenge, walletSignIn } from './http/wallet';
 import {
   bearer,
   body,
@@ -343,6 +344,30 @@ export function createApp(
           'SESSION_REQUIRED',
           'Load a session before using the desk.',
         );
+      if (url.pathname === '/api/wallet' && method === 'GET')
+        return json(res, 200, {
+          required: config.walletSignIn,
+          address: store.sessionWallet(session.id),
+        });
+      if (url.pathname.startsWith('/api/wallet/')) {
+        if (agentKey)
+          throw new ApiError(403, 'AGENT_KEY_SCOPE', 'Sign in from the desk.');
+        if (method !== 'POST')
+          throw new ApiError(405, 'METHOD', 'POST required.');
+        guard();
+        if (url.pathname === '/api/wallet/challenge')
+          return json(
+            res,
+            200,
+            walletChallenge(session, publicOrigin(req, config)),
+          );
+        if (url.pathname === '/api/wallet/signin')
+          return json(res, 200, walletSignIn(store, session, await body(req)));
+        if (url.pathname === '/api/wallet/signout') {
+          store.setSessionWallet(session.id, null);
+          return json(res, 200, { address: null });
+        }
+      }
       if (url.pathname === '/api/preipo/assets' && method === 'GET') {
         const assets = await loadAssets({
           verifyRpcUrl:

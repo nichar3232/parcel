@@ -7,7 +7,7 @@ export default defineConfig({
         // The browser journeys run on the stored replay: deterministic
         // prices and a clock the tests can advance, with no network.
         command:
-          'CHAIN_ENABLED=false PARCEL_LIVE=false PORT=3027 STRATA_STATE_DIR=.state/e2e npm start',
+          'CHAIN_ENABLED=false PARCEL_LIVE=false PARCEL_WALLET_SIGNIN=false PORT=3027 STRATA_STATE_DIR=.state/e2e npm start',
         url: 'http://127.0.0.1:3027/api/health',
         reuseExistingServer: false,
         timeout: 30000,
