@@ -248,11 +248,17 @@ export function OptionsChain({
               <li>{(volatility * 100).toFixed(0)}% IV</li>
               <li>4.00% assumed rate</li>
               <li>Per selected size</li>
+              <li
+                title="Modelled share-equivalents displayed at the touch — not exchange options volume"
+              >
+                Model size {qty(catalog.displayedSize)}
+              </li>
             </ul>
             <p className="od-chain-guidance">
               Select a premium to open the position simulator. Premiums include
               modelled per-leg spread and size impact; they are not external
-              options-market quotes.
+              options-market quotes. Model size is displayed depth at the
+              touch, not venue volume.
             </p>
           </header>
           <div className="od-table-wrap od-ladder-scroll od-ladder-window">
@@ -262,6 +268,12 @@ export function OptionsChain({
                   <th>Strike</th>
                   <th className="num od-ladder-breakeven">Break-even</th>
                   <th className="num">Move to B/E</th>
+                  <th
+                    className="num od-ladder-size"
+                    title="Modelled share-equivalents displayed at the touch — not exchange options volume"
+                  >
+                    Model size
+                  </th>
                   <th className="num">Model bid</th>
                   <th className="num">Model ask</th>
                 </tr>
@@ -302,6 +314,12 @@ export function OptionsChain({
                           {away >= 0 ? '+' : ''}
                           {away.toFixed(2)}%
                         </td>
+                        <td
+                          className="num od-ladder-size"
+                          title="Modelled share-equivalents displayed at the touch — not exchange options volume"
+                        >
+                          {qty(catalog.displayedSize)}
+                        </td>
                         {(['sell', 'buy'] as const).map((at) => {
                           const price = Math.abs(c[at].premium);
                           const label = priceLabel(price);
@@ -327,7 +345,7 @@ export function OptionsChain({
                       </tr>
                       {crosses && (
                         <tr className="od-ladder-spot">
-                          <td colSpan={5}>
+                          <td colSpan={6}>
                             <b>Reference {usd(spot)}</b>
                           </td>
                         </tr>

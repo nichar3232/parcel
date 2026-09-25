@@ -263,6 +263,11 @@ export interface ChainCatalog {
   expiry: string;
   quantity: number;
   spot: number;
+  /**
+   * Modelled share-equivalents displayed at the touch for size impact.
+   * Not CBOE / exchange options volume.
+   */
+  displayedSize: number;
   pricing: string;
   rows: {
     strike: number;

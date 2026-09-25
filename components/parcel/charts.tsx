@@ -299,10 +299,9 @@ function monthTick(iso: string) {
   if (iso === 'now') return 'Now';
   const d = new Date(iso.includes('T') ? iso : `${iso}T12:00:00`);
   if (Number.isNaN(d.getTime())) return iso.slice(0, 7);
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    year: '2-digit',
-  }).format(d);
+  const month = new Intl.DateTimeFormat('en-US', { month: 'short' }).format(d);
+  const year = String(d.getFullYear()).slice(-2);
+  return `${month} ’${year}`;
 }
 
 /**
@@ -477,8 +476,14 @@ export function LiveValueChart({
           range === '3M' || range === 'ALL'
             ? monthTick(raw)
             : dayTick(raw, withYear);
-        xTicks.push({ x, label });
-        lastX = x;
+        if (!(xTicks.length && xTicks[xTicks.length - 1].label === label)) {
+          xTicks.push({ x, label });
+          lastX = x;
+        } else {
+          // Keep the later point when the label repeats (e.g. month ticks).
+          xTicks[xTicks.length - 1] = { x, label };
+          lastX = x;
+        }
       }
     }
 
@@ -562,7 +567,7 @@ export function LiveValueChart({
           ))}
           <g className="od-vline-grid" aria-hidden>
             {plot.yGuides.map((g) => (
-              <line key={g.y} x1={0} x2={L.w} y1={g.y} y2={g.y} />
+              <line key={g.label} x1={0} x2={L.w} y1={g.y} y2={g.y} />
             ))}
           </g>
           {plot.dividers.map((x) => (
@@ -589,7 +594,7 @@ export function LiveValueChart({
         </svg>
         <div className="od-vline-y" aria-hidden>
           {plot.yGuides.map((g) => (
-            <span key={g.y} style={{ top: `${g.top}%` }}>
+            <span key={g.label} style={{ top: `${g.top}%` }}>
               {g.label}
             </span>
           ))}

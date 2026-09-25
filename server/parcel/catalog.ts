@@ -3,6 +3,7 @@ import { DIVIDEND, mark, volatility } from '../../lib/parcel/market';
 import { DEFAULT_UNDERLYING } from '../../lib/parcel/universe';
 import { orderGreeks, round } from '../../lib/parcel/math';
 import { deliveryBounds, payoffBounds } from '../../lib/parcel/envelope';
+import { MODEL_LIQUIDITY } from '../../lib/parcel/spread';
 import { amount, expiry, parseOrderTerms } from '../../lib/parcel/validation';
 import { tradedPremium } from './ledger';
 
@@ -93,6 +94,9 @@ export function optionsChain(
     expiry: selected,
     quantity: q,
     spot,
+    // Modelled share-equivalents displayed at the touch — the same
+    // participation depth that drives size impact. Not exchange volume.
+    displayedSize: MODEL_LIQUIDITY.displayedSize,
     rows,
     pricing:
       'Black–Scholes model mid with per-leg bid/ask and size impact · funded test counterparty · not an external options book',

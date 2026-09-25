@@ -81,8 +81,8 @@ export async function nav(page: Page, name: string) {
     case 'Watchlist':
       await navTop(page, 'Portfolio');
       return section(page, 'Watchlist');
-    // Options opens as a browsable long-call ladder. A named contract is a
-    // direct intent, so it opens its own ticket from the product menu.
+    // Options always opens the chain; a named contract only seeds the
+    // ticket and the ladder's side/kind from the product menu.
     case 'Trade':
       await navTop(page, 'Trade');
       return section(page, 'Options');

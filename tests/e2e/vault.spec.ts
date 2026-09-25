@@ -551,6 +551,8 @@ test('covered-call chart includes deposited stock downside', async ({
   page,
 }) => {
   await nav(page, 'Underwrite');
+  // Options templates open the chain; payoff is an explicit flip.
+  await page.getByRole('button', { name: 'Payoff', exact: true }).click();
   await expect(page.locator('.od-payoff')).toContainText('Stock and options');
   await page.getByLabel('Reference price move').fill('-30');
   await expect(page.locator('.od-payoff-read b')).toHaveClass('down');

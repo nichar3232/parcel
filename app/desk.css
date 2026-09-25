@@ -2054,7 +2054,7 @@
 .od-vline-grid line {
   stroke: var(--pc-line);
   stroke-width: 1;
-  opacity: 0.45;
+  opacity: 0.72;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
@@ -2063,33 +2063,34 @@
   inset: 0 0 0 auto;
   width: 0;
   pointer-events: none;
+  z-index: 1;
 }
 .od-vline-y span {
   position: absolute;
   right: 0;
   transform: translateY(-50%);
-  padding: 1px 7px 1px 9px;
+  padding: 2px 8px 2px 10px;
   border-radius: 4px 0 0 4px;
-  background: color-mix(in srgb, var(--pc-void) 78%, transparent);
-  color: var(--pc-muted);
+  background: color-mix(in srgb, var(--pc-void) 88%, transparent);
+  color: var(--pc-body);
   font-family: var(--pc-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
 .od-vline-x {
   position: relative;
-  flex: 0 0 20px;
+  flex: 0 0 22px;
   margin-top: 4px;
 }
 .od-vline-x span {
   position: absolute;
   top: 2px;
   transform: translateX(-50%);
-  color: var(--pc-faint);
+  color: var(--pc-muted);
   font-family: var(--pc-mono);
-  font-size: 10px;
+  font-size: 10.5px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -2097,7 +2098,7 @@
   user-select: none;
 }
 .od-vline-x span.major {
-  color: var(--pc-muted);
+  color: var(--pc-body);
 }
 .od-vline-x span:first-child {
   transform: translateX(0);
@@ -2120,10 +2121,11 @@
   opacity: 0.5;
   vector-effect: non-scaling-stroke;
 }
-/* Open / close hairlines — the primary session cue; washes stay soft. */
 .od-vline-session {
-  stroke: color-mix(in srgb, var(--pc-text) 18%, transparent);
+  stroke: var(--pc-line);
   stroke-width: 1;
+  stroke-dasharray: 1.5 3.5;
+  opacity: 0.65;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
@@ -2238,21 +2240,21 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 30px;
-  padding: 0 12px;
-  border: 1px solid color-mix(in srgb, var(--pc-line) 70%, var(--pc-text));
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--pc-faint) 55%, var(--pc-line));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--pc-text) 9%, transparent);
+  background: color-mix(in srgb, var(--pc-surface) 88%, var(--pc-raised));
   color: var(--pc-body);
   font-family: var(--pc-mono);
-  font-size: 12px;
-  letter-spacing: 0.06em;
+  font-size: 12.5px;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
 }
 .od-positions-title .od-pos-health b {
   color: var(--pc-text);
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
@@ -3662,6 +3664,10 @@
 .od-ladder-distance.below {
   color: var(--pc-body);
 }
+.od-ladder-size {
+  color: var(--pc-muted);
+  font-variant-numeric: tabular-nums;
+}
 /* The initial ladder is a compact, near-the-money decision window. Far wings
    are a deliberate expansion rather than a full-height internal scroller. */
 .od-ladder-window {
@@ -3693,17 +3699,15 @@
   color: var(--pc-text);
 }
 
-/* Five columns are 577px and a phone is 390. The last column is the
-   price a reader taps to take the strike into the ticket, so a ladder
-   wider than the screen does not merely look wrong: the action is off
-   the edge. The dollar breakeven goes, because the percent beside it
-   says the same thing in less room; the collateral stays, because a
-   writer needs to see what the strike reserves. Headers may wrap and
-   cells give up half their padding, which is what brings four columns
-   under the width. The control line above wraps for the same reason:
-   its right-hand toggles were being clipped. */
+/* Six columns need room: on a phone the dollar breakeven goes (the
+   percent beside it says the same thing) and model size collapses into
+   the assumptions strip above, so Strike / Move / Bid / Ask stay
+   reachable without sideways scroll. Headers may wrap and cells give
+   up half their padding. The control line above wraps for the same
+   reason: its right-hand toggles were being clipped. */
 @media (max-width: 620px) {
-  .od-ladder-breakeven {
+  .od-ladder-breakeven,
+  .od-ladder-size {
     display: none;
   }
   .od-ladder td,

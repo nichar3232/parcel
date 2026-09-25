@@ -260,6 +260,7 @@ void test('chain indications match executable model premiums and expose physical
   t.quantity = 0.333333;
   assert.equal(call.buy.premium, premium(t, b));
   assert.equal(call.sell.premium, -call.buy.premium);
+  assert.equal(chain.displayedSize, MODEL_LIQUIDITY.displayedSize);
   assert.throws(() => optionsChain(b, '2025-02-07', 0.3333333));
 });
 void test('server sizing respects actual rounded premium budgets, sensitivity targets and quantity limits', () => {

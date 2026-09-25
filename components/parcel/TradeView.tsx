@@ -15,7 +15,7 @@ import {
   strikeStep,
 } from '@/lib/parcel/templates';
 import { offeredExpiries } from '@/lib/parcel/market';
-import { quoteAround, spreadCost } from '@/lib/parcel/spread';
+import { MODEL_LIQUIDITY, quoteAround, spreadCost } from '@/lib/parcel/spread';
 import type { MarkFeed } from '@/hooks/parcel/use-marks';
 import { CurveEditor } from './CurveEditor';
 import { OptionsChain } from './OptionsChain';
@@ -127,7 +127,7 @@ export function TradeView({
         : opening === 'put'
           ? ({ side: 'buy', kind: 'put' } as const)
           : ({ side: 'buy', kind: 'call' } as const);
-  const [browse, setBrowse] = useState(tab === 'trade' && choice === 'call');
+  const [browse, setBrowse] = useState(tab === 'trade');
   /** Which ladder the chain shows, steered from the screen's top line. */
   const [chainSide, setChainSide] = useState<'buy' | 'sell'>(chainSeed.side);
   const [chainKind, setChainKind] = useState<'call' | 'put'>(chainSeed.kind);
@@ -625,6 +625,11 @@ export function TradeView({
                     <b>
                       {usd(Math.abs(g.price < 0 ? market.bid : market.ask))}
                     </b>
+                  </span>
+                  <span
+                    title="Modelled share-equivalents displayed at the touch — not exchange options volume"
+                  >
+                    Model size <b>{qty(MODEL_LIQUIDITY.displayedSize)}</b>
                   </span>
                 </div>
               )}
